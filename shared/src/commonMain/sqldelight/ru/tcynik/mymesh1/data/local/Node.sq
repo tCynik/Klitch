@@ -1,0 +1,24 @@
+CREATE TABLE Node (
+    id           TEXT    NOT NULL PRIMARY KEY,
+    name         TEXT    NOT NULL,
+    address      TEXT    NOT NULL,
+    rssi         INTEGER NOT NULL,
+    is_connected INTEGER NOT NULL DEFAULT 0,
+    last_seen    INTEGER NOT NULL
+);
+
+selectAll:
+SELECT * FROM Node;
+
+selectById:
+SELECT * FROM Node WHERE id = :id;
+
+insertOrReplace:
+INSERT OR REPLACE INTO Node(id, name, address, rssi, is_connected, last_seen)
+VALUES (:id, :name, :address, :rssi, :isConnected, :lastSeen);
+
+deleteAll:
+DELETE FROM Node;
+
+deleteById:
+DELETE FROM Node WHERE id = :id;
