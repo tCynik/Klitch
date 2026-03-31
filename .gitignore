@@ -7,9 +7,28 @@
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
+/.idea/misc.xml
+/.idea/render.experimental.xml
+/.claude/settings.local.json
 .DS_Store
 /build
 /captures
 .externalNativeBuild
 .cxx
 local.properties
+
+# Kotlin
+*.class
+*.log
+*.kotlin_module
+
+# Generated files
+/generated/
+/build/
+
+# Proto files (generated from .proto)
+**/proto/**/*.java
+**/proto/**/*.kt
+
+# Shared module build
+shared/build/

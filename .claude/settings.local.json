@@ -5,7 +5,8 @@
       "Bash(cp \"c:/Users/LocAdmin/AndroidStudioProjects/MyMesh1/shared/src/commonMain/sqldelight/Node.sq\" \"c:/Users/LocAdmin/AndroidStudioProjects/MyMesh1/shared/src/commonMain/sqldelight/ru/tcynik/mymesh1/data/local/Node.sq\")",
       "Bash(rm \"c:/Users/LocAdmin/AndroidStudioProjects/MyMesh1/shared/src/commonMain/sqldelight/Node.sq\")",
       "Bash(find C:UsersLocAdminAndroidStudioProjectsMeshtastic-Android -type f \\\\\\(-name *Node*.kt -o -name *Mesh*.kt -o -name *BLE*.kt -o -name *Ble*.kt -o -name *Radio*.kt -o -name *Channel*.kt -o -name *Service*.kt -o -name *ViewModel*.kt -o -name *Repository*.kt \\\\\\))",
-      "Bash(xargs wc:*)"
+      "Bash(xargs wc:*)",
+      "Bash(grep -h \"^package \" /c/Users/tcynik/StudioProjects/MyMesh1/app/src/main/java/ru/tcynik/mymesh1/presentation/feature/meshtest/**/*.kt)"
     ]
   }
 }

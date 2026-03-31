@@ -1,0 +1,191 @@
+package ru.tcynik.mymesh1.presentation.feature.meshtest.components.tabs
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import ru.tcynik.mymesh1.presentation.feature.meshtest.state.ChannelConfigUi
+import ru.tcynik.mymesh1.presentation.feature.meshtest.state.ConfigTabState
+import ru.tcynik.mymesh1.presentation.feature.meshtest.state.DeviceConfigUi
+import ru.tcynik.mymesh1.presentation.feature.meshtest.state.MeshConnectionStatusUi
+
+@Composable
+fun ConfigTab(
+    state: ConfigTabState,
+    connectionStatus: MeshConnectionStatusUi,
+    onReadConfigClick: () -> Unit,
+    onEditConfigClick: () -> Unit,
+    onWriteConfigClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val isConnected = connectionStatus is MeshConnectionStatusUi.Connected
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            OutlinedButton(
+                onClick = onReadConfigClick,
+                enabled = isConnected && !state.isLoading,
+                modifier = Modifier.weight(1f),
+            ) {
+                if (state.isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.padding(end = 8.dp),
+                        strokeWidth = 2.dp,
+                    )
+                }
+                Text("Read")
+            }
+            if (state.isEditing) {
+                Button(
+                    onClick = onWriteConfigClick,
+                    enabled = isConnected && !state.isLoading,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Write")
+                }
+            } else {
+                OutlinedButton(
+                    onClick = onEditConfigClick,
+                    enabled = isConnected && state.deviceConfig != null,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Edit")
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Column(
+            modifier = Modifier.verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            state.deviceConfig?.let { config ->
+                DeviceConfigCard(
+                    config = config,
+                    isEditing = state.isEditing,
+                )
+            } ?: run {
+                if (!state.isLoading) {
+                    Text(
+                        text = "No config loaded. Press Read to fetch from device.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            state.channelConfig?.let { config ->
+                ChannelConfigCard(config = config)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeviceConfigCard(
+    config: DeviceConfigUi,
+    isEditing: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Card(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Device Config",
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            ConfigRow(label = "Long name", value = config.longName, isEditing = isEditing)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            ConfigRow(label = "Short name", value = config.shortName, isEditing = isEditing)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            ConfigRow(label = "LoRa preset", value = config.loraPreset, isEditing = false)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            ConfigRow(label = "TX power", value = config.txPowerDbm, isEditing = false)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            ConfigRow(label = "Region", value = config.region, isEditing = false)
+        }
+    }
+}
+
+@Composable
+private fun ChannelConfigCard(
+    config: ChannelConfigUi,
+    modifier: Modifier = Modifier,
+) {
+    Card(modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Channel Config",
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            ConfigRow(label = "Channel name", value = config.channelName, isEditing = false)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            ConfigRow(label = "Modem preset", value = config.modemPreset, isEditing = false)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            ConfigRow(label = "PSK", value = config.pskMasked, isEditing = false)
+        }
+    }
+}
+
+@Composable
+private fun ConfigRow(
+    label: String,
+    value: String,
+    isEditing: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    if (isEditing) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            label = { Text(label) },
+            modifier = modifier.fillMaxWidth(),
+            singleLine = true,
+        )
+    } else {
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = value.ifBlank { "—" },
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
