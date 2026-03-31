@@ -1,15 +1,34 @@
+# Скомпилированные файлы
 *.iml
-.gradle
-/local.properties
+*.class
+*.jar
+
+# Gradle
+.gradle/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Android Studio
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
 .externalNativeBuild
 .cxx
+/captures
+
+# Конфигурационные файлы
 local.properties
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Логирование
+*.log
+
+# Выходные файлы
+*.apk
+*.aab

@@ -32,8 +32,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        }
     }
     buildFeatures {
         compose = true
@@ -42,6 +44,7 @@ android {
 
 dependencies {
     implementation(project(":shared"))
+    implementation(project(":mesh"))
 
     // AndroidX
     implementation(libs.androidx.core.ktx)

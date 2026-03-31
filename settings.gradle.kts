@@ -16,10 +16,12 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven { url = uri("https://jitpack.io") }
     }
 }
 
 rootProject.name = "MyMesh1"
 include(":app")
 include(":shared")
+include(":mesh")
  
