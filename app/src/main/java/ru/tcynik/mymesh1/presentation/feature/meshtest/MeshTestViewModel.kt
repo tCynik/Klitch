@@ -1,6 +1,7 @@
 package ru.tcynik.mymesh1.presentation.feature.meshtest
 
 import android.text.format.DateUtils
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.collections.immutable.toImmutableList
@@ -74,6 +75,7 @@ class MeshTestViewModel(
 
     init {
         observeConnectionStatus(NoParams).onEach { status ->
+            Log.i("MeshTestVM", "DBG connectionStatus flow emitted: $status")
             _uiState.update { it.copy(connectionStatus = status.toUi()) }
         }.launchIn(viewModelScope)
 
@@ -200,10 +202,14 @@ class MeshTestViewModel(
     fun onConnectClick(address: String) {
         val deviceName = _uiState.value.connectionTab.scannedDevices
             .find { it.address == address }?.name ?: address
+        Log.i("MeshTestVM", "DBG onConnectClick: address=$address name=$deviceName")
         _uiState.update { it.copy(connectionStatus = MeshConnectionStatusUi.Connecting(deviceName)) }
         viewModelScope.launch {
+            Log.i("MeshTestVM", "DBG onConnectClick: calling connectToDevice...")
             runCatching { connectToDevice(address) }
+                .onSuccess { Log.i("MeshTestVM", "DBG onConnectClick: connectToDevice returned OK") }
                 .onFailure { e ->
+                    Log.e("MeshTestVM", "DBG onConnectClick: connectToDevice failed: ${e.message}", e)
                     _uiState.update {
                         it.copy(connectionStatus = MeshConnectionStatusUi.Error(e.message ?: "Connection failed"))
                     }

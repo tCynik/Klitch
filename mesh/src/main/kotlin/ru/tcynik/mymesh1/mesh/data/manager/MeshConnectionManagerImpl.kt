@@ -127,7 +127,9 @@ class MeshConnectionManagerImpl(
 
     private fun onRadioConnectionState(newState: ConnectionState) {
         scope.handledLaunch {
+            Logger.withTag("MeshConnMgr").i { "DBG onRadioConnectionState: radio reported $newState, waiting for localConfigFlow..." }
             val localConfig = radioConfigRepository.localConfigFlow.first()
+            Logger.withTag("MeshConnMgr").i { "DBG onRadioConnectionState: localConfigFlow emitted, proceeding with $newState" }
             val isRouter = localConfig.device?.role == Config.DeviceConfig.Role.ROUTER
             val lsEnabled = localConfig.power?.is_power_saving == true || isRouter
 

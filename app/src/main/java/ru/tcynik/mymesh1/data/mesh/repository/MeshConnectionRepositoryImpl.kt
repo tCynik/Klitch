@@ -1,8 +1,10 @@
 package ru.tcynik.mymesh1.data.mesh.repository
 
+import android.util.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onEach
 import ru.tcynik.mymesh1.data.mesh.mapper.toMeshConnectionStatus
 import ru.tcynik.mymesh1.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.mymesh1.domain.mesh.model.MeshDeviceModel
@@ -29,10 +31,12 @@ class MeshConnectionRepositoryImpl(
 
     override val connectionStatus: Flow<MeshConnectionStatus> =
         combine(
-            serviceRepository.connectionState,
+            serviceRepository.connectionState.onEach { Log.d("MeshRepo", "DBG connectionStatus: serviceRepo state -> $it") },
             nodeRepository.ourNodeInfo,
         ) { state, node ->
-            state.toMeshConnectionStatus(node, pendingDeviceName)
+            val status = state.toMeshConnectionStatus(node, pendingDeviceName)
+            Log.d("MeshRepo", "DBG connectionStatus: combined -> $status")
+            status
         }
 
     @OptIn(ExperimentalUuidApi::class)
@@ -53,11 +57,15 @@ class MeshConnectionRepositoryImpl(
     }
 
     override suspend fun connect(address: String) {
+        Log.i("MeshRepo", "DBG connect: address=$address")
         pendingDeviceName = address
         // Format: "bt:AA:BB:CC:DD:EE:FF" for BLE devices
         val bleAddress = if (address.startsWith("bt:")) address else "bt:$address"
+        Log.i("MeshRepo", "DBG connect: calling setDeviceAddress($bleAddress)")
         radioInterfaceService.setDeviceAddress(bleAddress)
+        Log.i("MeshRepo", "DBG connect: calling radioInterfaceService.connect()")
         radioInterfaceService.connect()
+        Log.i("MeshRepo", "DBG connect: connect() returned")
     }
 
     override suspend fun disconnect() {

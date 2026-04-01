@@ -47,6 +47,7 @@ import ru.tcynik.mymesh1.mesh.model.Message
 import ru.tcynik.mymesh1.mesh.model.Node
 import ru.tcynik.mymesh1.mesh.model.util.formatUptime
 import ru.tcynik.mymesh1.mesh.navigation.DEEP_LINK_BASE_URI
+import ru.tcynik.mymesh1.mesh.common.BuildConfigProvider
 import ru.tcynik.mymesh1.mesh.repository.MeshServiceNotifications
 import ru.tcynik.mymesh1.mesh.repository.NodeRepository
 import ru.tcynik.mymesh1.mesh.repository.PacketRepository
@@ -109,6 +110,7 @@ class MeshServiceNotificationsImpl(
     private val context: Context,
     private val packetRepository: Lazy<PacketRepository>,
     private val nodeRepository: Lazy<NodeRepository>,
+    private val buildConfig: BuildConfigProvider,
 ) : MeshServiceNotifications {
 
     private val notificationManager = context.getSystemService<NotificationManager>()!!
@@ -715,7 +717,7 @@ class MeshServiceNotificationsImpl(
     // region Helper/Builder Methods
     private val openAppIntent: PendingIntent by lazy {
         val intent =
-            Intent(context, Class.forName("org.meshtastic.app.MainActivity")).apply {
+            Intent(context, buildConfig.mainActivityClass).apply {
                 flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
         PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
@@ -724,7 +726,7 @@ class MeshServiceNotificationsImpl(
     private fun createOpenMessageIntent(contactKey: String): PendingIntent {
         val deepLinkUri = "$DEEP_LINK_BASE_URI/messages/$contactKey".toUri()
         val deepLinkIntent =
-            Intent(Intent.ACTION_VIEW, deepLinkUri, context, Class.forName("org.meshtastic.app.MainActivity")).apply {
+            Intent(Intent.ACTION_VIEW, deepLinkUri, context, buildConfig.mainActivityClass).apply {
                 flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
 
@@ -737,7 +739,7 @@ class MeshServiceNotificationsImpl(
     private fun createOpenWaypointIntent(waypointId: Int): PendingIntent {
         val deepLinkUri = "$DEEP_LINK_BASE_URI/map?waypointId=$waypointId".toUri()
         val deepLinkIntent =
-            Intent(Intent.ACTION_VIEW, deepLinkUri, context, Class.forName("org.meshtastic.app.MainActivity")).apply {
+            Intent(Intent.ACTION_VIEW, deepLinkUri, context, buildConfig.mainActivityClass).apply {
                 flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
 
@@ -750,7 +752,7 @@ class MeshServiceNotificationsImpl(
     private fun createOpenNodeDetailIntent(nodeNum: Int): PendingIntent {
         val deepLinkUri = "$DEEP_LINK_BASE_URI/node?destNum=$nodeNum".toUri()
         val deepLinkIntent =
-            Intent(Intent.ACTION_VIEW, deepLinkUri, context, Class.forName("org.meshtastic.app.MainActivity")).apply {
+            Intent(Intent.ACTION_VIEW, deepLinkUri, context, buildConfig.mainActivityClass).apply {
                 flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
 

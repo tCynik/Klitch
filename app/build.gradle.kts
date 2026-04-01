@@ -75,6 +75,9 @@ dependencies {
     // Coroutines
     implementation(libs.coroutines.android)
 
+    // WorkManager
+    implementation(libs.work.runtime)
+
     // Koin — DI
     implementation(libs.koin.android)
     implementation(libs.koin.compose)

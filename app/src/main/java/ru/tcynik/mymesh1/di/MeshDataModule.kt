@@ -2,11 +2,15 @@ package ru.tcynik.mymesh1.di
 
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.work.WorkManager
+import org.koin.android.ext.koin.androidContext
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import ru.tcynik.mymesh1.AppBuildConfigProvider
+import ru.tcynik.mymesh1.NoOpAppWidgetUpdater
 import ru.tcynik.mymesh1.NoOpPlatformAnalytics
 import ru.tcynik.mymesh1.mesh.common.BuildConfigProvider
+import ru.tcynik.mymesh1.mesh.repository.AppWidgetUpdater
 import ru.tcynik.mymesh1.mesh.repository.PlatformAnalytics
 import ru.tcynik.mymesh1.data.mesh.repository.MeshConfigRepositoryImpl
 import ru.tcynik.mymesh1.data.mesh.repository.MeshConnectionRepositoryImpl
@@ -31,6 +35,8 @@ import ru.tcynik.mymesh1.domain.mesh.usecase.SendMeshMessageUseCase
 
 val meshDataModule = module {
 
+    single { WorkManager.getInstance(androidContext()) }
+
     // ProcessLifecycleOwner.lifecycle — required by mesh layer BLE, network, and service components
     single<Lifecycle>(named("ProcessLifecycle")) {
         ProcessLifecycleOwner.get().lifecycle
@@ -41,6 +47,9 @@ val meshDataModule = module {
 
     // Analytics stub — no analytics in this build
     single<PlatformAnalytics> { NoOpPlatformAnalytics() }
+
+    // AppWidget stub — no widgets in this build
+    single<AppWidgetUpdater> { NoOpAppWidgetUpdater() }
 
     // --- Repositories ---
     single<MeshConnectionRepository> {

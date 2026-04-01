@@ -11,4 +11,5 @@ class AppBuildConfigProvider : BuildConfigProvider {
     override val versionName: String = BuildConfig.VERSION_NAME
     override val absoluteMinFwVersion: String = DeviceVersion.ABS_MIN_FW_VERSION
     override val minFwVersion: String = DeviceVersion.MIN_FW_VERSION
+    override val mainActivityClass: Class<*> = MainActivity::class.java
 }
