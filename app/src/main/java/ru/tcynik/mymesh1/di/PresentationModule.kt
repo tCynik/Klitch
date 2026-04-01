@@ -7,5 +7,18 @@ import ru.tcynik.mymesh1.presentation.feature.nodes.NodesViewModel
 
 val presentationModule = module {
     viewModel { NodesViewModel(get()) }
-    viewModel { MeshTestViewModel() }
+    viewModel {
+        MeshTestViewModel(
+            observeConnectionStatus = get(),
+            scanDevices = get(),
+            connectToDevice = get(),
+            disconnectFromMesh = get(),
+            observeNodes = get(),
+            observeOurNode = get(),
+            observeMessages = get(),
+            sendMessage = get(),
+            observePacketLog = get(),
+            observeDeviceConfig = get(),
+        )
+    }
 }

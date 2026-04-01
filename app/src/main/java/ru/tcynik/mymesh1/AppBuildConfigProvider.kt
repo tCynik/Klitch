@@ -1,0 +1,14 @@
+package ru.tcynik.mymesh1
+
+import ru.tcynik.mymesh1.BuildConfig
+import ru.tcynik.mymesh1.mesh.common.BuildConfigProvider
+import ru.tcynik.mymesh1.mesh.model.DeviceVersion
+
+class AppBuildConfigProvider : BuildConfigProvider {
+    override val isDebug: Boolean = BuildConfig.DEBUG
+    override val applicationId: String = BuildConfig.APPLICATION_ID
+    override val versionCode: Int = BuildConfig.VERSION_CODE
+    override val versionName: String = BuildConfig.VERSION_NAME
+    override val absoluteMinFwVersion: String = DeviceVersion.ABS_MIN_FW_VERSION
+    override val minFwVersion: String = DeviceVersion.MIN_FW_VERSION
+}

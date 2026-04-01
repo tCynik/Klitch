@@ -16,9 +16,34 @@
  */
 package ru.tcynik.mymesh1.mesh.network.di
 
+import android.app.Application
+import android.hardware.usb.UsbManager
+import android.net.ConnectivityManager
+import android.net.nsd.NsdManager
+import androidx.core.content.ContextCompat
+import com.hoho.android.usbserial.driver.UsbSerialProber
 import org.koin.core.annotation.ComponentScan
 import org.koin.core.annotation.Module
+import org.koin.core.annotation.Single
+import ru.tcynik.mymesh1.mesh.network.repository.ProbeTableProvider
 
 @Module
 @ComponentScan("ru.tcynik.mymesh1.mesh.network")
-class CoreNetworkAndroidModule
+class CoreNetworkAndroidModule {
+
+    @Single
+    fun provideConnectivityManager(app: Application): ConnectivityManager =
+        ContextCompat.getSystemService(app, ConnectivityManager::class.java)!!
+
+    @Single
+    fun provideNsdManager(app: Application): NsdManager =
+        ContextCompat.getSystemService(app, NsdManager::class.java)!!
+
+    @Single
+    fun provideUsbManager(app: Application): UsbManager =
+        ContextCompat.getSystemService(app, UsbManager::class.java)!!
+
+    @Single
+    fun provideUsbSerialProber(probeTableProvider: ProbeTableProvider): UsbSerialProber =
+        UsbSerialProber(probeTableProvider.get())
+}

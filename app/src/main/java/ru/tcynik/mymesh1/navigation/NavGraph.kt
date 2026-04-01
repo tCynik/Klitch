@@ -12,9 +12,10 @@ import ru.tcynik.mymesh1.presentation.feature.nodes.NodesScreen
 fun NavGraph() {
     val navController = rememberNavController()
 
+    BlePermissionGuard {
     NavHost(
         navController = navController,
-        startDestination = Route.Nodes,
+        startDestination = Route.MeshTest(),
     ) {
         composable<Route.Nodes> {
             NodesScreen(
@@ -35,5 +36,6 @@ fun NavGraph() {
                 onNavigateBack = { navController.popBackStack() },
             )
         }
+    }
     }
 }

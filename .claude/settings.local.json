@@ -41,7 +41,10 @@
       "Bash(find ~/.gradle/caches -path *insert-koin* -name *.jar)",
       "Bash(powershell -Command \"Add-Type -Assembly System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::OpenRead\\(''''C:\\\\Users\\\\LocAdmin\\\\.gradle\\\\caches\\\\modules-2\\\\files-2.1\\\\io.insert-koin\\\\koin-compiler-gradle-plugin\\\\0.4.1\\\\86ff57f7d132bf2b9fd57472541bae96a6925cbb\\\\koin-compiler-gradle-plugin-0.4.1.jar''''\\).Entries | ForEach-Object { $_FullName }\")",
       "Bash(powershell -Command \":*)",
-      "Bash(grep -v \"^$\")"
+      "Bash(grep -v \"^$\")",
+      "Bash(./gradlew :app:compileDebugKotlin)",
+      "Bash(find \"C:/Users/LocAdmin/AndroidStudioProjects/MyMesh1/mesh/src/main\" -name \"AndroidManifest.xml\" -exec cat {} \\\\;)",
+      "Bash(./gradlew :app:processDebugManifest)"
     ]
   }
 }

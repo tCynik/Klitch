@@ -39,6 +39,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -62,6 +63,8 @@ dependencies {
     implementation(libs.lifecycle.viewmodel)
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.lifecycle.runtime.compose)
+    // Process lifecycle — required for mesh layer BLE/network Koin bindings
+    implementation("androidx.lifecycle:lifecycle-process:2.8.4")
 
     // Navigation (JetBrains KMP-совместимый)
     implementation(libs.navigation.compose)

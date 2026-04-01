@@ -1,0 +1,19 @@
+package ru.tcynik.mymesh1.data.mesh.mapper
+
+import ru.tcynik.mymesh1.domain.mesh.model.MeshConnectionStatus
+import ru.tcynik.mymesh1.mesh.model.ConnectionState
+import ru.tcynik.mymesh1.mesh.model.Node
+
+fun ConnectionState.toMeshConnectionStatus(
+    ourNode: Node?,
+    connectingDeviceName: String = "",
+): MeshConnectionStatus = when (this) {
+    ConnectionState.Disconnected -> MeshConnectionStatus.Disconnected
+    ConnectionState.Connecting -> MeshConnectionStatus.Connecting(connectingDeviceName)
+    ConnectionState.Connected -> MeshConnectionStatus.Connected(
+        nodeId = ourNode?.user?.id ?: "",
+        rssi = if (ourNode?.rssi == Int.MAX_VALUE) 0 else ourNode?.rssi ?: 0,
+        batteryLevel = ourNode?.deviceMetrics?.battery_level ?: 0,
+    )
+    ConnectionState.DeviceSleep -> MeshConnectionStatus.DeviceSleep
+}
