@@ -46,4 +46,6 @@ data class BluetoothState(
 
     /** A list of bonded devices. */
     val bondedDevices: List<BleDevice> = emptyList(),
+
+
 )

@@ -218,7 +218,7 @@ class SharedRadioInterfaceService(
             return
         }
 
-        Logger.i { "Starting radio interface for ${address.anonymize}" }
+        Logger.i { "Starting radio interface for '${address.anonymize}'" }
         isStarted = true
         runningInterfaceId = address.firstOrNull()?.let { InterfaceId.forIdChar(it) }
         radioIf = transportFactory.createTransport(address, this)

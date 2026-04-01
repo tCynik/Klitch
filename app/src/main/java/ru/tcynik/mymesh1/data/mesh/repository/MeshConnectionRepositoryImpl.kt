@@ -10,6 +10,7 @@ import ru.tcynik.mymesh1.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.mymesh1.domain.mesh.model.MeshDeviceModel
 import ru.tcynik.mymesh1.domain.mesh.repository.MeshConnectionRepository
 import ru.tcynik.mymesh1.mesh.ble.BleScanner
+import ru.tcynik.mymesh1.mesh.model.InterfaceId
 import ru.tcynik.mymesh1.mesh.repository.NodeRepository
 import ru.tcynik.mymesh1.mesh.repository.RadioInterfaceService
 import ru.tcynik.mymesh1.mesh.repository.ServiceRepository
@@ -56,11 +57,10 @@ class MeshConnectionRepositoryImpl(
         }
     }
 
-    override suspend fun connect(address: String) {
-        Log.i("MeshRepo", "DBG connect: address=$address")
-        pendingDeviceName = address
-        // Format: "bt:AA:BB:CC:DD:EE:FF" for BLE devices
-        val bleAddress = if (address.startsWith("bt:")) address else "bt:$address"
+    override suspend fun connect(address: String, deviceName: String) {
+        Log.i("MeshRepo", "DBG connect: address=$address name=$deviceName")
+        pendingDeviceName = deviceName
+        val bleAddress = radioInterfaceService.toInterfaceAddress(InterfaceId.BLUETOOTH, address)
         Log.i("MeshRepo", "DBG connect: calling setDeviceAddress($bleAddress)")
         radioInterfaceService.setDeviceAddress(bleAddress)
         Log.i("MeshRepo", "DBG connect: calling radioInterfaceService.connect()")

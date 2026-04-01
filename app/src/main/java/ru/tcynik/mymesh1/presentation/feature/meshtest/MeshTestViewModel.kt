@@ -18,6 +18,7 @@ import ru.tcynik.mymesh1.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.mymesh1.domain.mesh.model.MeshMessageDelivery
 import ru.tcynik.mymesh1.domain.mesh.model.MeshNodeModel
 import ru.tcynik.mymesh1.domain.mesh.model.MeshPacketLogModel
+import ru.tcynik.mymesh1.domain.mesh.usecase.ConnectToMeshDeviceParams
 import ru.tcynik.mymesh1.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.ObserveConnectionStatusUseCase
@@ -206,7 +207,7 @@ class MeshTestViewModel(
         _uiState.update { it.copy(connectionStatus = MeshConnectionStatusUi.Connecting(deviceName)) }
         viewModelScope.launch {
             Log.i("MeshTestVM", "DBG onConnectClick: calling connectToDevice...")
-            runCatching { connectToDevice(address) }
+            runCatching { connectToDevice(ConnectToMeshDeviceParams(address, deviceName)) }
                 .onSuccess { Log.i("MeshTestVM", "DBG onConnectClick: connectToDevice returned OK") }
                 .onFailure { e ->
                     Log.e("MeshTestVM", "DBG onConnectClick: connectToDevice failed: ${e.message}", e)

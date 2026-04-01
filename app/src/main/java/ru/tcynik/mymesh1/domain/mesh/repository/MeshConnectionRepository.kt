@@ -7,6 +7,6 @@ import ru.tcynik.mymesh1.domain.mesh.model.MeshDeviceModel
 interface MeshConnectionRepository {
     val connectionStatus: Flow<MeshConnectionStatus>
     fun scanDevices(): Flow<List<MeshDeviceModel>>
-    suspend fun connect(address: String)
+    suspend fun connect(address: String, deviceName: String)
     suspend fun disconnect()
 }

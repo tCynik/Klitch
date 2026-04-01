@@ -155,7 +155,7 @@ class MeshConnectionManagerImpl(
             return
         }
 
-        Logger.i { "onConnectionChanged: $current -> $c" }
+        Logger.withTag("MeshConnMgr").i { "onConnectionChanged: $current -> $c" }
 
         sleepTimeout?.cancel()
         sleepTimeout = null

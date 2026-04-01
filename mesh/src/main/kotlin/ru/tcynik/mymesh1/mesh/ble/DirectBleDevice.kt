@@ -47,4 +47,8 @@ class DirectBleDevice(override val address: String, override val name: String? =
     fun updateState(newState: BleConnectionState) {
         _state.value = newState
     }
+
+    override fun toString(): String {
+        return "DirectBleDevice [ address '$address', name '$name', isConnected '$isConnected' ]"
+    }
 }

@@ -93,7 +93,9 @@ class MeshServiceOrchestrator(
         messageProcessor.start(scope)
         commandSender.start(scope)
 
-        scope.handledLaunch { radioInterfaceService.connect() }
+        // Do NOT call radioInterfaceService.connect() here — connection is initiated
+        // explicitly by the user via MeshConnectionRepositoryImpl.connect(address).
+        // Auto-connecting at startup would trigger the mock interface in debug builds.
 
         radioInterfaceService.receivedData
             .onEach { bytes -> messageProcessor.handleFromRadio(bytes, nodeManager.myNodeNum) }
