@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App -->
+    <string name="meshtastic_app_name">Meshtastic</string>
+
+    <!-- Connection states -->
+    <string name="connected">Connected</string>
+    <string name="connecting">Connecting</string>
+    <string name="disconnected">Disconnected</string>
+    <string name="device_sleeping">Device sleeping</string>
+
+    <!-- Notifications channels -->
+    <string name="meshtastic_service_notifications">Service notifications</string>
+    <string name="meshtastic_messages_notifications">Direct message notifications</string>
+    <string name="meshtastic_broadcast_notifications">Broadcast message notifications</string>
+    <string name="meshtastic_alerts_notifications">Alert notifications</string>
+    <string name="meshtastic_new_nodes_notifications">New node notifications</string>
+    <string name="meshtastic_waypoints_notifications">Waypoint notifications</string>
+    <string name="meshtastic_low_battery_notifications">Low battery notifications</string>
+    <string name="meshtastic_low_battery_temporary_remote_notifications">Low battery notifications (favorite nodes)</string>
+    <string name="client_notification">Client Notification</string>
+
+    <!-- Actions -->
+    <string name="mark_as_read">Mark as read</string>
+    <string name="reply">Reply</string>
+
+    <!-- General -->
+    <string name="error">Error</string>
+    <string name="unrecognized">Unrecognized</string>
+    <string name="you">You</string>
+    <string name="powered">Powered</string>
+    <string name="unknown_username">Unknown Username</string>
+    <string name="no_local_stats">No Stats Available</string>
+    <string name="critical_alert">Critical Alert!</string>
+
+    <!-- Nodes / messages -->
+    <string name="new_node_seen">New Node Seen: %1$s</string>
+    <string name="waypoint_received">Received waypoint: %1$s</string>
+    <string name="error_duty_cycle">Duty Cycle limit reached. Cannot send messages right now, please try again later.</string>
+    <string name="low_battery_message">Node %1$s has a low battery (%2$d%%)</string>
+    <string name="low_battery_title">Low battery: %1$s</string>
+    <string name="message_delivery_status">Message delivery status</string>
+    <string name="delivery_confirmed">Delivery confirmed</string>
+
+    <!-- Message status -->
+    <string name="message_status_enroute">Waiting to be acknowledged</string>
+    <string name="message_status_queued">Queued for sending</string>
+    <string name="message_status_sfpp_routing">Routing via SF++ chain…</string>
+    <string name="message_status_sfpp_confirmed">Confirmed on SF++ chain</string>
+
+    <!-- Routing errors -->
+    <string name="routing_error_none">Acknowledged</string>
+    <string name="routing_error_no_route">No route</string>
+    <string name="routing_error_got_nak">Received a negative acknowledgment</string>
+    <string name="routing_error_timeout">Timeout</string>
+    <string name="routing_error_no_interface">No Interface</string>
+    <string name="routing_error_max_retransmit">Max Retransmission Reached</string>
+    <string name="routing_error_no_channel">No Channel</string>
+    <string name="routing_error_too_large">Packet too large</string>
+    <string name="routing_error_no_response">No response</string>
+    <string name="routing_error_bad_request">Bad Request</string>
+    <string name="routing_error_duty_cycle_limit">Regional Duty Cycle Limit Reached</string>
+    <string name="routing_error_not_authorized">Not Authorized</string>
+    <string name="routing_error_pki_failed">Encrypted Send Failed</string>
+    <string name="routing_error_pki_unknown_pubkey">Unknown Public Key</string>
+    <string name="routing_error_admin_bad_session_key">Bad session key</string>
+    <string name="routing_error_admin_public_key_unauthorized">Public Key unauthorized</string>
+    <string name="routing_error_pki_send_fail_public_key">PKI send failed, no public key</string>
+    <string name="routing_error_rate_limit_exceeded">Rate Limit Exceeded. Please try again later.</string>
+
+    <!-- Local stats -->
+    <string name="local_stats_battery">Battery: %1$d%%</string>
+    <string name="local_stats_nodes">Nodes: %1$d online / %2$d total</string>
+    <string name="local_stats_uptime">Uptime: %1$s</string>
+    <string name="local_stats_utilization">ChUtil: %1$.2f%% | AirTX: %2$.2f%%</string>
+    <string name="local_stats_traffic">Traffic: TX %1$d / RX %2$d (D: %3$d)</string>
+    <string name="local_stats_relays">Relays: %1$d (Canceled: %2$d)</string>
+    <string name="local_stats_diagnostics_prefix">Diagnostics: %1$s</string>
+    <string name="local_stats_noise">Noise %1$d dBm</string>
+    <string name="local_stats_bad">Bad %1$d</string>
+    <string name="local_stats_dropped">Dropped %1$d</string>
+    <string name="local_stats_heap">Heap</string>
+    <string name="local_stats_heap_value">%1$d / %2$d</string>
+
+    <!-- Node sort options -->
+    <string name="node_sort_alpha">A-Z</string>
+    <string name="node_sort_channel">Channel</string>
+    <string name="node_sort_distance">Distance</string>
+    <string name="node_sort_hops_away">Hops away</string>
+    <string name="node_sort_last_heard">Last heard</string>
+    <string name="node_sort_via_mqtt">via MQTT</string>
+    <string name="node_sort_via_favorite">via Favorite</string>
+
+    <!-- TAK teams -->
+    <string name="tak_team_unspecified_color">Unspecified</string>
+    <string name="tak_team_white">White</string>
+    <string name="tak_team_yellow">Yellow</string>
+    <string name="tak_team_orange">Orange</string>
+    <string name="tak_team_magenta">Magenta</string>
+    <string name="tak_team_red">Red</string>
+    <string name="tak_team_maroon">Maroon</string>
+    <string name="tak_team_purple">Purple</string>
+    <string name="tak_team_dark_blue">Dark Blue</string>
+    <string name="tak_team_blue">Blue</string>
+    <string name="tak_team_cyan">Cyan</string>
+    <string name="tak_team_teal">Teal</string>
+    <string name="tak_team_green">Green</string>
+    <string name="tak_team_dark_green">Dark Green</string>
+    <string name="tak_team_brown">Brown</string>
+
+    <!-- TAK roles -->
+    <string name="tak_role_unspecified">Unspecified</string>
+    <string name="tak_role_teammember">Team Member</string>
+    <string name="tak_role_teamlead">Team Lead</string>
+    <string name="tak_role_hq">Headquarters</string>
+    <string name="tak_role_sniper">Sniper</string>
+    <string name="tak_role_medic">Medic</string>
+    <string name="tak_role_forwardobserver">Forward Observer</string>
+    <string name="tak_role_rto">Radio Telephone Operator</string>
+    <string name="tak_role_k9">Doggo (K9)</string>
+</resources>

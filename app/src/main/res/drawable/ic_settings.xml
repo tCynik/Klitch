@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Settings / Gear icon
+    Viewport: 80×80  |  Content area: [12..68]
+    Style: stroke-only, strokeWidth=3, round caps/joins, no fill
+    Frame is NOT included — rendered by MeshIconButton composable
+    Color: #FF000000 default — overridden by Icon(tint=...) in Compose
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="80dp"
+    android:height="80dp"
+    android:viewportWidth="80"
+    android:viewportHeight="80">
+
+    <!-- Gear outline: 6 teeth, outer r=22, inner r=17, center (40,40) -->
+    <!-- Tooth half-angle: ±13°  |  Tooth arc: 26°  |  Valley arc: 34° -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="
+            M 56.6,36.2
+            L 61.4,35.1
+            A 22,22 0 0,1 61.4,44.9
+            L 56.6,43.8
+            A 17,17 0 0,1 51.6,52.4
+            L 55.0,56.1
+            A 22,22 0 0,1 46.4,61.0
+            L 45.0,56.3
+            A 17,17 0 0,1 35.0,56.3
+            L 33.6,61.0
+            A 22,22 0 0,1 25.0,56.1
+            L 28.4,52.4
+            A 17,17 0 0,1 23.4,43.8
+            L 18.6,44.9
+            A 22,22 0 0,1 18.6,35.1
+            L 23.4,36.2
+            A 17,17 0 0,1 28.4,27.6
+            L 25.0,23.9
+            A 22,22 0 0,1 33.6,19.0
+            L 35.0,23.7
+            A 17,17 0 0,1 45.0,23.7
+            L 46.4,19.0
+            A 22,22 0 0,1 55.0,23.9
+            L 51.6,27.6
+            A 17,17 0 0,1 56.6,36.2
+            Z" />
+
+    <!-- Center hub hole: r=9 -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 31,40 A 9,9 0 1,0 49,40 A 9,9 0 1,0 31,40 Z" />
+
+</vector>

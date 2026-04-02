@@ -32,16 +32,20 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        }
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
 dependencies {
     implementation(project(":shared"))
+    implementation(project(":mesh"))
 
     // AndroidX
     implementation(libs.androidx.core.ktx)
@@ -53,11 +57,14 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons)
 
     // Lifecycle + ViewModel (JetBrains KMP-совместимые)
     implementation(libs.lifecycle.viewmodel)
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.lifecycle.runtime.compose)
+    // Process lifecycle — required for mesh layer BLE/network Koin bindings
+    implementation("androidx.lifecycle:lifecycle-process:2.8.4")
 
     // Navigation (JetBrains KMP-совместимый)
     implementation(libs.navigation.compose)
@@ -67,6 +74,9 @@ dependencies {
 
     // Coroutines
     implementation(libs.coroutines.android)
+
+    // WorkManager
+    implementation(libs.work.runtime)
 
     // Koin — DI
     implementation(libs.koin.android)
