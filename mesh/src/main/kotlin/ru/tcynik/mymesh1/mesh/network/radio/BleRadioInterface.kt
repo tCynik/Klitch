@@ -239,6 +239,7 @@ class BleRadioInterface(
             bleConnection.deviceFlow.first()?.let { device ->
                 val rssi = retryBleOperation(tag = address) { device.readRssi() }
                 Logger.d { "[$address] Connection confirmed. Initial RSSI: $rssi dBm" }
+                service.setBleRssi(rssi)
             }
         } catch (e: Exception) {
             Logger.w(e) { "[$address] Failed to read initial connection RSSI" }
@@ -246,6 +247,7 @@ class BleRadioInterface(
     }
 
     private fun onDisconnected() {
+        service.setBleRssi(0)
         radioService = null
 
         val uptime =

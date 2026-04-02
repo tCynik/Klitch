@@ -7,12 +7,13 @@ import ru.tcynik.mymesh1.mesh.model.Node
 fun ConnectionState.toMeshConnectionStatus(
     ourNode: Node?,
     connectingDeviceName: String = "",
+    bleRssi: Int = 0,
 ): MeshConnectionStatus = when (this) {
     ConnectionState.Disconnected -> MeshConnectionStatus.Disconnected
     ConnectionState.Connecting -> MeshConnectionStatus.Connecting(connectingDeviceName)
     ConnectionState.Connected -> MeshConnectionStatus.Connected(
         nodeId = ourNode?.user?.long_name?.ifBlank { ourNode.user.id } ?: ourNode?.user?.id ?: "",
-        rssi = if (ourNode?.rssi == Int.MAX_VALUE) 0 else ourNode?.rssi ?: 0,
+        rssi = bleRssi,
         batteryLevel = ourNode?.deviceMetrics?.battery_level ?: 0,
     )
     ConnectionState.DeviceSleep -> MeshConnectionStatus.DeviceSleep

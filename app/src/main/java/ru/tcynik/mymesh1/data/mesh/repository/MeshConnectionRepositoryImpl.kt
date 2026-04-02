@@ -34,8 +34,9 @@ class MeshConnectionRepositoryImpl(
         combine(
             serviceRepository.connectionState.onEach { Log.d("MeshRepo", "DBG connectionStatus: serviceRepo state -> $it") },
             nodeRepository.ourNodeInfo,
-        ) { state, node ->
-            val status = state.toMeshConnectionStatus(node, pendingDeviceName)
+            radioInterfaceService.bleRssi,
+        ) { state, node, bleRssi ->
+            val status = state.toMeshConnectionStatus(node, pendingDeviceName, bleRssi)
             Log.d("MeshRepo", "DBG connectionStatus: combined -> $status")
             status
         }

@@ -44,6 +44,12 @@ interface RadioInterfaceService {
     /** Flow of radio activity events. */
     val meshActivity: SharedFlow<MeshActivity>
 
+    /** BLE RSSI of the active connection in dBm (0 when disconnected). */
+    val bleRssi: StateFlow<Int>
+
+    /** Updates the BLE RSSI value. Called by the active radio interface. */
+    fun setBleRssi(rssi: Int)
+
     /** Sends a raw byte array to the radio. */
     fun sendToRadio(bytes: ByteArray)
 

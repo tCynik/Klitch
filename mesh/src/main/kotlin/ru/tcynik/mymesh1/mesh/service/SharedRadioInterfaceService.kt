@@ -95,6 +95,11 @@ class SharedRadioInterfaceService(
     private val _connectionError = MutableSharedFlow<String>(extraBufferCapacity = 64)
     val connectionError: SharedFlow<String> = _connectionError.asSharedFlow()
 
+    private val _bleRssi = MutableStateFlow(0)
+    override val bleRssi: StateFlow<Int> = _bleRssi.asStateFlow()
+
+    override fun setBleRssi(rssi: Int) { _bleRssi.value = rssi }
+
     override val serviceScope: CoroutineScope
         get() = _serviceScope
 
