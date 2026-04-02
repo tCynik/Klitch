@@ -34,6 +34,8 @@ fun ConfigTab(
     onReadConfigClick: () -> Unit,
     onEditConfigClick: () -> Unit,
     onWriteConfigClick: () -> Unit,
+    onLongNameChange: (String) -> Unit = {},
+    onShortNameChange: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val isConnected = connectionStatus is MeshConnectionStatusUi.Connected
@@ -89,6 +91,8 @@ fun ConfigTab(
                 DeviceConfigCard(
                     config = config,
                     isEditing = state.isEditing,
+                    onLongNameChange = onLongNameChange,
+                    onShortNameChange = onShortNameChange,
                 )
             } ?: run {
                 if (!state.isLoading) {
@@ -111,6 +115,8 @@ fun ConfigTab(
 private fun DeviceConfigCard(
     config: DeviceConfigUi,
     isEditing: Boolean,
+    onLongNameChange: (String) -> Unit,
+    onShortNameChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(modifier = modifier.fillMaxWidth()) {
@@ -120,9 +126,9 @@ private fun DeviceConfigCard(
                 style = MaterialTheme.typography.titleSmall,
             )
             Spacer(modifier = Modifier.height(12.dp))
-            ConfigRow(label = "Long name", value = config.longName, isEditing = isEditing)
+            ConfigRow(label = "Long name", value = config.longName, isEditing = isEditing, onValueChange = onLongNameChange)
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-            ConfigRow(label = "Short name", value = config.shortName, isEditing = isEditing)
+            ConfigRow(label = "Short name", value = config.shortName, isEditing = isEditing, onValueChange = onShortNameChange)
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
             ConfigRow(label = "LoRa preset", value = config.loraPreset, isEditing = false)
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
@@ -159,12 +165,13 @@ private fun ConfigRow(
     label: String,
     value: String,
     isEditing: Boolean,
+    onValueChange: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     if (isEditing) {
         OutlinedTextField(
             value = value,
-            onValueChange = {},
+            onValueChange = onValueChange,
             label = { Text(label) },
             modifier = modifier.fillMaxWidth(),
             singleLine = true,

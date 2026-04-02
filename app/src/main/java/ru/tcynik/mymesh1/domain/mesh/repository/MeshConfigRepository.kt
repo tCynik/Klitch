@@ -6,4 +6,5 @@ import ru.tcynik.mymesh1.domain.mesh.model.MeshDeviceConfigModel
 interface MeshConfigRepository {
     fun observeDeviceConfig(): Flow<MeshDeviceConfigModel?>
     fun requestDeviceConfig()
+    fun writeOwner(longName: String, shortName: String)
 }

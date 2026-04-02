@@ -5,6 +5,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import ru.tcynik.mymesh1.domain.mesh.model.MeshDeviceConfigModel
 import ru.tcynik.mymesh1.domain.mesh.repository.MeshConfigRepository
+import ru.tcynik.mymesh1.mesh.model.MeshUser
+import org.meshtastic.proto.HardwareModel
 import ru.tcynik.mymesh1.mesh.repository.CommandSender
 import ru.tcynik.mymesh1.mesh.repository.MeshRouter
 import ru.tcynik.mymesh1.mesh.repository.NodeRepository
@@ -17,6 +19,20 @@ class MeshConfigRepositoryImpl(
 
     override fun requestDeviceConfig() {
         meshRouter.configFlowManager.triggerWantConfig()
+    }
+
+    override fun writeOwner(longName: String, shortName: String) {
+        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
+        val existingUser = nodeRepository.nodeDBbyNum.value[myNodeNum]?.user
+        val meshUser = MeshUser(
+            id = existingUser?.id ?: "",
+            longName = longName,
+            shortName = shortName,
+            hwModel = existingUser?.hw_model ?: HardwareModel.UNSET,
+            isLicensed = existingUser?.is_licensed ?: false,
+            role = existingUser?.role?.value ?: 0,
+        )
+        meshRouter.actionHandler.handleSetOwner(meshUser, myNodeNum)
     }
 
     override fun observeDeviceConfig(): Flow<MeshDeviceConfigModel?> =

@@ -24,6 +24,7 @@ import ru.tcynik.mymesh1.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.RequestDeviceConfigUseCase
+import ru.tcynik.mymesh1.domain.mesh.usecase.WriteOwnerUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.ObserveMeshNodesUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.ObserveMessagesUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.ObserveOurNodeUseCase
@@ -62,6 +63,7 @@ class MeshTestViewModel(
     private val observePacketLog: ObservePacketLogUseCase,
     private val observeDeviceConfig: ObserveDeviceConfigUseCase,
     private val requestDeviceConfig: RequestDeviceConfigUseCase,
+    private val writeOwner: WriteOwnerUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MeshTestUiState())
@@ -269,8 +271,23 @@ class MeshTestViewModel(
         }
     }
 
+    fun onConfigLongNameChange(value: String) {
+        _uiState.update { state ->
+            val cfg = state.configTab.deviceConfig ?: return@update state
+            state.copy(configTab = state.configTab.copy(deviceConfig = cfg.copy(longName = value)))
+        }
+    }
+
+    fun onConfigShortNameChange(value: String) {
+        _uiState.update { state ->
+            val cfg = state.configTab.deviceConfig ?: return@update state
+            state.copy(configTab = state.configTab.copy(deviceConfig = cfg.copy(shortName = value)))
+        }
+    }
+
     fun onWriteConfigClick() {
-        // TODO: implement Admin message sending via CommandSender.sendAdmin()
+        val cfg = _uiState.value.configTab.deviceConfig ?: return
+        writeOwner(cfg.longName, cfg.shortName)
         _uiState.update { state ->
             state.copy(configTab = state.configTab.copy(isEditing = false))
         }
