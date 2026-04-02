@@ -21,6 +21,7 @@ val presentationModule = module {
             observeDeviceConfig = get(),
             requestDeviceConfig = get(),
             writeOwner = get(),
+            writeChannel = get(),
         )
     }
 }

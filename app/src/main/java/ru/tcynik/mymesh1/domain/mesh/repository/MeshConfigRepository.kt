@@ -7,4 +7,5 @@ interface MeshConfigRepository {
     fun observeDeviceConfig(): Flow<MeshDeviceConfigModel?>
     fun requestDeviceConfig()
     fun writeOwner(longName: String, shortName: String)
+    fun writeChannel(index: Int, name: String, pskBase64: String)
 }

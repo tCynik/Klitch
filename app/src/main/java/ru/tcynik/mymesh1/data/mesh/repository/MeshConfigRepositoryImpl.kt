@@ -1,13 +1,17 @@
 package ru.tcynik.mymesh1.data.mesh.repository
 
+import android.util.Base64
 import android.util.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import okio.ByteString.Companion.toByteString
+import org.meshtastic.proto.Channel
+import org.meshtastic.proto.ChannelSettings
+import org.meshtastic.proto.HardwareModel
 import ru.tcynik.mymesh1.domain.mesh.model.MeshChannelModel
 import ru.tcynik.mymesh1.domain.mesh.model.MeshDeviceConfigModel
 import ru.tcynik.mymesh1.domain.mesh.repository.MeshConfigRepository
 import ru.tcynik.mymesh1.mesh.model.MeshUser
-import org.meshtastic.proto.HardwareModel
 import ru.tcynik.mymesh1.mesh.repository.CommandSender
 import ru.tcynik.mymesh1.mesh.repository.MeshRouter
 import ru.tcynik.mymesh1.mesh.repository.NodeRepository
@@ -20,6 +24,18 @@ class MeshConfigRepositoryImpl(
 
     override fun requestDeviceConfig() {
         meshRouter.configFlowManager.triggerWantConfig()
+    }
+
+    override fun writeChannel(index: Int, name: String, pskBase64: String) {
+        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
+        val pskBytes = if (pskBase64.isBlank()) ByteArray(0)
+                       else Base64.decode(pskBase64.trim(), Base64.DEFAULT)
+        val channel = Channel(
+            index = index,
+            settings = ChannelSettings(name = name, psk = pskBytes.toByteString()),
+            role = if (index == 0) Channel.Role.PRIMARY else Channel.Role.SECONDARY,
+        )
+        meshRouter.actionHandler.handleSetChannel(Channel.ADAPTER.encode(channel), myNodeNum)
     }
 
     override fun writeOwner(longName: String, shortName: String) {
@@ -59,7 +75,9 @@ class MeshConfigRepositoryImpl(
                     MeshChannelModel(
                         index = index,
                         name = ch.name.ifBlank { if (index == 0) "LongFast" else "Channel ${index + 1}" },
-                        pskMasked = if (ch.psk.size > 0) "••••••••" else "none",
+                        pskBase64 = if (ch.psk.size > 0)
+                            Base64.encodeToString(ch.psk.toByteArray(), Base64.NO_WRAP)
+                        else "",
                     )
                 },
             )

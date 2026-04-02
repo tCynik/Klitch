@@ -36,6 +36,8 @@ fun ConfigTab(
     onWriteConfigClick: () -> Unit,
     onLongNameChange: (String) -> Unit = {},
     onShortNameChange: (String) -> Unit = {},
+    onChannelNameChange: (index: Int, value: String) -> Unit = { _, _ -> },
+    onChannelPskChange: (index: Int, value: String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     val isConnected = connectionStatus is MeshConnectionStatusUi.Connected
@@ -105,7 +107,12 @@ fun ConfigTab(
             }
 
             state.channels.forEach { channel ->
-                ChannelConfigCard(config = channel)
+                ChannelConfigCard(
+                    config = channel,
+                    isEditing = state.isEditing,
+                    onNameChange = { onChannelNameChange(channel.index, it) },
+                    onPskChange = { onChannelPskChange(channel.index, it) },
+                )
             }
         }
     }
@@ -142,6 +149,9 @@ private fun DeviceConfigCard(
 @Composable
 private fun ChannelConfigCard(
     config: ChannelConfigUi,
+    isEditing: Boolean,
+    onNameChange: (String) -> Unit,
+    onPskChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(modifier = modifier.fillMaxWidth()) {
@@ -151,9 +161,33 @@ private fun ChannelConfigCard(
                 style = MaterialTheme.typography.titleSmall,
             )
             Spacer(modifier = Modifier.height(12.dp))
-            ConfigRow(label = "Name", value = config.channelName, isEditing = false)
+            ConfigRow(
+                label = "Name",
+                value = config.channelName,
+                isEditing = isEditing,
+                onValueChange = onNameChange,
+            )
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-            ConfigRow(label = "PSK", value = config.pskMasked, isEditing = false)
+            if (isEditing) {
+                OutlinedTextField(
+                    value = config.pskBase64,
+                    onValueChange = onPskChange,
+                    label = { Text("PSK (Base64)") },
+                    placeholder = { Text("empty = no encryption") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    isError = config.pskError != null,
+                    supportingText = config.pskError?.let { err ->
+                        { Text(err, color = MaterialTheme.colorScheme.error) }
+                    },
+                )
+            } else {
+                ConfigRow(
+                    label = "PSK",
+                    value = if (config.pskBase64.isBlank()) "none" else "••••••••",
+                    isEditing = false,
+                )
+            }
         }
     }
 }

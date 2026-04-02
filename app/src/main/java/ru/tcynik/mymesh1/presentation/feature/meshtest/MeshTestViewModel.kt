@@ -24,7 +24,9 @@ import ru.tcynik.mymesh1.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.RequestDeviceConfigUseCase
+import ru.tcynik.mymesh1.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.WriteOwnerUseCase
+import ru.tcynik.mymesh1.domain.mesh.util.PskValidator
 import ru.tcynik.mymesh1.domain.mesh.usecase.ObserveMeshNodesUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.ObserveMessagesUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.ObserveOurNodeUseCase
@@ -64,6 +66,7 @@ class MeshTestViewModel(
     private val observeDeviceConfig: ObserveDeviceConfigUseCase,
     private val requestDeviceConfig: RequestDeviceConfigUseCase,
     private val writeOwner: WriteOwnerUseCase,
+    private val writeChannel: WriteChannelUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MeshTestUiState())
@@ -135,8 +138,20 @@ class MeshTestViewModel(
             Log.i("MeshTestVM", "DBG observeDeviceConfig emitted: config=${config?.let { "longName=${it.longName} region=${it.region} lora=${it.loraPreset}" } ?: "null"}")
             if (config != null) {
                 _uiState.update { state ->
+                    // Don't overwrite unsaved channel edits while user is editing
+                    val updatedChannels = if (state.configTab.isEditing) {
+                        state.configTab.channels
+                    } else {
+                        config.channels.map { ch ->
+                            ChannelConfigUi(
+                                index = ch.index,
+                                channelName = ch.name,
+                                pskBase64 = ch.pskBase64,
+                            )
+                        }
+                    }
                     state.copy(
-                        configTab = ConfigTabState(
+                        configTab = state.configTab.copy(
                             isLoading = false,
                             deviceConfig = DeviceConfigUi(
                                 longName = config.longName,
@@ -145,13 +160,7 @@ class MeshTestViewModel(
                                 txPowerDbm = config.txPowerDbm,
                                 region = config.region,
                             ),
-                            channels = config.channels.map { ch ->
-                                ChannelConfigUi(
-                                    index = ch.index,
-                                    channelName = ch.name,
-                                    pskMasked = ch.pskMasked,
-                                )
-                            },
+                            channels = updatedChannels,
                         )
                     )
                 }
@@ -288,10 +297,44 @@ class MeshTestViewModel(
     }
 
     fun onWriteConfigClick() {
-        val cfg = _uiState.value.configTab.deviceConfig ?: return
+        val configTab = _uiState.value.configTab
+        val cfg = configTab.deviceConfig ?: return
         writeOwner(cfg.longName, cfg.shortName)
+        configTab.channels.forEach { ch ->
+            if (ch.pskError == null) {
+                writeChannel(ch.index, ch.channelName, ch.pskBase64)
+            }
+        }
         _uiState.update { state ->
             state.copy(configTab = state.configTab.copy(isEditing = false))
+        }
+    }
+
+    fun onChannelNameChange(index: Int, value: String) {
+        _uiState.update { state ->
+            state.copy(
+                configTab = state.configTab.copy(
+                    channels = state.configTab.channels.map { ch ->
+                        if (ch.index == index) ch.copy(channelName = value) else ch
+                    }
+                )
+            )
+        }
+    }
+
+    fun onChannelPskChange(index: Int, value: String) {
+        val error = when (val result = PskValidator.validate(value)) {
+            is PskValidator.Result.Invalid -> result.reason
+            is PskValidator.Result.Valid -> null
+        }
+        _uiState.update { state ->
+            state.copy(
+                configTab = state.configTab.copy(
+                    channels = state.configTab.channels.map { ch ->
+                        if (ch.index == index) ch.copy(pskBase64 = value, pskError = error) else ch
+                    }
+                )
+            )
         }
     }
 

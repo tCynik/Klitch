@@ -91,6 +91,8 @@ fun MeshTestScreen(
                     onWriteConfigClick = viewModel::onWriteConfigClick,
                     onLongNameChange = viewModel::onConfigLongNameChange,
                     onShortNameChange = viewModel::onConfigShortNameChange,
+                    onChannelNameChange = viewModel::onChannelNameChange,
+                    onChannelPskChange = viewModel::onChannelPskChange,
                     modifier = Modifier.fillMaxSize(),
                 )
                 MeshTestTab.Telemetry -> TelemetryTab(

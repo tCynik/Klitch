@@ -18,5 +18,6 @@ data class DeviceConfigUi(
 data class ChannelConfigUi(
     val index: Int,
     val channelName: String,
-    val pskMasked: String,
+    val pskBase64: String,
+    val pskError: String? = null,
 )

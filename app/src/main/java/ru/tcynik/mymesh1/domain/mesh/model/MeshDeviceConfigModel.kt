@@ -3,7 +3,7 @@ package ru.tcynik.mymesh1.domain.mesh.model
 data class MeshChannelModel(
     val index: Int,
     val name: String,
-    val pskMasked: String,
+    val pskBase64: String,
 )
 
 data class MeshDeviceConfigModel(
