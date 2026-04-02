@@ -7,6 +7,7 @@ data class MessagesTabState(
     val messages: ImmutableList<MeshMessageUi> = persistentListOf(),
     val inputText: String = "",
     val isSending: Boolean = false,
+    val selectedChannel: Int = 0,
 )
 
 data class MeshMessageUi(

@@ -268,6 +268,14 @@ class MeshTestViewModel(
         }
     }
 
+    fun onChannelSelected(channel: Int) {
+        activeContactKey = "${channel}^all"
+        _uiState.update { state ->
+            state.copy(messagesTab = state.messagesTab.copy(selectedChannel = channel))
+        }
+        startObservingMessages(activeContactKey)
+    }
+
     // ── Config Tab ────────────────────────────────────────────────────────────
 
     fun onReadConfigClick() {

@@ -78,9 +78,11 @@ fun MeshTestScreen(
                 )
                 MeshTestTab.Messages -> MessagesTab(
                     state = state.messagesTab,
+                    channels = state.configTab.channels,
                     connectionStatus = state.connectionStatus,
                     onInputChange = viewModel::onInputChange,
                     onSendClick = viewModel::onSendClick,
+                    onChannelSelected = viewModel::onChannelSelected,
                     modifier = Modifier.fillMaxSize(),
                 )
                 MeshTestTab.Config -> ConfigTab(
