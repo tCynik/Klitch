@@ -19,6 +19,7 @@ val presentationModule = module {
             sendMessage = get(),
             observePacketLog = get(),
             observeDeviceConfig = get(),
+            requestDeviceConfig = get(),
         )
     }
 }

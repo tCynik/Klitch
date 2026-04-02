@@ -364,6 +364,14 @@ class MeshActionHandlerImpl(
                 notificationManager.cancelAll()
                 nodeManager.loadCachedNodeDB()
             }
+        } else {
+            // Same address after app restart: _currentDb is null so withDb would silently
+            // no-op. Always initialize the DB. switchActiveDatabase has a fast path if
+            // already initialized (_currentDb != null && address unchanged).
+            scope.handledLaunch {
+                databaseManager.switchActiveDatabase(deviceAddr)
+                nodeManager.loadCachedNodeDB()
+            }
         }
     }
 }

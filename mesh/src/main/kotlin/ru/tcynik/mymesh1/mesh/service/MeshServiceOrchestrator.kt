@@ -22,6 +22,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import org.koin.core.annotation.Single
+import ru.tcynik.mymesh1.mesh.common.database.DatabaseManager
 import ru.tcynik.mymesh1.mesh.common.util.handledLaunch
 import ru.tcynik.mymesh1.mesh.di.CoroutineDispatchers
 import ru.tcynik.mymesh1.mesh.repository.CommandSender
@@ -55,6 +56,7 @@ class MeshServiceOrchestrator(
     private val router: MeshRouter,
     private val serviceNotifications: MeshServiceNotifications,
     private val dispatchers: CoroutineDispatchers,
+    private val databaseManager: DatabaseManager,
 ) {
     private var serviceJob: Job? = null
 
@@ -102,6 +104,14 @@ class MeshServiceOrchestrator(
             .launchIn(scope)
 
         serviceRepository.serviceAction.onEach(router.actionHandler::onServiceAction).launchIn(scope)
+
+        // Ensure the per-device Room DB is always initialized before any DB writes.
+        // currentDeviceAddressFlow replays its current value immediately, so this also
+        // handles the case where the same device address was stored from a previous session
+        // and handleUpdateLastAddress skipped switchActiveDatabase (address unchanged).
+        radioInterfaceService.currentDeviceAddressFlow
+            .onEach { address -> databaseManager.switchActiveDatabase(address) }
+            .launchIn(scope)
 
         nodeManager.loadCachedNodeDB()
     }

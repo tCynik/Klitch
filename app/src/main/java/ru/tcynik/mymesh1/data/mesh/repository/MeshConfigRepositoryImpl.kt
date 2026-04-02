@@ -1,5 +1,6 @@
 package ru.tcynik.mymesh1.data.mesh.repository
 
+import android.util.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import ru.tcynik.mymesh1.domain.mesh.model.MeshDeviceConfigModel
@@ -14,15 +15,22 @@ class MeshConfigRepositoryImpl(
     private val commandSender: CommandSender,
 ) : MeshConfigRepository {
 
+    override fun requestDeviceConfig() {
+        meshRouter.configFlowManager.triggerWantConfig()
+    }
+
     override fun observeDeviceConfig(): Flow<MeshDeviceConfigModel?> =
         combine(
             meshRouter.configHandler.localConfig,
-            nodeRepository.ourNodeInfo,
-        ) { config, ourNode ->
+            nodeRepository.nodeDBbyNum,
+            nodeRepository.myNodeInfo,
+            commandSender.channelSetFlow,
+        ) { config, nodeDB, myNodeInfo, channelSet ->
+            val ourNode = myNodeInfo?.myNodeNum?.let { nodeDB[it] }
+            Log.i("MeshConfigRepo", "DBG combine: myNodeNum=${myNodeInfo?.myNodeNum} ourNode=${ourNode?.user?.long_name ?: "null"} nodeDBsize=${nodeDB.size} loraRegion=${config.lora?.region} channels=${channelSet.settings.size}")
             if (ourNode == null) return@combine null
 
             val loraConfig = config.lora
-            val channelSet = commandSender.getCachedChannelSet()
             val primaryChannel = channelSet.settings.firstOrNull()
 
             MeshDeviceConfigModel(

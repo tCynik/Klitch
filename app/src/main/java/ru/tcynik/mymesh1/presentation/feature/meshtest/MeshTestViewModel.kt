@@ -23,6 +23,7 @@ import ru.tcynik.mymesh1.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.ObserveDeviceConfigUseCase
+import ru.tcynik.mymesh1.domain.mesh.usecase.RequestDeviceConfigUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.ObserveMeshNodesUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.ObserveMessagesUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.ObserveOurNodeUseCase
@@ -60,6 +61,7 @@ class MeshTestViewModel(
     private val sendMessage: SendMeshMessageUseCase,
     private val observePacketLog: ObservePacketLogUseCase,
     private val observeDeviceConfig: ObserveDeviceConfigUseCase,
+    private val requestDeviceConfig: RequestDeviceConfigUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MeshTestUiState())
@@ -128,6 +130,7 @@ class MeshTestViewModel(
         }.launchIn(viewModelScope)
 
         observeDeviceConfig(NoParams).onEach { config ->
+            Log.i("MeshTestVM", "DBG observeDeviceConfig emitted: config=${config?.let { "longName=${it.longName} region=${it.region} lora=${it.loraPreset}" } ?: "null"}")
             if (config != null) {
                 _uiState.update { state ->
                     state.copy(
@@ -257,7 +260,7 @@ class MeshTestViewModel(
         _uiState.update { state ->
             state.copy(configTab = state.configTab.copy(isLoading = true, isEditing = false))
         }
-        // Config is observed reactively in init — just show loading until the flow emits
+        requestDeviceConfig()
     }
 
     fun onEditConfigClick() {

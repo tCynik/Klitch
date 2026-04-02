@@ -26,6 +26,7 @@ import ru.tcynik.mymesh1.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.ObserveDeviceConfigUseCase
+import ru.tcynik.mymesh1.domain.mesh.usecase.RequestDeviceConfigUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.ObserveMeshNodesUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.ObserveMessagesUseCase
 import ru.tcynik.mymesh1.domain.mesh.usecase.ObserveOurNodeUseCase
@@ -92,4 +93,5 @@ val meshDataModule = module {
     single { SendMeshMessageUseCase(get()) }
     single { ObservePacketLogUseCase(get()) }
     single { ObserveDeviceConfigUseCase(get()) }
+    single { RequestDeviceConfigUseCase(get()) }
 }

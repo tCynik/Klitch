@@ -21,6 +21,7 @@ import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import okio.ByteString
@@ -68,6 +69,7 @@ class CommandSenderImpl(
 
     private val localConfig = MutableStateFlow(LocalConfig())
     private val channelSet = MutableStateFlow(ChannelSet())
+    override val channelSetFlow: StateFlow<ChannelSet> get() = channelSet
 
     // We'll need a way to track connection state in shared code,
     // maybe via ServiceRepository or similar.

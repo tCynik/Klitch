@@ -17,6 +17,7 @@
 package ru.tcynik.mymesh1.mesh.repository
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.StateFlow
 import okio.ByteString
 import ru.tcynik.mymesh1.mesh.model.DataPacket
 import ru.tcynik.mymesh1.mesh.model.Position
@@ -38,6 +39,9 @@ interface CommandSender {
 
     /** Returns the cached channel set. */
     fun getCachedChannelSet(): ChannelSet
+
+    /** Reactive channel set — emits whenever channels are updated from the radio. */
+    val channelSetFlow: StateFlow<ChannelSet>
 
     /** Generates a new unique packet ID. */
     fun generatePacketId(): Int
