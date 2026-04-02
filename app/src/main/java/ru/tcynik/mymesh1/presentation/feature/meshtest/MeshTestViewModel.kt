@@ -338,6 +338,16 @@ class MeshTestViewModel(
         }
     }
 
+    fun onAddChannelClick() {
+        _uiState.update { state ->
+            val channels = state.configTab.channels
+            if (channels.size >= 8) return@update state
+            val nextIndex = channels.size
+            val newChannel = ChannelConfigUi(index = nextIndex, channelName = "", pskBase64 = "")
+            state.copy(configTab = state.configTab.copy(channels = channels + newChannel))
+        }
+    }
+
     // ── Telemetry Tab ─────────────────────────────────────────────────────────
 
     fun onRefreshTelemetryClick() {

@@ -38,6 +38,7 @@ fun ConfigTab(
     onShortNameChange: (String) -> Unit = {},
     onChannelNameChange: (index: Int, value: String) -> Unit = { _, _ -> },
     onChannelPskChange: (index: Int, value: String) -> Unit = { _, _ -> },
+    onAddChannelClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val isConnected = connectionStatus is MeshConnectionStatusUi.Connected
@@ -113,6 +114,15 @@ fun ConfigTab(
                     onNameChange = { onChannelNameChange(channel.index, it) },
                     onPskChange = { onChannelPskChange(channel.index, it) },
                 )
+            }
+
+            if (state.isEditing && state.channels.size < 8) {
+                OutlinedButton(
+                    onClick = onAddChannelClick,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("+ Add Channel")
+                }
             }
         }
     }
