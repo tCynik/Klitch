@@ -157,6 +157,7 @@ class MeshMessageProcessorImpl(
                         earlyReceivedPackets.removeFirstOrNull()
                     }
                     earlyReceivedPackets.addLast(preparedPacket)
+                    Logger.d { "earlyQueue: packet queued before DB ready id=${preparedPacket.id} portnum=${preparedPacket.decoded?.portnum} queueSize=${earlyReceivedPackets.size}" }
                 }
             }
         }

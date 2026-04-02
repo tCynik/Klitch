@@ -50,6 +50,7 @@ import ru.tcynik.mymesh1.mesh.model.Node
 import ru.tcynik.mymesh1.mesh.model.NodeSortOption
 import ru.tcynik.mymesh1.mesh.model.util.onlineTimeThreshold
 import ru.tcynik.mymesh1.mesh.repository.NodeRepository
+import co.touchlab.kermit.Logger
 import org.meshtastic.proto.DeviceMetadata
 import org.meshtastic.proto.HardwareModel
 import org.meshtastic.proto.LocalStats
@@ -122,6 +123,17 @@ class NodeRepositoryImpl(
                 _myId.value = node?.user?.id
             }
             .launchIn(processLifecycle.coroutineScope)
+
+        // Debug: log every emission of myNodeInfo StateFlow
+        myNodeInfo
+            .onEach { info ->
+                if (info == null) {
+                    Logger.d { "NodeRepository: myNodeInfo StateFlow emitted null" }
+                } else {
+                    Logger.i { "NodeRepository: myNodeInfo StateFlow emitted nodeNum=${info.myNodeNum} model=${info.model} fw=${info.firmwareVersion}" }
+                }
+            }
+            .launchIn(processLifecycle.coroutineScope)
     }
 
     /**
@@ -187,6 +199,7 @@ class NodeRepositoryImpl(
 
     /** Installs initial configuration data (local info and remote nodes) into the database. */
     override suspend fun installConfig(mi: MyNodeInfo, nodes: List<Node>) = withContext(dispatchers.io) {
+        Logger.i { "NodeRepository.installConfig: called nodeNum=${mi.myNodeNum} nodeCount=${nodes.size}" }
         nodeInfoWriteDataSource.installConfig(mi.toEntity(), nodes.map { it.toEntity() })
     }
 

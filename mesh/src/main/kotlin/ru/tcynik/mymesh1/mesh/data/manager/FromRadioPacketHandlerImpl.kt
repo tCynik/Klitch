@@ -16,6 +16,7 @@
  */
 package ru.tcynik.mymesh1.mesh.data.manager
 
+import co.touchlab.kermit.Logger
 import org.koin.core.annotation.Single
 import ru.tcynik.mymesh1.mesh.repository.FromRadioPacketHandler
 import ru.tcynik.mymesh1.mesh.repository.MeshRouter
@@ -51,14 +52,20 @@ class FromRadioPacketHandlerImpl(
         val channel = proto.channel
         val clientNotification = proto.clientNotification
 
+        Logger.d { "handleFromRadio: myInfo=${myInfo != null} metadata=${metadata != null} nodeInfo=${nodeInfo != null} configCompleteId=$configCompleteId" }
+
         when {
             myInfo != null -> router.value.configFlowManager.handleMyInfo(myInfo)
             metadata != null -> router.value.configFlowManager.handleLocalMetadata(metadata)
             nodeInfo != null -> {
                 router.value.configFlowManager.handleNodeInfo(nodeInfo)
                 serviceRepository.setConnectionProgress("Nodes (${router.value.configFlowManager.newNodeCount})")
+                Logger.d { "handleFromRadio: nodeInfo num=${nodeInfo.num} dispatched (total=${router.value.configFlowManager.newNodeCount})" }
             }
-            configCompleteId != null -> router.value.configFlowManager.handleConfigComplete(configCompleteId)
+            configCompleteId != null -> {
+                Logger.i { "handleFromRadio: configCompleteId=$configCompleteId received" }
+                router.value.configFlowManager.handleConfigComplete(configCompleteId)
+            }
             mqttProxyMessage != null -> mqttManager.handleMqttProxyMessage(mqttProxyMessage)
             queueStatus != null -> packetHandler.handleQueueStatus(queueStatus)
             config != null -> router.value.configHandler.handleDeviceConfig(config)

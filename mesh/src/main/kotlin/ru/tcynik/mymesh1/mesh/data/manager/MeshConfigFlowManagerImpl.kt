@@ -126,9 +126,14 @@ class MeshConfigFlowManagerImpl(
         newNodes.clear()
 
         scope.handledLaunch {
-            myNodeInfo?.let {
-                nodeRepository.installConfig(it, entities)
-                sendAnalytics(it)
+            val mi = myNodeInfo
+            if (mi == null) {
+                Logger.e { "handleNodeInfoComplete: myNodeInfo is null — installConfig skipped, StateFlow will remain null" }
+            } else {
+                Logger.i { "installConfig: writing nodeNum=${mi.myNodeNum} model=${mi.model} fw=${mi.firmwareVersion} nodes=${entities.size}" }
+                nodeRepository.installConfig(mi, entities)
+                Logger.i { "installConfig: DB write complete for nodeNum=${mi.myNodeNum}" }
+                sendAnalytics(mi)
             }
             nodeManager.setNodeDbReady(true)
             nodeManager.setAllowNodeDbWrites(true)
@@ -144,6 +149,9 @@ class MeshConfigFlowManagerImpl(
 
     override fun handleMyInfo(myInfo: ProtoMyNodeInfo) {
         Logger.i { "MyNodeInfo received: ${myInfo.my_node_num}" }
+        if (rawMyNodeInfo != null) {
+            Logger.w { "handleMyInfo: rawMyNodeInfo already set (was ${rawMyNodeInfo?.my_node_num}), overwriting with ${myInfo.my_node_num}" }
+        }
         rawMyNodeInfo = myInfo
         nodeManager.myNodeNum = myInfo.my_node_num
         regenMyNodeInfo(lastMetadata)
@@ -156,7 +164,7 @@ class MeshConfigFlowManagerImpl(
     }
 
     override fun handleLocalMetadata(metadata: DeviceMetadata) {
-        Logger.i { "Local Metadata received: ${metadata.firmware_version}" }
+        Logger.i { "Local Metadata received: fw=${metadata.firmware_version} hw_model=${metadata.hw_model} hasWifi=${metadata.hasWifi}" }
         lastMetadata = metadata
         regenMyNodeInfo(metadata)
     }

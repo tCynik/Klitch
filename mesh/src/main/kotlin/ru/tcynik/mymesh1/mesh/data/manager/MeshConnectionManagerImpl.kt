@@ -247,12 +247,14 @@ class MeshConnectionManagerImpl(
     }
 
     override fun startConfigOnly() {
+        Logger.i { "startConfigOnly: sending want_config_id=${HandshakeConstants.CONFIG_NONCE}" }
         val action = { packetHandler.sendToRadio(ToRadio(want_config_id = HandshakeConstants.CONFIG_NONCE)) }
         startHandshakeStallGuard(1, action)
         action()
     }
 
     override fun startNodeInfoOnly() {
+        Logger.i { "startNodeInfoOnly: sending want_config_id=${HandshakeConstants.NODE_INFO_NONCE}" }
         val action = { packetHandler.sendToRadio(ToRadio(want_config_id = HandshakeConstants.NODE_INFO_NONCE)) }
         startHandshakeStallGuard(2, action)
         action()
@@ -261,6 +263,7 @@ class MeshConnectionManagerImpl(
     override fun onRadioConfigLoaded() {
         scope.handledLaunch {
             val queuedPackets = packetRepository.getQueuedPackets() ?: emptyList()
+            Logger.d { "onRadioConfigLoaded: queued packets to replay=${queuedPackets.size} myNodeNum=${nodeManager.myNodeNum}" }
             queuedPackets.forEach { packet ->
                 try {
                     workerManager.enqueueSendMessage(packet.id)
@@ -276,6 +279,7 @@ class MeshConnectionManagerImpl(
     }
 
     override fun onNodeDbReady() {
+        Logger.i { "onNodeDbReady: entered, cancelling handshakeTimeout, myNodeNum=${nodeManager.myNodeNum}" }
         handshakeTimeout?.cancel()
         handshakeTimeout = null
 
