@@ -104,8 +104,8 @@ fun ConfigTab(
                 }
             }
 
-            state.channelConfig?.let { config ->
-                ChannelConfigCard(config = config)
+            state.channels.forEach { channel ->
+                ChannelConfigCard(config = channel)
             }
         }
     }
@@ -147,13 +147,11 @@ private fun ChannelConfigCard(
     Card(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Channel Config",
+                text = "Channel ${config.index}",
                 style = MaterialTheme.typography.titleSmall,
             )
             Spacer(modifier = Modifier.height(12.dp))
-            ConfigRow(label = "Channel name", value = config.channelName, isEditing = false)
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-            ConfigRow(label = "Modem preset", value = config.modemPreset, isEditing = false)
+            ConfigRow(label = "Name", value = config.channelName, isEditing = false)
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
             ConfigRow(label = "PSK", value = config.pskMasked, isEditing = false)
         }

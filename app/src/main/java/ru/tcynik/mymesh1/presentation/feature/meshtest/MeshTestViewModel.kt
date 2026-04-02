@@ -145,11 +145,13 @@ class MeshTestViewModel(
                                 txPowerDbm = config.txPowerDbm,
                                 region = config.region,
                             ),
-                            channelConfig = ChannelConfigUi(
-                                channelName = config.channelName,
-                                modemPreset = config.loraPreset,
-                                pskMasked = config.pskMasked,
-                            ),
+                            channels = config.channels.map { ch ->
+                                ChannelConfigUi(
+                                    index = ch.index,
+                                    channelName = ch.name,
+                                    pskMasked = ch.pskMasked,
+                                )
+                            },
                         )
                     )
                 }

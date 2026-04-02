@@ -4,7 +4,7 @@ data class ConfigTabState(
     val isLoading: Boolean = false,
     val isEditing: Boolean = false,
     val deviceConfig: DeviceConfigUi? = null,
-    val channelConfig: ChannelConfigUi? = null,
+    val channels: List<ChannelConfigUi> = emptyList(),
 )
 
 data class DeviceConfigUi(
@@ -16,7 +16,7 @@ data class DeviceConfigUi(
 )
 
 data class ChannelConfigUi(
+    val index: Int,
     val channelName: String,
-    val modemPreset: String,
     val pskMasked: String,
 )
