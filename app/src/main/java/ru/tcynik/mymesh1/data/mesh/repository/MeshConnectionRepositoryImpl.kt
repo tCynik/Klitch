@@ -10,6 +10,7 @@ import ru.tcynik.mymesh1.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.mymesh1.domain.mesh.model.MeshDeviceModel
 import ru.tcynik.mymesh1.domain.mesh.repository.MeshConnectionRepository
 import ru.tcynik.mymesh1.mesh.ble.BleScanner
+import ru.tcynik.mymesh1.mesh.ble.MeshtasticBleConstants
 import ru.tcynik.mymesh1.mesh.model.InterfaceId
 import ru.tcynik.mymesh1.mesh.repository.NodeRepository
 import ru.tcynik.mymesh1.mesh.repository.RadioInterfaceService
@@ -44,7 +45,7 @@ class MeshConnectionRepositoryImpl(
     @OptIn(ExperimentalUuidApi::class)
     override fun scanDevices(): Flow<List<MeshDeviceModel>> = flow {
         val discovered = mutableListOf<MeshDeviceModel>()
-        bleScanner.scan(timeout = 30.seconds).collect { device ->
+        bleScanner.scan(timeout = 30.seconds, serviceUuid = MeshtasticBleConstants.SERVICE_UUID).collect { device ->
             if (discovered.none { it.address == device.address }) {
                 discovered.add(
                     MeshDeviceModel(

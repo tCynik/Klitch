@@ -218,10 +218,17 @@ class MeshTestViewModel(
     }
 
     fun onConnectClick(address: String) {
+        scanJob?.cancel()
+        scanJob = null
         val deviceName = _uiState.value.connectionTab.scannedDevices
             .find { it.address == address }?.name ?: address
         Log.i("MeshTestVM", "DBG onConnectClick: address=$address name=$deviceName")
-        _uiState.update { it.copy(connectionStatus = MeshConnectionStatusUi.Connecting(deviceName)) }
+        _uiState.update { state ->
+            state.copy(
+                connectionStatus = MeshConnectionStatusUi.Connecting(deviceName),
+                connectionTab = state.connectionTab.copy(isScanning = false),
+            )
+        }
         viewModelScope.launch {
             Log.i("MeshTestVM", "DBG onConnectClick: calling connectToDevice...")
             runCatching { connectToDevice(ConnectToMeshDeviceParams(address, deviceName)) }
