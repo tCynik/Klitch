@@ -183,7 +183,7 @@ private fun MessageBubble(
         ) {
             if (!isOutgoing) {
                 Text(
-                    text = message.fromNodeId,
+                    text = message.fromNodeName,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )

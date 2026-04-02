@@ -14,6 +14,7 @@ data class MeshMessageUi(
     val id: String,
     val text: String,
     val fromNodeId: String,
+    val fromNodeName: String,
     val toNodeId: String,
     val formattedTime: String,
     val direction: MessageDirection,

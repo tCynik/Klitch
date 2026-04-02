@@ -418,6 +418,7 @@ class MeshTestViewModel(
                                     id = msg.uuid.toString(),
                                     text = msg.text,
                                     fromNodeId = msg.fromNodeId,
+                                    fromNodeName = msg.fromNodeName,
                                     toNodeId = contactKey,
                                     formattedTime = msg.formattedTime,
                                     direction = if (msg.isOutgoing) MessageDirection.Outgoing

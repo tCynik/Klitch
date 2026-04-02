@@ -9,6 +9,7 @@ fun Message.toMeshMessageModel(): MeshMessageModel = MeshMessageModel(
     uuid = uuid,
     text = text,
     fromNodeId = node.user.id,
+    fromNodeName = node.user.long_name.ifBlank { node.user.id },
     formattedTime = time,
     isOutgoing = fromLocal,
     deliveryStatus = status.toDelivery(),

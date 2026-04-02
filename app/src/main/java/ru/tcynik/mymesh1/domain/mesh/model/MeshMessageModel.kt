@@ -4,6 +4,7 @@ data class MeshMessageModel(
     val uuid: Long,
     val text: String,
     val fromNodeId: String,
+    val fromNodeName: String,
     val formattedTime: String,
     val isOutgoing: Boolean,
     val deliveryStatus: MeshMessageDelivery,
