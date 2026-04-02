@@ -492,6 +492,7 @@ class MeshDataHandlerImpl(
                 // Check if message should be filtered
                 val isFiltered = shouldFilterMessage(dataPacket, contactKey)
 
+                android.util.Log.i("MeshDataHandler", "DBG inserting packet: contactKey=$contactKey myNodeNum=$myNodeNum from=${dataPacket.from} to=${dataPacket.to} filtered=$isFiltered")
                 insert(
                     dataPacket,
                     myNodeNum,

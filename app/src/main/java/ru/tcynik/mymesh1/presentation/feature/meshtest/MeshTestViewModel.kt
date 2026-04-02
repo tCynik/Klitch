@@ -76,8 +76,9 @@ class MeshTestViewModel(
     private var messagesJob: Job? = null
     private var frozenLogEntries = emptyList<LogEntryUi>()
 
-    /** Contact key currently observed for messages (broadcast by default). */
-    private var activeContactKey: String = "^all"
+    /** Contact key currently observed for messages (broadcast ch0 by default).
+     *  Format matches mesh layer: "${channel}${nodeId}", e.g. "0^all" for ch0 broadcast. */
+    private var activeContactKey: String = "0^all"
 
     private val logTimeFmt = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault())
 
@@ -397,8 +398,10 @@ class MeshTestViewModel(
 
     private fun startObservingMessages(contactKey: String) {
         messagesJob?.cancel()
+        Log.i("MeshTestVM", "DBG startObservingMessages: contactKey=$contactKey")
         messagesJob = observeMessages(contactKey)
             .onEach { messages ->
+                Log.i("MeshTestVM", "DBG messages flow emitted: count=${messages.size}")
                 _uiState.update { state ->
                     state.copy(
                         messagesTab = state.messagesTab.copy(

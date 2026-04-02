@@ -146,8 +146,8 @@ class PacketRepositoryImpl(private val dbManager: DatabaseProvider, private val 
         limit: Int?,
         includeFiltered: Boolean,
         getNode: suspend (String?) -> Node,
-    ): Flow<List<Message>> = withContext(dispatchers.io) {
-        val dao = dbManager.currentDb.value.packetDao()
+    ): Flow<List<Message>> = dbManager.currentDb.flatMapLatest { db ->
+        val dao = db.packetDao()
         val flow =
             when {
                 limit != null -> dao.getMessagesFrom(contact, limit)

@@ -46,7 +46,8 @@
       "Bash(find \"C:/Users/LocAdmin/AndroidStudioProjects/MyMesh1/mesh/src/main\" -name \"AndroidManifest.xml\" -exec cat {} \\\\;)",
       "Bash(./gradlew :app:processDebugManifest)",
       "Bash(find /c/Users/LocAdmin/AndroidStudioProjects/MyMesh1 -type f -name \"*.proto\" -exec grep -l \"MyNodeInfo\" {} \\\\;)",
-      "Bash(grep -E \"\\\\.\\(kt|java\\)$\")"
+      "Bash(grep -E \"\\\\.\\(kt|java\\)$\")",
+      "Bash(find c:/Users/LocAdmin/AndroidStudioProjects/MyMesh1/mesh -name \"*.kt\" -exec grep -l \"toMessage\" {} \\\\;)"
     ]
   }
 }
