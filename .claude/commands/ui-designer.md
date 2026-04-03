@@ -114,11 +114,25 @@ Always respond in Russian.
 
 ### Navigation & UX Patterns
 
-**Navigation style**: *(TBD — bottom bar / nav rail / drawer / none)*
+**Navigation style**: Single NavGraph, no nav bar/rail/drawer. All modal destinations are full-screen `composable()` routes; compact overlays use `dialog()`. Decided in app-structure Phase 1.
 **Screen transitions**: *(TBD)*
 **Loading states**: *(TBD — skeleton / spinner / shimmer)*
 **Empty states**: *(TBD)*
 **Error states**: *(TBD)*
+
+#### Main Screen OSD Layout — **PENDING** (Phase 2 not yet executed)
+
+The main screen structure is architecturally decided (see `/architect` — 2-layer OSD pattern):
+- Layer 1: `MapLibreLayer` (full-screen, all spatial content inside MapLibre)
+- Layer 2: `HudControlsLayer` (left + right button columns)
+
+Visual design is **not yet decided**. Before designing the first HUD component, run:
+```
+/ui-designer define: visual language
+/ui-designer component: MainScreen HUD layout — left column + right column
+```
+
+Until Phase 2 completes, do **not** commit to HUD button sizing, column padding, or icon tint adaptation rules.
 
 ---
 

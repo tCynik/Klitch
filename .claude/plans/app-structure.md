@@ -1,7 +1,7 @@
 # Plan: Application Structure
 
 **Date**: 2026-04-03
-**Status**: In Progress
+**Status**: Done
 
 ## Summary
 
@@ -389,17 +389,16 @@ In MVP only the Meshtastic implementation is non-stub.
 
 ---
 
-## Phase 6 — Skill Update Review
+## Phase 6 — Skill Update Review ✅ DONE (2026-04-03)
 
 **Tasks per skill:**
 
-- `/architect`: Add 2-layer OSD composition pattern as canonical. Add NavGraph-as-modals convention. Add map feature staging approach. Add meshtest removal policy. Add repository transport abstraction contract.
-- `/ui-designer`: Add main screen OSD layout system if Phase 2 completes before Phase 6. Otherwise flag as pending.
-- `/icon-designer`: No new icon conventions yet — OSD button icons designed in a later feature iteration.
-- `/planner`: No methodology gaps identified. No new skills created.
+- `/architect`: ✅ Added — 2-layer OSD composition pattern, NavGraph-as-modals convention, map feature staging table, meshtest removal policy + capability checklist, transport repository abstraction contract (`MessageRepository`, `NodeRepository`, `ChannelRepository`). Added 4 new anti-pattern rows.
+- `/ui-designer`: ✅ Updated — Navigation & UX Patterns section: navigation style decided (NavGraph destinations only, no nav bar); main screen OSD layout flagged as PENDING (Phase 2 not yet executed), with explicit run instructions.
+- `/icon-designer`: No changes needed — OSD button icons designed in a later feature iteration.
+- `/planner`: No changes needed — no methodology gaps identified, no new skills created.
 
-**Skill**: Direct edit of `.claude/commands/*.md`
-**Output**: Updated skill files, or explicit "no changes needed" confirmation per skill
+**Output**: `.claude/commands/architect.md`, `.claude/commands/ui-designer.md` updated.
 
 ---
 
@@ -512,3 +511,4 @@ Phase 6: [direct edit — .claude/commands/architect.md, ui-designer.md, planner
 - 2026-04-03: Testing Strategy section added — TDD for logic, integration for repos, manual for BLE/UI
 - 2026-04-03: Phase 3 completed — full scaffold committed, app builds clean
 - 2026-04-03: Phase 4 completed — `assembleDebug` green; deprecated Koin ViewModel DSL imports fixed in PresentationModule.kt
+- 2026-04-03: Phase 6 completed — architect.md updated (OSD pattern, NavGraph-as-modals, staging, meshtest policy, transport contract); ui-designer.md updated (nav style decided, OSD layout flagged pending)
