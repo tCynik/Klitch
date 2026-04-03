@@ -47,7 +47,27 @@
       "Bash(./gradlew :app:processDebugManifest)",
       "Bash(find /c/Users/LocAdmin/AndroidStudioProjects/MyMesh1 -type f -name \"*.proto\" -exec grep -l \"MyNodeInfo\" {} \\\\;)",
       "Bash(grep -E \"\\\\.\\(kt|java\\)$\")",
-      "Bash(find c:/Users/LocAdmin/AndroidStudioProjects/MyMesh1/mesh -name \"*.kt\" -exec grep -l \"toMessage\" {} \\\\;)"
+      "Bash(find c:/Users/LocAdmin/AndroidStudioProjects/MyMesh1/mesh -name \"*.kt\" -exec grep -l \"toMessage\" {} \\\\;)",
+      "Bash(gh repo:*)",
+      "Bash(find app/src mesh/src shared/src -name \"*.kt\" -exec sed -i 's/ru\\\\.tcynik\\\\.mymesh1/ru.tcynik.meshtactics/g' {} \\\\;)",
+      "Bash(mv app/src/main/java/ru/tcynik/mymesh1 app/src/main/java/ru/tcynik/meshtactics)",
+      "Bash(mv app/src/androidTest/java/ru/tcynik/mymesh1 app/src/androidTest/java/ru/tcynik/meshtactics)",
+      "Bash(mv app/src/test/java/ru/tcynik/mymesh1 app/src/test/java/ru/tcynik/meshtactics)",
+      "Bash([ -d \"$dir/ru/tcynik/mymesh1\" ])",
+      "Bash(mv __TRACKED_VAR__/ru/tcynik/mymesh1 __TRACKED_VAR__/ru/tcynik/meshtactics)",
+      "Bash(./gradlew assembleDebug)",
+      "Bash(./gradlew :shared:generateCommonMainAppDatabaseInterface)",
+      "Bash(mkdir -p shared/src/commonMain/sqldelight/ru/tcynik/meshtactics/data/local)",
+      "Bash(mv shared/src/commonMain/sqldelight/ru/tcynik/mymesh1/data/local/Node.sq shared/src/commonMain/sqldelight/ru/tcynik/meshtactics/data/local/Node.sq)",
+      "Bash(rm -rf shared/src/commonMain/sqldelight/ru/tcynik/mymesh1)",
+      "Bash(find mesh/src -name \"*.kt\" -exec sed -i 's/ru\\\\.tcynik\\\\.mymesh1/ru.tcynik.meshtactics/g' {} \\\\;)",
+      "Bash(mkdir -p mesh/src/main/kotlin/ru/tcynik/meshtactics)",
+      "Bash(mv mesh/src/main/kotlin/ru/tcynik/mymesh1/mesh mesh/src/main/kotlin/ru/tcynik/meshtactics/)",
+      "Bash(rm -rf mesh/src/main/kotlin/ru/tcynik/mymesh1)",
+      "Bash(find mesh/src/main/aidl -name \"*.aidl\" -exec sed -i 's/ru\\\\.tcynik\\\\.mymesh1/ru.tcynik.meshtactics/g' {} \\\\;)",
+      "Bash(mkdir -p mesh/src/main/aidl/ru/tcynik/meshtactics)",
+      "Bash(mv mesh/src/main/aidl/ru/tcynik/mymesh1/mesh mesh/src/main/aidl/ru/tcynik/meshtactics/)",
+      "Bash(rm -rf mesh/src/main/aidl/ru/tcynik/mymesh1)"
     ]
   }
 }

@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "ru.tcynik.mymesh1"
+    namespace = "ru.tcynik.meshtactics"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "ru.tcynik.mymesh1"
+        applicationId = "ru.tcynik.meshtactics"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
