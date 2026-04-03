@@ -83,6 +83,10 @@ dependencies {
     implementation(libs.koin.compose)
     implementation(libs.koin.compose.viewmodel)
 
+    // maplibre-compose — Jetpack Compose wrapper for MapLibre (pulls in android-sdk transitively)
+    // Note: if field device OpenGL ES compatibility issues arise, investigate android-sdk-opengl variant
+    implementation("org.maplibre.compose:maplibre-compose:0.12.1")
+
     // Тестирование
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
