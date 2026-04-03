@@ -1,7 +1,7 @@
 package ru.tcynik.meshtactics.di
 
-import org.koin.androidx.viewmodel.dsl.viewModel
-import org.koin.androidx.viewmodel.dsl.viewModelOf
+import org.koin.core.module.dsl.viewModel
+import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 import ru.tcynik.meshtactics.presentation.feature.chat.ChatViewModel
 import ru.tcynik.meshtactics.presentation.feature.groups.GroupsViewModel

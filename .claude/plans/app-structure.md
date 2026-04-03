@@ -1,7 +1,7 @@
 # Plan: Application Structure
 
 **Date**: 2026-04-03
-**Status**: Draft
+**Status**: In Progress
 
 ## Summary
 
@@ -334,7 +334,7 @@ In MVP only the Meshtastic implementation is non-stub.
 
 ---
 
-## Phase 3 — Implementation: Scaffold
+## Phase 3 — Implementation: Scaffold ✅ DONE (2026-04-03)
 
 **Goal**: All packages and stub files created; app builds; navigation routes wired.
 
@@ -359,7 +359,7 @@ In MVP only the Meshtastic implementation is non-stub.
 
 ---
 
-## Phase 4 — Testing: Build + Navigation Smoke Test
+## Phase 4 — Testing: Build + Navigation Smoke Test ✅ DONE (2026-04-03)
 
 **Goal**: Verify scaffold is coherent.
 
@@ -510,3 +510,5 @@ Phase 6: [direct edit — .claude/commands/architect.md, ui-designer.md, planner
 - 2026-04-03: Phase 1.2/1.3 updated — modals replaced with NavGraph destinations; MainScreen reduced to 2 layers
 - 2026-04-03: Phase 1.4–1.6 added — map feature staging, meshtest removal policy, transport abstraction
 - 2026-04-03: Testing Strategy section added — TDD for logic, integration for repos, manual for BLE/UI
+- 2026-04-03: Phase 3 completed — full scaffold committed, app builds clean
+- 2026-04-03: Phase 4 completed — `assembleDebug` green; deprecated Koin ViewModel DSL imports fixed in PresentationModule.kt
