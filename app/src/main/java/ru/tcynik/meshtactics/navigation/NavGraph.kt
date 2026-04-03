@@ -43,6 +43,7 @@ fun NavGraph() {
                 val uiState by viewModel.uiState.collectAsState()
                 MainScreen(
                     uiState = uiState,
+                    onCameraPositionChanged = viewModel::onCameraPositionChanged,
                     onChatClick = { navController.navigate(Route.Chat) },
                     onSettingsClick = { navController.navigate(Route.Settings) },
                     onNodeStatusClick = { navController.navigate(Route.NodeStatus) },

@@ -47,6 +47,9 @@ dependencies {
     implementation(project(":shared"))
     implementation(project(":mesh"))
 
+    // Multiplatform Settings — required for LastMapPositionRepositoryImpl in app/data/local
+    implementation(libs.multiplatform.settings)
+
     // AndroidX
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

@@ -52,6 +52,15 @@ class ConnectToNodeUseCase(
     override suspend fun execute(params: String) =
         repository.connectToNode(params)
 }
+
+// SyncUseCase — for synchronous operations (e.g. Settings read/write, pure computation)
+// Do NOT use FlowUseCase or UseCase when the operation is neither suspend nor reactive.
+// Use plain operator fun invoke — idiomatic Kotlin, no base class needed.
+class GetLastMapPositionUseCase(
+    private val repository: LastMapPositionRepository,
+) {
+    operator fun invoke(): MapCameraPosition? = repository.get()
+}
 ```
 
 ### Repository
@@ -127,6 +136,15 @@ val commonModule = module {
 // PresentationModule — viewModelOf for ViewModels
 val presentationModule = module {
     viewModelOf(::NodesViewModel)
+}
+
+// Settings-backed local repository — inject Settings directly, NOT AppSettings.
+// AppSettings is a thin wrapper with its own specific keys; don't extend it for new features.
+// Settings is registered in androidModule as single<Settings> and resolves via get<Settings>().
+// Add implementation(libs.multiplatform.settings) to app/build.gradle.kts if the repository
+// lives in app/data/local/ (Settings is implementation-scoped in :shared, not re-exported).
+val mapDataModule = module {
+    single<LastMapPositionRepository> { LastMapPositionRepositoryImpl(get<Settings>()) }
 }
 ```
 
@@ -263,6 +281,8 @@ In MVP only Meshtastic implementations are non-stub. MQTT and WiFi implementatio
 | More than 2 Compose layers in MainScreen | Spatial content goes into MapLibre layers, not Compose layers |
 | Direct `meshtest` access in non-debug builds | Gate route behind `BuildConfig.DEBUG` |
 | Caching or import logic in MVP `data/map/` | Staging: only `HardcodedXyzTileSource` in MVP |
+| Synchronous use case extends `UseCase<P,R>` (suspend) | Use plain `operator fun invoke` — `UseCase` is for suspend operations only |
+| New feature adds keys to `AppSettings` | Create a new repository in `data/local/` that injects `Settings` directly |
 
 ---
 
