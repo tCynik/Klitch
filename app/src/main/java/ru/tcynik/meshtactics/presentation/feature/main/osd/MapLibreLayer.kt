@@ -1,7 +1,6 @@
 package ru.tcynik.meshtactics.presentation.feature.main.osd
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
@@ -27,16 +26,17 @@ fun MapLibreLayer(
         ),
     )
 
-    val tileSource = rememberRasterSource(
-        tiles = remember(tileUrlTemplate) { listOf(tileUrlTemplate) },
-        tileSize = 256,
-    )
-
+    // rememberRasterSource must be called inside MaplibreMap content lambda —
+    // it reads LocalStyleNode which is only provided within that scope.
     MaplibreMap(
         modifier = modifier,
         baseStyle = BaseStyle.Empty,
         cameraState = cameraState,
     ) {
+        val tileSource = rememberRasterSource(
+            tiles = listOf(tileUrlTemplate),
+            tileSize = 256,
+        )
         RasterLayer(
             id = "base-raster-layer",
             source = tileSource,
