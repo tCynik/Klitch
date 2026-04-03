@@ -16,7 +16,7 @@ import ru.tcynik.meshtactics.presentation.feature.settings.SettingsViewModel
 val presentationModule = module {
 
     // ── Main ────────────────────────────────────────────────────────────────
-    viewModelOf(::MainViewModel)
+    viewModel { MainViewModel(mapTileRepository = get()) }
 
     // ── Feature screens ──────────────────────────────────────────────────────
     viewModelOf(::ChatViewModel)
