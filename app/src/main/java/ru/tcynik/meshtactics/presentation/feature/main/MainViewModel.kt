@@ -5,16 +5,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import ru.tcynik.meshtactics.domain.map.repository.MapTileRepository
+import ru.tcynik.meshtactics.domain.map.usecase.GetTileUrlUseCase
 
 class MainViewModel(
-    mapTileRepository: MapTileRepository,
+    getTileUrl: GetTileUrlUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
     init {
-        _uiState.update { it.copy(tileUrlTemplate = mapTileRepository.getTileUrlTemplate()) }
+        _uiState.update { it.copy(tileUrlTemplate = getTileUrl()) }
     }
 }

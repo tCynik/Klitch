@@ -6,7 +6,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.koin.compose.viewmodel.koinViewModel
 
 // meshtest migration checklist:
 //   ☐ BLE connect / device scan
@@ -14,8 +13,8 @@ import org.koin.compose.viewmodel.koinViewModel
 //   ☐ Packet log (debug section)
 @Composable
 fun NodeSettingsScreen(
+    uiState: NodeSettingsUiState,
     onNavigateBack: () -> Unit,
-    viewModel: NodeSettingsViewModel = koinViewModel(),
 ) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text("Node Settings — TODO")
