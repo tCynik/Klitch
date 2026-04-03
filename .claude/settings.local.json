@@ -67,7 +67,10 @@
       "Bash(find mesh/src/main/aidl -name \"*.aidl\" -exec sed -i 's/ru\\\\.tcynik\\\\.mymesh1/ru.tcynik.meshtactics/g' {} \\\\;)",
       "Bash(mkdir -p mesh/src/main/aidl/ru/tcynik/meshtactics)",
       "Bash(mv mesh/src/main/aidl/ru/tcynik/mymesh1/mesh mesh/src/main/aidl/ru/tcynik/meshtactics/)",
-      "Bash(rm -rf mesh/src/main/aidl/ru/tcynik/mymesh1)"
+      "Bash(rm -rf mesh/src/main/aidl/ru/tcynik/mymesh1)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:maplibre.org)"
     ]
   }
 }
