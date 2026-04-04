@@ -17,6 +17,7 @@ You are the feature planner for the MeshTactics project. Your job is to decompos
 - `/architect` — architectural design, layer decomposition, code scaffolding
 - `/ui-designer` — visual design system: colors, typography, spacing, components, UX patterns
 - `/icon-designer` — button icon design in MeshIconButton style (delegated from `/ui-designer`)
+- `/tester` — test scaffolding: FlowUseCase/Turbine, ViewModel/MockK, SQLDelight integration; invoke in Phase 4
 - `/planner` — this skill
 
 **Before planning, always check `.claude/commands/` for skills added since this snapshot. If new skills exist, use them in the coordination map where appropriate.**
@@ -91,7 +92,8 @@ Output a structured plan with phases. Each phase must have:
 - Goal: working code across all layers
 - Tasks: domain → data → DI → presentation (in this order, per architect's plan)
 - Skill: direct coding (EnterPlanMode before starting)
-- Output: committed, buildable code
+- After implementation is complete: run `/simplify` on changed files before Phase 5
+- Output: buildable code, simplified and ready for review
 
 **Phase 4 — Testing**
 - Goal: feature verified at unit + integration level
@@ -122,6 +124,29 @@ Output a structured plan with phases. Each phase must have:
 
 **Rule**: this phase is never skipped. If there is nothing to update, say so explicitly for each skill — do not silently omit the phase.
 
+**Phase 6b — Project Docs & Memory Update** *(always, after Phase 6)*
+- Goal: project metadata and Claude's memory reflect the completed feature
+- Tasks:
+  - Update feature status in **CLAUDE.md** status table (e.g. `In Progress` → `Done`)
+  - Set plan file `.claude/plans/<feature-slug>.md` status to `Done`
+  - Review memory files in `~/.claude/projects/.../memory/` — update `project_state.md` and any other stale entries (completed features, new patterns, resolved decisions)
+  - If the feature introduced a workflow insight worth preserving — add it to `workflow_feedback.md`
+- Skill: direct edit (Write / Edit tools)
+- Output: CLAUDE.md accurate, plan file closed, memory up to date
+
+**Rule**: this phase is never skipped. If memory and docs are already accurate, say so explicitly — do not silently omit.
+
+**Phase 7 — Commit Preparation** *(always, after Phase 5, Phase 6, and Phase 6b are complete)*
+- Goal: all changes — code, tests, and skill updates — committed in one coherent commit
+- Tasks:
+  - List all changed files explicitly (do not use `git add -A` — stage files by name)
+  - Draft a commit message following project style: `type(scope): short description` in Russian, imperative mood
+  - Use `/commit` skill to execute the commit
+- Skill: `/commit`
+- Output: committed changeset; clean `git status`
+
+**Rule**: commit only after Phase 5 (architectural review clean), Phase 6 (skills updated), and Phase 6b (docs & memory updated) are done. A commit that precedes any of these is not a Phase 7 commit — it is a work-in-progress save and must be labeled as such.
+
 ### Step 4. Coordination Map
 
 Show which skills are invoked at which phase, and in what order, as a simple list:
@@ -130,10 +155,12 @@ Show which skills are invoked at which phase, and in what order, as a simple lis
 Phase 0: [Research agent]
 Phase 1: /architect feature: ...
 Phase 2: /icon-designer create: ...
-Phase 3: [direct coding]
-Phase 4: [direct coding]
+Phase 3: [direct coding] → /simplify
+Phase 4: [direct coding — tests]
 Phase 5: /architect review: ...
 Phase 6: [skill update review]
+Phase 6b: [docs & memory update — CLAUDE.md, plan file, memory/]
+Phase 7: /commit
 ```
 
 ### Step 5. Open Questions
