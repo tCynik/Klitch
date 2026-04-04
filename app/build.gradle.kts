@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "ru.tcynik.mymesh1"
+    namespace = "ru.tcynik.meshtactics"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "ru.tcynik.mymesh1"
+        applicationId = "ru.tcynik.meshtactics"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
@@ -47,6 +47,9 @@ dependencies {
     implementation(project(":shared"))
     implementation(project(":mesh"))
 
+    // Multiplatform Settings — required for LastMapPositionRepositoryImpl in app/data/local
+    implementation(libs.multiplatform.settings)
+
     // AndroidX
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
@@ -82,6 +85,10 @@ dependencies {
     implementation(libs.koin.android)
     implementation(libs.koin.compose)
     implementation(libs.koin.compose.viewmodel)
+
+    // maplibre-compose — Jetpack Compose wrapper for MapLibre (pulls in android-sdk transitively)
+    // Note: if field device OpenGL ES compatibility issues arise, investigate android-sdk-opengl variant
+    implementation("org.maplibre.compose:maplibre-compose:0.12.1")
 
     // Тестирование
     testImplementation(libs.junit)
