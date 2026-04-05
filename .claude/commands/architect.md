@@ -235,6 +235,66 @@ Do not add caching or import logic to MVP implementations.
 
 Gate the `meshtest` route behind `BuildConfig.DEBUG` at all times.
 
+### maplibre-compose LocationProvider Adapter
+
+Third-party map libraries (maplibre-compose) define their own `LocationProvider` interface — separate from project domain interfaces. The adapter pattern bridges them at the `app/di/location/` layer.
+
+**Rules:**
+- The adapter lives in `app/di/location/`, never in `domain` or `data`
+- The adapter implements the **library** interface (`org.maplibre.compose.location.LocationProvider`), not a project domain interface
+- Location update interval concerns (OS request cadence) belong in `app/di/location/`, not in the `mesh` module
+- `mesh/LocationRepository` (30 s Mesh broadcast interval) and the app-layer provider (5 s OS request) are independent — do not conflate them
+- Do **not** use `LocationPuck` or `rememberUserLocationState` — see anti-patterns below
+- Location dot is rendered via `CircleLayer + GeoJsonData.JsonString` inside `MaplibreMap { }`
+- `locationProvider.location` is collected with `collectAsStateWithLifecycle()` inside `MaplibreMap { }` content lambda
+
+```kotlin
+// app/di/location/AppLocationProvider.kt
+class AppLocationProvider(private val context: Application) : LocationProvider {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    @SuppressLint("MissingPermission")
+    override val location: StateFlow<Location?> = callbackFlow {
+        // LocationManagerCompat 5 s request — independent of mesh broadcast
+        awaitClose { LocationManagerCompat.removeUpdates(...) }
+    }.stateIn(scope, SharingStarted.WhileSubscribed(), null)
+}
+
+// app/di/LocationDomainModule.kt
+val locationDomainModule = module {
+    single<LocationProvider> { AppLocationProvider(androidApplication()) }
+}
+
+// app/presentation/feature/main/osd/MapLibreLayer.kt
+@Composable
+fun MapLibreLayer(..., locationProvider: LocationProvider) {
+    MaplibreMap(...) {
+        // ... tile layers ...
+
+        // Collect and render location dot — GeoJsonData.JsonString bypasses spatialk serialization
+        val currentLocation by locationProvider.location.collectAsStateWithLifecycle()
+        val locationGeoJson = remember(currentLocation) {
+            val loc = currentLocation
+            if (loc != null)
+                """{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[${loc.position.longitude},${loc.position.latitude}]},"properties":{}}]}"""
+            else
+                """{"type":"FeatureCollection","features":[]}"""
+        }
+        val locationSource = rememberGeoJsonSource(GeoJsonData.JsonString(locationGeoJson))
+        CircleLayer(
+            id = "user-location-dot",
+            source = locationSource,
+            color = const(Color(0xFF2196F3)),
+            radius = const(8.dp),
+            strokeColor = const(Color.White),
+            strokeWidth = const(2.dp),
+        )
+    }
+}
+```
+
+**DI injection point:** `LocationProvider` is injected in `NavGraph.kt` via `koinInject()` and passed as a parameter to `MainScreen` — never injected inside the Screen composable itself.
+
 ### Transport Repository Abstraction Contract
 
 All transports (Meshtastic, MQTT, WiFi) implement the same domain interfaces. Define in `domain/`; implementations in `data/`:
@@ -274,6 +334,7 @@ In MVP only Meshtastic implementations are non-stub. MQTT and WiFi implementatio
 | `data` class in domain with `@Serializable` | `@Serializable` only on DTOs in `data/remote` |
 | Logic inside a Composable function | Logic in ViewModel, Composable only renders |
 | `by viewModel()` inside Screen composable | Screen accepts `uiState` and callbacks as parameters |
+| `koinInject()` inside Screen composable | Inject in `NavGraph.kt`, pass as parameter to Screen |
 | `android.*` import in `commonMain` | Only in `androidMain` or via expect/actual |
 | `runBlocking` in production code | `viewModelScope`, `Dispatchers.IO` via Koin |
 | Hardcoded strings in UI | `stringResource` / `strings.xml` |
@@ -283,6 +344,7 @@ In MVP only Meshtastic implementations are non-stub. MQTT and WiFi implementatio
 | Caching or import logic in MVP `data/map/` | Staging: only `HardcodedXyzTileSource` in MVP |
 | Synchronous use case extends `UseCase<P,R>` (suspend) | Use plain `operator fun invoke` — `UseCase` is for suspend operations only |
 | New feature adds keys to `AppSettings` | Create a new repository in `data/local/` that injects `Settings` directly |
+| `LocationPuck` / `rememberUserLocationState` with maplibre-compose 0.12.1 | Use `CircleLayer + GeoJsonData.JsonString` — `spatialk:geojson:0.6.0` crashes on empty `FeatureCollection()` serialization (LocationPuck's initial null-location path) |
 
 ---
 

@@ -1,11 +1,11 @@
 # Plan: GPS User Position Marker on Map
 
 **Date**: 2026-04-03
-**Status**: Ready for implementation
+**Status**: Done
 
 ## Summary
 
-Display the device's current GPS position as a marker on the MapLibre map. The marker updates continuously as the user moves. Uses `LocationPuck` from `maplibre-compose:0.12.1` — a built-in composable rendering a dot with optional accuracy circle, bearing, and shadow. Location permissions are already declared in the manifests and requested at runtime by `BlePermissionGuard`.
+Display the device's current GPS position as a marker on the MapLibre map. The marker updates continuously as the user moves. Originally planned with `LocationPuck` from `maplibre-compose:0.12.1`, but replaced at runtime with a manual `CircleLayer + GeoJsonData.JsonString` implementation due to a bug in `spatialk:geojson:0.6.0` (see Decision #5). Location permissions are already declared in the manifests and requested at runtime by `BlePermissionGuard`.
 
 ## Scope
 
@@ -79,18 +79,35 @@ AppLocationProvider (app/di/location)
   → LocationPuck(locationState = userLocationState, ...)
 ```
 
-### LocationPuck usage
+### Location dot usage (final implementation — CircleLayer)
+
+`LocationPuck` and `rememberUserLocationState` are **not used** — see Decision #5.
+
 ```kotlin
-// TODO: consider LocationTrackingEffect for camera follow (future feature)
-val userLocationState = rememberUserLocationState(locationProvider)
-LocationPuck(
-    idPrefix = "user-position",
-    locationState = userLocationState,
-    cameraState = cameraState,
-    showBearing = true,
-    showBearingAccuracy = false,
+// Inside MaplibreMap { } content lambda:
+val currentLocation by locationProvider.location.collectAsStateWithLifecycle()
+val locationGeoJson = remember(currentLocation) {
+    val loc = currentLocation
+    if (loc != null) {
+        val lon = loc.position.longitude
+        val lat = loc.position.latitude
+        """{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[$lon,$lat]},"properties":{}}]}"""
+    } else {
+        """{"type":"FeatureCollection","features":[]}"""
+    }
+}
+val locationSource = rememberGeoJsonSource(GeoJsonData.JsonString(locationGeoJson))
+CircleLayer(
+    id = "user-location-dot",
+    source = locationSource,
+    color = const(Color(0xFF2196F3)),
+    radius = const(8.dp),
+    strokeColor = const(Color.White),
+    strokeWidth = const(2.dp),
 )
 ```
+
+**Why `GeoJsonData.JsonString`**: bypasses spatialk polymorphic serialization — `GeoJsonSource(androidMain)` passes the string directly to `MLNGeoJsonSource` without calling `toJson()`. `rememberGeoJsonSource` calls `source.setData(data)` via `LaunchedEffect(update)` each time `locationGeoJson` changes.
 
 ## Phase Plan
 
@@ -109,7 +126,7 @@ LocationPuck(
 - No custom assets needed for Phase 3a; TODO left for custom icon
 - `LocationPuckColors` / `LocationPuckSizes` use defaults initially
 
-### Phase 3a — Implementation (30 s, via LocationRepository)
+### Phase 3a — Implementation (30 s, via LocationRepository) ✅
 - **Goal**: working GPS marker on map, full stack validated
 - **Order**:
   1. Create `app/di/location/MeshLocationProvider.kt` — implement `LocationProvider`, map `android.location.Location` → maplibre `Location`
@@ -119,14 +136,14 @@ LocationPuck(
 - **Skill**: direct coding (EnterPlanMode before starting)
 - **Output**: committed, buildable code
 
-### Phase 4a — Testing (Phase 3a)
+### Phase 4a — Testing (Phase 3a) ✅
 - **Goal**: Phase 3a stack verified
 - **Tasks**:
   - Unit test `MeshLocationProvider`: mock `LocationRepository`, assert `Flow<maplibre Location?>` maps fields correctly
   - Manual smoke test: launch app, verify `LocationPuck` dot appears at device GPS position
 - **Output**: passing tests + smoke test confirmation
 
-### Phase 3b — Implementation (5 s, direct OS request)
+### Phase 3b — Implementation (5 s, direct OS request) ✅
 - **Goal**: 5 s update interval without affecting Mesh position broadcast
 - **Order**:
   1. Create `app/di/location/AppLocationProvider.kt` — `LocationProvider` with own `LocationManagerCompat` registration at 5 s
@@ -135,20 +152,20 @@ LocationPuck(
 - **Skill**: direct coding
 - **Output**: committed, buildable code
 
-### Phase 4b — Testing (Phase 3b)
+### Phase 4b — Testing (Phase 3b) ✅
 - **Goal**: 5 s interval verified, Mesh broadcast unaffected
 - **Tasks**:
   - Unit test `AppLocationProvider`: verify OS request uses 5 s interval
   - Manual smoke test: confirm marker updates more frequently; confirm Meshtastic position broadcast cadence unchanged
 - **Output**: passing tests + smoke test confirmation
 
-### Phase 5 — Integration Review
+### Phase 5 — Integration Review ✅
 - **Goal**: no Clean Architecture violations
 - **Tasks**: confirm `app`-layer only touches `LocationRepository` interface (not `Impl`); confirm no `mesh`-internal types leak into `app/presentation`
 - **Skill**: `/architect review: app/di/location/, app/presentation/feature/main/`
 - **Output**: review report, violations fixed
 
-### Phase 6 — Skill Update Review
+### Phase 6 — Skill Update Review ✅
 - **Goal**: skills stay in sync with patterns established here
 - **Tasks**:
   - `/architect` — add pattern: "maplibre-compose LocationProvider adapter bridges mesh LocationRepository to map UI; interval concerns handled in app/di/location/, not in mesh module"
@@ -179,7 +196,9 @@ Phase 6:  [skill update review — architect.md only if needed]
 4. **Update interval — phased**:
    - Phase 3a: 30 s via `LocationRepository` — validates full stack with zero new OS registrations
    - Phase 3b: 5 s via `AppLocationProvider` with own OS request — `LocationRepository` / Mesh broadcast unchanged
-5. **`receivingLocationUpdates` flag**: `LocationPuck` hides marker automatically when `UserLocationState.location == null` — no explicit visibility logic needed.
+5. **`LocationPuck` replaced by `CircleLayer`**: `LocationPuck` / `rememberUserLocationState` not used. Root cause: `spatialk:geojson:0.6.0` (transitive dep of `maplibre-compose:0.12.1`) crashes when serializing an empty `FeatureCollection()` — `firstNotNullOf { it.properties }` throws `NoSuchElementException` on an empty features list. `LocationPuck` always creates an empty `FeatureCollection` for the initial null-location state. Fix: use `CircleLayer + GeoJsonData.JsonString` which bypasses spatialk serialization entirely. When location is null, the empty JSON FeatureCollection string renders no points — correct behavior. Bearing arrow deferred to Visual Language phase.
+
+6. **`receivingLocationUpdates` flag**: Irrelevant in final implementation — empty GeoJSON naturally hides the dot when location is null.
 
 ## Open Questions
 
@@ -190,3 +209,5 @@ _None — all resolved._
 - 2026-04-03: created
 - 2026-04-03: open questions resolved — separate LocationDomainModule, 5 s update interval, hide marker when location unavailable
 - 2026-04-04: major revision — replaced PointAnnotation (non-existent API) with LocationPuck; replaced ObserveUserLocationUseCase+MainUiState approach with LocationProvider adapter pattern; split Phase 3 into 3a (30 s) + 3b (5 s); Phases 1 and 2 marked complete
+- 2026-04-05: implementation complete — AppLocationProvider (5 s OS), LocationDomainModule, MapLibreLayer+LocationPuck, NavGraph injection; architect review: koinInject() moved from MainScreen to NavGraph; architect.md updated with LocationProvider adapter pattern; all phases Done
+- 2026-04-05: runtime fix — `LocalStyleNode` crash fixed (rememberUserLocationState moved inside MaplibreMap lambda); then `LocationPuck` replaced with `CircleLayer + GeoJsonData.JsonString` to bypass `spatialk:geojson:0.6.0` FeatureCollection serialization bug; architect.md and plan updated

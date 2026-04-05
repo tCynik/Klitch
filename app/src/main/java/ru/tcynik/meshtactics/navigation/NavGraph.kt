@@ -8,7 +8,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import org.maplibre.compose.location.LocationProvider
 import ru.tcynik.meshtactics.BuildConfig
 import ru.tcynik.meshtactics.presentation.feature.chat.ChatScreen
 import ru.tcynik.meshtactics.presentation.feature.chat.ChatViewModel
@@ -41,6 +43,7 @@ fun NavGraph() {
             composable<Route.Main> {
                 val viewModel: MainViewModel = koinViewModel()
                 val uiState by viewModel.uiState.collectAsState()
+                val locationProvider: LocationProvider = koinInject()
                 MainScreen(
                     uiState = uiState,
                     onCameraPositionChanged = viewModel::onCameraPositionChanged,
@@ -48,6 +51,7 @@ fun NavGraph() {
                     onSettingsClick = { navController.navigate(Route.Settings) },
                     onNodeStatusClick = { navController.navigate(Route.NodeStatus) },
                     onMarkerManagementClick = { navController.navigate(Route.MarkerManagement) },
+                    locationProvider = locationProvider,
                 )
             }
 

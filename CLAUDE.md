@@ -21,7 +21,7 @@
 | Scaffold Clean Architecture + пакетная структура | ✅ Done |
 | Карта (MapLibre + OpenTopoMap) | ✅ Done |
 | Стартовая позиция карты из последних координат | ✅ Done |
-| GPS-маркер позиции пользователя | 🔄 In Progress |
+| GPS-маркер позиции пользователя | ✅ Done |
 | Визуальный язык (цвет, типографика, HUD) | ⏳ Deferred (после отработки userFlow) |
 | BLE-узлы на карте (telemetry) | ⬜ Planned |
 | Чат | ⬜ Planned |
@@ -48,6 +48,6 @@
 
 | План | Файл | Статус |
 |---|---|---|
-| GPS User Position Marker | `.claude/plans/gps-user-position-marker.md` | In Progress |
+| GPS User Position Marker | `.claude/plans/gps-user-position-marker.md` | Done |
 | App Structure | `.claude/plans/app-structure.md` | Done |
 | Map Start Position | `.claude/plans/map-start-position.md` | Done |
