@@ -10,6 +10,9 @@ import androidx.compose.ui.Modifier
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
 import org.maplibre.compose.layers.RasterLayer
+import org.maplibre.compose.location.LocationProvider
+import org.maplibre.compose.location.LocationPuck
+import org.maplibre.compose.location.rememberUserLocationState
 import org.maplibre.compose.map.MaplibreMap
 import org.maplibre.compose.sources.rememberRasterSource
 import org.maplibre.compose.style.BaseStyle
@@ -22,6 +25,7 @@ fun MapLibreLayer(
     tileUrlTemplate: String,
     initialCameraPosition: MapCameraPosition,
     onCameraPositionChanged: (MapCameraPosition) -> Unit,
+    locationProvider: LocationProvider,
 ) {
     val cameraState = rememberCameraState(
         firstPosition = CameraPosition(
@@ -53,6 +57,9 @@ fun MapLibreLayer(
         }
     }
 
+    // TODO: consider LocationTrackingEffect for camera follow (future feature)
+    val userLocationState = rememberUserLocationState(locationProvider)
+
     // rememberRasterSource must be called inside MaplibreMap content lambda —
     // it reads LocalStyleNode which is only provided within that scope.
     MaplibreMap(
@@ -67,6 +74,13 @@ fun MapLibreLayer(
         RasterLayer(
             id = "base-raster-layer",
             source = tileSource,
+        )
+        LocationPuck(
+            idPrefix = "user-position",
+            locationState = userLocationState,
+            cameraState = cameraState,
+            showBearing = true,
+            showBearingAccuracy = false,
         )
     }
 }

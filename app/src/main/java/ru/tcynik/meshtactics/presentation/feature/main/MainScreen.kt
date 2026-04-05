@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import org.maplibre.compose.location.LocationProvider
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.presentation.feature.main.osd.HudControlsLayer
 import ru.tcynik.meshtactics.presentation.feature.main.osd.MapLibreLayer
@@ -24,6 +25,7 @@ fun MainScreen(
     onSettingsClick: () -> Unit,
     onNodeStatusClick: () -> Unit,
     onMarkerManagementClick: () -> Unit,
+    locationProvider: LocationProvider,
 ) {
     // Tracks the last position reported by MapLibreLayer.
     // Used by strategy C (onPause) to persist position when app goes to background.
@@ -51,6 +53,7 @@ fun MainScreen(
                     lastKnownPosition = position      // update tracker for strategy C
                     onCameraPositionChanged(position) // strategy A save
                 },
+                locationProvider = locationProvider,
             )
         }
 

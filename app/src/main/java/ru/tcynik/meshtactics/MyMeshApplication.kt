@@ -8,6 +8,7 @@ import org.koin.core.context.startKoin
 import org.koin.core.logger.Level
 import ru.tcynik.meshtactics.di.androidModule
 import ru.tcynik.meshtactics.di.commonModule
+import ru.tcynik.meshtactics.di.locationDomainModule
 import ru.tcynik.meshtactics.di.mapDataModule
 import ru.tcynik.meshtactics.di.markerDataModule
 import ru.tcynik.meshtactics.di.meshDataModule
@@ -33,6 +34,7 @@ class MyMeshApplication : Application() {
                 mapDataModule,
                 markerDataModule,
                 userDataModule,
+                locationDomainModule,
                 presentationModule,
             )
         }
