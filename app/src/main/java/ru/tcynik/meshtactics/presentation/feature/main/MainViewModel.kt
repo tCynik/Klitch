@@ -1,19 +1,26 @@
 package ru.tcynik.meshtactics.presentation.feature.main
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.domain.map.usecase.GetLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.GetTileUrlUseCase
+import ru.tcynik.meshtactics.domain.map.usecase.ObserveNodeMarkersUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
+import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 
 class MainViewModel(
     getTileUrl: GetTileUrlUseCase,
     getLastPosition: GetLastMapPositionUseCase,
     private val saveLastPosition: SaveLastMapPositionUseCase,
+    observeNodeMarkers: ObserveNodeMarkersUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -26,6 +33,12 @@ class MainViewModel(
                 initialCameraPosition = getLastPosition() ?: state.initialCameraPosition,
             )
         }
+
+        observeNodeMarkers(NoParams)
+            .onEach { markers ->
+                _uiState.update { it.copy(nodeMarkers = markers.toImmutableList()) }
+            }
+            .launchIn(viewModelScope)
     }
 
     fun onCameraPositionChanged(position: MapCameraPosition) {

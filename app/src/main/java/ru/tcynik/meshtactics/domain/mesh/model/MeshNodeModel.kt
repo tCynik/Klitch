@@ -14,4 +14,8 @@ data class MeshNodeModel(
     val channelUtilization: Float,
     val airUtilTx: Float,
     val uptimeSeconds: Long,
+    val latitude: Double,
+    val longitude: Double,
+    val hasValidPosition: Boolean,
+    val isOnline: Boolean,
 )

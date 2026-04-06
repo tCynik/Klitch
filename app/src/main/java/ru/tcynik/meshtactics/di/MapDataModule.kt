@@ -8,6 +8,7 @@ import ru.tcynik.meshtactics.domain.map.repository.LastMapPositionRepository
 import ru.tcynik.meshtactics.domain.map.repository.MapTileRepository
 import ru.tcynik.meshtactics.domain.map.usecase.GetLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.GetTileUrlUseCase
+import ru.tcynik.meshtactics.domain.map.usecase.ObserveNodeMarkersUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
 
 val mapDataModule = module {
@@ -19,4 +20,7 @@ val mapDataModule = module {
     single<LastMapPositionRepository> { LastMapPositionRepositoryImpl(get<Settings>()) }
     single { GetLastMapPositionUseCase(get()) }
     single { SaveLastMapPositionUseCase(get()) }
+
+    // Node markers — MeshNetworkRepository resolved from meshDataModule
+    single { ObserveNodeMarkersUseCase(get()) }
 }

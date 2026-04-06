@@ -165,14 +165,12 @@ This keeps the MVP scope focused and avoids premature design decisions.
 - **Skill**: `/architect feature: node markers on map — ObserveNodeMarkersUseCase combines observeNodes + observeOurNode, filters by hasValidPosition, maps to NodeMarkerModel(isOurNode); MeshNodeModel extended with lat/lon/hasValidPosition/isOnline; MapLibreLayer receives List<NodeMarkerModel>`
 - **Output**: architecture decision doc
 
-### Phase 2 — UI / Icon Design
-- **Goal**: approved icons for both node types; typography token for node name label
-- **Tasks**:
-  - `/icon-designer create:` — `ic_node_remote` (generic mesh node marker)
-  - `/icon-designer create:` — `ic_node_our` (our device; distinct, TODO: will become directional)
-  - `/ui-designer define:` — typography token for node label text (size, weight, color)
-- **Skill**: `/icon-designer`, `/ui-designer`
-- **Output**: `ic_node_remote.xml`, `ic_node_our.xml`; typography token in Design System
+### Phase 2 — UI / Icon Design ⏭ (deferred)
+- **Decision**: skip custom icons for now — MVP uses `CircleLayer` with different colors per node type
+  - Remote node: Grey 500 (`0xFF9E9E9E`)
+  - Our node: Green 500 (`0xFF4CAF50`)
+  - TODO: replace with custom icon sprites when `/icon-designer` phase is scheduled
+  - TODO: typography token for node label text size (currently no label — SymbolLayer API TBD)
 
 ### Phase 3 — Implementation
 - **Goal**: working node markers on map, buildable and runnable
@@ -234,11 +232,10 @@ This keeps the MVP scope focused and avoids premature design decisions.
 ## Coordination Map
 
 ```
-Phase 0: [Explore agent — maplibre-compose PointAnnotation + text label API]
-Phase 1: /architect feature: ObserveNodeMarkersUseCase + MeshNodeModel extension + MapLibreLayer wiring
-Phase 2: /icon-designer create: ic_node_remote + ic_node_our
-         /ui-designer define: node label typography token
-Phase 3: [direct coding — EnterPlanMode, after gps-user-position-marker branch merge]
+Phase 0: [Explore agent — completed]
+Phase 1: /architect feature: ObserveNodeMarkersUseCase + MeshNodeModel extension + MapLibreLayer wiring — completed
+Phase 2: ⏭ deferred — MVP uses CircleLayer (grey / green) instead of custom icons
+Phase 3: [direct coding — EnterPlanMode]
 Phase 4: [direct coding — unit tests + smoke test]
 Phase 5: /architect review: app/domain/marker/model/, app/domain/map/usecase/, app/presentation/feature/main/
 Phase 6: [skill update review — architect, ui-designer, icon-designer, planner]

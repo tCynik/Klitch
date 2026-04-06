@@ -17,4 +17,8 @@ fun Node.toMeshNodeModel(): MeshNodeModel = MeshNodeModel(
     channelUtilization = deviceMetrics.channel_utilization ?: 0f,
     airUtilTx = deviceMetrics.air_util_tx ?: 0f,
     uptimeSeconds = (deviceMetrics.uptime_seconds ?: 0).toLong(),
+    latitude = latitude,
+    longitude = longitude,
+    hasValidPosition = validPosition != null,
+    isOnline = isOnline,
 )
