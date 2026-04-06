@@ -33,6 +33,7 @@ class ObserveNodeMarkersUseCase(
                         longName = node.longName,
                         position = GeoPoint(node.latitude, node.longitude),
                         isOurNode = node.nodeId == ourNodeId,
+                        isOnline = node.isOnline,
                     )
                 }
         }

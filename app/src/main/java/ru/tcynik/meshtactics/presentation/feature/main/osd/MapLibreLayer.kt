@@ -90,26 +90,39 @@ fun MapLibreLayer(
         // TODO: add text labels (longName) via SymbolLayer once textField expression API is verified.
         // TODO: add tap behaviour (node detail popup / navigation).
 
-        val remoteNodesJson = remember(nodeMarkers) {
-            buildNodeGeoJson(nodeMarkers.filter { !it.isOurNode })
+        val remoteOnlineJson = remember(nodeMarkers) {
+            buildNodeGeoJson(nodeMarkers.filter { !it.isOurNode && it.isOnline })
+        }
+        val remoteOfflineJson = remember(nodeMarkers) {
+            buildNodeGeoJson(nodeMarkers.filter { !it.isOurNode && !it.isOnline })
         }
         val ourNodeJson = remember(nodeMarkers) {
             buildNodeGeoJson(nodeMarkers.filter { it.isOurNode })
         }
 
-        val remoteNodesSource = rememberGeoJsonSource(GeoJsonData.JsonString(remoteNodesJson))
-        val ourNodeSource     = rememberGeoJsonSource(GeoJsonData.JsonString(ourNodeJson))
+        val remoteOnlineSource  = rememberGeoJsonSource(GeoJsonData.JsonString(remoteOnlineJson))
+        val remoteOfflineSource = rememberGeoJsonSource(GeoJsonData.JsonString(remoteOfflineJson))
+        val ourNodeSource       = rememberGeoJsonSource(GeoJsonData.JsonString(ourNodeJson))
 
-        // Remote nodes — grey dot
+        // Remote online nodes — green dot
         CircleLayer(
-            id = "node-remote-dot",
-            source = remoteNodesSource,
+            id = "node-remote-online-dot",
+            source = remoteOnlineSource,
+            color = const(Color(0xFF4CAF50)),   // Material Green 500
+            radius = const(6.dp),
+            strokeColor = const(Color.White),
+            strokeWidth = const(1.5.dp),
+        )
+        // Remote offline nodes — grey dot
+        CircleLayer(
+            id = "node-remote-offline-dot",
+            source = remoteOfflineSource,
             color = const(Color(0xFF9E9E9E)),   // Material Grey 500
             radius = const(6.dp),
             strokeColor = const(Color.White),
             strokeWidth = const(1.5.dp),
         )
-        // Our node — green dot
+        // Our node — green dot, larger
         // TODO: replace with directional icon when device-heading feature is implemented.
         CircleLayer(
             id = "node-our-dot",
