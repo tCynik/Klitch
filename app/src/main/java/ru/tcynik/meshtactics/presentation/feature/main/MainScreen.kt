@@ -25,6 +25,7 @@ fun MainScreen(
     onSettingsClick: () -> Unit,
     onNodeStatusClick: () -> Unit,
     onMarkerManagementClick: () -> Unit,
+    onMeshTestClick: () -> Unit,
     locationProvider: LocationProvider,
 ) {
     // Tracks the last position reported by MapLibreLayer.
@@ -54,6 +55,7 @@ fun MainScreen(
                     onCameraPositionChanged(position) // strategy A save
                 },
                 locationProvider = locationProvider,
+                nodeMarkers = uiState.nodeMarkers,
             )
         }
 
@@ -64,6 +66,7 @@ fun MainScreen(
             onSettingsClick = onSettingsClick,
             onNodeStatusClick = onNodeStatusClick,
             onMarkerManagementClick = onMarkerManagementClick,
+            onMeshTestClick = onMeshTestClick,
         )
     }
 }

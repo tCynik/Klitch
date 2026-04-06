@@ -51,6 +51,7 @@ fun NavGraph() {
                     onSettingsClick = { navController.navigate(Route.Settings) },
                     onNodeStatusClick = { navController.navigate(Route.NodeStatus) },
                     onMarkerManagementClick = { navController.navigate(Route.MarkerManagement) },
+                    onMeshTestClick = { navController.navigate(Route.MeshTest()) },
                     locationProvider = locationProvider,
                 )
             }
