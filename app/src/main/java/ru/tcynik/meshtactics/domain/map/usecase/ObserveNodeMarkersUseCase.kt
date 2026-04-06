@@ -48,8 +48,8 @@ class ObserveNodeMarkersUseCase(
             val withFreshPosition = peers.filter {
                 it.hasValidPosition && it.positionTime > freshnessThreshold
             }
-            Log.d(TAG, "update: total=${nodes.size} peers=${peers.size} " +
-                "withFreshPosition=${withFreshPosition.size} " +
+            Log.d(TAG, "update: myPosition = '${ourNode?.latitude}/${ourNode?.longitude}', nodes=${nodes.size}/${peers.size} " +
+                "freshCount=${withFreshPosition.size} " +
                 "[${withFreshPosition.joinToString { it.toLogString(ourNode, nowSeconds) }}]")
             withFreshPosition.map { node ->
                 NodeMarkerModel(
@@ -68,5 +68,6 @@ private fun MeshNodeModel.toLogString(ourNode: MeshNodeModel?, nowSeconds: Long)
         val meters = latLongToMeter(latitude, longitude, ourNode.latitude, ourNode.longitude).toInt()
         if (meters >= 1000) "${"%.1f".format(meters / 1000.0)}km" else "${meters}m"
     } else "dist=?"
-    return "$longName($ageStr $distStr)"
+    val coordStr = "%.5f,%.5f".format(latitude, longitude)
+    return "$longName($ageStr $distStr $coordStr)"
 }
