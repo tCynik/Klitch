@@ -4,6 +4,5 @@ data class NodeMarkerModel(
     val nodeId: String,
     val longName: String,
     val position: GeoPoint,
-    val isOurNode: Boolean,
     val isOnline: Boolean,
 )

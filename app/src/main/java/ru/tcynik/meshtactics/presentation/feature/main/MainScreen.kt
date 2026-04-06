@@ -25,7 +25,6 @@ fun MainScreen(
     onSettingsClick: () -> Unit,
     onNodeStatusClick: () -> Unit,
     onMarkerManagementClick: () -> Unit,
-    onMeshTestClick: () -> Unit,
     locationProvider: LocationProvider,
 ) {
     // Tracks the last position reported by MapLibreLayer.
@@ -62,11 +61,12 @@ fun MainScreen(
         // Layer 6: HUD button columns (left: map tools, right: menu)
         HudControlsLayer(
             modifier = Modifier.fillMaxSize(),
+            connectionStatus = uiState.connectionStatus,
+            nodesWithPositionCount = uiState.nodeMarkers.size,
             onChatClick = onChatClick,
             onSettingsClick = onSettingsClick,
             onNodeStatusClick = onNodeStatusClick,
             onMarkerManagementClick = onMarkerManagementClick,
-            onMeshTestClick = onMeshTestClick,
         )
     }
 }

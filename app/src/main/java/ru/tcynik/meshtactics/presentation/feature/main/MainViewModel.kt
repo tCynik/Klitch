@@ -14,6 +14,7 @@ import ru.tcynik.meshtactics.domain.map.usecase.GetLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.GetTileUrlUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveNodeMarkersUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 
 class MainViewModel(
@@ -21,6 +22,7 @@ class MainViewModel(
     getLastPosition: GetLastMapPositionUseCase,
     private val saveLastPosition: SaveLastMapPositionUseCase,
     observeNodeMarkers: ObserveNodeMarkersUseCase,
+    observeConnectionStatus: ObserveConnectionStatusUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -37,6 +39,12 @@ class MainViewModel(
         observeNodeMarkers(NoParams)
             .onEach { markers ->
                 _uiState.update { it.copy(nodeMarkers = markers.toImmutableList()) }
+            }
+            .launchIn(viewModelScope)
+
+        observeConnectionStatus(NoParams)
+            .onEach { status ->
+                _uiState.update { it.copy(connectionStatus = status) }
             }
             .launchIn(viewModelScope)
     }

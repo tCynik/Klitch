@@ -49,9 +49,8 @@ fun NavGraph() {
                     onCameraPositionChanged = viewModel::onCameraPositionChanged,
                     onChatClick = { navController.navigate(Route.Chat) },
                     onSettingsClick = { navController.navigate(Route.Settings) },
-                    onNodeStatusClick = { navController.navigate(Route.NodeStatus) },
+                    onNodeStatusClick = { navController.navigate(Route.MeshTest()) },
                     onMarkerManagementClick = { navController.navigate(Route.MarkerManagement) },
-                    onMeshTestClick = { navController.navigate(Route.MeshTest()) },
                     locationProvider = locationProvider,
                 )
             }

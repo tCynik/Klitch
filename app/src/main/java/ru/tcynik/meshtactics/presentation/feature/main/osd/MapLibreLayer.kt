@@ -82,55 +82,42 @@ fun MapLibreLayer(
             source = tileSource,
         )
 
-        // --- Node markers ---
-        // Two separate GeoJSON sources to render remote nodes and our node with different colours.
+        // --- Node markers (peer nodes only) ---
+        // Our own node is excluded at the domain level (ObserveNodeMarkersUseCase) — it is part of
+        // the user's equipment, not a mesh peer. The user's position is shown via the location dot.
         // Uses raw GeoJSON string construction — same spatialk-bypass pattern as user location dot.
         // TODO: replace CircleLayer with custom icon sprites when SymbolLayer iconImage API
         //       (style.addImage / rememberStyleImage) is confirmed in maplibre-compose.
         // TODO: add text labels (longName) via SymbolLayer once textField expression API is verified.
         // TODO: add tap behaviour (node detail popup / navigation).
 
-        val remoteOnlineJson = remember(nodeMarkers) {
-            buildNodeGeoJson(nodeMarkers.filter { !it.isOurNode && it.isOnline })
+        val peerOnlineJson = remember(nodeMarkers) {
+            buildNodeGeoJson(nodeMarkers.filter { it.isOnline })
         }
-        val remoteOfflineJson = remember(nodeMarkers) {
-            buildNodeGeoJson(nodeMarkers.filter { !it.isOurNode && !it.isOnline })
-        }
-        val ourNodeJson = remember(nodeMarkers) {
-            buildNodeGeoJson(nodeMarkers.filter { it.isOurNode })
+        val peerOfflineJson = remember(nodeMarkers) {
+            buildNodeGeoJson(nodeMarkers.filter { !it.isOnline })
         }
 
-        val remoteOnlineSource  = rememberGeoJsonSource(GeoJsonData.JsonString(remoteOnlineJson))
-        val remoteOfflineSource = rememberGeoJsonSource(GeoJsonData.JsonString(remoteOfflineJson))
-        val ourNodeSource       = rememberGeoJsonSource(GeoJsonData.JsonString(ourNodeJson))
+        val peerOnlineSource  = rememberGeoJsonSource(GeoJsonData.JsonString(peerOnlineJson))
+        val peerOfflineSource = rememberGeoJsonSource(GeoJsonData.JsonString(peerOfflineJson))
 
-        // Remote online nodes — green dot
+        // Online peer nodes — green dot
         CircleLayer(
             id = "node-remote-online-dot",
-            source = remoteOnlineSource,
+            source = peerOnlineSource,
             color = const(Color(0xFF4CAF50)),   // Material Green 500
             radius = const(6.dp),
             strokeColor = const(Color.White),
             strokeWidth = const(1.5.dp),
         )
-        // Remote offline nodes — grey dot
+        // Offline peer nodes — grey dot
         CircleLayer(
             id = "node-remote-offline-dot",
-            source = remoteOfflineSource,
+            source = peerOfflineSource,
             color = const(Color(0xFF9E9E9E)),   // Material Grey 500
             radius = const(6.dp),
             strokeColor = const(Color.White),
             strokeWidth = const(1.5.dp),
-        )
-        // Our node — green dot, larger
-        // TODO: replace with directional icon when device-heading feature is implemented.
-        CircleLayer(
-            id = "node-our-dot",
-            source = ourNodeSource,
-            color = const(Color(0xFF4CAF50)),   // Material Green 500
-            radius = const(8.dp),
-            strokeColor = const(Color.White),
-            strokeWidth = const(2.dp),
         )
 
         // User location dot — manual implementation that avoids LocationPuck/rememberUserLocationState.

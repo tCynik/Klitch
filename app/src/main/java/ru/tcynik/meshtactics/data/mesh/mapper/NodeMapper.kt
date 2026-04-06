@@ -20,5 +20,6 @@ fun Node.toMeshNodeModel(): MeshNodeModel = MeshNodeModel(
     latitude = latitude,
     longitude = longitude,
     hasValidPosition = validPosition != null,
+    positionTime = position.time ?: 0,
     isOnline = isOnline,
 )

@@ -17,5 +17,7 @@ data class MeshNodeModel(
     val latitude: Double,
     val longitude: Double,
     val hasValidPosition: Boolean,
+    /** Unix timestamp (seconds) of the last GPS position report. 0 if never reported. */
+    val positionTime: Int,
     val isOnline: Boolean,
 )
