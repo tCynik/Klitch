@@ -50,8 +50,8 @@ class DeviceOrientationProvider(
                 var azimuth = Math.toDegrees(orientationAngles[0].toDouble()).toFloat()
                 if (azimuth < 0) azimuth += 360f
 
-                // Low-pass filter: alpha = 0.85 (smooths jitter, minimal perceptible lag)
-                val alpha = 0.85f
+                // Low-pass filter: alpha = 0.95 (reduces lag during fast rotation, still smooths jitter)
+                val alpha = 0.95f
                 val filtered = alpha * azimuth + (1f - alpha) * lastFiltered
                 lastFiltered = filtered
                 trySend(filtered)

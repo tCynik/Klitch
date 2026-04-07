@@ -1,6 +1,7 @@
 # Feature: User Location Arrow with Device Orientation
 
 > Rotates the user's location icon to face the direction the top of the screen points, using device sensors (not GPS bearing).
+> Accounts for map camera rotation so the arrow stays correct in both north-up and heading-up modes.
 
 ---
 
@@ -14,7 +15,18 @@ The current user location indicator is a static `CircleLayer` (blue dot). It doe
 
 - Replace the static dot with a **navigation arrow icon** (`ic_navigation_arrow.xml`)
 - Rotate the arrow based on **device orientation** from `Sensor.TYPE_ROTATION_VECTOR`
+- Compensate for **map camera bearing** so the arrow is correct regardless of map rotation
 - The arrow always points in the direction the top of the screen faces, regardless of whether the device is moving
+
+### Rotation formula
+
+```
+arrowRotation = deviceBearing + 180° - cameraBearing
+```
+
+- `deviceBearing` — azimuth from `TYPE_ROTATION_VECTOR` (where the top of the device points)
+- `cameraBearing` — current map rotation from `cameraState.position.bearing`
+- `+ 180°` — compensates for `ic_navigation_arrow.xml` default orientation (points down)
 
 ### Why sensor-based, not GPS?
 
@@ -48,10 +60,12 @@ NavGraph
         ├── rememberCameraState() ← shared between MapLibreLayer + overlay
         ├── MapLibreLayer(..., orientationProvider, cameraState)
         │     └── includes bearing in GeoJSON properties
+        │     └── extracts cameraState.position.bearing → MapCameraPosition
         └── Image overlay (arrow)
               ├── projection.screenLocationFromPosition(position) → DpOffset
+              ├── derivedStateOf { cameraState.position.bearing } → cameraBearing
               ├── .offset(x, y)
-              └── .rotate(bearing + 180f)
+              └── .rotate(deviceBearing + 180f - cameraBearing)
 ```
 
 ### Graceful Degradation
@@ -119,12 +133,17 @@ val cameraState = rememberCameraState(...)
 val projection = cameraState.projection
 val screenOffset = projection.screenLocationFromPosition(userPosition)
 
+// Camera bearing — compensates for map rotation
+val cameraBearing by remember {
+    derivedStateOf { cameraState.position.bearing.toFloat() }
+}
+
 Image(
     painter = painterResource(R.drawable.ic_navigation_arrow),
     modifier = Modifier
         .offset { IntOffset(pxX, pxY) }
         .size(36.dp)
-        .rotate(bearing + 180f),  // +180 because icon points down by default
+        .rotate(deviceBearing + 180f - cameraBearing),  // compensates for map rotation
 )
 ```
 
@@ -132,6 +151,7 @@ Image(
 - `CameraState` is created in `MainScreen` and passed to `MapLibreLayer` (not created inside it)
 - `CameraProjection.screenLocationFromPosition(Position)` converts geo → screen coordinates
 - `+ 180f` compensates for `ic_navigation_arrow.xml` default orientation (points down)
+- `- cameraBearing` compensates for map camera rotation (heading-up mode)
 - Blue dot (`CircleLayer`) removed — arrow is the only user location indicator
 
 ---
@@ -144,9 +164,10 @@ Image(
 | `app/di/OrientationModule.kt` | **Create** | Koin registration |
 | `app/di/LocationDomainModule.kt` | No change | Already registers `LocationProvider` |
 | `app/navigation/NavGraph.kt` | **Modify** | Inject `DeviceOrientationProvider`, pass to `MainScreen` |
-| `app/presentation/feature/main/MainScreen.kt` | **Modify** | Accept `orientationProvider`, create `CameraState`, render arrow overlay |
-| `app/presentation/feature/main/osd/MapLibreLayer.kt` | **Modify** | Accept `cameraState` param, include bearing in GeoJSON, remove user dot |
+| `app/presentation/feature/main/MainScreen.kt` | **Modify** | Accept `orientationProvider`, create `CameraState`, render arrow overlay with camera bearing compensation |
+| `app/presentation/feature/main/osd/MapLibreLayer.kt` | **Modify** | Accept `cameraState` param, include bearing in GeoJSON, extract `cameraState.position.bearing` → `MapCameraPosition`, remove user dot |
 | `app/src/main/res/drawable/ic_navigation_arrow.xml` | No change | Already exists |
+| `app/domain/map/model/MapCameraPosition.kt` | **Modify** | Added `bearing: Double = 0.0` field |
 
 ---
 
@@ -155,11 +176,12 @@ Image(
 | Risk | Impact | Mitigation |
 |---|---|---|
 | Sensor not available (rare on API 24+) | Arrow stuck at 0° | `getDefaultSensor()` returns null → provider emits `0f` |
-| Jittery rotation | Poor UX | Low-pass filter (`alpha = 0.85f`) in `callbackFlow` listener |
+| Jittery rotation | Poor UX | Low-pass filter (`alpha = 0.95f`) in `callbackFlow` listener — balances smoothness vs lag |
 | GeoJSON `bearing` as string | No rotation (NaN) | Ensure numeric: `$bearing` not `"$bearing"` |
 | Permission issues (sensor requires no permission) | N/A | `TYPE_ROTATION_VECTOR` needs no runtime permission |
 | Sensor leaks battery (if listener not unregistered) | Battery drain | `awaitClose { unregisterListener }` in `callbackFlow` — guaranteed cleanup on flow cancellation |
 | `cameraState.projection` is null | Arrow not rendered | Guarded by `if (projection != null && ...)` check |
+| Map rotation not compensated | Arrow points wrong direction in heading-up mode | `cameraBearing` extracted from `cameraState.position.bearing` and subtracted in rotation formula |
 
 ---
 
@@ -176,6 +198,8 @@ Image(
 - Verify no stuttering or lag in rotation
 - Test on multiple devices (some have different sensor hardware)
 - Verify arrow aligns with actual device heading on map
+- **Rotate the map** (pinch-rotate gesture) — arrow should maintain correct orientation relative to the map
+- Test in both north-up and heading-up modes — arrow should be accurate in both
 
 ---
 
@@ -186,7 +210,6 @@ Image(
 | **Tap to recenter** | Tap the arrow → camera animates to user location |
 | **Speed-based visibility** | Hide arrow when stationary, show only dot (if using GPS bearing hybrid) |
 | **SDF tint by accuracy** | Color the arrow based on location accuracy (green = precise, red = poor) |
-| **Compass mode toggle** | Toggle between "north-up" and "heading-up" map orientation |
 | **Smooth animation** | Interpolate bearing changes over 100–200 ms instead of instant snap |
 | **SymbolLayer arrow** | When maplibre-compose is updated, migrate from overlay to proper SymbolLayer with `iconImage` + `iconRotate = get("bearing")` |
 

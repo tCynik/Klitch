@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -81,6 +82,11 @@ fun MainScreen(
     val bearing by orientationProvider.bearing.collectAsStateWithLifecycle()
     val currentLocation by locationProvider.location.collectAsStateWithLifecycle()
 
+    // Camera bearing — used to correct the arrow rotation when the map is rotated
+    val cameraBearing by remember {
+        derivedStateOf { cameraState.position.bearing.toFloat() }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -125,7 +131,7 @@ fun MainScreen(
                 modifier = Modifier
                     .offset { IntOffset(arrowOffsetX - halfIconPx, arrowOffsetY - halfIconPx) }
                     .size(36.dp)
-                    .rotate(bearing + 180f),
+                    .rotate(bearing + 180f - cameraBearing),
             )
         }
 

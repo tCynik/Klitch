@@ -57,9 +57,10 @@ fun MapLibreLayer(
             val pos = cameraState.position
             onCameraPositionChanged(
                 MapCameraPosition(
-                    lat  = pos.target.latitude,
-                    lon  = pos.target.longitude,
-                    zoom = pos.zoom,
+                    lat     = pos.target.latitude,
+                    lon     = pos.target.longitude,
+                    zoom    = pos.zoom,
+                    bearing = pos.bearing,
                 )
             )
         }
