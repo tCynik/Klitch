@@ -137,7 +137,7 @@ class UiPrefsImpl(
     override fun shouldProvideNodeLocation(nodeNum: Int): StateFlow<Boolean> =
         cachedFlow(provideNodeLocationFlows, nodeNum) {
             val key = booleanPreferencesKey(provideLocationKey(nodeNum))
-            dataStore.data.map { it[key] ?: false }.stateIn(scope, SharingStarted.Eagerly, false)
+            dataStore.data.map { it[key] ?: true }.stateIn(scope, SharingStarted.Eagerly, true)
         }
 
     override fun setShouldProvideNodeLocation(nodeNum: Int, provide: Boolean) {
