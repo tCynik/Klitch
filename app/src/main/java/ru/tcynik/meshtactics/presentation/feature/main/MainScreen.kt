@@ -101,8 +101,6 @@ fun MainScreen(
                     lastKnownPosition = position
                     onCameraPositionChanged(position)
                 },
-                locationProvider = locationProvider,
-                orientationProvider = orientationProvider,
                 nodeMarkers = uiState.nodeMarkers,
                 cameraState = cameraState,
             )
@@ -123,7 +121,7 @@ fun MainScreen(
             val arrowOffsetY = with(density) { screenOffset.y.roundToPx() }
 
             // Center the arrow on the point (icon is 24dp, center = 12dp offset)
-            val halfIconPx = with(density) { 12.dp.roundToPx() }
+            val halfIconPx = with(density) { 18.dp.roundToPx() }
 
             Image(
                 painter = painterResource(R.drawable.ic_navigation_arrow),

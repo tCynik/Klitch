@@ -79,35 +79,35 @@ AppLocationProvider (app/di/location)
   → LocationPuck(locationState = userLocationState, ...)
 ```
 
-### Location dot usage (final implementation — CircleLayer)
+### Location arrow usage (final implementation — Compose overlay)
 
-`LocationPuck` and `rememberUserLocationState` are **not used** — see Decision #5.
+`LocationPuck`, `rememberUserLocationState`, and `CircleLayer` are **not used** for the user position — see Decision #5 and #7.
+
+The arrow is a `Image` composable rendered as a Compose overlay on top of `MaplibreMap` inside `MainScreen`. Position is derived from `cameraState.projection.screenLocationFromPosition()`, which converts GPS coordinates to screen DP offsets. Rotation accounts for both device azimuth and camera bearing.
 
 ```kotlin
-// Inside MaplibreMap { } content lambda:
-val currentLocation by locationProvider.location.collectAsStateWithLifecycle()
-val locationGeoJson = remember(currentLocation) {
-    val loc = currentLocation
-    if (loc != null) {
-        val lon = loc.position.longitude
-        val lat = loc.position.latitude
-        """{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[$lon,$lat]},"properties":{}}]}"""
-    } else {
-        """{"type":"FeatureCollection","features":[]}"""
-    }
+// Inside MainScreen Box { } — after MapLibreLayer
+val projection = cameraState.projection
+if (projection != null && mapSize != IntSize.Zero && currentLocation != null) {
+    val screenOffset: DpOffset = projection.screenLocationFromPosition(
+        Position(
+            longitude = currentLocation!!.position.longitude,
+            latitude  = currentLocation!!.position.latitude,
+        ),
+    )
+    val halfIconPx = with(density) { 18.dp.roundToPx() }  // icon = 36dp
+    Image(
+        painter = painterResource(R.drawable.ic_navigation_arrow),
+        contentDescription = null,
+        modifier = Modifier
+            .offset { IntOffset(arrowOffsetX - halfIconPx, arrowOffsetY - halfIconPx) }
+            .size(36.dp)
+            .rotate(bearing + 180f - cameraBearing),
+    )
 }
-val locationSource = rememberGeoJsonSource(GeoJsonData.JsonString(locationGeoJson))
-CircleLayer(
-    id = "user-location-dot",
-    source = locationSource,
-    color = const(Color(0xFF2196F3)),
-    radius = const(8.dp),
-    strokeColor = const(Color.White),
-    strokeWidth = const(2.dp),
-)
 ```
 
-**Why `GeoJsonData.JsonString`**: bypasses spatialk polymorphic serialization — `GeoJsonSource(androidMain)` passes the string directly to `MLNGeoJsonSource` without calling `toJson()`. `rememberGeoJsonSource` calls `source.setData(data)` via `LaunchedEffect(update)` each time `locationGeoJson` changes.
+**Why overlay, not map layer**: a Compose `Image` overlay allows GPU-free rotation via `Modifier.rotate` without re-encoding a GeoJSON bearing property and without a MapLibre `SymbolLayer` / sprite sheet setup. The map layer approach would require registering a sprite image and a `SymbolLayer` with `icon-rotate` expression — more complexity for no benefit at this stage.
 
 ## Phase Plan
 
@@ -196,9 +196,11 @@ Phase 6:  [skill update review — architect.md only if needed]
 4. **Update interval — phased**:
    - Phase 3a: 30 s via `LocationRepository` — validates full stack with zero new OS registrations
    - Phase 3b: 5 s via `AppLocationProvider` with own OS request — `LocationRepository` / Mesh broadcast unchanged
-5. **`LocationPuck` replaced by `CircleLayer`**: `LocationPuck` / `rememberUserLocationState` not used. Root cause: `spatialk:geojson:0.6.0` (transitive dep of `maplibre-compose:0.12.1`) crashes when serializing an empty `FeatureCollection()` — `firstNotNullOf { it.properties }` throws `NoSuchElementException` on an empty features list. `LocationPuck` always creates an empty `FeatureCollection` for the initial null-location state. Fix: use `CircleLayer + GeoJsonData.JsonString` which bypasses spatialk serialization entirely. When location is null, the empty JSON FeatureCollection string renders no points — correct behavior. Bearing arrow deferred to Visual Language phase.
+5. **`LocationPuck` replaced by Compose overlay `Image`**: `LocationPuck` / `rememberUserLocationState` not used. Root cause: `spatialk:geojson:0.6.0` (transitive dep of `maplibre-compose:0.12.1`) crashes when serializing an empty `FeatureCollection()` — `firstNotNullOf { it.properties }` throws `NoSuchElementException` on an empty features list. Initial fix used `CircleLayer + GeoJsonData.JsonString`; then superseded by Decision #7.
 
-6. **`receivingLocationUpdates` flag**: Irrelevant in final implementation — empty GeoJSON naturally hides the dot when location is null.
+6. **`receivingLocationUpdates` flag**: Irrelevant in final implementation — `currentLocation == null` check in the overlay naturally hides the arrow.
+
+7. **`CircleLayer` replaced by Compose overlay `Image`**: bearing-aware directional arrow (`ic_navigation_arrow`, 36dp) rendered as Compose `Image` overlay on top of `MaplibreMap`. Position from `cameraState.projection.screenLocationFromPosition()`. Rotation: `bearing + 180f - cameraBearing` (device azimuth corrected for camera tilt; `+180f` compensates for icon's default south-facing orientation). `MapLibreLayer` no longer takes `locationProvider` or `orientationProvider` parameters — location state is owned entirely by `MainScreen`.
 
 ## Open Questions
 
@@ -211,3 +213,4 @@ _None — all resolved._
 - 2026-04-04: major revision — replaced PointAnnotation (non-existent API) with LocationPuck; replaced ObserveUserLocationUseCase+MainUiState approach with LocationProvider adapter pattern; split Phase 3 into 3a (30 s) + 3b (5 s); Phases 1 and 2 marked complete
 - 2026-04-05: implementation complete — AppLocationProvider (5 s OS), LocationDomainModule, MapLibreLayer+LocationPuck, NavGraph injection; architect review: koinInject() moved from MainScreen to NavGraph; architect.md updated with LocationProvider adapter pattern; all phases Done
 - 2026-04-05: runtime fix — `LocalStyleNode` crash fixed (rememberUserLocationState moved inside MaplibreMap lambda); then `LocationPuck` replaced with `CircleLayer + GeoJsonData.JsonString` to bypass `spatialk:geojson:0.6.0` FeatureCollection serialization bug; architect.md and plan updated
+- 2026-04-08: review — replaced `CircleLayer` with Compose overlay `Image` (bearing-aware arrow); fixed arrow centering offset (12dp → 18dp for 36dp icon); removed dead code from `MapLibreLayer` (`locationProvider`/`orientationProvider` params, dead GeoJSON block, unused `drawableToImageBitmap`); plan updated (Decision #5 split into #5/#7, Architecture Notes updated)
