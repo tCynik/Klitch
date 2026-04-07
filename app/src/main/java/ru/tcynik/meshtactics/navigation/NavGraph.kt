@@ -12,6 +12,7 @@ import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.maplibre.compose.location.LocationProvider
 import ru.tcynik.meshtactics.BuildConfig
+import ru.tcynik.meshtactics.di.orientation.DeviceOrientationProvider
 import ru.tcynik.meshtactics.presentation.feature.chat.ChatScreen
 import ru.tcynik.meshtactics.presentation.feature.chat.ChatViewModel
 import ru.tcynik.meshtactics.presentation.feature.groups.GroupManagementScreen
@@ -44,6 +45,7 @@ fun NavGraph() {
                 val viewModel: MainViewModel = koinViewModel()
                 val uiState by viewModel.uiState.collectAsState()
                 val locationProvider: LocationProvider = koinInject()
+                val orientationProvider: DeviceOrientationProvider = koinInject()
                 MainScreen(
                     uiState = uiState,
                     onCameraPositionChanged = viewModel::onCameraPositionChanged,
@@ -52,6 +54,7 @@ fun NavGraph() {
                     onNodeStatusClick = { navController.navigate(Route.MeshTest()) },
                     onMarkerManagementClick = { navController.navigate(Route.MarkerManagement) },
                     locationProvider = locationProvider,
+                    orientationProvider = orientationProvider,
                 )
             }
 

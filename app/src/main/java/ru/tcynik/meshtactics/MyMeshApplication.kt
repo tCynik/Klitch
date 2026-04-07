@@ -12,6 +12,7 @@ import ru.tcynik.meshtactics.di.locationDomainModule
 import ru.tcynik.meshtactics.di.mapDataModule
 import ru.tcynik.meshtactics.di.markerDataModule
 import ru.tcynik.meshtactics.di.meshDataModule
+import ru.tcynik.meshtactics.di.orientationModule
 import ru.tcynik.meshtactics.di.presentationModule
 import ru.tcynik.meshtactics.di.userDataModule
 import ru.tcynik.meshtactics.mesh.common.ContextServices
@@ -35,6 +36,7 @@ class MyMeshApplication : Application() {
                 markerDataModule,
                 userDataModule,
                 locationDomainModule,
+                orientationModule,
                 presentationModule,
             )
         }
