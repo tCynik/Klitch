@@ -129,7 +129,7 @@ fun MainScreen(
                 modifier = Modifier
                     .offset { IntOffset(arrowOffsetX - halfIconPx, arrowOffsetY - halfIconPx) }
                     .size(36.dp)
-                    .rotate(bearing + 180f - 90f - cameraBearing),
+                    .rotate(bearing - cameraBearing),
             )
         }
 
