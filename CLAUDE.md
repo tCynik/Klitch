@@ -22,6 +22,7 @@
 | Карта (MapLibre + OpenTopoMap) | ✅ Done |
 | Стартовая позиция карты из последних координат | ✅ Done |
 | GPS-маркер позиции пользователя | ✅ Done |
+| Отправка GPS телефона на радиоузел (setFixedPosition) | ✅ Done |
 | Визуальный язык (цвет, типографика, HUD) | ⏳ Deferred (после отработки userFlow) |
 | BLE-узлы на карте (telemetry) | ⬜ Planned |
 | Чат | ⬜ Planned |
@@ -51,3 +52,4 @@
 | GPS User Position Marker | `.claude/plans/gps-user-position-marker.md` | Done |
 | App Structure | `.claude/plans/app-structure.md` | Done |
 | Map Start Position | `.claude/plans/map-start-position.md` | Done |
+| Phone GPS to Radio | `.claude/plans/phone-gps-to-radio.md` | Done |
