@@ -14,6 +14,7 @@ You are the feature planner for the MeshTactics project. Your job is to decompos
 **Architecture**: Clean Architecture — `app` (presentation) → `shared/domain` ← `shared/data`
 
 **Available skills** *(read `.claude/commands/` to get the actual current list — this section is a snapshot)*:
+- `/research` — external research (APIs, protocols, libraries); spawns isolated subagent, returns compact summary; invoke in Phase 0; always save to `.claude/research/`
 - `/architect` — architectural design, layer decomposition, code scaffolding
 - `/ui-designer` — visual design system: colors, typography, spacing, components, UX patterns
 - `/icon-designer` — button icon design in MeshIconButton style (delegated from `/ui-designer`)
@@ -70,14 +71,20 @@ Output a structured plan with phases. Each phase must have:
 **Phase 0 — Research** *(skip if domain is well understood)*
 - Goal: eliminate unknowns before design
 - Tasks: investigate platform APIs / mesh protocol behavior / existing code patterns
-- Skill: Explore agent or direct code reading
-- Output: summary of findings, list of constraints
+- Skill: `/research <topic>` — **always use this skill, never do web search inline**
+- Output: `.claude/research/<topic-slug>.md` + one-message summary in the conversation
+
+> **Token checkpoint after Phase 0**: tell the user to run `/compact` before proceeding to Phase 1.
+> Reason: research web traffic is now summarized in the saved file — it must not accumulate in the context window.
 
 **Phase 1 — Architecture Design**
 - Goal: approved architecture plan — layers, interfaces, data flow
 - Tasks: domain model, repository interface, use case signatures, ViewModel state shape
 - Skill: `/architect feature: <description>`
 - Output: architecture plan (can be documented via `doc:` mode)
+
+> **Token checkpoint after Phase 1**: tell the user to run `/compact` before proceeding to Phase 2 or Phase 3.
+> Reason: architecture decisions are captured in the plan file — the architect's scaffolding output does not need to remain in context during implementation.
 
 **Phase 2 — UI / Icon Design** *(skip if no new UI elements)*
 - Goal: approved component designs, screen layout decisions, icon set
@@ -122,6 +129,11 @@ Output a structured plan with phases. Each phase must have:
 - Skill: direct edit of `.claude/commands/<skill>.md`
 - Output: updated skill files (or explicit "no changes needed" for each)
 
+**After updating each skill, run a size audit:**
+- Does the new/updated section duplicate info already readable from existing code or `architect.md`? If yes — replace with a file reference (`see ClassName.kt:Lnn`).
+- Are inline code examples the only way to convey this, or can they be replaced with a pointer to a real file in the project?
+- Is the skill still under ~150 lines? If over — flag the sections to trim before the next feature, and trim them now if obvious.
+
 **Rule**: this phase is never skipped. If there is nothing to update, say so explicitly for each skill — do not silently omit the phase.
 
 **Phase 6b — Project Docs & Memory Update** *(always, after Phase 6)*
@@ -131,8 +143,9 @@ Output a structured plan with phases. Each phase must have:
   - Set plan file `.claude/plans/<feature-slug>.md` status to `Done`
   - Review memory files in `~/.claude/projects/.../memory/` — update `project_state.md` and any other stale entries (completed features, new patterns, resolved decisions)
   - If the feature introduced a workflow insight worth preserving — add it to `workflow_feedback.md`
+  - **Token log**: append to the plan file's Change Log: `- <date>: done | tokens: <value>`. Ask the user to check `/cost` or the status bar and provide the number. If not recorded — write `tokens: not recorded`.
 - Skill: direct edit (Write / Edit tools)
-- Output: CLAUDE.md accurate, plan file closed, memory up to date
+- Output: CLAUDE.md accurate, plan file closed, memory up to date, token cost recorded
 
 **Rule**: this phase is never skipped. If memory and docs are already accurate, say so explicitly — do not silently omit.
 
@@ -152,8 +165,8 @@ Output a structured plan with phases. Each phase must have:
 Show which skills are invoked at which phase, and in what order, as a simple list:
 
 ```
-Phase 0: [Research agent]
-Phase 1: /architect feature: ...
+Phase 0: /research <topic> → save to .claude/research/ → [/compact]
+Phase 1: /architect feature: ... → [/compact]
 Phase 2: /icon-designer create: ...
 Phase 3: [direct coding] → /simplify
 Phase 4: [direct coding — tests]

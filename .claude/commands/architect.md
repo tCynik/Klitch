@@ -35,54 +35,17 @@ shared/data            ← implements domain interfaces, not the other way aroun
 ## Canonical Patterns
 
 ### Use Case
-```kotlin
-// FlowUseCase — for reactive streams
-class GetNodesUseCase(
-    private val repository: NodeRepository,
-    coroutineScope: CoroutineScope,
-) : FlowUseCase<Unit, List<NodeModel>>(coroutineScope) {
-    override fun execute(params: Unit): Flow<List<NodeModel>> =
-        repository.observeNodes()
-}
 
-// UseCase — for one-shot suspend operations
-class ConnectToNodeUseCase(
-    private val repository: NodeRepository,
-) : UseCase<String, Unit>() {
-    override suspend fun execute(params: String) =
-        repository.connectToNode(params)
-}
+- `FlowUseCase` (reactive): see `shared/src/commonMain/.../usecase/node/GetNodesUseCase.kt:9`
+- `UseCase` (suspend, one-shot): see `app/src/main/.../mesh/usecase/ConnectToMeshDeviceUseCase.kt:8`
+- SyncUseCase — plain `operator fun invoke`, no base class: see `app/src/main/.../map/usecase/GetLastMapPositionUseCase.kt:6`
 
-// SyncUseCase — for synchronous operations (e.g. Settings read/write, pure computation)
-// Do NOT use FlowUseCase or UseCase when the operation is neither suspend nor reactive.
-// Use plain operator fun invoke — idiomatic Kotlin, no base class needed.
-class GetLastMapPositionUseCase(
-    private val repository: LastMapPositionRepository,
-) {
-    operator fun invoke(): MapCameraPosition? = repository.get()
-}
-```
+> Do NOT use `FlowUseCase` or `UseCase` for synchronous operations — use plain `operator fun invoke`.
 
 ### Repository
-```kotlin
-// Interface — in domain, implementation — in data
-interface NodeRepository {
-    fun observeNodes(): Flow<List<NodeModel>>
-    suspend fun refreshNodes()
-    suspend fun connectToNode(nodeId: String)
-}
 
-class NodeRepositoryImpl(
-    private val api: MeshApiService,
-    private val db: NodeQueries,         // SQLDelight-generated
-    private val settings: AppSettings,
-) : NodeRepository {
-    override fun observeNodes(): Flow<List<NodeModel>> =
-        db.selectAll().asFlow().mapToList(Dispatchers.IO).map { list ->
-            list.map { it.toDomain() }
-        }
-}
-```
+- Interface (domain): see `shared/src/commonMain/.../domain/repository/NodeRepository.kt:6`
+- Implementation (data): see `shared/src/commonMain/.../data/repository/NodeRepositoryImpl.kt:17`
 
 ### DTO + Mapper
 ```kotlin
@@ -103,69 +66,21 @@ fun NodeDto.toDomain() = NodeModel(
 ```
 
 ### ViewModel + UiState
-```kotlin
-data class NodesUiState(
-    val nodes: ImmutableList<NodeModel> = persistentListOf(),
-    val isLoading: Boolean = false,
-    val error: String? = null,
-)
 
-class NodesViewModel(
-    private val getNodes: GetNodesUseCase,
-) : ViewModel() {
-    private val _uiState = MutableStateFlow(NodesUiState())
-    val uiState: StateFlow<NodesUiState> = _uiState.asStateFlow()
-
-    init {
-        getNodes(Unit).onEach { nodes ->
-            _uiState.update { it.copy(nodes = nodes.toImmutableList(), isLoading = false) }
-        }.launchIn(viewModelScope)
-    }
-}
-```
+- UiState: see `app/src/main/.../feature/nodes/NodesUiState.kt:7`
+- ViewModel: see `app/src/main/.../feature/nodes/NodesViewModel.kt:14`
 
 ### DI
-```kotlin
-// CommonModule — single for repositories, use cases, services
-val commonModule = module {
-    single { MeshApiService(get()) }
-    single<NodeRepository> { NodeRepositoryImpl(get(), get(), get()) }
-    single { GetNodesUseCase(get(), get()) }
-}
 
-// PresentationModule — viewModelOf for ViewModels
-val presentationModule = module {
-    viewModelOf(::NodesViewModel)
-}
+- commonModule (`single` for repos/usecases/services): see `shared/src/commonMain/.../di/CommonModule.kt:20`
+- presentationModule (`viewModelOf`): see `app/src/main/.../di/PresentationModule.kt:16`
+- mapDataModule (Settings-backed repo): see `app/src/main/.../di/MapDataModule.kt:14`
 
-// Settings-backed local repository — inject Settings directly, NOT AppSettings.
-// AppSettings is a thin wrapper with its own specific keys; don't extend it for new features.
-// Settings is registered in androidModule as single<Settings> and resolves via get<Settings>().
-// Add implementation(libs.multiplatform.settings) to app/build.gradle.kts if the repository
-// lives in app/data/local/ (Settings is implementation-scoped in :shared, not re-exported).
-val mapDataModule = module {
-    single<LastMapPositionRepository> { LastMapPositionRepositoryImpl(get<Settings>()) }
-}
-```
+> Settings-backed repos: inject `Settings` directly via `get<Settings>()`, NOT `AppSettings`. Add `implementation(libs.multiplatform.settings)` to `app/build.gradle.kts` if the repo lives in `app/data/local/` (Settings is `implementation`-scoped in `:shared`).
 
 ### SQL (SQLDelight)
-```sql
--- Node.sq
-CREATE TABLE NodeEntity (
-    id TEXT NOT NULL PRIMARY KEY,
-    name TEXT NOT NULL,
-    address TEXT NOT NULL,
-    rssi INTEGER NOT NULL,
-    is_connected INTEGER NOT NULL DEFAULT 0,
-    last_seen INTEGER NOT NULL
-);
 
-selectAll:
-SELECT * FROM NodeEntity ORDER BY last_seen DESC;
-
-upsert:
-INSERT OR REPLACE INTO NodeEntity VALUES (?, ?, ?, ?, ?, ?);
-```
+See `shared/src/commonMain/sqldelight/.../data/local/Node.sq:1`
 
 ---
 
@@ -248,50 +163,9 @@ Third-party map libraries (maplibre-compose) define their own `LocationProvider`
 - Location dot is rendered via `CircleLayer + GeoJsonData.JsonString` inside `MaplibreMap { }`
 - `locationProvider.location` is collected with `collectAsStateWithLifecycle()` inside `MaplibreMap { }` content lambda
 
-```kotlin
-// app/di/location/AppLocationProvider.kt
-class AppLocationProvider(private val context: Application) : LocationProvider {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
-    @SuppressLint("MissingPermission")
-    override val location: StateFlow<Location?> = callbackFlow {
-        // LocationManagerCompat 5 s request — independent of mesh broadcast
-        awaitClose { LocationManagerCompat.removeUpdates(...) }
-    }.stateIn(scope, SharingStarted.WhileSubscribed(), null)
-}
-
-// app/di/LocationDomainModule.kt
-val locationDomainModule = module {
-    single<LocationProvider> { AppLocationProvider(androidApplication()) }
-}
-
-// app/presentation/feature/main/osd/MapLibreLayer.kt
-@Composable
-fun MapLibreLayer(..., locationProvider: LocationProvider) {
-    MaplibreMap(...) {
-        // ... tile layers ...
-
-        // Collect and render location dot — GeoJsonData.JsonString bypasses spatialk serialization
-        val currentLocation by locationProvider.location.collectAsStateWithLifecycle()
-        val locationGeoJson = remember(currentLocation) {
-            val loc = currentLocation
-            if (loc != null)
-                """{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[${loc.position.longitude},${loc.position.latitude}]},"properties":{}}]}"""
-            else
-                """{"type":"FeatureCollection","features":[]}"""
-        }
-        val locationSource = rememberGeoJsonSource(GeoJsonData.JsonString(locationGeoJson))
-        CircleLayer(
-            id = "user-location-dot",
-            source = locationSource,
-            color = const(Color(0xFF2196F3)),
-            radius = const(8.dp),
-            strokeColor = const(Color.White),
-            strokeWidth = const(2.dp),
-        )
-    }
-}
-```
+See canonical implementations:
+- `AppLocationProvider`: `app/src/main/.../di/location/AppLocationProvider.kt:33`
+- `MapLibreLayer` (CircleLayer + GeoJsonData.JsonString): `app/src/main/.../feature/main/osd/MapLibreLayer.kt:77`
 
 **DI injection point:** `LocationProvider` is injected in `NavGraph.kt` via `koinInject()` and passed as a parameter to `MainScreen` — never injected inside the Screen composable itself.
 
