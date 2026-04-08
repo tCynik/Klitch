@@ -1,7 +1,7 @@
 # Plan: Phone GPS to Radio Node
 
 **Date**: 2026-04-06
-**Status**: Approved
+**Status**: Done — verified working in field test
 
 ## Summary
 
@@ -95,6 +95,115 @@ Phase 5: /commit
 2. **NodeSettingsViewModel DI**: Does `NodeSettingsViewModel` currently have `UiPrefs` injected, or does it need to be added to the constructor?
 3. **Throttling**: `AndroidMeshLocationManager` sends on every GPS update. If `LocationRepository` emits frequently, this may spam the BLE channel. Monitor in field testing.
 
+## Debug Session (2026-04-08)
+
+### Симптом
+После Phase 1 (`?: true` в `UiPrefsImpl`) нода по-прежнему транслирует всегда одинаковые координаты. Гипотеза: это дефолтная позиция карты (`56.0184, 92.8672`).
+
+### Анализ кода
+
+**DEFAULT_CAMERA_POSITION не попадает в mesh pipeline.** `MainViewModel` использует `MapCameraPosition` только для камеры. Нет ни одного кода-пути, который бы передавал его в `CommandSender`.
+
+**Полный pipeline отправки GPS:**
+```
+uiPrefs.shouldProvideNodeLocation(myNodeNum) == true
+  → MeshConnectionManagerImpl:117 → locationManager.start(scope) { pos → commandSender.sendPosition(pos) }
+    → AndroidMeshLocationManager:48 → hasLocationPermission() check
+      → locationRepository.getLocations() [callbackFlow, без initial value]
+        → LocationRepositoryImpl: Android LocationManager callback → trySend(location)
+          → sendPositionFn(ProtoPosition(latitude_i, longitude_i, ...))
+            → CommandSenderImpl.sendPosition → Logger.d { "Sending our position/time..." } → BLE
+```
+
+### Вероятные причины (по убыванию вероятности)
+
+**P1 — GPS fix отсутствует / callbackFlow не эмитит:**
+`LocationRepositoryImpl.getLocations()` использует `callbackFlow` без начального значения. Пока Android не получит GPS fix, ни одна позиция не отправляется. Радио продолжает транслировать кеш из прошлой сессии с официальным приложением. Именно это и видно как "всегда одинаковые координаты".
+
+**P2 — Permission check failure:**
+`AndroidMeshLocationManager.start():48` — `if (context.hasLocationPermission())` — если false, `locationFlow` никогда не запускается. Нет лога об этом.
+
+**P3 — `fixed_position=true` на радио:**
+`CommandSenderImpl.sendPosition:180` — `if (localConfig.value.position?.fixed_position != true)` — если флаг выставлен, `handleReceivedPosition` пропускается. Прошивка радио при `fixed_position=true` игнорирует входящие position packets (firmware behaviour). Позиция радио никогда не обновится.
+
+**P4 — Race: `locationManager.start()` вызывается повторно, но `locationFlow?.isActive == true` → skip:**
+При каждом emit `myNodeInfo` отменяется `locationRequestsJob`, но `locationManager.stop()` НЕ вызывается. `locationFlow` остаётся активным. При следующем вызове `start()` срабатывает early return. Это не баг, но мешает дебагу.
+
+**P5 — `DEFAULT_CAMERA_POSITION` (56.0184, 92.8672):** НЕ попадает в pipeline — исключено.
+
+### План дебага
+
+#### Debug Phase A — Verifying the pipeline fires at all (без изменений кода)
+
+1. **Logcat — ищем существующий лог в `CommandSenderImpl.sendPosition:178`:**
+   ```
+   Logger.d { "Sending our position/time to=$idNum $pos" }
+   ```
+   Если этого лога нет — `sendPosition` не вызывается → проблема выше по pipeline.
+
+2. **Logcat — `LocationRepositoryImpl`:**
+   ```
+   "Starting location updates with ... intervalMs=30000"
+   ```
+   Если нет — `getLocations()` не был вызван вообще.
+
+#### Debug Phase B — Adding diagnostic logs (если Phase A не дала ответа)
+
+**B1 — `AndroidMeshLocationManager.start()` (файл: `mesh/.../service/AndroidMeshLocationManager.kt`):**
+```kotlin
+override fun start(scope: CoroutineScope, sendPositionFn: (ProtoPosition) -> Unit) {
+    Logger.i { "MeshLocationMgr.start() called, locationFlow.isActive=${locationFlow?.isActive}" }
+    this.scope = scope
+    if (locationFlow?.isActive == true) {
+        Logger.i { "MeshLocationMgr: already running, skipping start" }
+        return
+    }
+    if (context.hasLocationPermission()) {
+        Logger.i { "MeshLocationMgr: permission OK, subscribing to GPS" }
+        locationFlow = locationRepository.getLocations()
+            .onEach { location ->
+                Logger.i { "MeshLocationMgr: GPS update lat=${location.latitude} lon=${location.longitude}" }
+                sendPositionFn(ProtoPosition(...))
+            }
+            .launchIn(scope)
+    } else {
+        Logger.w { "MeshLocationMgr: NO location permission, GPS not started" }
+    }
+}
+```
+
+**B2 — `MeshConnectionManagerImpl.start()` — подтвердить что `start()` вызывается:**
+Уже есть логи через `Logger.withTag("MeshConnMgr")` — проверить в Logcat.
+
+**B3 — Проверить `fixed_position` в Logcat:**
+В `CommandSenderImpl.sendPosition`:
+```kotlin
+Logger.d { "sendPosition: fixed_position=${localConfig.value.position?.fixed_position}" }
+```
+
+#### Debug Phase C — Если GPS поступает, но радио не обновляет позицию
+
+- **Причина**: `fixed_position=true` на радио.
+- **Проверка**: в официальном приложении Meshtastic → Radio Config → Position → убедиться что Fixed Position выключен.
+- **Fix в коде**: если нужно — `CommandSenderImpl.setFixedPosition(myNum, Position(0.0, 0.0, 0))` сбрасывает fixed position.
+
+#### Debug Phase D — Если GPS не поступает
+
+- Проверить разрешения приложения в настройках Android (Location → Always allow).
+- Проверить что GPS на устройстве включён и есть fix (спутники видны).
+- Если эмулятор — задать extended controls → Location.
+
+### Решение по итогам дебага
+
+| Найденная причина | Fix |
+|---|---|
+| Permission denied | Запросить разрешение / добавить лог предупреждения |
+| GPS нет fix (emulator) | Задать mock location в extended controls |
+| `fixed_position=true` | Отключить в Radio Config или вызвать `setFixedPosition` с нулями |
+| `locationFlow` не запускается (логика) | Убрать early-return guard или добавить `stop()` перед повторным `start()` |
+
 ## Change Log
 
 - 2026-04-06: created
+- 2026-04-08: debug session — root cause найдена: `sendPosition` (POSITION_APP mesh packet) не обновляет broadcast-позицию радио при наличии внутреннего GPS. Правильный API: `setFixedPosition` (Admin `set_fixed_position` message). Заменено в `MeshConnectionManagerImpl`. Добавлен `remove_fixed_position` при `shouldProvide=false`.
+- 2026-04-08: field test confirmed — дополнительная причина: `fixed_position=true` в официальном приложении Meshtastic блокировал `setFixedPosition` Admin message от MeshTactics. После отключения тоггла нода отобразилась на карте в корректном месте. Фича работает.

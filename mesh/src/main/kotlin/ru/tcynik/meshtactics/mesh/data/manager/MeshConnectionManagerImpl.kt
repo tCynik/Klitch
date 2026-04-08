@@ -33,6 +33,7 @@ import ru.tcynik.meshtactics.mesh.common.util.ioDispatcher
 import ru.tcynik.meshtactics.mesh.common.util.nowMillis
 import ru.tcynik.meshtactics.mesh.common.util.nowSeconds
 import ru.tcynik.meshtactics.mesh.model.ConnectionState
+import ru.tcynik.meshtactics.mesh.model.Position
 import ru.tcynik.meshtactics.mesh.model.TelemetryType
 import ru.tcynik.meshtactics.mesh.repository.AppWidgetUpdater
 import ru.tcynik.meshtactics.mesh.repository.CommandSender
@@ -114,9 +115,22 @@ class MeshConnectionManagerImpl(
                             .shouldProvideNodeLocation(myNodeEntity.myNodeNum)
                             .onEach { shouldProvide ->
                                 if (shouldProvide) {
-                                    locationManager.start(scope) { pos -> commandSender.sendPosition(pos) }
+                                    locationManager.start(scope) { pos ->
+                                        val lat = Position.degD(pos.latitude_i ?: 0)
+                                        val lon = Position.degD(pos.longitude_i ?: 0)
+                                        Logger.i { "PhoneGPS→radio: setFixedPosition(${myNodeEntity.myNodeNum}, lat=$lat lon=$lon)" }
+                                        commandSender.setFixedPosition(
+                                            myNodeEntity.myNodeNum,
+                                            Position(latitude = lat, longitude = lon, altitude = pos.altitude ?: 0),
+                                        )
+                                    }
                                 } else {
                                     locationManager.stop()
+                                    Logger.i { "PhoneGPS→radio: shouldProvide=false, removing fixed position" }
+                                    commandSender.setFixedPosition(
+                                        myNodeEntity.myNodeNum,
+                                        Position(0.0, 0.0, 0),
+                                    )
                                 }
                             }
                             .launchIn(scope)

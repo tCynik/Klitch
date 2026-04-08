@@ -150,15 +150,24 @@ Output a structured plan with phases. Each phase must have:
 **Rule**: this phase is never skipped. If memory and docs are already accurate, say so explicitly — do not silently omit.
 
 **Phase 7 — Commit Preparation** *(always, after Phase 5, Phase 6, and Phase 6b are complete)*
-- Goal: all changes — code, tests, and skill updates — committed in one coherent commit
+- Goal: all changes staged, commit message ready, waiting for user confirmation
 - Tasks:
-  - List all changed files explicitly (do not use `git add -A` — stage files by name)
-  - Draft a commit message following project style: `type(scope): short description` in Russian, imperative mood
-  - Use `/commit` skill to execute the commit
-- Skill: `/commit`
-- Output: committed changeset; clean `git status`
+  1. Run `git status` to enumerate all changed/untracked files
+  2. For each changed file decide: **stage** (git add) or **ignore** (add to `.gitignore`)
+     - Generated files, local secrets, IDE artifacts → `.gitignore`
+     - Everything else → stage by name (never `git add -A` or `git add .`)
+  3. Draft a commit message following project style: `type(scope): short description` in Russian, imperative mood; add a blank line + bullet list of key changes if needed
+  4. **Present to the user**:
+     - The list of staged files
+     - The proposed commit message
+     - Any files added to `.gitignore`
+  5. **Wait for explicit user confirmation** before running `git commit`
+  6. After confirmation — execute `git commit -m "..."` with the approved message
+- Skill: direct git commands (Bash tool)
+- Output: committed changeset after user approval; clean `git status`
 
 **Rule**: commit only after Phase 5 (architectural review clean), Phase 6 (skills updated), and Phase 6b (docs & memory updated) are done. A commit that precedes any of these is not a Phase 7 commit — it is a work-in-progress save and must be labeled as such.
+**Rule**: never commit without explicit user confirmation of the staged files and message.
 
 ### Step 4. Coordination Map
 
@@ -173,7 +182,7 @@ Phase 4: [direct coding — tests]
 Phase 5: /architect review: ...
 Phase 6: [skill update review]
 Phase 6b: [docs & memory update — CLAUDE.md, plan file, memory/]
-Phase 7: /commit
+Phase 7: [stage files by name] → [propose commit message] → [wait for confirmation] → git commit
 ```
 
 ### Step 5. Open Questions
