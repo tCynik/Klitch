@@ -53,3 +53,4 @@
 | App Structure | `.claude/plans/app-structure.md` | Done |
 | Map Start Position | `.claude/plans/map-start-position.md` | Done |
 | Phone GPS to Radio | `.claude/plans/phone-gps-to-radio.md` | Done |
+| HUD Structure | `.claude/plans/hud-structure.md` | In Progress |
