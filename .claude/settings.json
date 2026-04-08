@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/tcynik/.claude/**)",
+      "Bash(jar -xf \"/c/Users/tcynik/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar\")",
+      "Bash(mkdir -p /tmp/maplibre-src)",
+      "Read(//tmp/**)",
+      "Read(//c/Users/LocAdmin/Desktop/Мое/заметки/obsidian/**)",
+      "Read(//c/Users/tcynik/Desktop/**)",
+      "Read(//c/Users/tcynik/Documents/**)",
+      "Read(//c/Users/LocAdmin/**)",
+      "Read(//c/Users/tcynik/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/**)",
+      "Bash(jar -tf \"/c/Users/tcynik/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar\")",
+      "Bash(jar -xf /c/Users/tcynik/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar commonMain/org/maplibre/compose/location/Location.kt commonMain/org/maplibre/compose/location/LocationProvider.kt commonMain/org/maplibre/compose/location/LocationPuck.kt commonMain/org/maplibre/compose/location/UserLocationState.kt)",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.di.location.MeshLocationProviderTest\")",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.di.location.MeshLocationProviderTest\" --stacktrace)",
+      "Read(//c/Users/tcynik/.gradle/jdks/**)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude"
+    ]
+  }
+}

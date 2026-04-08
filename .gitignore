@@ -17,9 +17,14 @@
 /.idea/assetWizardSettings.xml
 /.idea/misc.xml
 /.idea/render.experimental.xml
+/.idea/artifacts/
 .externalNativeBuild
 .cxx
 /captures
+
+# AI tools
+.qwen/
+.claude/settings.local.json
 
 # Конфигурационные файлы
 local.properties

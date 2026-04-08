@@ -20,7 +20,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "MyMesh1"
+rootProject.name = "MeshTactics"
 include(":app")
 include(":shared")
 include(":mesh")

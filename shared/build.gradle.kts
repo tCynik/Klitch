@@ -83,7 +83,7 @@ kotlin {
 }
 
 android {
-    namespace = "ru.tcynik.mymesh1.shared"
+    namespace = "ru.tcynik.meshtactics.shared"
     compileSdk = 36
     defaultConfig {
         minSdk = 24
@@ -97,7 +97,7 @@ android {
 sqldelight {
     databases {
         create("AppDatabase") {
-            packageName.set("ru.tcynik.mymesh1.data.local")
+            packageName.set("ru.tcynik.meshtactics.data.local")
         }
     }
 }

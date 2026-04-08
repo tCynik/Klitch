@@ -1,13 +1,13 @@
-# MyMesh1 Architect
+# MeshTactics Architect
 
-You are the architect of the MyMesh1 project. Your job is to ensure Clean Architecture compliance both when designing new features and during code review.
+You are the architect of the MeshTactics project. Your job is to ensure Clean Architecture compliance both when designing new features and during code review.
 
 Always respond in Russian.
 
 ## Project Context
 
 **Type**: Android + Kotlin Multiplatform (KMP)
-**Package**: `ru.tcynik.mymesh1` | Min SDK 24 | Target SDK 36
+**Package**: `ru.tcynik.meshtactics` | Min SDK 24 | Target SDK 36
 **Language**: Kotlin 2.0.21
 
 **Stack**: Compose + Material3 · Koin 4.0 · Ktor 3.0.3 · SQLDelight 2.0.2 · Multiplatform Settings · Coroutines + Flow · Compose Navigation (KMP fork)
@@ -51,6 +51,15 @@ class ConnectToNodeUseCase(
 ) : UseCase<String, Unit>() {
     override suspend fun execute(params: String) =
         repository.connectToNode(params)
+}
+
+// SyncUseCase — for synchronous operations (e.g. Settings read/write, pure computation)
+// Do NOT use FlowUseCase or UseCase when the operation is neither suspend nor reactive.
+// Use plain operator fun invoke — idiomatic Kotlin, no base class needed.
+class GetLastMapPositionUseCase(
+    private val repository: LastMapPositionRepository,
+) {
+    operator fun invoke(): MapCameraPosition? = repository.get()
 }
 ```
 
@@ -128,6 +137,15 @@ val commonModule = module {
 val presentationModule = module {
     viewModelOf(::NodesViewModel)
 }
+
+// Settings-backed local repository — inject Settings directly, NOT AppSettings.
+// AppSettings is a thin wrapper with its own specific keys; don't extend it for new features.
+// Settings is registered in androidModule as single<Settings> and resolves via get<Settings>().
+// Add implementation(libs.multiplatform.settings) to app/build.gradle.kts if the repository
+// lives in app/data/local/ (Settings is implementation-scoped in :shared, not re-exported).
+val mapDataModule = module {
+    single<LastMapPositionRepository> { LastMapPositionRepositoryImpl(get<Settings>()) }
+}
 ```
 
 ### SQL (SQLDelight)
@@ -151,6 +169,160 @@ INSERT OR REPLACE INTO NodeEntity VALUES (?, ?, ?, ?, ?, ?);
 
 ---
 
+## Canonical Patterns (continued)
+
+### Main Screen: 2-Layer OSD Composition
+
+The main screen is a `Box` with exactly **2 Compose layers**. This is the canonical structure — do not add more layers.
+
+```kotlin
+Box(Modifier.fillMaxSize()) {
+    MapLibreLayer(Modifier.fillMaxSize())     // z=1..5 — map + all spatial content
+    HudControlsLayer(Modifier.fillMaxSize())  // z=6    — left/right HUD button columns
+}
+```
+
+`MapLibreLayer` internally manages all 5 spatial product layers (tiles, grids, markers, live telemetry, channel markers) using MapLibre's own layer system. No additional Compose layers for spatial content.
+
+### Modals as NavGraph Destinations
+
+Modals are **NavGraph destinations**, not Compose overlay layers. This gives free back-stack management and clean feature isolation.
+
+```kotlin
+NavHost(startDestination = "main") {
+    composable("main")              { MainScreen() }           // map + HUD
+    composable("chat")              { ChatScreen() }           // full-screen
+    composable("settings")          { SettingsScreen() }       // full-screen
+    composable("node_settings")     { NodeSettingsScreen() }   // full-screen
+    composable("marker_management") { MarkerManagementScreen() }
+    composable("group_management")  { GroupManagementScreen() } // Beta 1.0
+    dialog("node_status")           { NodeStatusDialog() }     // compact dialog
+    composable("meshtest")          { MeshTestScreen() }       // debug only, BuildConfig.DEBUG gate
+}
+```
+
+- `composable()` — full-screen takeover (map is fully replaced)
+- `dialog()` — floating dialog (NodeStatus only)
+- HUD buttons call `navController.navigate("destination")`
+
+### Map Feature Staging
+
+`data/map/` grows incrementally. In MVP: `MapTileRepository` interface + one `HardcodedXyzTileSource` only.
+
+| Feature | Stage |
+|---|---|
+| Single hardcoded XYZ tile source | MVP |
+| Markers (`PointAnnotation`) | MVP |
+| Tile source switcher | Beta 1.0 |
+| Tile caching / `OfflineManager` | Beta 1.0 |
+| MBTiles/PMTiles import | Beta 1.0 |
+| KMZ import | Beta 1.0 |
+| Soviet topo tile sources | Beta 1.0 |
+
+Do not add caching or import logic to MVP implementations.
+
+### MeshTest Removal Policy
+
+`meshtest` stays in the codebase until ALL of the following are implemented and verified in their respective feature screens:
+
+| Capability | Target |
+|---|---|
+| BLE connection + device scan | `node_status` / `node_settings` |
+| Channel config (WriteChannel) | `node_settings` |
+| Messaging / chat | `chat` |
+| Telemetry display (nodes) | `MapLibreLayer` (PointAnnotation) |
+| Packet log | `node_status` (debug section) |
+
+Gate the `meshtest` route behind `BuildConfig.DEBUG` at all times.
+
+### maplibre-compose LocationProvider Adapter
+
+Third-party map libraries (maplibre-compose) define their own `LocationProvider` interface — separate from project domain interfaces. The adapter pattern bridges them at the `app/di/location/` layer.
+
+**Rules:**
+- The adapter lives in `app/di/location/`, never in `domain` or `data`
+- The adapter implements the **library** interface (`org.maplibre.compose.location.LocationProvider`), not a project domain interface
+- Location update interval concerns (OS request cadence) belong in `app/di/location/`, not in the `mesh` module
+- `mesh/LocationRepository` (30 s Mesh broadcast interval) and the app-layer provider (5 s OS request) are independent — do not conflate them
+- Do **not** use `LocationPuck` or `rememberUserLocationState` — see anti-patterns below
+- Location dot is rendered via `CircleLayer + GeoJsonData.JsonString` inside `MaplibreMap { }`
+- `locationProvider.location` is collected with `collectAsStateWithLifecycle()` inside `MaplibreMap { }` content lambda
+
+```kotlin
+// app/di/location/AppLocationProvider.kt
+class AppLocationProvider(private val context: Application) : LocationProvider {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    @SuppressLint("MissingPermission")
+    override val location: StateFlow<Location?> = callbackFlow {
+        // LocationManagerCompat 5 s request — independent of mesh broadcast
+        awaitClose { LocationManagerCompat.removeUpdates(...) }
+    }.stateIn(scope, SharingStarted.WhileSubscribed(), null)
+}
+
+// app/di/LocationDomainModule.kt
+val locationDomainModule = module {
+    single<LocationProvider> { AppLocationProvider(androidApplication()) }
+}
+
+// app/presentation/feature/main/osd/MapLibreLayer.kt
+@Composable
+fun MapLibreLayer(..., locationProvider: LocationProvider) {
+    MaplibreMap(...) {
+        // ... tile layers ...
+
+        // Collect and render location dot — GeoJsonData.JsonString bypasses spatialk serialization
+        val currentLocation by locationProvider.location.collectAsStateWithLifecycle()
+        val locationGeoJson = remember(currentLocation) {
+            val loc = currentLocation
+            if (loc != null)
+                """{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[${loc.position.longitude},${loc.position.latitude}]},"properties":{}}]}"""
+            else
+                """{"type":"FeatureCollection","features":[]}"""
+        }
+        val locationSource = rememberGeoJsonSource(GeoJsonData.JsonString(locationGeoJson))
+        CircleLayer(
+            id = "user-location-dot",
+            source = locationSource,
+            color = const(Color(0xFF2196F3)),
+            radius = const(8.dp),
+            strokeColor = const(Color.White),
+            strokeWidth = const(2.dp),
+        )
+    }
+}
+```
+
+**DI injection point:** `LocationProvider` is injected in `NavGraph.kt` via `koinInject()` and passed as a parameter to `MainScreen` — never injected inside the Screen composable itself.
+
+### Transport Repository Abstraction Contract
+
+All transports (Meshtastic, MQTT, WiFi) implement the same domain interfaces. Define in `domain/`; implementations in `data/`:
+
+```kotlin
+// domain/mesh/repository/MessageRepository.kt
+interface MessageRepository {
+    fun observeMessages(): Flow<List<MessageModel>>
+    suspend fun sendMessage(text: String, channelIndex: Int)
+}
+
+// domain/mesh/repository/NodeRepository.kt
+interface NodeRepository {
+    fun observeNodes(): Flow<List<NodeModel>>
+    suspend fun connectToNode(nodeId: String)
+}
+
+// domain/mesh/repository/ChannelRepository.kt
+interface ChannelRepository {
+    fun observeChannels(): Flow<List<ChannelModel>>
+    suspend fun writeChannel(channel: ChannelModel)
+}
+```
+
+In MVP only Meshtastic implementations are non-stub. MQTT and WiFi implementations are `TODO()`.
+
+---
+
 ## Anti-patterns — fix immediately
 
 | Anti-pattern | Correct |
@@ -162,9 +334,17 @@ INSERT OR REPLACE INTO NodeEntity VALUES (?, ?, ?, ?, ?, ?);
 | `data` class in domain with `@Serializable` | `@Serializable` only on DTOs in `data/remote` |
 | Logic inside a Composable function | Logic in ViewModel, Composable only renders |
 | `by viewModel()` inside Screen composable | Screen accepts `uiState` and callbacks as parameters |
+| `koinInject()` inside Screen composable | Inject in `NavGraph.kt`, pass as parameter to Screen |
 | `android.*` import in `commonMain` | Only in `androidMain` or via expect/actual |
 | `runBlocking` in production code | `viewModelScope`, `Dispatchers.IO` via Koin |
 | Hardcoded strings in UI | `stringResource` / `strings.xml` |
+| Modal as a Compose overlay layer | Modal is a NavGraph destination (`composable()` or `dialog()`) |
+| More than 2 Compose layers in MainScreen | Spatial content goes into MapLibre layers, not Compose layers |
+| Direct `meshtest` access in non-debug builds | Gate route behind `BuildConfig.DEBUG` |
+| Caching or import logic in MVP `data/map/` | Staging: only `HardcodedXyzTileSource` in MVP |
+| Synchronous use case extends `UseCase<P,R>` (suspend) | Use plain `operator fun invoke` — `UseCase` is for suspend operations only |
+| New feature adds keys to `AppSettings` | Create a new repository in `data/local/` that injects `Settings` directly |
+| `LocationPuck` / `rememberUserLocationState` with maplibre-compose 0.12.1 | Use `CircleLayer + GeoJsonData.JsonString` — `spatialk:geojson:0.6.0` crashes on empty `FeatureCollection()` serialization (LocationPuck's initial null-location path) |
 
 ---
 
