@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -26,10 +27,18 @@ fun HudControlsLayer(
             .fillMaxSize()
             .statusBarsPadding()
             .padding(8.dp)
-            .padding(start = 24.dp),
+            .padding(start = 32.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        HudBlock(config = config.left, side = HudSide.Left)
-        HudBlock(config = config.right, side = HudSide.Right)
+        HudBlock(
+            modifier = Modifier.wrapContentWidth(),
+            config = config.left,
+            side = HudSide.Left
+        )
+        HudBlock(
+            modifier = Modifier.wrapContentWidth(),
+            config = config.right,
+            side = HudSide.Right
+        )
     }
 }

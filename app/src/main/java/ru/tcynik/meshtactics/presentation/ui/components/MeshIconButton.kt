@@ -1,10 +1,12 @@
 package ru.tcynik.meshtactics.presentation.ui.components
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -13,11 +15,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import ru.tcynik.meshtactics.ui.theme.IconActive
 import ru.tcynik.meshtactics.ui.theme.IconDisabled
@@ -41,7 +43,6 @@ fun MeshIconButton(
     // true  → toggle on  → Enabled color
     // false → toggle off → Unpressed color (button remains clickable)
     selected: Boolean? = null,
-    size: Dp = 80.dp,
 ) {
     val strokeWidth = 3.dp
     val cornerRadius = 16.dp
@@ -57,13 +58,14 @@ fun MeshIconButton(
         else              -> activeColor
     }
 
-    Box(
+    BoxWithConstraints(
         contentAlignment = Alignment.Center,
         modifier = modifier
-            .size(size)
+            .wrapContentWidth()
             .clickable(enabled = enabled, onClick = onClick),
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
+        val squareSize = minOf(maxWidth, maxHeight)
+        Canvas(modifier = Modifier.size(squareSize)) {
             val half = strokeWidth.toPx() / 2f
             drawRoundRect(
                 color = contentColor,
@@ -81,7 +83,7 @@ fun MeshIconButton(
             imageVector = icon,
             contentDescription = null,
             tint = contentColor,
-            modifier = Modifier.size(size * 0.70f),
+            modifier = Modifier.size(squareSize * 0.70f),
         )
     }
 }
