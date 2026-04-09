@@ -53,15 +53,18 @@ fun MeshIconButton(
     val disabledColor = IconDisabled
 
     val contentColor = when {
-        !enabled          -> disabledColor
+        !enabled -> disabledColor
         selected == false -> inactiveColor
-        else              -> activeColor
+        else -> activeColor
     }
 
     BoxWithConstraints(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .wrapContentWidth()
+            .background(
+                Color.Black.copy(alpha = 0.1f), MaterialTheme.shapes.large
+            )
             .clickable(enabled = enabled, onClick = onClick),
     ) {
         val squareSize = minOf(maxWidth, maxHeight)
@@ -70,7 +73,10 @@ fun MeshIconButton(
             drawRoundRect(
                 color = contentColor,
                 topLeft = Offset(half, half),
-                size = Size(this.size.width - strokeWidth.toPx(), this.size.height - strokeWidth.toPx()),
+                size = Size(
+                    this.size.width - strokeWidth.toPx(),
+                    this.size.height - strokeWidth.toPx()
+                ),
                 cornerRadius = CornerRadius(cornerRadius.toPx()),
                 style = Stroke(
                     width = strokeWidth.toPx(),
