@@ -1,7 +1,7 @@
 package ru.tcynik.meshtactics.presentation.feature.main.osd
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,7 +19,7 @@ fun HudInfoSlotItem(slot: HudInfoSlot, modifier: Modifier = Modifier) {
     }
 
     Box(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxHeight(),
         contentAlignment = Alignment.Center,
     ) {
         Text(

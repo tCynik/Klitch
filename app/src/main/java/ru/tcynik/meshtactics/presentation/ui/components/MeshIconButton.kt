@@ -19,6 +19,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import ru.tcynik.meshtactics.ui.theme.IconActive
+import ru.tcynik.meshtactics.ui.theme.IconDisabled
+import ru.tcynik.meshtactics.ui.theme.IconInactive
 
 // Squared icon button with a rounded-rect outline frame.
 // Frame is drawn here; icon files must NOT include the frame path.
@@ -43,9 +46,10 @@ fun MeshIconButton(
     val strokeWidth = 3.dp
     val cornerRadius = 16.dp
 
-    val activeColor   = MaterialTheme.colorScheme.primary
-    val inactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
-    val disabledColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    // TODO: switch to theme-aware colors based on isSystemInDarkTheme() or a parameter
+    val activeColor = IconActive
+    val inactiveColor = IconInactive
+    val disabledColor = IconDisabled
 
     val contentColor = when {
         !enabled          -> disabledColor
