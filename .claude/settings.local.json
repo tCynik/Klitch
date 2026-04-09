@@ -97,7 +97,8 @@
       "Bash(unzip -q \"C:\\\\Users\\\\LocAdmin\\\\.gradle\\\\caches\\\\modules-2\\\\files-2.1\\\\com.russhwolf\\\\multiplatform-settings\\\\1.2.0\\\\7275813b1c1627d552dd85ca14bb0e186af6c5a1\\\\multiplatform-settings-1.2.0-sources.jar\")",
       "Bash(mkdir -p /tmp2)",
       "Bash(./gradlew :app:testDebugUnitTest)",
-      "Bash(./gradlew :app:assembleDebug)"
+      "Bash(./gradlew :app:assembleDebug)",
+      "Bash(git commit:*)"
     ]
   }
 }

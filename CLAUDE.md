@@ -45,6 +45,20 @@
 
 ---
 
+## Правила работы
+
+### Коммиты
+- Сообщения коммитов пишутся **только на русском языке**
+- Строка `Co-Authored-By: Claude ...` **не добавляется** ни при каких обстоятельствах
+
+### Структура файлов
+- Data-классы (модели, DTO) должны находиться в поддиректории `models/` внутри соответствующего пакета
+- Composable-файлы и data-классы **не смешиваются** в одной директории
+- Каждый data-класс — в **отдельном файле** (один класс = один файл)
+- Пример: `presentation/feature/main/osd/models/HudButtonSlotItem.kt`
+
+---
+
 ## Активные планы
 
 | План | Файл | Статус |
@@ -53,3 +67,4 @@
 | App Structure | `.claude/plans/app-structure.md` | Done |
 | Map Start Position | `.claude/plans/map-start-position.md` | Done |
 | Phone GPS to Radio | `.claude/plans/phone-gps-to-radio.md` | Done |
+| HUD Structure | `.claude/plans/hud-structure.md` | In Progress |

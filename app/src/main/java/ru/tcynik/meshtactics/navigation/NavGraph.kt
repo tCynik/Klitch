@@ -1,6 +1,7 @@
 package ru.tcynik.meshtactics.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.navigation.compose.NavHost
@@ -17,6 +18,7 @@ import ru.tcynik.meshtactics.presentation.feature.chat.ChatScreen
 import ru.tcynik.meshtactics.presentation.feature.chat.ChatViewModel
 import ru.tcynik.meshtactics.presentation.feature.groups.GroupManagementScreen
 import ru.tcynik.meshtactics.presentation.feature.groups.GroupsViewModel
+import ru.tcynik.meshtactics.presentation.feature.main.HudNavCallbacks
 import ru.tcynik.meshtactics.presentation.feature.main.MainScreen
 import ru.tcynik.meshtactics.presentation.feature.main.MainViewModel
 import ru.tcynik.meshtactics.presentation.feature.markers.MarkerManagementScreen
@@ -44,15 +46,29 @@ fun NavGraph() {
             composable<Route.Main> {
                 val viewModel: MainViewModel = koinViewModel()
                 val uiState by viewModel.uiState.collectAsState()
+                val hudConfig by viewModel.hudConfig.collectAsState()
                 val locationProvider: LocationProvider = koinInject()
                 val orientationProvider: DeviceOrientationProvider = koinInject()
+
+                // Provide navigation callbacks to ViewModel once navController is available.
+                // Unit key — callbacks are stable for the lifetime of this destination.
+                LaunchedEffect(Unit) {
+                    viewModel.provideNavCallbacks(
+                        HudNavCallbacks(
+                            onRadioClick    = { navController.navigate(Route.MeshTest()) },
+                            onSettingsClick = { navController.navigate(Route.Settings) },
+                            onMeshClick     = { navController.navigate(Route.Nodes) },
+                            // TODO: confirm destination for "метки" — using MarkerManagement
+                            onMarkersClick  = { navController.navigate(Route.MarkerManagement) },
+                            onChatClick     = { navController.navigate(Route.Chat) },
+                        )
+                    )
+                }
+
                 MainScreen(
                     uiState = uiState,
+                    hudConfig = hudConfig,
                     onCameraPositionChanged = viewModel::onCameraPositionChanged,
-                    onChatClick = { navController.navigate(Route.Chat) },
-                    onSettingsClick = { navController.navigate(Route.Settings) },
-                    onNodeStatusClick = { navController.navigate(Route.MeshTest()) },
-                    onMarkerManagementClick = { navController.navigate(Route.MarkerManagement) },
                     locationProvider = locationProvider,
                     orientationProvider = orientationProvider,
                 )

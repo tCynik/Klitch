@@ -9,14 +9,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -35,17 +32,15 @@ import org.maplibre.spatialk.geojson.Position
 import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.di.orientation.DeviceOrientationProvider
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.HudControlsLayer
 import ru.tcynik.meshtactics.presentation.feature.main.osd.MapLibreLayer
 
 @Composable
 fun MainScreen(
     uiState: MainUiState,
+    hudConfig: HudConfig,
     onCameraPositionChanged: (MapCameraPosition) -> Unit,
-    onChatClick: () -> Unit,
-    onSettingsClick: () -> Unit,
-    onNodeStatusClick: () -> Unit,
-    onMarkerManagementClick: () -> Unit,
     locationProvider: LocationProvider,
     orientationProvider: DeviceOrientationProvider,
 ) {
@@ -135,13 +130,8 @@ fun MainScreen(
 
         // HUD button columns
         HudControlsLayer(
+            config = hudConfig,
             modifier = Modifier.fillMaxSize(),
-            connectionStatus = uiState.connectionStatus,
-            nodesWithPositionCount = uiState.nodeMarkers.size,
-            onChatClick = onChatClick,
-            onSettingsClick = onSettingsClick,
-            onNodeStatusClick = onNodeStatusClick,
-            onMarkerManagementClick = onMarkerManagementClick,
         )
     }
 }
