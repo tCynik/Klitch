@@ -32,7 +32,7 @@ import org.maplibre.spatialk.geojson.Position
 import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.di.orientation.DeviceOrientationProvider
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
-import ru.tcynik.meshtactics.presentation.feature.main.osd.HudConfig
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.HudControlsLayer
 import ru.tcynik.meshtactics.presentation.feature.main.osd.MapLibreLayer
 

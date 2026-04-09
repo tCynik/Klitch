@@ -22,13 +22,13 @@ import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
-import ru.tcynik.meshtactics.presentation.feature.main.osd.HudButtonSlot
-import ru.tcynik.meshtactics.presentation.feature.main.osd.HudColumnConfig
-import ru.tcynik.meshtactics.presentation.feature.main.osd.HudConfig
-import ru.tcynik.meshtactics.presentation.feature.main.osd.HudInfoSlot
-import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyButtonSlot
-import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyHudColumn
-import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyInfoSlot
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudButtonSlot
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudColumnConfig
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudInfoSlot
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.emptyButtonSlot
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.emptyHudColumn
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.emptyInfoSlot
 
 // BLE RSSI threshold separating low signal (red) from medium/high signal (green).
 // Adjust based on field experience; -90 dBm is the standard Meshtastic convention.
