@@ -12,6 +12,7 @@ import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import ru.tcynik.meshtactics.mesh.common.util.latLongToMeter
 
 private const val TAG = "NodeMarkers"
+private const val MIN_SPEED_FOR_HEADING = 1
 
 // Maximum age of a GPS position report to be considered fresh, in seconds.
 // Positions older than this threshold are excluded from the map and the node counter.
@@ -57,6 +58,7 @@ class ObserveNodeMarkersUseCase(
                     longName = node.longName,
                     position = GeoPoint(node.latitude, node.longitude),
                     isOnline = node.isOnline,
+                    heading = if (node.groundSpeed >= MIN_SPEED_FOR_HEADING) node.groundTrack.toFloat() else null,
                 )
             }
         }
