@@ -1,4 +1,4 @@
-package ru.tcynik.meshtactics.presentation.feature.main.osd
+package ru.tcynik.meshtactics.presentation.feature.main.osd.layouts
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box

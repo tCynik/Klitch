@@ -26,9 +26,9 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudButtonSlot
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudColumnConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudInfoSlot
-import ru.tcynik.meshtactics.presentation.feature.main.osd.models.emptyButtonSlot
-import ru.tcynik.meshtactics.presentation.feature.main.osd.models.emptyHudColumn
-import ru.tcynik.meshtactics.presentation.feature.main.osd.models.emptyInfoSlot
+import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyButtonSlot
+import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyHudColumn
+import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyInfoSlot
 
 // BLE RSSI threshold separating low signal (red) from medium/high signal (green).
 // Adjust based on field experience; -90 dBm is the standard Meshtastic convention.
