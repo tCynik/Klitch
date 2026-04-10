@@ -33,6 +33,12 @@ import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.domain.marker.model.NodeMarkerModel
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MarkerSizeConfig
 
+// BaseStyle.Empty has no `glyphs` URL — SymbolLayer text rendering fails without it and breaks
+// all other layers too. This style adds the MapLibre demotiles glyph server.
+private val BASE_STYLE_WITH_GLYPHS = BaseStyle.Json(
+    """{"version":8,"glyphs":"https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf","sources":{},"layers":[]}"""
+)
+
 @Composable
 fun MapLibreLayer(
     modifier: Modifier = Modifier,
@@ -62,7 +68,7 @@ fun MapLibreLayer(
 
     MaplibreMap(
         modifier = modifier,
-        baseStyle = BaseStyle.Empty,
+        baseStyle = BASE_STYLE_WITH_GLYPHS,
         cameraState = cameraState,
     ) {
         val tileSource = rememberRasterSource(
@@ -106,7 +112,7 @@ fun MapLibreLayer(
             source = peerOnlineSource,
             textField = format(span(feature["longName"].asString())),
             textAnchor = const(SymbolAnchor.Bottom),
-            textOffset = offset(0.em, (-1.2).em),
+            textOffset = offset(0f.em, (-1.2f).em),
             textSize = const(12.sp),
             textColor = const(Color.White),
             textHaloColor = const(Color.Black),
@@ -118,7 +124,7 @@ fun MapLibreLayer(
             source = peerOfflineSource,
             textField = format(span(feature["longName"].asString())),
             textAnchor = const(SymbolAnchor.Bottom),
-            textOffset = offset(0.em, (-1.2).em),
+            textOffset = offset(0f.em, (-1.2f).em),
             textSize = const(12.sp),
             textColor = const(Color(0xFFBDBDBD)),
             textHaloColor = const(Color.Black),
@@ -139,4 +145,3 @@ private fun buildNodeGeoJson(nodes: List<NodeMarkerModel>): String {
     }
     return """{"type":"FeatureCollection","features":[$features]}"""
 }
-
