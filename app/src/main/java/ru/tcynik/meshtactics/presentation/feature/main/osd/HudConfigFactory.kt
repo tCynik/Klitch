@@ -1,22 +1,31 @@
 package ru.tcynik.meshtactics.presentation.feature.main.osd
 
-// Factory helpers — produce empty column configs for use as defaults.
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudButtonSlot
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudColumnConfig
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudInfoSlot
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudRowConfig
+
 fun emptyButtonSlot() =
-    _root_ide_package_.ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudButtonSlot(
+    HudButtonSlot(
         iconRes = null,
         label = "",
         onClick = {})
 fun emptyInfoSlot() =
-    _root_ide_package_.ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudInfoSlot(
+    HudInfoSlot(
         content = null
     )
+fun emptyHudRowConfig() =
+    HudRowConfig(
+        button = emptyButtonSlot(),
+        info = emptyInfoSlot(),
+    )
 fun emptyHudColumn() =
-    _root_ide_package_.ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudColumnConfig(
-        buttons = List(5) { emptyButtonSlot() },
-        infoItems = List(5) { emptyInfoSlot() },
+    HudColumnConfig(
+        rows = List(5) { emptyHudRowConfig() },
     )
 fun emptyHudConfig() =
-    _root_ide_package_.ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig(
+    HudConfig(
         left = emptyHudColumn(),
         right = emptyHudColumn()
     )
