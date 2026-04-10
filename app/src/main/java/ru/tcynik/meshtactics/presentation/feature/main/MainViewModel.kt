@@ -19,6 +19,8 @@ import ru.tcynik.meshtactics.domain.map.usecase.GetLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.GetTileUrlUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveNodeMarkersUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
+import ru.tcynik.meshtactics.domain.location.model.GpsSignalLevel
+import ru.tcynik.meshtactics.domain.location.usecase.ObserveGpsStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
@@ -40,6 +42,7 @@ class MainViewModel(
     private val saveLastPosition: SaveLastMapPositionUseCase,
     observeNodeMarkers: ObserveNodeMarkersUseCase,
     observeConnectionStatus: ObserveConnectionStatusUseCase,
+    observeGpsStatus: ObserveGpsStatusUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -78,6 +81,12 @@ class MainViewModel(
                 _uiState.update { it.copy(connectionStatus = status) }
             }
             .launchIn(viewModelScope)
+
+        observeGpsStatus(NoParams)
+            .onEach { gpsStatus ->
+                _uiState.update { it.copy(gpsStatus = gpsStatus) }
+            }
+            .launchIn(viewModelScope)
     }
 
     fun onCameraPositionChanged(position: MapCameraPosition) {
@@ -90,24 +99,33 @@ class MainViewModel(
     }
 
     private fun buildHudConfig(state: MainUiState, nav: HudNavCallbacks): HudConfig = HudConfig(
-        left = buildLeftColumn(),
+        left = buildLeftColumn(state),
         right = buildRightColumn(state, nav),
     )
 
     // Left column — map tools.
+    // Slot 5 (bottom): GPS signal indicator — ic_satellite tinted by signal level.
     // onClick stubs: each action will be wired when its feature is implemented.
-    private fun buildLeftColumn() = HudColumnConfig(
+    private fun buildLeftColumn(state: MainUiState) = HudColumnConfig(
         buttons = listOf(
             // TODO: wire to compass/bearing mode toggle when implemented
-            HudButtonSlot(iconRes = R.drawable.ic_compass,       label = "направление", onClick = {}),
+            HudButtonSlot(iconRes = R.drawable.ic_compass,   label = "направление",  onClick = {}),
             // TODO: wire to follow-user / map lock toggle when implemented
-            HudButtonSlot(iconRes = R.drawable.ic_target,        label = "привязка",    onClick = {}),
+            HudButtonSlot(iconRes = R.drawable.ic_target,    label = "привязка",     onClick = {}),
             // TODO: wire to track recording toggle when implemented
-            HudButtonSlot(iconRes = R.drawable.ic_edit,          label = "запись трека", onClick = {}),
+            HudButtonSlot(iconRes = R.drawable.ic_edit,      label = "запись трека", onClick = {}),
             // TODO: wire to map tools panel when implemented
-            HudButtonSlot(iconRes = R.drawable.ic_map_tools,     label = "инструменты", onClick = {}),
-            // TODO: wire to GPS/satellite status when implemented
-            HudButtonSlot(iconRes = R.drawable.ic_triangle_arrow, label = "спутники",   onClick = {}),
+            HudButtonSlot(iconRes = R.drawable.ic_map_tools, label = "инструменты",  onClick = {}),
+            HudButtonSlot(
+                iconRes = R.drawable.ic_satellite,
+                label = "спутники",
+                onClick = {},
+                tintOverride = when (state.gpsStatus.signalLevel) {
+                    GpsSignalLevel.None   -> Color.Red
+                    GpsSignalLevel.Weak   -> Color.Yellow
+                    GpsSignalLevel.Strong -> Color.Green
+                },
+            ),
         ),
         infoItems = List(5) { emptyInfoSlot() },
     )
