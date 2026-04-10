@@ -127,8 +127,24 @@ class MainViewModel(
                 },
             ),
         ),
-        infoItems = List(5) { emptyInfoSlot() },
+        infoItems = listOf(
+            emptyInfoSlot(),
+            emptyInfoSlot(),
+            emptyInfoSlot(),
+            emptyInfoSlot(),
+            buildGpsAccuracyInfoSlot(state),
+        ),
     )
+
+    private fun buildGpsAccuracyInfoSlot(state: MainUiState): HudInfoSlot {
+        val color = when (state.gpsStatus.signalLevel) {
+            GpsSignalLevel.None   -> Color.Red
+            GpsSignalLevel.Weak   -> Color.Yellow
+            GpsSignalLevel.Strong -> Color.Green
+        }
+        val text = state.gpsStatus.accuracyMeters?.let { "%.0fm".format(it) } ?: "--"
+        return HudInfoSlot(content = text, color = color)
+    }
 
     // Right column — main menu.
     // Info slot 0: node status indicator (connection quality + peer count).
