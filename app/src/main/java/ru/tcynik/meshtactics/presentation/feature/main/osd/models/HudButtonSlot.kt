@@ -1,6 +1,7 @@
 package ru.tcynik.meshtactics.presentation.feature.main.osd.models
 
 import androidx.annotation.DrawableRes
+import androidx.compose.ui.graphics.Color
 
 // One slot in the button column.
 // iconRes = null → empty slot: space is reserved but nothing is rendered.
@@ -15,4 +16,7 @@ data class HudButtonSlot(
     // true  → toggle on
     // false → toggle off
     val selected: Boolean? = null,
+    // null  → color driven by enabled/selected state (default)
+    // set   → overrides the computed content color (e.g. GPS signal level tint)
+    val tintOverride: Color? = null,
 )
