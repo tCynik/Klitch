@@ -98,7 +98,16 @@
       "Bash(mkdir -p /tmp2)",
       "Bash(./gradlew :app:testDebugUnitTest)",
       "Bash(./gradlew :app:assembleDebug)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(unzip -l ~/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar)",
+      "Bash(unzip -p ~/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar androidMain/org/maplibre/compose/layers/SymbolLayer.kt)",
+      "Bash(unzip -p ~/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar commonMain/org/maplibre/compose/layers/SymbolLayer.kt)",
+      "Bash(unzip -p ~/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar commonMain/org/maplibre/compose/expressions/dsl/ExpressionsDsl.kt)",
+      "Bash(unzip -p ~/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar commonMain/org/maplibre/compose/expressions/dsl/feature.kt)",
+      "Bash(unzip -p ~/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar commonMain/org/maplibre/compose/expressions/dsl/format.kt)",
+      "Bash(unzip -p ~/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar commonMain/org/maplibre/compose/expressions/dsl/types.kt)",
+      "Bash(unzip -p ~/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar commonMain/org/maplibre/compose/expressions/dsl/literals.kt)",
+      "Bash(unzip -p ~/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar commonMain/org/maplibre/compose/expressions/ast/TextUnitOffsetCalculation.kt)"
     ]
   }
 }
