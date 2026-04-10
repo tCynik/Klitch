@@ -5,12 +5,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import ru.tcynik.meshtactics.navigation.NavGraph
+import ru.tcynik.meshtactics.service.GpsService
 import ru.tcynik.meshtactics.ui.theme.MeshTacticsTheme
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        startForegroundService(GpsService.createIntent(this))
         enableEdgeToEdge()
         setContent {
             MeshTacticsTheme {

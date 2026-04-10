@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">MeshTactics</string>
+    <string name="gps_notification_channel_name">GPS Background</string>
+    <string name="gps_notification_title">GPS активен</string>
+    <string name="gps_notification_text">Отслеживание местоположения</string>
 </resources>
