@@ -19,6 +19,8 @@ import ru.tcynik.meshtactics.domain.map.usecase.GetLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.GetTileUrlUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveNodeMarkersUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
+import ru.tcynik.meshtactics.domain.location.model.GpsSignalLevel
+import ru.tcynik.meshtactics.domain.location.usecase.ObserveGpsStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
@@ -26,6 +28,7 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudButtonSlot
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudColumnConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudInfoSlot
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudRowConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyButtonSlot
 import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyHudColumn
 import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyInfoSlot
@@ -40,6 +43,7 @@ class MainViewModel(
     private val saveLastPosition: SaveLastMapPositionUseCase,
     observeNodeMarkers: ObserveNodeMarkersUseCase,
     observeConnectionStatus: ObserveConnectionStatusUseCase,
+    observeGpsStatus: ObserveGpsStatusUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -78,6 +82,12 @@ class MainViewModel(
                 _uiState.update { it.copy(connectionStatus = status) }
             }
             .launchIn(viewModelScope)
+
+        observeGpsStatus(NoParams)
+            .onEach { gpsStatus ->
+                _uiState.update { it.copy(gpsStatus = gpsStatus) }
+            }
+            .launchIn(viewModelScope)
     }
 
     fun onCameraPositionChanged(position: MapCameraPosition) {
@@ -90,47 +100,88 @@ class MainViewModel(
     }
 
     private fun buildHudConfig(state: MainUiState, nav: HudNavCallbacks): HudConfig = HudConfig(
-        left = buildLeftColumn(),
+        left = buildLeftColumn(state),
         right = buildRightColumn(state, nav),
     )
 
     // Left column — map tools.
+    // Row 5 (bottom): GPS signal indicator — ic_satellite tinted by signal level.
     // onClick stubs: each action will be wired when its feature is implemented.
-    private fun buildLeftColumn() = HudColumnConfig(
-        buttons = listOf(
+    private fun buildLeftColumn(state: MainUiState) = HudColumnConfig(
+        rows = listOf(
             // TODO: wire to compass/bearing mode toggle when implemented
-            HudButtonSlot(iconRes = R.drawable.ic_compass,       label = "направление", onClick = {}),
+            HudRowConfig(
+                button = HudButtonSlot(iconRes = R.drawable.ic_compass,   label = "направление",  onClick = {}),
+                info = emptyInfoSlot(),
+            ),
             // TODO: wire to follow-user / map lock toggle when implemented
-            HudButtonSlot(iconRes = R.drawable.ic_target,        label = "привязка",    onClick = {}),
+            HudRowConfig(
+                button = HudButtonSlot(iconRes = R.drawable.ic_target,    label = "привязка",     onClick = {}),
+                info = emptyInfoSlot(),
+            ),
             // TODO: wire to track recording toggle when implemented
-            HudButtonSlot(iconRes = R.drawable.ic_edit,          label = "запись трека", onClick = {}),
+            HudRowConfig(
+                button = HudButtonSlot(iconRes = R.drawable.ic_edit,      label = "запись трека", onClick = {}),
+                info = emptyInfoSlot(),
+            ),
             // TODO: wire to map tools panel when implemented
-            HudButtonSlot(iconRes = R.drawable.ic_map_tools,     label = "инструменты", onClick = {}),
-            // TODO: wire to GPS/satellite status when implemented
-            HudButtonSlot(iconRes = R.drawable.ic_triangle_arrow, label = "спутники",   onClick = {}),
+            HudRowConfig(
+                button = HudButtonSlot(iconRes = R.drawable.ic_map_tools, label = "инструменты",  onClick = {}),
+                info = emptyInfoSlot(),
+            ),
+            HudRowConfig(
+                button = HudButtonSlot(
+                    iconRes = R.drawable.ic_satellite,
+                    label = "спутники",
+                    onClick = {},
+                    tintOverride = when (state.gpsStatus.signalLevel) {
+                        GpsSignalLevel.None   -> Color.Red
+                        GpsSignalLevel.Weak   -> Color.Yellow
+                        GpsSignalLevel.Strong -> Color.Green
+                    },
+                ),
+                info = buildGpsAccuracyInfoSlot(state),
+            ),
         ),
-        infoItems = List(5) { emptyInfoSlot() },
     )
 
+    private fun buildGpsAccuracyInfoSlot(state: MainUiState): HudInfoSlot {
+        val color = when (state.gpsStatus.signalLevel) {
+            GpsSignalLevel.None   -> Color.Red
+            GpsSignalLevel.Weak   -> Color.Yellow
+            GpsSignalLevel.Strong -> Color.Green
+        }
+        val text = state.gpsStatus.accuracyMeters?.let { "%.0fm".format(it) } ?: "--"
+        return HudInfoSlot(content = text, color = color)
+    }
+
     // Right column — main menu.
-    // Info slot 0: node status indicator (connection quality + peer count).
-    // Button slots 0–4: radio, settings, mesh, markers, chat.
+    // Info row 0: node status indicator (connection quality + peer count).
+    // Button rows 0–4: radio, settings, mesh, markers, chat.
     private fun buildRightColumn(state: MainUiState, nav: HudNavCallbacks): HudColumnConfig =
         HudColumnConfig(
-            buttons = listOf(
-                HudButtonSlot(iconRes = R.drawable.ic_radio,    label = "радио",     onClick = nav.onRadioClick),
-                HudButtonSlot(iconRes = R.drawable.ic_settings, label = "настройки", onClick = nav.onSettingsClick),
-                HudButtonSlot(iconRes = R.drawable.ic_mesh,     label = "сетка",     onClick = nav.onMeshClick),
+            rows = listOf(
+                HudRowConfig(
+                    button = HudButtonSlot(iconRes = R.drawable.ic_radio,    label = "радио",     onClick = nav.onRadioClick),
+                    info = buildNodeStatusInfoSlot(state),
+                ),
+                HudRowConfig(
+                    button = HudButtonSlot(iconRes = R.drawable.ic_settings, label = "настройки", onClick = nav.onSettingsClick),
+                    info = emptyInfoSlot(),
+                ),
+                HudRowConfig(
+                    button = HudButtonSlot(iconRes = R.drawable.ic_mesh,     label = "сетка",     onClick = nav.onMeshClick),
+                    info = emptyInfoSlot(),
+                ),
                 // TODO: confirm icon for "метки" — using ic_marks as closest available match
-                HudButtonSlot(iconRes = R.drawable.ic_marks,    label = "метки",     onClick = nav.onMarkersClick),
-                HudButtonSlot(iconRes = R.drawable.ic_chat,     label = "чаты",      onClick = nav.onChatClick),
-            ),
-            infoItems = listOf(
-                buildNodeStatusInfoSlot(state),
-                emptyInfoSlot(),
-                emptyInfoSlot(),
-                emptyInfoSlot(),
-                emptyInfoSlot(),
+                HudRowConfig(
+                    button = HudButtonSlot(iconRes = R.drawable.ic_marks,    label = "метки",     onClick = nav.onMarkersClick),
+                    info = emptyInfoSlot(),
+                ),
+                HudRowConfig(
+                    button = HudButtonSlot(iconRes = R.drawable.ic_chat,     label = "чаты",      onClick = nav.onChatClick),
+                    info = emptyInfoSlot(),
+                ),
             ),
         )
 
