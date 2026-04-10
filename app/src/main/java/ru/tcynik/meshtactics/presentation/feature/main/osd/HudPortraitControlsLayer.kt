@@ -1,10 +1,13 @@
 package ru.tcynik.meshtactics.presentation.feature.main.osd
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -24,41 +27,62 @@ fun HudPortraitControlsLayer(
     config: HudConfig,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxHeight()
-                .wrapContentWidth(),
-            verticalArrangement = Arrangement.SpaceEvenly,
-            horizontalAlignment = Alignment.Start,
-        ) {
-            config.left.rows.forEach { rowConfig ->
-                HudButtonSlotItem(
-                    slot = rowConfig.button,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
+        val controlsHeight = maxHeight * 0.4f
 
         Column(
-            modifier = Modifier
-                .fillMaxHeight()
-                .wrapContentWidth(),
-            verticalArrangement = Arrangement.SpaceEvenly,
-            horizontalAlignment = Alignment.End,
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Bottom,
         ) {
-            config.right.rows.forEach { rowConfig ->
-                HudButtonSlotItem(
-                    slot = rowConfig.button,
-                    modifier = Modifier.weight(1f),
-                )
+            Row(
+                modifier = Modifier.height(controlsHeight).fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .height(controlsHeight)
+                        .wrapContentWidth(),
+                    verticalArrangement = Arrangement.SpaceEvenly,
+                    horizontalAlignment = Alignment.Start,
+                ) {
+                    config.left.rows.forEachIndexed { index, config ->
+                        if (index > 0)
+                            Spacer(
+                                modifier = Modifier.height(12.dp)
+                            )
+
+                        HudButtonSlotItem(
+                            slot = config.button,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .height(controlsHeight)
+                        .wrapContentWidth(),
+                    verticalArrangement = Arrangement.SpaceEvenly,
+                    horizontalAlignment = Alignment.End,
+                ) {
+                    config.right.rows.forEachIndexed { index, config ->
+                        if (index > 0)
+                            Spacer(
+                                modifier = Modifier.height(12.dp)
+                            )
+
+                        HudButtonSlotItem(
+                            slot = config.button,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
             }
         }
     }
