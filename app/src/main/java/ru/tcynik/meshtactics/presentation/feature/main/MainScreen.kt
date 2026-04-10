@@ -1,5 +1,6 @@
 package ru.tcynik.meshtactics.presentation.feature.main
 
+import android.content.res.Configuration
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.DpOffset
@@ -35,6 +37,7 @@ import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MarkerSizeConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.HudControlsLayer
+import ru.tcynik.meshtactics.presentation.feature.main.osd.HudPortraitControlsLayer
 import ru.tcynik.meshtactics.presentation.feature.main.osd.MapLibreLayer
 
 @Composable
@@ -45,6 +48,7 @@ fun MainScreen(
     locationProvider: LocationProvider,
     orientationProvider: DeviceOrientationProvider,
 ) {
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var lastKnownPosition by remember { mutableStateOf(uiState.initialCameraPosition) }
     val density = LocalDensity.current
 
@@ -129,9 +133,16 @@ fun MainScreen(
         }
 
         // HUD button columns
-        HudControlsLayer(
-            config = hudConfig,
-            modifier = Modifier.fillMaxSize(),
-        )
+        if (isLandscape) {
+            HudControlsLayer(
+                config = hudConfig,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            HudPortraitControlsLayer(
+                config = hudConfig,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
     }
 }
