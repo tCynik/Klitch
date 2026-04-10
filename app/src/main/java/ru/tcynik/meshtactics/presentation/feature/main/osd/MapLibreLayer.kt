@@ -22,6 +22,7 @@ import org.maplibre.compose.sources.rememberRasterSource
 import org.maplibre.compose.style.BaseStyle
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.domain.marker.model.NodeMarkerModel
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MarkerSizeConfig
 
 @Composable
 fun MapLibreLayer(
@@ -78,17 +79,17 @@ fun MapLibreLayer(
             id = "node-remote-online-dot",
             source = peerOnlineSource,
             color = const(Color(0xFF4CAF50)),
-            radius = const(6.dp),
+            radius = const(MarkerSizeConfig.nodeMarkerRadius),
             strokeColor = const(Color.White),
-            strokeWidth = const(1.5.dp),
+            strokeWidth = const(MarkerSizeConfig.nodeMarkerStrokeWidth),
         )
         CircleLayer(
             id = "node-remote-offline-dot",
             source = peerOfflineSource,
             color = const(Color(0xFF9E9E9E)),
-            radius = const(6.dp),
+            radius = const(MarkerSizeConfig.nodeMarkerRadius),
             strokeColor = const(Color.White),
-            strokeWidth = const(1.5.dp),
+            strokeWidth = const(MarkerSizeConfig.nodeMarkerStrokeWidth),
         )
 
         // User location arrow is rendered as a Compose overlay in MainScreen.
