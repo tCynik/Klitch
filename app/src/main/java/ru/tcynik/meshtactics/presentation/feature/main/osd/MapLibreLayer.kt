@@ -9,12 +9,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import org.maplibre.compose.camera.CameraState
+import org.maplibre.compose.expressions.dsl.asString
 import org.maplibre.compose.expressions.dsl.const
+import org.maplibre.compose.expressions.dsl.feature
+import org.maplibre.compose.expressions.dsl.format
+import org.maplibre.compose.expressions.dsl.offset
+import org.maplibre.compose.expressions.dsl.span
+import org.maplibre.compose.expressions.value.SymbolAnchor
 import org.maplibre.compose.layers.CircleLayer
 import org.maplibre.compose.layers.RasterLayer
+import org.maplibre.compose.layers.SymbolLayer
 import org.maplibre.compose.map.MaplibreMap
 import org.maplibre.compose.sources.GeoJsonData
 import org.maplibre.compose.sources.rememberGeoJsonSource
@@ -90,6 +99,31 @@ fun MapLibreLayer(
             radius = const(MarkerSizeConfig.nodeMarkerRadius),
             strokeColor = const(Color.White),
             strokeWidth = const(MarkerSizeConfig.nodeMarkerStrokeWidth),
+        )
+
+        SymbolLayer(
+            id = "node-remote-online-label",
+            source = peerOnlineSource,
+            textField = format(span(feature["longName"].asString())),
+            textAnchor = const(SymbolAnchor.Bottom),
+            textOffset = offset(0.em, (-1.2).em),
+            textSize = const(12.sp),
+            textColor = const(Color.White),
+            textHaloColor = const(Color.Black),
+            textHaloWidth = const(1.5.dp),
+            textAllowOverlap = const(true),
+        )
+        SymbolLayer(
+            id = "node-remote-offline-label",
+            source = peerOfflineSource,
+            textField = format(span(feature["longName"].asString())),
+            textAnchor = const(SymbolAnchor.Bottom),
+            textOffset = offset(0.em, (-1.2).em),
+            textSize = const(12.sp),
+            textColor = const(Color(0xFFBDBDBD)),
+            textHaloColor = const(Color.Black),
+            textHaloWidth = const(1.5.dp),
+            textAllowOverlap = const(true),
         )
 
         // User location arrow is rendered as a Compose overlay in MainScreen.
