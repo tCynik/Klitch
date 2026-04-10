@@ -12,7 +12,7 @@ import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import ru.tcynik.meshtactics.mesh.common.util.latLongToMeter
 
 private const val TAG = "NodeMarkers"
-private const val MIN_SPEED_FOR_HEADING = 1
+private const val MIN_SPEED_FOR_HEADING = 0.5f
 
 // Maximum age of a GPS position report to be considered fresh, in seconds.
 // Positions older than this threshold are excluded from the map and the node counter.
@@ -74,5 +74,6 @@ private fun MeshNodeModel.toLogString(ourNode: MeshNodeModel?, nowSeconds: Long)
         if (meters >= 1000) "${"%.1f".format(meters / 1000.0)}km" else "${meters}m"
     } else "dist=?"
     val coordStr = "%.5f,%.5f".format(latitude, longitude)
-    return "$longName($ageStr $distStr $coordStr)"
+    val headingStr = if (groundSpeed >= MIN_SPEED_FOR_HEADING) "hdg=${groundTrack}°@${groundSpeed}m/s" else "hdg=—"
+    return "$longName($ageStr $distStr $coordStr $headingStr)"
 }
