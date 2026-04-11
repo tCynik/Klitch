@@ -103,6 +103,7 @@ fun MainScreen(
                 },
                 nodeMarkers = uiState.nodeMarkers,
                 cameraState = cameraState,
+                markerSizeLevel = uiState.markerSizeLevel,
             )
         }
 
@@ -120,14 +121,15 @@ fun MainScreen(
             val arrowOffsetX = with(density) { screenOffset.x.roundToPx() }
             val arrowOffsetY = with(density) { screenOffset.y.roundToPx() }
 
-            val halfIconPx = with(density) { (MarkerSizeConfig.userMarkerSize / 2).roundToPx() }
+            val markerSize = MarkerSizeConfig.fromLevel(uiState.markerSizeLevel)
+            val halfIconPx = with(density) { (markerSize / 2).roundToPx() }
 
             Image(
                 painter = painterResource(R.drawable.ic_navigation_arrow),
                 contentDescription = null,
                 modifier = Modifier
                     .offset { IntOffset(arrowOffsetX - halfIconPx, arrowOffsetY - halfIconPx) }
-                    .size(MarkerSizeConfig.userMarkerSize)
+                    .size(markerSize)
                     .rotate(bearing - cameraBearing),
             )
         }

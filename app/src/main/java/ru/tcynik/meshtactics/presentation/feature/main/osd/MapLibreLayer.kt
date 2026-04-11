@@ -57,6 +57,7 @@ fun MapLibreLayer(
     onCameraPositionChanged: (MapCameraPosition) -> Unit,
     nodeMarkers: ImmutableList<NodeMarkerModel> = persistentListOf(),
     cameraState: CameraState,
+    markerSizeLevel: Int = 5,
 ) {
     var hasUserMoved by remember { mutableStateOf(false) }
 
@@ -127,13 +128,17 @@ fun MapLibreLayer(
             iconAllowOverlap = const(true),
         )
 
+        val markerSize = MarkerSizeConfig.fromLevel(markerSizeLevel)
+        val nodeMarkerRadius = markerSize / 2f
+        val nodeMarkerStrokeWidth = nodeMarkerRadius / 4f
+
         CircleLayer(
             id = "node-remote-offline-dot",
             source = peerOfflineSource,
             color = const(Color(0xFF9E9E9E)),
-            radius = const(MarkerSizeConfig.nodeMarkerRadius),
+            radius = const(nodeMarkerRadius),
             strokeColor = const(Color.White),
-            strokeWidth = const(MarkerSizeConfig.nodeMarkerStrokeWidth),
+            strokeWidth = const(nodeMarkerStrokeWidth),
         )
 
         SymbolLayer(

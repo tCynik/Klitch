@@ -21,6 +21,7 @@ import ru.tcynik.meshtactics.domain.map.usecase.ObserveNodeMarkersUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.location.model.GpsSignalLevel
 import ru.tcynik.meshtactics.domain.location.usecase.ObserveGpsStatusUseCase
+import ru.tcynik.meshtactics.data.settings.AppSettings
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
@@ -44,6 +45,7 @@ class MainViewModel(
     observeNodeMarkers: ObserveNodeMarkersUseCase,
     observeConnectionStatus: ObserveConnectionStatusUseCase,
     observeGpsStatus: ObserveGpsStatusUseCase,
+    private val appSettings: AppSettings,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -68,6 +70,7 @@ class MainViewModel(
             state.copy(
                 tileUrlTemplate = getTileUrl(),
                 initialCameraPosition = getLastPosition() ?: state.initialCameraPosition,
+                markerSizeLevel = appSettings.getMarkerSizeLevel(),
             )
         }
 

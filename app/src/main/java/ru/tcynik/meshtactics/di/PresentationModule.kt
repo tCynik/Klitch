@@ -11,14 +11,26 @@ import ru.tcynik.meshtactics.presentation.feature.meshtest.MeshTestViewModel
 import ru.tcynik.meshtactics.presentation.feature.node.NodeSettingsViewModel
 import ru.tcynik.meshtactics.presentation.feature.node.NodeStatusViewModel
 import ru.tcynik.meshtactics.presentation.feature.nodes.NodesViewModel
+import ru.tcynik.meshtactics.presentation.feature.settings.SettingsViewModel
 
 val presentationModule = module {
 
     // ── Main ────────────────────────────────────────────────────────────────
-    viewModelOf(::MainViewModel)
+    viewModel {
+        MainViewModel(
+            getTileUrl = get(),
+            getLastPosition = get(),
+            saveLastPosition = get(),
+            observeNodeMarkers = get(),
+            observeConnectionStatus = get(),
+            observeGpsStatus = get(),
+            appSettings = get(),
+        )
+    }
 
     // ── Feature screens ──────────────────────────────────────────────────────
     viewModelOf(::ChatViewModel)
+    viewModelOf(::SettingsViewModel)
     viewModelOf(::NodeSettingsViewModel)
     viewModelOf(::NodeStatusViewModel)
     viewModelOf(::MarkersViewModel)

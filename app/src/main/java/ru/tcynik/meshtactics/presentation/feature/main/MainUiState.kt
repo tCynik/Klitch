@@ -17,4 +17,5 @@ data class MainUiState(
     val nodeMarkers: ImmutableList<NodeMarkerModel> = persistentListOf(),
     val connectionStatus: MeshConnectionStatus = MeshConnectionStatus.Disconnected,
     val gpsStatus: GpsStatusModel = GpsStatusModel.None,
+    val markerSizeLevel: Int = 5,
 )
