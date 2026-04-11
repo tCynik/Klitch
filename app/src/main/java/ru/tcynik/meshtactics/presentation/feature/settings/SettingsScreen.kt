@@ -87,8 +87,8 @@ private fun ScreenTabContent(
     onLevelChange: (Int) -> Unit,
     onSave: () -> Unit,
 ) {
-    // 1 → 36dp, step 4dp, max 10 → 36 + 9*4 = 72dp
-    val sizeDp = 36 + (markerSizeLevel - 1) * 4
+    // 1 → 24dp, step 6dp, max 10 → 24 + 9*6 = 78dp
+    val sizeDp = 24 + (markerSizeLevel - 1) * 6
 
     Column(
         modifier = Modifier
