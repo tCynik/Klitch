@@ -202,8 +202,51 @@ Logger.d { "sendPosition: fixed_position=${localConfig.value.position?.fixed_pos
 | `fixed_position=true` | Отключить в Radio Config или вызвать `setFixedPosition` с нулями |
 | `locationFlow` не запускается (логика) | Убрать early-return guard или добавить `stop()` перед повторным `start()` |
 
+## Research: Архитектурный анализ (2026-04-11)
+
+### Оригинальный API Meshtastic
+
+`MeshService.startProvideLocation()` (строка 290) — официальный публичный API:
+```kotlin
+override fun startProvideLocation() {
+    locationManager.start(serviceScope) { commandSender.sendPosition(it) }
+}
+```
+Оригинальное приложение использует **`sendPosition`** (POSITION_APP пакет), а не `setFixedPosition`.
+
+### Семантика двух методов
+
+| Метод | Механизм | Назначение |
+|---|---|---|
+| `sendPosition(pos, destNum=null)` | POSITION_APP пакет на `myNum` | Обновить позицию радио; прошивка бродкастит по своему расписанию |
+| `setFixedPosition(destNum, pos)` | Admin `set_fixed_position` | Конфигурационная команда: отключает внутренний GPS, ставит статическую позицию |
+
+### Проблема текущей реализации
+
+MeshTactics использует `setFixedPosition` на каждом GPS-обновлении телефона. Это создаёт два следствия:
+
+1. **`fixed_position = true` в прошивке** — внутренний GPS радио отключён. Позиция в конфиге обновляется каждые 30 сек, но радио бродкастит её соседям по своему таймеру (`position_broadcast_secs`, дефолт 15–30 мин). Отсюда — визуально "позиция не меняется" при движении.
+
+2. **Нет подтверждения** — `setFixedPosition` вызывает `sendAdmin(..., wantResponse=false)`. Если Admin-сообщение отклонено прошивкой (неверный passkey, конфликт сессии), приложение об этом не узнаёт.
+
+### Почему `setFixedPosition` был введён (2026-04-08)
+
+Для радио с **внутренним GPS** (например, T-Beam): при активном GPS модуле `sendPosition` обновляет локальную БД, но прошивка игнорирует внешнюю позицию — использует свой GPS. `setFixedPosition` отключает GPS модуль и форсирует позицию с телефона.
+
+### Правильная архитектура
+
+- **Радио без GPS** (Heltec, RAK, большинство): `sendPosition` корректен и достаточен
+- **Радио с GPS**: нужно один раз вызвать `remove_fixed_position` при старте (сбросить состояние), затем `sendPosition` регулярно — либо `setFixedPosition` если нужно именно перехватить управление
+
+Универсальный вариант для движущейся ноды: при `shouldProvide=true` — `remove_fixed_position` при старте + `sendPosition` на каждом GPS-обновлении.
+
+### Статус
+
+Текущая реализация (`setFixedPosition`) **работает** для задачи "нода видна на карте" при условии терпимости к задержке обновления. Для реального отображения движения в реальном времени — требует переработки на `sendPosition` + дополнительного изучения частоты бродкаста прошивки при получении внешней позиции.
+
 ## Change Log
 
 - 2026-04-06: created
 - 2026-04-08: debug session — root cause найдена: `sendPosition` (POSITION_APP mesh packet) не обновляет broadcast-позицию радио при наличии внутреннего GPS. Правильный API: `setFixedPosition` (Admin `set_fixed_position` message). Заменено в `MeshConnectionManagerImpl`. Добавлен `remove_fixed_position` при `shouldProvide=false`.
 - 2026-04-08: field test confirmed — дополнительная причина: `fixed_position=true` в официальном приложении Meshtastic блокировал `setFixedPosition` Admin message от MeshTactics. После отключения тоггла нода отобразилась на карте в корректном месте. Фича работает.
+- 2026-04-11: research — архитектурный анализ: оригинальный API (`sendPosition`) vs текущая реализация (`setFixedPosition`). Выявлена причина стагнации позиции при движении. Добавлен раздел Research выше.

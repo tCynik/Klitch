@@ -69,3 +69,4 @@
 | Phone GPS to Radio | `.claude/plans/phone-gps-to-radio.md` | Done |
 | HUD Structure | `.claude/plans/hud-structure.md` | In Progress |
 | Directional Node Markers | `.claude/plans/directional_nodes_marks.md` | Ready |
+| Fix GPS Sending Logic | `.claude/plans/fix-gps-sending-logic.md` | Ready |
