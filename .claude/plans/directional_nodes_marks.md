@@ -1,6 +1,6 @@
 # Directional Node Markers — Implementation Plan
 
-## Status: Ready for implementation
+## Status: Done
 
 ---
 
