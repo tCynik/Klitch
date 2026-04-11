@@ -4,11 +4,12 @@ import com.russhwolf.settings.Settings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import ru.tcynik.meshtactics.domain.settings.repository.MarkerSettingsRepository
 
-class AppSettings(private val settings: Settings) {
+class AppSettings(private val settings: Settings) : MarkerSettingsRepository {
 
-    private val _markerSizeLevel = MutableStateFlow(getMarkerSizeLevelInternal())
-    val markerSizeLevelFlow: StateFlow<Int> = _markerSizeLevel.asStateFlow()
+    private val _markerSizeLevel = MutableStateFlow(getMarkerSizeLevel())
+    override val markerSizeLevelFlow: StateFlow<Int> = _markerSizeLevel.asStateFlow()
 
     fun getDeviceId(): String? = settings.getStringOrNull(KEY_DEVICE_ID)
 
@@ -18,15 +19,12 @@ class AppSettings(private val settings: Settings) {
 
     fun setLastSync(timestamp: Long) = settings.putLong(KEY_LAST_SYNC, timestamp)
 
-    fun getMarkerSizeLevel(): Int = settings.getInt(KEY_MARKER_SIZE_LEVEL, DEFAULT_MARKER_SIZE_LEVEL)
+    override fun getMarkerSizeLevel(): Int = settings.getInt(KEY_MARKER_SIZE_LEVEL, DEFAULT_MARKER_SIZE_LEVEL)
 
-    fun setMarkerSizeLevel(level: Int) {
+    override fun setMarkerSizeLevel(level: Int) {
         settings.putInt(KEY_MARKER_SIZE_LEVEL, level)
         _markerSizeLevel.value = level
     }
-
-    private fun getMarkerSizeLevelInternal(): Int =
-        settings.getInt(KEY_MARKER_SIZE_LEVEL, DEFAULT_MARKER_SIZE_LEVEL)
 
     companion object {
         private const val KEY_DEVICE_ID = "device_id"

@@ -3,6 +3,7 @@ package ru.tcynik.meshtactics.di
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
+import ru.tcynik.meshtactics.domain.settings.repository.MarkerSettingsRepository
 import ru.tcynik.meshtactics.presentation.feature.chat.ChatViewModel
 import ru.tcynik.meshtactics.presentation.feature.groups.GroupsViewModel
 import ru.tcynik.meshtactics.presentation.feature.main.MainViewModel
@@ -24,7 +25,7 @@ val presentationModule = module {
             observeNodeMarkers = get(),
             observeConnectionStatus = get(),
             observeGpsStatus = get(),
-            appSettings = get(),
+            appSettings = get<MarkerSettingsRepository>(),
         )
     }
 

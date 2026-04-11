@@ -26,17 +26,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
-
-enum class SettingsTab(val label: String) {
-    Map("Map"),
-    Main("Main"),
-    Screen("Screen"),
-    User("User"),
-}
+import ru.tcynik.meshtactics.R
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MarkerSizeConfig
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,14 +43,15 @@ fun SettingsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val savedMessage = stringResource(R.string.settings_saved)
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.settings_back_description))
                     }
                 },
             )
@@ -83,7 +80,7 @@ fun SettingsScreen(
                     onSave = {
                         viewModel.onSave()
                         scope.launch {
-                            snackbarHostState.showSnackbar("Сохранено")
+                            snackbarHostState.showSnackbar(savedMessage)
                         }
                     },
                 )
@@ -101,8 +98,7 @@ private fun ScreenTabContent(
     onLevelChange: (Int) -> Unit,
     onSave: () -> Unit,
 ) {
-    // 1 → 24dp, step 6dp, max 10 → 24 + 9*6 = 78dp
-    val sizeDp = 24 + (markerSizeLevel - 1) * 6
+    val sizeDp = MarkerSizeConfig.fromLevel(markerSizeLevel).value.toInt()
 
     Column(
         modifier = Modifier
@@ -110,7 +106,7 @@ private fun ScreenTabContent(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("Marker size: $sizeDp.dp (level $markerSizeLevel)")
+        Text(stringResource(R.string.settings_marker_size_label, sizeDp, markerSizeLevel))
 
         Slider(
             value = markerSizeLevel.toFloat(),
@@ -128,7 +124,7 @@ private fun ScreenTabContent(
                 .fillMaxWidth()
                 .padding(vertical = 16.dp),
         ) {
-            Text("Сохранить")
+            Text(stringResource(R.string.settings_save_button))
         }
     }
 }
