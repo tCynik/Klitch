@@ -2,6 +2,7 @@ package ru.tcynik.meshtactics.presentation.feature.settings
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -13,16 +14,21 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
 enum class SettingsTab(val label: String) {
@@ -39,6 +45,8 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -51,6 +59,7 @@ fun SettingsScreen(
                 },
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -71,7 +80,12 @@ fun SettingsScreen(
                 SettingsTab.Screen -> ScreenTabContent(
                     markerSizeLevel = state.markerSizeLevelPending,
                     onLevelChange = viewModel::onMarkerSizeLevelChange,
-                    onSave = viewModel::onSave,
+                    onSave = {
+                        viewModel.onSave()
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Сохранено")
+                        }
+                    },
                 )
                 else -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("${state.selectedTab.label} — TODO")
@@ -106,9 +120,13 @@ private fun ScreenTabContent(
             modifier = Modifier.fillMaxWidth(),
         )
 
+        Spacer(modifier = Modifier.weight(1f))
+
         Button(
             onClick = onSave,
-            modifier = Modifier.padding(top = 24.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp),
         ) {
             Text("Сохранить")
         }
