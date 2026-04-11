@@ -11,7 +11,6 @@ import ru.tcynik.meshtactics.presentation.feature.meshtest.MeshTestViewModel
 import ru.tcynik.meshtactics.presentation.feature.node.NodeSettingsViewModel
 import ru.tcynik.meshtactics.presentation.feature.node.NodeStatusViewModel
 import ru.tcynik.meshtactics.presentation.feature.nodes.NodesViewModel
-import ru.tcynik.meshtactics.presentation.feature.settings.SettingsViewModel
 
 val presentationModule = module {
 
@@ -20,7 +19,6 @@ val presentationModule = module {
 
     // ── Feature screens ──────────────────────────────────────────────────────
     viewModelOf(::ChatViewModel)
-    viewModelOf(::SettingsViewModel)
     viewModelOf(::NodeSettingsViewModel)
     viewModelOf(::NodeStatusViewModel)
     viewModelOf(::MarkersViewModel)
