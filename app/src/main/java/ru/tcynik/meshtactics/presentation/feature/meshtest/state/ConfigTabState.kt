@@ -1,10 +1,13 @@
 package ru.tcynik.meshtactics.presentation.feature.meshtest.state
 
+import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.LocationConfigUi
+
 data class ConfigTabState(
     val isLoading: Boolean = false,
     val isEditing: Boolean = false,
     val deviceConfig: DeviceConfigUi? = null,
     val channels: List<ChannelConfigUi> = emptyList(),
+    val locationConfig: LocationConfigUi? = null,
 )
 
 data class DeviceConfigUi(

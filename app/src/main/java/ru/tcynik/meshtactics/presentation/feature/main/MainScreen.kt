@@ -1,5 +1,6 @@
 package ru.tcynik.meshtactics.presentation.feature.main
 
+import android.content.res.Configuration
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.DpOffset
@@ -33,7 +35,9 @@ import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.di.orientation.DeviceOrientationProvider
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MarkerSizeConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.HudControlsLayer
+import ru.tcynik.meshtactics.presentation.feature.main.osd.HudPortraitControlsLayer
 import ru.tcynik.meshtactics.presentation.feature.main.osd.MapLibreLayer
 
 @Composable
@@ -44,6 +48,7 @@ fun MainScreen(
     locationProvider: LocationProvider,
     orientationProvider: DeviceOrientationProvider,
 ) {
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var lastKnownPosition by remember { mutableStateOf(uiState.initialCameraPosition) }
     val density = LocalDensity.current
 
@@ -98,6 +103,7 @@ fun MainScreen(
                 },
                 nodeMarkers = uiState.nodeMarkers,
                 cameraState = cameraState,
+                markerSizeLevel = uiState.markerSizeLevel,
             )
         }
 
@@ -115,23 +121,30 @@ fun MainScreen(
             val arrowOffsetX = with(density) { screenOffset.x.roundToPx() }
             val arrowOffsetY = with(density) { screenOffset.y.roundToPx() }
 
-            // Center the arrow on the point (icon is 24dp, center = 12dp offset)
-            val halfIconPx = with(density) { 18.dp.roundToPx() }
+            val markerSize = MarkerSizeConfig.fromLevel(uiState.markerSizeLevel)
+            val halfIconPx = with(density) { (markerSize / 2).roundToPx() }
 
             Image(
                 painter = painterResource(R.drawable.ic_navigation_arrow),
                 contentDescription = null,
                 modifier = Modifier
                     .offset { IntOffset(arrowOffsetX - halfIconPx, arrowOffsetY - halfIconPx) }
-                    .size(36.dp)
+                    .size(markerSize)
                     .rotate(bearing - cameraBearing),
             )
         }
 
         // HUD button columns
-        HudControlsLayer(
-            config = hudConfig,
-            modifier = Modifier.fillMaxSize(),
-        )
+        if (isLandscape) {
+            HudControlsLayer(
+                config = hudConfig,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            HudPortraitControlsLayer(
+                config = hudConfig,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
     }
 }

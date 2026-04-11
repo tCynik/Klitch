@@ -1,9 +1,12 @@
 package ru.tcynik.meshtactics.presentation.feature.main.osd.layouts
 
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudColumnConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudSide
 
@@ -13,19 +16,19 @@ fun HudBlock(
     side: HudSide,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    Column(
         modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        when (side) {
-            HudSide.Left -> {
-                HudButtonColumn(slots = config.buttons)
-                HudInfoColumn(slots = config.infoItems)
+        config.rows.forEachIndexed { index, rowConfig ->
+            if (index > 0) {
+                Spacer(modifier = Modifier.height(20.dp))
             }
-            HudSide.Right -> {
-                HudInfoColumn(slots = config.infoItems)
-                HudButtonColumn(slots = config.buttons)
-            }
+            HudRow(
+                config = rowConfig,
+                side = side,
+                modifier = Modifier.wrapContentWidth()
+                    .weight(1f),
+            )
         }
     }
 }

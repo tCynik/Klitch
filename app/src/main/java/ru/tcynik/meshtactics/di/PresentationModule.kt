@@ -3,6 +3,7 @@ package ru.tcynik.meshtactics.di
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
+import ru.tcynik.meshtactics.domain.settings.repository.MarkerSettingsRepository
 import ru.tcynik.meshtactics.presentation.feature.chat.ChatViewModel
 import ru.tcynik.meshtactics.presentation.feature.groups.GroupsViewModel
 import ru.tcynik.meshtactics.presentation.feature.main.MainViewModel
@@ -16,7 +17,17 @@ import ru.tcynik.meshtactics.presentation.feature.settings.SettingsViewModel
 val presentationModule = module {
 
     // ── Main ────────────────────────────────────────────────────────────────
-    viewModelOf(::MainViewModel)
+    viewModel {
+        MainViewModel(
+            getTileUrl = get(),
+            getLastPosition = get(),
+            saveLastPosition = get(),
+            observeNodeMarkers = get(),
+            observeConnectionStatus = get(),
+            observeGpsStatus = get(),
+            appSettings = get<MarkerSettingsRepository>(),
+        )
+    }
 
     // ── Feature screens ──────────────────────────────────────────────────────
     viewModelOf(::ChatViewModel)
@@ -38,11 +49,16 @@ val presentationModule = module {
             observeOurNode = get(),
             observeMessages = get(),
             sendMessage = get(),
-            observePacketLog = get(),
+            observeGeoNodes = get(),
             observeDeviceConfig = get(),
             requestDeviceConfig = get(),
             writeOwner = get(),
             writeChannel = get(),
+            observeLocationConfig = get(),
+            setProvideLocation = get(),
+            writePositionConfig = get(),
+            writeChannelPositionPrecision = get(),
+            removeFixedPosition = get(),
         )
     }
 }

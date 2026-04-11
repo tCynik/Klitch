@@ -67,4 +67,7 @@
 | App Structure | `.claude/plans/app-structure.md` | Done |
 | Map Start Position | `.claude/plans/map-start-position.md` | Done |
 | Phone GPS to Radio | `.claude/plans/phone-gps-to-radio.md` | Done |
-| HUD Structure | `.claude/plans/hud-structure.md` | In Progress |
+| HUD Structure | `.claude/plans/hud-structure.md` | Done |
+| Directional Node Markers | `.claude/plans/directional_nodes_marks.md` | Done |
+| Fix GPS Sending Logic | `.claude/plans/fix-gps-sending-logic.md` | Done |
+| Universal Orientation | `.claude/plans/universal-orientation.md` | Planned |

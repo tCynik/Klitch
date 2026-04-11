@@ -15,6 +15,7 @@ import ru.tcynik.meshtactics.data.remote.api.MeshApiService
 import ru.tcynik.meshtactics.data.repository.NodeRepositoryImpl
 import ru.tcynik.meshtactics.data.settings.AppSettings
 import ru.tcynik.meshtactics.domain.repository.NodeRepository
+import ru.tcynik.meshtactics.domain.settings.repository.MarkerSettingsRepository
 import ru.tcynik.meshtactics.domain.usecase.node.GetNodesUseCase
 
 val commonModule: Module = module {
@@ -45,6 +46,7 @@ val commonModule: Module = module {
 
     // Data — settings (Settings предоставляется платформенным модулем)
     single { AppSettings(get()) }
+    single<MarkerSettingsRepository> { get<AppSettings>() }
 
     // Domain
     single<NodeRepository> { NodeRepositoryImpl(get(), get(), get()) }

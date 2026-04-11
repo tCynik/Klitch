@@ -21,7 +21,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.meshtactics.presentation.feature.meshtest.components.MeshStatusBar
 import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.ConfigTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.ConnectionTab
-import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.LogTab
+import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.GeoNodesTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.MessagesTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.TelemetryTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MeshTestTab
@@ -96,6 +96,13 @@ fun MeshTestScreen(
                     onChannelNameChange = viewModel::onChannelNameChange,
                     onChannelPskChange = viewModel::onChannelPskChange,
                     onAddChannelClick = viewModel::onAddChannelClick,
+                    onProvideLocationToggle = viewModel::onProvideLocationToggle,
+                    onGpsModeChange = viewModel::onGpsModeChange,
+                    onRemoveFixedPosition = viewModel::onRemoveFixedPosition,
+                    onBroadcastIntervalChange = viewModel::onBroadcastIntervalChange,
+                    onSmartBroadcastToggle = viewModel::onSmartBroadcastToggle,
+                    onPositionFlagsChange = viewModel::onPositionFlagsChange,
+                    onChannelPositionPrecisionChange = viewModel::onChannelPositionPrecisionChange,
                     modifier = Modifier.fillMaxSize(),
                 )
                 MeshTestTab.Telemetry -> TelemetryTab(
@@ -104,10 +111,8 @@ fun MeshTestScreen(
                     onRefreshClick = viewModel::onRefreshTelemetryClick,
                     modifier = Modifier.fillMaxSize(),
                 )
-                MeshTestTab.Log -> LogTab(
-                    state = state.logTab,
-                    onFilterChange = viewModel::onLogFilterChange,
-                    onPauseToggle = viewModel::onLogPauseToggle,
+                MeshTestTab.GeoNodes -> GeoNodesTab(
+                    state = state.geoNodesTab,
                     modifier = Modifier.fillMaxSize(),
                 )
             }

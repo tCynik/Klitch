@@ -2,6 +2,7 @@ package ru.tcynik.meshtactics.presentation.feature.main
 
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
+import ru.tcynik.meshtactics.domain.location.model.GpsStatusModel
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.domain.marker.model.NodeMarkerModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
@@ -15,4 +16,6 @@ data class MainUiState(
     val initialCameraPosition: MapCameraPosition = DEFAULT_CAMERA_POSITION,
     val nodeMarkers: ImmutableList<NodeMarkerModel> = persistentListOf(),
     val connectionStatus: MeshConnectionStatus = MeshConnectionStatus.Disconnected,
+    val gpsStatus: GpsStatusModel = GpsStatusModel.None,
+    val markerSizeLevel: Int = 5,
 )

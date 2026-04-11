@@ -30,7 +30,6 @@ import ru.tcynik.meshtactics.presentation.feature.node.NodeStatusDialog
 import ru.tcynik.meshtactics.presentation.feature.node.NodeStatusViewModel
 import ru.tcynik.meshtactics.presentation.feature.nodes.NodesScreen
 import ru.tcynik.meshtactics.presentation.feature.settings.SettingsScreen
-import ru.tcynik.meshtactics.presentation.feature.settings.SettingsViewModel
 
 @Composable
 fun NavGraph() {
@@ -85,10 +84,7 @@ fun NavGraph() {
             }
 
             composable<Route.Settings> {
-                val viewModel: SettingsViewModel = koinViewModel()
-                val uiState by viewModel.uiState.collectAsState()
                 SettingsScreen(
-                    uiState = uiState,
                     onNavigateBack = { navController.popBackStack() },
                 )
             }

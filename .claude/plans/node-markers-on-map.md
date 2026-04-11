@@ -49,6 +49,14 @@ Node markers **must use the same GeoJSON + Layer approach** (not `PointAnnotatio
 For text labels (`longName`): encode as a GeoJSON feature property, render via `SymbolLayer` with `textField` expression.
 For two icon types: encode `isOurNode` as a boolean property; use a conditional icon expression in `SymbolLayer`, or two separate layers.
 
+**Critical**: `SymbolLayer` text rendering requires a `glyphs` URL in the map style. `BaseStyle.Empty` does not have one — attempting to render text without it causes MapLibre native to break rendering of **all** layers, including `CircleLayer`. Solution: replace `BaseStyle.Empty` with a custom `BaseStyle.Json` that includes the `glyphs` field:
+```kotlin
+private val BASE_STYLE_WITH_GLYPHS = BaseStyle.Json(
+    """{"version":8,"glyphs":"https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf","sources":{},"layers":[]}"""
+)
+```
+TODO: bundle fonts locally for offline use.
+
 Nodes data is collected in `MainViewModel` → stored in `MainUiState.nodeMarkers` → passed as `List<NodeMarkerModel>` to `MapLibreLayer`. This is different from `locationProvider` (which is a singleton pulled inside the composable) because node data comes from a Flow and belongs to ViewModel state.
 
 ### Extended MeshNodeModel
@@ -167,33 +175,33 @@ This keeps the MVP scope focused and avoids premature design decisions.
 
 ### Phase 2 — UI / Icon Design ⏭ (deferred)
 - **Decision**: skip custom icons for now — MVP uses `CircleLayer` with different colors per node type
-  - Remote node: Grey 500 (`0xFF9E9E9E`)
-  - Our node: Green 500 (`0xFF4CAF50`)
+  - Online node: Green 500 (`0xFF4CAF50`)
+  - Offline node: Grey 500 (`0xFF9E9E9E`)
   - TODO: replace with custom icon sprites when `/icon-designer` phase is scheduled
-  - TODO: typography token for node label text size (currently no label — SymbolLayer API TBD)
+- **Labels**: `SymbolLayer` with `textField = format(span(feature["longName"].asString()))` — implemented ✅
+  - Online label: white text + black halo
+  - Offline label: grey (`0xFFBDBDBD`) text + black halo
+  - `textAnchor = Bottom`, `textOffset = offset(0f.em, -1.2f.em)` — label above circle
+  - `textAllowOverlap = true` — always visible
+  - `textSize = 12.sp`
+  - TODO: typography token for node label text size
 
-### Phase 3 — Implementation
+### Phase 3 — Implementation ✅ (completed — 2026-04-10)
 - **Goal**: working node markers on map, buildable and runnable
 - **Prerequisite**: `gps-user-position-marker` branch merged ✅
-- **Order** (domain → data → DI → presentation):
-  1. `MeshNodeModel` — add `latitude: Double`, `longitude: Double`, `hasValidPosition: Boolean`, `isOnline: Boolean`
-  2. `NodeMapper.toMeshNodeModel()` — map `node.latitude`, `node.longitude`, `node.isOnline`, `node.validPosition != null`
-  3. `NodeMarkerModel` — new file `app/domain/marker/model/NodeMarkerModel.kt`
-  4. `ObserveNodeMarkersUseCase` — new file `app/domain/map/usecase/ObserveNodeMarkersUseCase.kt`; uses `combine(observeNodes, observeOurNode)`
-  5. DI — register `ObserveNodeMarkersUseCase` in `meshDataModule` (alongside other mesh use cases)
-  6. `MainUiState` — add `nodeMarkers: List<NodeMarkerModel> = emptyList()`
-  7. `MainViewModel` — inject `ObserveNodeMarkersUseCase`, `collectLatest` in `viewModelScope`, update state
-  8. `MapLibreLayer` — add `nodeMarkers: List<NodeMarkerModel> = emptyList()` param:
-     - Build GeoJSON string (same raw-string pattern as user location, see Architecture Notes)
-     - `rememberGeoJsonSource(GeoJsonData.JsonString(nodesGeoJson))`
-     - `SymbolLayer` with `textField` from `longName` property
-     - Icon: `ic_node_remote.xml` / `ic_node_our.xml` based on `isOurNode` property (conditional expression or two layers)
-     - TODO: font size setting for node name labels
-     - TODO: tap behavior
-     - TODO: direction icon for our node
-  9. `MainScreen` — add `nodeMarkers = uiState.nodeMarkers` to `MapLibreLayer` call
-- **Skill**: direct coding (EnterPlanMode before starting)
-- **Output**: committed, buildable code
+- **Output**: committed, buildable, running code — circles + name labels confirmed on device
+
+**Key implementation notes (actual vs planned):**
+- `NodeMarkerModel` has `isOnline: Boolean` (not `isOurNode`) — our node is excluded by the use case
+- Two `CircleLayer` + two `SymbolLayer` (online / offline split) instead of one layer with conditional icon
+- `BaseStyle.Empty` replaced with `BASE_STYLE_WITH_GLYPHS` — `BaseStyle.Empty` has no `glyphs` URL; `SymbolLayer` text rendering requires it and without it MapLibre breaks all layer rendering (including `CircleLayer`)
+  - Glyph URL: `https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf`
+  - **TODO**: bundle fonts locally for offline use
+- `ObserveNodeMarkersUseCase` freshness filter: `POSITION_FRESHNESS_SECONDS = 2 * 60` (2 minutes)
+  - Fallback: if `positionTime == 0` (firmware omits timestamp in Position packet), use `lastHeard`
+- TODO: font size setting for node name labels
+- TODO: tap behavior
+- TODO: direction icon for our node
 
 ### Phase 4 — Testing
 - **Goal**: use case and ViewModel behaviour verified
@@ -234,8 +242,8 @@ This keeps the MVP scope focused and avoids premature design decisions.
 ```
 Phase 0: [Explore agent — completed]
 Phase 1: /architect feature: ObserveNodeMarkersUseCase + MeshNodeModel extension + MapLibreLayer wiring — completed
-Phase 2: ⏭ deferred — MVP uses CircleLayer (grey / green) instead of custom icons
-Phase 3: [direct coding — EnterPlanMode]
+Phase 2: ⏭ deferred — MVP uses CircleLayer (grey / green) instead of custom icons; labels done via SymbolLayer
+Phase 3: [direct coding — completed 2026-04-10]
 Phase 4: [direct coding — unit tests + smoke test]
 Phase 5: /architect review: app/domain/marker/model/, app/domain/map/usecase/, app/presentation/feature/main/
 Phase 6: [skill update review — architect, ui-designer, icon-designer, planner]
@@ -252,3 +260,4 @@ Phase 6: [skill update review — architect, ui-designer, icon-designer, planner
 
 - 2026-04-06: created
 - 2026-04-06: updated — branch synced; Architecture Notes rewritten to match actual gps-user-position-marker implementation (GeoJSON + CircleLayer, no PointAnnotation, no GeoPoint in MainUiState); Phase 0 marked complete; Phase 3 steps revised to use GeoJSON + SymbolLayer; Open Questions updated
+- 2026-04-10: Phase 3 completed — circles + labels confirmed working on device; key findings: BaseStyle.Empty incompatible with SymbolLayer (no glyphs URL), positionTime==0 fallback to lastHeard; Phase 2 labels section updated

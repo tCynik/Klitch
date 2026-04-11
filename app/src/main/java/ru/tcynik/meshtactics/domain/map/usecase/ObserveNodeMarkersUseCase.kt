@@ -12,10 +12,11 @@ import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import ru.tcynik.meshtactics.mesh.common.util.latLongToMeter
 
 private const val TAG = "NodeMarkers"
+private const val MIN_SPEED_FOR_HEADING = 1
 
 // Maximum age of a GPS position report to be considered fresh, in seconds.
 // Positions older than this threshold are excluded from the map and the node counter.
-// Adjust based on field experience — 2 hours matches the mesh online-status window.
+// 2 minutes — position must be recent to appear on the map.
 private const val POSITION_FRESHNESS_SECONDS = 2 * 60
 
 /**
@@ -46,7 +47,10 @@ class ObserveNodeMarkersUseCase(
 
             val peers = nodes.filter { it.nodeId != ourNodeId }
             val withFreshPosition = peers.filter {
-                it.hasValidPosition && it.positionTime > freshnessThreshold
+                // positionTime == 0 means the firmware did not embed a timestamp in the Position
+                // packet — fall back to lastHeard so the node still appears on the map.
+                val effectiveTime = if (it.positionTime > 0) it.positionTime else it.lastHeard
+                it.hasValidPosition && effectiveTime > freshnessThreshold
             }
             Log.d(TAG, "update: myPosition = '${ourNode?.latitude}/${ourNode?.longitude}', nodes=${nodes.size}/${peers.size} " +
                 "freshCount=${withFreshPosition.size} " +
@@ -57,6 +61,7 @@ class ObserveNodeMarkersUseCase(
                     longName = node.longName,
                     position = GeoPoint(node.latitude, node.longitude),
                     isOnline = node.isOnline,
+                    heading = if (node.groundSpeed >= MIN_SPEED_FOR_HEADING) node.groundTrack.toFloat() else null,
                 )
             }
         }

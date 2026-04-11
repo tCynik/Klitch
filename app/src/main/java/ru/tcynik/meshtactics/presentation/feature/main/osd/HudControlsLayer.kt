@@ -1,6 +1,5 @@
 package ru.tcynik.meshtactics.presentation.feature.main.osd
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,7 +8,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import ru.tcynik.meshtactics.presentation.feature.main.osd.layouts.HudBlock
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig
