@@ -8,6 +8,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -18,8 +20,15 @@ import org.maplibre.compose.expressions.dsl.asString
 import org.maplibre.compose.expressions.dsl.const
 import org.maplibre.compose.expressions.dsl.feature
 import org.maplibre.compose.expressions.dsl.format
+import org.maplibre.compose.expressions.dsl.image
+import org.maplibre.compose.expressions.dsl.interpolate
+import org.maplibre.compose.expressions.dsl.linear
+import org.maplibre.compose.expressions.dsl.not
 import org.maplibre.compose.expressions.dsl.offset
 import org.maplibre.compose.expressions.dsl.span
+import org.maplibre.compose.expressions.dsl.zoom
+import org.maplibre.compose.expressions.value.FloatValue
+import org.maplibre.compose.expressions.value.IconRotationAlignment
 import org.maplibre.compose.expressions.value.SymbolAnchor
 import org.maplibre.compose.layers.CircleLayer
 import org.maplibre.compose.layers.RasterLayer
@@ -29,6 +38,7 @@ import org.maplibre.compose.sources.GeoJsonData
 import org.maplibre.compose.sources.rememberGeoJsonSource
 import org.maplibre.compose.sources.rememberRasterSource
 import org.maplibre.compose.style.BaseStyle
+import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.domain.marker.model.NodeMarkerModel
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MarkerSizeConfig
@@ -90,14 +100,33 @@ fun MapLibreLayer(
         val peerOnlineSource  = rememberGeoJsonSource(GeoJsonData.JsonString(peerOnlineJson))
         val peerOfflineSource = rememberGeoJsonSource(GeoJsonData.JsonString(peerOfflineJson))
 
-        CircleLayer(
-            id = "node-remote-online-dot",
+        val stationaryPainter = painterResource(R.drawable.ic_node_marker_stationary)
+        val movingPainter = painterResource(R.drawable.ic_node_marker_moving)
+        val markerIconSize = interpolate(linear(), zoom(), 10 to const(0.6f), 18 to const(1.4f))
+
+        // Online stationary nodes — diamond with 4 rounded corners (heading unknown)
+        SymbolLayer(
+            id = "node-online-stationary",
             source = peerOnlineSource,
-            color = const(Color(0xFF4CAF50)),
-            radius = const(MarkerSizeConfig.nodeMarkerRadius),
-            strokeColor = const(Color.White),
-            strokeWidth = const(MarkerSizeConfig.nodeMarkerStrokeWidth),
+            filter = !feature.has("bearing_known"),
+            iconImage = image(stationaryPainter, size = DpSize(24.dp, 24.dp)),
+            iconSize = markerIconSize,
+            iconRotationAlignment = const(IconRotationAlignment.Map),
+            iconAllowOverlap = const(true),
         )
+
+        // Online moving nodes — sharp top corner rotated to direction of travel
+        SymbolLayer(
+            id = "node-online-moving",
+            source = peerOnlineSource,
+            filter = feature.has("bearing_known"),
+            iconImage = image(movingPainter, size = DpSize(24.dp, 24.dp)),
+            iconSize = markerIconSize,
+            iconRotate = feature["bearing"].cast<FloatValue>(),
+            iconRotationAlignment = const(IconRotationAlignment.Map),
+            iconAllowOverlap = const(true),
+        )
+
         CircleLayer(
             id = "node-remote-offline-dot",
             source = peerOfflineSource,
@@ -141,7 +170,12 @@ private fun buildNodeGeoJson(nodes: List<NodeMarkerModel>): String {
         val lon  = node.position.longitude
         val lat  = node.position.latitude
         val name = node.longName.replace("\\", "\\\\").replace("\"", "\\\"")
-        """{"type":"Feature","geometry":{"type":"Point","coordinates":[$lon,$lat]},"properties":{"longName":"$name"}}"""
+        val bearingProps = if (node.heading != null) {
+            ""","bearing":${node.heading},"bearing_known":true"""
+        } else {
+            ""
+        }
+        """{"type":"Feature","geometry":{"type":"Point","coordinates":[$lon,$lat]},"properties":{"longName":"$name"$bearingProps}}"""
     }
     return """{"type":"FeatureCollection","features":[$features]}"""
 }

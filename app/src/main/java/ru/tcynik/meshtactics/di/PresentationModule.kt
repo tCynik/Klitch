@@ -38,11 +38,16 @@ val presentationModule = module {
             observeOurNode = get(),
             observeMessages = get(),
             sendMessage = get(),
-            observePacketLog = get(),
+            observeGeoNodes = get(),
             observeDeviceConfig = get(),
             requestDeviceConfig = get(),
             writeOwner = get(),
             writeChannel = get(),
+            observeLocationConfig = get(),
+            setProvideLocation = get(),
+            writePositionConfig = get(),
+            writeChannelPositionPrecision = get(),
+            removeFixedPosition = get(),
         )
     }
 }

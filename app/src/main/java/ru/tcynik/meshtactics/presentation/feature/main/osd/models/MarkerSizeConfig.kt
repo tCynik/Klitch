@@ -7,6 +7,6 @@ object MarkerSizeConfig {
     val markerSize: Dp = 52.dp
 
     val userMarkerSize: Dp get() = markerSize
-    val nodeMarkerRadius: Dp get() = markerSize / 3f
+    val nodeMarkerRadius: Dp get() = markerSize /// 2f
     val nodeMarkerStrokeWidth: Dp get() = nodeMarkerRadius / 4f
 }

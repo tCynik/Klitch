@@ -5,5 +5,5 @@ enum class MeshTestTab(val label: String) {
     Messages("Messages"),
     Config("Config"),
     Telemetry("Telemetry"),
-    Log("Log"),
+    GeoNodes("Nodes"),
 }
