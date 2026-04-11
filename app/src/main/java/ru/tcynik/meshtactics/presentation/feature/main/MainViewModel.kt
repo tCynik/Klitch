@@ -22,6 +22,7 @@ import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.location.model.GpsSignalLevel
 import ru.tcynik.meshtactics.domain.location.usecase.ObserveGpsStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
+import ru.tcynik.meshtactics.domain.settings.repository.MarkerSettingsRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudButtonSlot
@@ -44,6 +45,7 @@ class MainViewModel(
     observeNodeMarkers: ObserveNodeMarkersUseCase,
     observeConnectionStatus: ObserveConnectionStatusUseCase,
     observeGpsStatus: ObserveGpsStatusUseCase,
+    private val appSettings: MarkerSettingsRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -68,6 +70,7 @@ class MainViewModel(
             state.copy(
                 tileUrlTemplate = getTileUrl(),
                 initialCameraPosition = getLastPosition() ?: state.initialCameraPosition,
+                markerSizeLevel = appSettings.getMarkerSizeLevel(),
             )
         }
 
@@ -86,6 +89,12 @@ class MainViewModel(
         observeGpsStatus(NoParams)
             .onEach { gpsStatus ->
                 _uiState.update { it.copy(gpsStatus = gpsStatus) }
+            }
+            .launchIn(viewModelScope)
+
+        appSettings.markerSizeLevelFlow
+            .onEach { level ->
+                _uiState.update { it.copy(markerSizeLevel = level) }
             }
             .launchIn(viewModelScope)
     }
