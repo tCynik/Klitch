@@ -91,6 +91,12 @@ class MainViewModel(
                 _uiState.update { it.copy(gpsStatus = gpsStatus) }
             }
             .launchIn(viewModelScope)
+
+        appSettings.markerSizeLevelFlow
+            .onEach { level ->
+                _uiState.update { it.copy(markerSizeLevel = level) }
+            }
+            .launchIn(viewModelScope)
     }
 
     fun onCameraPositionChanged(position: MapCameraPosition) {
