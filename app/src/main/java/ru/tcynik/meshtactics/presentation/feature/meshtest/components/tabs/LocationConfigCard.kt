@@ -12,15 +12,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -108,19 +103,10 @@ fun LocationConfigCard(
 
             // Section C: Node → Mesh Broadcast
             SectionHeader("Node → Mesh Broadcast")
-            var intervalText by remember(config.broadcastIntervalSecs) {
-                mutableStateOf(config.broadcastIntervalSecs.toString())
-            }
-            OutlinedTextField(
-                value = intervalText,
-                onValueChange = { v ->
-                    intervalText = v
-                    v.toIntOrNull()?.let { onBroadcastIntervalChange(it) }
-                },
-                label = { Text("Broadcast interval (s)") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
+            BroadcastIntervalRow(
+                current = config.broadcastIntervalSecs,
                 enabled = isConnected,
+                onChanged = onBroadcastIntervalChange,
             )
             Spacer(modifier = Modifier.height(4.dp))
             SettingsRow(label = "Smart broadcast") {
@@ -312,6 +298,49 @@ private fun PositionFlagsSection(
                     text = label,
                     style = MaterialTheme.typography.bodySmall,
                 )
+            }
+        }
+    }
+}
+
+private val BROADCAST_INTERVAL_OPTIONS = listOf(
+    15   to "Live",
+    30   to "30s",
+    60   to "1 min",
+    120  to "2 min",
+    300  to "5 min",
+    600  to "10 min",
+    900  to "15 min",
+    1800 to "30 min",
+)
+
+@Composable
+private fun BroadcastIntervalRow(
+    current: Int,
+    enabled: Boolean,
+    onChanged: (Int) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        BROADCAST_INTERVAL_OPTIONS.chunked(4).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                row.forEach { (value, label) ->
+                    val selected = value == current
+                    Surface(
+                        onClick = { if (enabled) onChanged(value) },
+                        shape = MaterialTheme.shapes.small,
+                        color = if (selected) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
+                            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         }
     }
