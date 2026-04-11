@@ -65,9 +65,7 @@ private fun GeoNodeRow(
     val ageFormatted = if (ageSeconds < 60) "${ageSeconds}s" else "${ageSeconds / 60} min"
 
     val speedKmh = node.groundSpeed * 3.6
-    val speedText = if (node.groundSpeed > 0) "%.0f km/h".format(speedKmh) else "—"
-
-    val trackText = if (node.groundTrack > 0) "${node.groundTrack}°" else "—"
+    val speedText = if (node.groundSpeed > 0) "%.0f km/h".format(speedKmh) else "—  km/h"
 
     Column(
         modifier = modifier
@@ -83,26 +81,28 @@ private fun GeoNodeRow(
                 text = node.shortName,
                 style = MaterialTheme.typography.bodyMedium,
             )
-            Text(
-                text = node.distanceFormatted,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                speedText?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    text = node.distanceFormatted,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                text = "Speed: $speedText  Track: $trackText",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = ageFormatted,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        Text(
+            text = ageFormatted,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
