@@ -6,8 +6,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.GeoNodesTabState
@@ -65,7 +70,8 @@ private fun GeoNodeRow(
     val ageFormatted = if (ageSeconds < 60) "${ageSeconds}s" else "${ageSeconds / 60} min"
 
     val speedKmh = node.groundSpeed * 3.6
-    val speedText = if (node.groundSpeed > 0) "%.0f km/h".format(speedKmh) else "—  km/h"
+    val speedText = if (node.groundSpeed > 0) "%.0f km/h".format(speedKmh) else null
+    val hasTrack = node.groundTrack > 0
 
     Column(
         modifier = modifier
@@ -90,6 +96,16 @@ private fun GeoNodeRow(
                         text = it,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (hasTrack) {
+                    Icon(
+                        imageVector = Icons.Filled.Explore,
+                        contentDescription = "Course ${node.groundTrack}°",
+                        modifier = Modifier
+                            .size(16.dp)
+                            .rotate(node.groundTrack.toFloat()),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Text(
