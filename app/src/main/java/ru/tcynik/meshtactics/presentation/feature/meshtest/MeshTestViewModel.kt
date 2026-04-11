@@ -142,6 +142,8 @@ class MeshTestViewModel(
                                 shortName = node.shortName,
                                 distanceFormatted = node.distanceMeters?.let { formatDistance(it) } ?: "—",
                                 positionTime = node.positionTime,
+                                groundSpeed = node.groundSpeed,
+                                groundTrack = node.groundTrack,
                             )
                         }.toImmutableList()
                     )

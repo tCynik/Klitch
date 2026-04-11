@@ -42,6 +42,8 @@ class ObserveGeoNodesUseCase(
                         shortName = node.shortName,
                         distanceMeters = distance,
                         positionTime = node.positionTime,
+                        groundSpeed = node.groundSpeed,
+                        groundTrack = node.groundTrack,
                     )
                 }
         }

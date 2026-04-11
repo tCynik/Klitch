@@ -64,6 +64,11 @@ private fun GeoNodeRow(
     val ageSeconds = (nowSeconds - node.positionTime).coerceAtLeast(0)
     val ageFormatted = if (ageSeconds < 60) "${ageSeconds}s" else "${ageSeconds / 60} min"
 
+    val speedKmh = node.groundSpeed * 3.6
+    val speedText = if (node.groundSpeed > 0) "%.0f km/h".format(speedKmh) else "—"
+
+    val trackText = if (node.groundTrack > 0) "${node.groundTrack}°" else "—"
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -84,10 +89,20 @@ private fun GeoNodeRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Text(
-            text = ageFormatted,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = "Speed: $speedText  Track: $trackText",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = ageFormatted,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
