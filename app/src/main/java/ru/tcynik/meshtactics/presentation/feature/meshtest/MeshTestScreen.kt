@@ -21,7 +21,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.meshtactics.presentation.feature.meshtest.components.MeshStatusBar
 import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.ConfigTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.ConnectionTab
-import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.LogTab
+import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.GeoNodesTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.MessagesTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.TelemetryTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MeshTestTab
@@ -104,10 +104,8 @@ fun MeshTestScreen(
                     onRefreshClick = viewModel::onRefreshTelemetryClick,
                     modifier = Modifier.fillMaxSize(),
                 )
-                MeshTestTab.Log -> LogTab(
-                    state = state.logTab,
-                    onFilterChange = viewModel::onLogFilterChange,
-                    onPauseToggle = viewModel::onLogPauseToggle,
+                MeshTestTab.GeoNodes -> GeoNodesTab(
+                    state = state.geoNodesTab,
                     modifier = Modifier.fillMaxSize(),
                 )
             }

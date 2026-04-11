@@ -2,7 +2,7 @@ package ru.tcynik.meshtactics.presentation.feature.meshtest
 
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.ConfigTabState
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.ConnectionTabState
-import ru.tcynik.meshtactics.presentation.feature.meshtest.state.LogTabState
+import ru.tcynik.meshtactics.presentation.feature.meshtest.state.GeoNodesTabState
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MeshConnectionStatusUi
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MeshTestTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MessagesTabState
@@ -15,5 +15,5 @@ data class MeshTestUiState(
     val messagesTab: MessagesTabState = MessagesTabState(),
     val configTab: ConfigTabState = ConfigTabState(),
     val telemetryTab: TelemetryTabState = TelemetryTabState(),
-    val logTab: LogTabState = LogTabState(),
+    val geoNodesTab: GeoNodesTabState = GeoNodesTabState(),
 )
