@@ -4,15 +4,28 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudButtonSlot
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudColumnConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudInfoSlot
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudRowConfig
 
-// Factory helpers — produce empty column configs for use as defaults.
-fun emptyButtonSlot() = HudButtonSlot(iconRes = null, label = "", onClick = {})
-fun emptyInfoSlot() = HudInfoSlot(content = null)
-fun emptyHudColumn() = HudColumnConfig(
-    buttons = List(5) { emptyButtonSlot() },
-    infoItems = List(5) { emptyInfoSlot() },
-)
-fun emptyHudConfig() = HudConfig(
-    left = emptyHudColumn(),
-    right = emptyHudColumn(),
-)
+fun emptyButtonSlot() =
+    HudButtonSlot(
+        iconRes = null,
+        label = "",
+        onClick = {})
+fun emptyInfoSlot() =
+    HudInfoSlot(
+        content = null
+    )
+fun emptyHudRowConfig() =
+    HudRowConfig(
+        button = emptyButtonSlot(),
+        info = emptyInfoSlot(),
+    )
+fun emptyHudColumn() =
+    HudColumnConfig(
+        rows = List(5) { emptyHudRowConfig() },
+    )
+fun emptyHudConfig() =
+    HudConfig(
+        left = emptyHudColumn(),
+        right = emptyHudColumn()
+    )

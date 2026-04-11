@@ -41,6 +41,7 @@ import org.maplibre.compose.style.BaseStyle
 import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.domain.marker.model.NodeMarkerModel
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MarkerSizeConfig
 
 // BaseStyle.Empty has no `glyphs` URL — SymbolLayer text rendering fails without it and breaks
 // all other layers too. This style adds the MapLibre demotiles glyph server.
@@ -130,9 +131,9 @@ fun MapLibreLayer(
             id = "node-remote-offline-dot",
             source = peerOfflineSource,
             color = const(Color(0xFF9E9E9E)),
-            radius = const(6.dp),
+            radius = const(MarkerSizeConfig.nodeMarkerRadius),
             strokeColor = const(Color.White),
-            strokeWidth = const(1.5.dp),
+            strokeWidth = const(MarkerSizeConfig.nodeMarkerStrokeWidth),
         )
 
         SymbolLayer(

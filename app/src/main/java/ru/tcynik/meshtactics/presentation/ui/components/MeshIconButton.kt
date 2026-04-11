@@ -43,6 +43,9 @@ fun MeshIconButton(
     // true  → toggle on  → Enabled color
     // false → toggle off → Unpressed color (button remains clickable)
     selected: Boolean? = null,
+    // null  → color driven by enabled/selected state (default)
+    // set   → overrides the computed content color (e.g. GPS signal level tint)
+    tintOverride: Color? = null,
 ) {
     val strokeWidth = 3.dp
     val cornerRadius = 16.dp
@@ -52,7 +55,7 @@ fun MeshIconButton(
     val inactiveColor = IconInactive
     val disabledColor = IconDisabled
 
-    val contentColor = when {
+    val contentColor = tintOverride ?: when {
         !enabled -> disabledColor
         selected == false -> inactiveColor
         else -> activeColor

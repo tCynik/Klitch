@@ -41,6 +41,7 @@ fun HudButtonSlotItem(slot: HudButtonSlot, modifier: Modifier = Modifier) {
             onClick = slot.onClick,
             enabled = slot.enabled,
             selected = slot.selected,
+            tintOverride = slot.tintOverride,
         )
         // TODO: gap between button and label is 4.dp (provisional, confirm with /ui-designer)
         Spacer(modifier = Modifier.height(4.dp))

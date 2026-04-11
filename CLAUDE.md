@@ -70,3 +70,4 @@
 | HUD Structure | `.claude/plans/hud-structure.md` | Done |
 | Directional Node Markers | `.claude/plans/directional_nodes_marks.md` | Done |
 | Fix GPS Sending Logic | `.claude/plans/fix-gps-sending-logic.md` | Done |
+| Universal Orientation | `.claude/plans/universal-orientation.md` | Planned |
