@@ -43,6 +43,11 @@ val presentationModule = module {
             requestDeviceConfig = get(),
             writeOwner = get(),
             writeChannel = get(),
+            observeLocationConfig = get(),
+            setProvideLocation = get(),
+            writePositionConfig = get(),
+            writeChannelPositionPrecision = get(),
+            removeFixedPosition = get(),
         )
     }
 }

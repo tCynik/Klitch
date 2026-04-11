@@ -33,9 +33,14 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMessagesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveOurNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGeoNodesUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveLocationConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObservePacketLogUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RemoveFixedPositionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SendMeshMessageUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.SetProvideLocationUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelPositionPrecisionUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.WritePositionConfigUseCase
 
 val meshDataModule = module {
 
@@ -82,6 +87,8 @@ val meshDataModule = module {
             meshRouter = get(),
             nodeRepository = get(),
             commandSender = get(),
+            uiPrefs = get(),
+            context = androidContext(),
         )
     }
 
@@ -100,4 +107,9 @@ val meshDataModule = module {
     single { RequestDeviceConfigUseCase(get()) }
     single { WriteOwnerUseCase(get()) }
     single { WriteChannelUseCase(get()) }
+    single { ObserveLocationConfigUseCase(get()) }
+    single { SetProvideLocationUseCase(get()) }
+    single { WritePositionConfigUseCase(get()) }
+    single { WriteChannelPositionPrecisionUseCase(get()) }
+    single { RemoveFixedPositionUseCase(get()) }
 }

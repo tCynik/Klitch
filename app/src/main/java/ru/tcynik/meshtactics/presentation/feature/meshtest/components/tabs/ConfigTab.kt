@@ -26,6 +26,7 @@ import ru.tcynik.meshtactics.presentation.feature.meshtest.state.ChannelConfigUi
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.ConfigTabState
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.DeviceConfigUi
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MeshConnectionStatusUi
+import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.GpsModeUi
 
 @Composable
 fun ConfigTab(
@@ -39,6 +40,13 @@ fun ConfigTab(
     onChannelNameChange: (index: Int, value: String) -> Unit = { _, _ -> },
     onChannelPskChange: (index: Int, value: String) -> Unit = { _, _ -> },
     onAddChannelClick: () -> Unit = {},
+    onProvideLocationToggle: (Boolean) -> Unit = {},
+    onGpsModeChange: (GpsModeUi) -> Unit = {},
+    onRemoveFixedPosition: () -> Unit = {},
+    onBroadcastIntervalChange: (Int) -> Unit = {},
+    onSmartBroadcastToggle: (Boolean) -> Unit = {},
+    onPositionFlagsChange: (Int) -> Unit = {},
+    onChannelPositionPrecisionChange: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val isConnected = connectionStatus is MeshConnectionStatusUi.Connected
@@ -123,6 +131,20 @@ fun ConfigTab(
                 ) {
                     Text("+ Add Channel")
                 }
+            }
+
+            state.locationConfig?.let { locationConfig ->
+                LocationConfigCard(
+                    config = locationConfig,
+                    isConnected = isConnected,
+                    onProvideLocationToggle = onProvideLocationToggle,
+                    onGpsModeChange = onGpsModeChange,
+                    onRemoveFixedPosition = onRemoveFixedPosition,
+                    onBroadcastIntervalChange = onBroadcastIntervalChange,
+                    onSmartBroadcastToggle = onSmartBroadcastToggle,
+                    onPositionFlagsChange = onPositionFlagsChange,
+                    onChannelPositionPrecisionChange = onChannelPositionPrecisionChange,
+                )
             }
         }
     }

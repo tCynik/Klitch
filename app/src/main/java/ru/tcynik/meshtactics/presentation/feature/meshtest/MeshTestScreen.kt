@@ -96,6 +96,13 @@ fun MeshTestScreen(
                     onChannelNameChange = viewModel::onChannelNameChange,
                     onChannelPskChange = viewModel::onChannelPskChange,
                     onAddChannelClick = viewModel::onAddChannelClick,
+                    onProvideLocationToggle = viewModel::onProvideLocationToggle,
+                    onGpsModeChange = viewModel::onGpsModeChange,
+                    onRemoveFixedPosition = viewModel::onRemoveFixedPosition,
+                    onBroadcastIntervalChange = viewModel::onBroadcastIntervalChange,
+                    onSmartBroadcastToggle = viewModel::onSmartBroadcastToggle,
+                    onPositionFlagsChange = viewModel::onPositionFlagsChange,
+                    onChannelPositionPrecisionChange = viewModel::onChannelPositionPrecisionChange,
                     modifier = Modifier.fillMaxSize(),
                 )
                 MeshTestTab.Telemetry -> TelemetryTab(

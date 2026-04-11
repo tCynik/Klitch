@@ -9,11 +9,16 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import ru.tcynik.meshtactics.domain.mesh.model.GpsMode
+import ru.tcynik.meshtactics.domain.mesh.model.LocationConfigModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.model.MeshMessageDelivery
 import ru.tcynik.meshtactics.domain.mesh.model.MeshNodeModel
@@ -23,9 +28,14 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGeoNodesUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveLocationConfigUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RemoveFixedPositionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RequestDeviceConfigUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.SetProvideLocationUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelPositionPrecisionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.WritePositionConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMessagesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveOurNodeUseCase
@@ -47,6 +57,8 @@ import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MeshTestTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MessageDirection
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MessageStatus
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.GeoNodeUi
+import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.GpsModeUi
+import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.LocationConfigUi
 
 class MeshTestViewModel(
     private val observeConnectionStatus: ObserveConnectionStatusUseCase,
@@ -62,6 +74,11 @@ class MeshTestViewModel(
     private val requestDeviceConfig: RequestDeviceConfigUseCase,
     private val writeOwner: WriteOwnerUseCase,
     private val writeChannel: WriteChannelUseCase,
+    private val observeLocationConfig: ObserveLocationConfigUseCase,
+    private val setProvideLocation: SetProvideLocationUseCase,
+    private val writePositionConfig: WritePositionConfigUseCase,
+    private val writeChannelPositionPrecision: WriteChannelPositionPrecisionUseCase,
+    private val removeFixedPosition: RemoveFixedPositionUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MeshTestUiState())
@@ -69,6 +86,8 @@ class MeshTestViewModel(
 
     private var scanJob: Job? = null
     private var messagesJob: Job? = null
+
+    private val myNodeNumFlow = MutableStateFlow<Int?>(null)
 
     /** Contact key currently observed for messages (broadcast ch0 by default).
      *  Format matches mesh layer: "${channel}${nodeId}", e.g. "0^all" for ch0 broadcast. */
@@ -92,6 +111,7 @@ class MeshTestViewModel(
         }.launchIn(viewModelScope)
 
         observeOurNode(NoParams).onEach { node ->
+            myNodeNumFlow.value = node?.num
             _uiState.update { state ->
                 state.copy(
                     telemetryTab = state.telemetryTab.copy(
@@ -160,6 +180,17 @@ class MeshTestViewModel(
                 }
             }
         }.launchIn(viewModelScope)
+
+        @OptIn(ExperimentalCoroutinesApi::class)
+        myNodeNumFlow
+            .filterNotNull()
+            .flatMapLatest { nodeNum -> observeLocationConfig(nodeNum) }
+            .onEach { config ->
+                _uiState.update { state ->
+                    state.copy(configTab = state.configTab.copy(locationConfig = config.toLocationUi()))
+                }
+            }
+            .launchIn(viewModelScope)
 
         startObservingMessages(activeContactKey)
     }
@@ -357,6 +388,76 @@ class MeshTestViewModel(
         }
     }
 
+    // ── Location Config Handlers ──────────────────────────────────────────────
+
+    fun onProvideLocationToggle(enabled: Boolean) {
+        val nodeNum = myNodeNumFlow.value ?: return
+        setProvideLocation(nodeNum, enabled)
+        if (enabled) removeFixedPosition(nodeNum)
+    }
+
+    fun onGpsModeChange(mode: GpsModeUi) {
+        val nodeNum = myNodeNumFlow.value ?: return
+        val config = _uiState.value.configTab.locationConfig ?: return
+        writePositionConfig(
+            nodeNum,
+            mode.toDomain(),
+            config.broadcastIntervalSecs,
+            config.smartBroadcastEnabled,
+            config.smartBroadcastMinDistanceM,
+            config.positionFlags,
+        )
+    }
+
+    fun onRemoveFixedPosition() {
+        val nodeNum = myNodeNumFlow.value ?: return
+        removeFixedPosition(nodeNum)
+    }
+
+    fun onBroadcastIntervalChange(secs: Int) {
+        val nodeNum = myNodeNumFlow.value ?: return
+        val config = _uiState.value.configTab.locationConfig ?: return
+        writePositionConfig(
+            nodeNum,
+            config.gpsMode.toDomain(),
+            secs,
+            config.smartBroadcastEnabled,
+            config.smartBroadcastMinDistanceM,
+            config.positionFlags,
+        )
+    }
+
+    fun onSmartBroadcastToggle(enabled: Boolean) {
+        val nodeNum = myNodeNumFlow.value ?: return
+        val config = _uiState.value.configTab.locationConfig ?: return
+        writePositionConfig(
+            nodeNum,
+            config.gpsMode.toDomain(),
+            config.broadcastIntervalSecs,
+            enabled,
+            config.smartBroadcastMinDistanceM,
+            config.positionFlags,
+        )
+    }
+
+    fun onPositionFlagsChange(flags: Int) {
+        val nodeNum = myNodeNumFlow.value ?: return
+        val config = _uiState.value.configTab.locationConfig ?: return
+        writePositionConfig(
+            nodeNum,
+            config.gpsMode.toDomain(),
+            config.broadcastIntervalSecs,
+            config.smartBroadcastEnabled,
+            config.smartBroadcastMinDistanceM,
+            flags,
+        )
+    }
+
+    fun onChannelPositionPrecisionChange(precision: Int) {
+        val nodeNum = myNodeNumFlow.value ?: return
+        writeChannelPositionPrecision(nodeNum, 0, precision)
+    }
+
     // ── Telemetry Tab ─────────────────────────────────────────────────────────
 
     fun onRefreshTelemetryClick() {
@@ -438,5 +539,29 @@ class MeshTestViewModel(
         return if (h > 0) "%dh %02dm".format(h, m)
         else if (m > 0) "%dm %02ds".format(m, s)
         else "${s}s"
+    }
+
+    private fun LocationConfigModel.toLocationUi() = LocationConfigUi(
+        provideLocationToMesh = provideLocationToMesh,
+        hasLocationPermission = hasLocationPermission,
+        gpsMode = gpsMode.toUi(),
+        fixedPositionEnabled = fixedPositionEnabled,
+        broadcastIntervalSecs = broadcastIntervalSecs,
+        smartBroadcastEnabled = smartBroadcastEnabled,
+        smartBroadcastMinDistanceM = smartBroadcastMinDistanceM,
+        positionFlags = positionFlags,
+        primaryChannelPositionPrecision = primaryChannelPositionPrecision,
+    )
+
+    private fun GpsMode.toUi(): GpsModeUi = when (this) {
+        GpsMode.DISABLED -> GpsModeUi.DISABLED
+        GpsMode.ENABLED -> GpsModeUi.ENABLED
+        GpsMode.NOT_PRESENT -> GpsModeUi.NOT_PRESENT
+    }
+
+    private fun GpsModeUi.toDomain(): GpsMode = when (this) {
+        GpsModeUi.DISABLED -> GpsMode.DISABLED
+        GpsModeUi.ENABLED -> GpsMode.ENABLED
+        GpsModeUi.NOT_PRESENT -> GpsMode.NOT_PRESENT
     }
 }
