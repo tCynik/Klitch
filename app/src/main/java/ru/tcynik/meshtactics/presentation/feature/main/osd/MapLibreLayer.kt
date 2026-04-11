@@ -21,12 +21,9 @@ import org.maplibre.compose.expressions.dsl.const
 import org.maplibre.compose.expressions.dsl.feature
 import org.maplibre.compose.expressions.dsl.format
 import org.maplibre.compose.expressions.dsl.image
-import org.maplibre.compose.expressions.dsl.interpolate
-import org.maplibre.compose.expressions.dsl.linear
 import org.maplibre.compose.expressions.dsl.not
 import org.maplibre.compose.expressions.dsl.offset
 import org.maplibre.compose.expressions.dsl.span
-import org.maplibre.compose.expressions.dsl.zoom
 import org.maplibre.compose.expressions.value.FloatValue
 import org.maplibre.compose.expressions.value.IconRotationAlignment
 import org.maplibre.compose.expressions.value.SymbolAnchor
@@ -101,17 +98,21 @@ fun MapLibreLayer(
         val peerOnlineSource  = rememberGeoJsonSource(GeoJsonData.JsonString(peerOnlineJson))
         val peerOfflineSource = rememberGeoJsonSource(GeoJsonData.JsonString(peerOfflineJson))
 
+        val markerSize = MarkerSizeConfig.fromLevel(markerSizeLevel)
+        val nodeMarkerRadius = markerSize / 2f
+        val nodeMarkerStrokeWidth = nodeMarkerRadius / 4f
+        val nodeIconSize = markerSize
+
         val stationaryPainter = painterResource(R.drawable.ic_node_marker_stationary)
         val movingPainter = painterResource(R.drawable.ic_node_marker_moving)
-        val markerIconSize = interpolate(linear(), zoom(), 10 to const(0.6f), 18 to const(1.4f))
 
         // Online stationary nodes — diamond with 4 rounded corners (heading unknown)
         SymbolLayer(
             id = "node-online-stationary",
             source = peerOnlineSource,
             filter = !feature.has("bearing_known"),
-            iconImage = image(stationaryPainter, size = DpSize(24.dp, 24.dp)),
-            iconSize = markerIconSize,
+            iconImage = image(stationaryPainter, size = DpSize(nodeIconSize, nodeIconSize)),
+            iconSize = const(1f),
             iconRotationAlignment = const(IconRotationAlignment.Map),
             iconAllowOverlap = const(true),
         )
@@ -121,16 +122,12 @@ fun MapLibreLayer(
             id = "node-online-moving",
             source = peerOnlineSource,
             filter = feature.has("bearing_known"),
-            iconImage = image(movingPainter, size = DpSize(24.dp, 24.dp)),
-            iconSize = markerIconSize,
+            iconImage = image(movingPainter, size = DpSize(nodeIconSize, nodeIconSize)),
+            iconSize = const(1f),
             iconRotate = feature["bearing"].cast<FloatValue>(),
             iconRotationAlignment = const(IconRotationAlignment.Map),
             iconAllowOverlap = const(true),
         )
-
-        val markerSize = MarkerSizeConfig.fromLevel(markerSizeLevel)
-        val nodeMarkerRadius = markerSize / 2f
-        val nodeMarkerStrokeWidth = nodeMarkerRadius / 4f
 
         CircleLayer(
             id = "node-remote-offline-dot",
