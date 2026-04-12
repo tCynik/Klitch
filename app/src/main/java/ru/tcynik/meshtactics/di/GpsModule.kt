@@ -15,7 +15,7 @@ val gpsModule = module {
         GpsLifecycleController::class,
     )
 
-    single<LocationRepository>(override = true) {
+    single<LocationRepository> {
         MeshLocationRepositoryAdapter(gpsRepository = get())
     }
 }

@@ -283,7 +283,7 @@ In MVP only Meshtastic implementations are non-stub. MQTT and WiFi implementatio
 | New feature adds keys to `AppSettings` | Create a new repository in `data/local/` that injects `Settings` directly |
 | `LocationPuck` / `rememberUserLocationState` with maplibre-compose 0.12.1 | Use `CircleLayer + GeoJsonData.JsonString` — `spatialk:geojson:0.6.0` crashes on empty `FeatureCollection()` serialization (LocationPuck's initial null-location path) |
 | Android Service injects concrete data class (`SomethingImpl`) | Extract lifecycle interface in domain (`LifecycleController`), service injects the interface — see Foreground Service Lifecycle Pattern |
-| `single<Iface> { Impl() }` in app module overrides mesh auto-scanned binding without `override = true` | Add `override = true` to the `single<>` call to suppress Koin conflict at startup |
+| `single<Iface> { Impl() }` in app module conflicts with mesh auto-scanned binding | In Koin 4.x `saveMapping` always overwrites — no `override` parameter needed; just declare the binding normally and ensure `gpsModule` is loaded after the mesh module |
 
 ---
 
