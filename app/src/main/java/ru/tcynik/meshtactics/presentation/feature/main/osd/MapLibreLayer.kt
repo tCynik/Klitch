@@ -110,8 +110,8 @@ fun MapLibreLayer(
         val peerStaleSource   = rememberGeoJsonSource(GeoJsonData.JsonString(animatedStaleJson))
 
         val markerSize = MarkerSizeConfig.fromLevel(markerSizeLevel)
-        val nodeMarkerRadius = markerSize / 2f
-        val nodeMarkerStrokeWidth = nodeMarkerRadius / 4f
+        val nodeMarkerRadius = MarkerSizeConfig.nodeMarkerRadius(markerSize)
+        val nodeMarkerStrokeWidth = MarkerSizeConfig.nodeMarkerStrokeWidth(markerSize)
         val nodeIconSize = markerSize
 
         // Stale nodes (position older than 2 min) — grey circle + grey label

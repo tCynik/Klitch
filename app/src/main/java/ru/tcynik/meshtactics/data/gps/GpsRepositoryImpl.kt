@@ -7,6 +7,7 @@ import android.os.Build
 import androidx.core.location.LocationListenerCompat
 import androidx.core.location.LocationManagerCompat
 import androidx.core.location.LocationRequestCompat
+import co.touchlab.kermit.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +35,7 @@ class GpsRepositoryImpl(
 
     @SuppressLint("MissingPermission")
     fun start() {
+        Logger.i {"start gps repo"}
         if (_isReceivingUpdates.value) return
 
         val lm = context.getSystemService(LocationManager::class.java)
@@ -82,6 +84,7 @@ class GpsRepositoryImpl(
     }
 
     fun stop() {
+        Logger.i {"stop gps repo"}
         val lm = activeLocationManager ?: return
         val listener = activeListener ?: return
         LocationManagerCompat.removeUpdates(lm, listener)

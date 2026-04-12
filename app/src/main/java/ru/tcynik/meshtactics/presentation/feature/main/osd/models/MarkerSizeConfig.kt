@@ -14,6 +14,12 @@ object MarkerSizeConfig {
     val markerSize: Dp get() = fromLevel(5)
 
     val userMarkerSize: Dp get() = markerSize
-    val nodeMarkerRadius: Dp get() = markerSize
-    val nodeMarkerStrokeWidth: Dp get() = nodeMarkerRadius / 4f
+
+    /**
+     * Circle radius for offline/stale node markers.
+     * Scaled down to visually match the online icon marker size.
+     */
+    fun nodeMarkerRadius(baseSize: Dp): Dp = baseSize * 0.3f
+
+    fun nodeMarkerStrokeWidth(baseSize: Dp): Dp = nodeMarkerRadius(baseSize) / 4f
 }
