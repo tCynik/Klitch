@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.delay
 import org.maplibre.compose.camera.CameraState
 import org.maplibre.compose.expressions.dsl.asString
 import org.maplibre.compose.expressions.dsl.const
@@ -45,6 +46,19 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MarkerSizeConf
 private val BASE_STYLE_WITH_GLYPHS = BaseStyle.Json(
     """{"version":8,"glyphs":"https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf","sources":{},"layers":[]}"""
 )
+
+// Animation duration for marker position interpolation, in milliseconds.
+private const val MARKER_ANIMATION_MS = 500L
+
+// Frame interval targeting ~60 FPS.
+private const val FRAME_INTERVAL_MS = 16L
+
+/**
+ * Quadratic ease-in-out for smooth start and stop.
+ */
+private fun quadraticEaseInOut(t: Float): Float {
+    return if (t < 0.5f) 2f * t * t else -1f + (4f - 2f * t) * t
+}
 
 @Composable
 fun MapLibreLayer(
@@ -88,15 +102,10 @@ fun MapLibreLayer(
             source = tileSource,
         )
 
-        val peerOnlineJson = remember(nodeMarkers) {
-            buildNodeGeoJson(nodeMarkers.filter { it.isOnline })
-        }
-        val peerOfflineJson = remember(nodeMarkers) {
-            buildNodeGeoJson(nodeMarkers.filter { !it.isOnline })
-        }
+        val (animatedOnlineJson, animatedOfflineJson) = animateGeoJsonInterpolation(nodeMarkers)
 
-        val peerOnlineSource  = rememberGeoJsonSource(GeoJsonData.JsonString(peerOnlineJson))
-        val peerOfflineSource = rememberGeoJsonSource(GeoJsonData.JsonString(peerOfflineJson))
+        val peerOnlineSource  = rememberGeoJsonSource(GeoJsonData.JsonString(animatedOnlineJson))
+        val peerOfflineSource = rememberGeoJsonSource(GeoJsonData.JsonString(animatedOfflineJson))
 
         val markerSize = MarkerSizeConfig.fromLevel(markerSizeLevel)
         val nodeMarkerRadius = markerSize / 2f
@@ -180,4 +189,83 @@ private fun buildNodeGeoJson(nodes: List<NodeMarkerModel>): String {
         """{"type":"Feature","geometry":{"type":"Point","coordinates":[$lon,$lat]},"properties":{"longName":"$name"$bearingProps}}"""
     }
     return """{"type":"FeatureCollection","features":[$features]}"""
+}
+
+/**
+ * Holds the previous and current marker lists to interpolate between.
+ */
+private data class MarkerAnimationState(
+    val previous: List<NodeMarkerModel> = emptyList(),
+    val target: List<NodeMarkerModel> = emptyList(),
+)
+
+/**
+ * Interpolates marker positions between the previous and current [nodeMarkers] list.
+ *
+ * When the list changes (positions or contents), this launches a coroutine that emits
+ * intermediate GeoJSON strings at ~60 fps, smoothly transitioning from old to new
+ * coordinates using quadratic ease-in-out.
+ *
+ * New markers (present in target but not in previous) appear instantly at their target
+ * position. Removed markers vanish instantly. Only existing markers with changed positions
+ * are animated.
+ *
+ * Returns a [Pair] of `(onlineGeoJson, offlineGeoJson)` that updates every animation frame.
+ */
+@Composable
+private fun animateGeoJsonInterpolation(
+    nodeMarkers: ImmutableList<NodeMarkerModel>,
+): Pair<String, String> {
+    var animationState by remember { mutableStateOf(MarkerAnimationState()) }
+    var animatedOnlineJson by remember { mutableStateOf(buildNodeGeoJson(nodeMarkers.filter { it.isOnline })) }
+    var animatedOfflineJson by remember { mutableStateOf(buildNodeGeoJson(nodeMarkers.filter { !it.isOnline })) }
+
+    // Detect changes in the nodeMarkers list and start animation.
+    LaunchedEffect(nodeMarkers) {
+        val previous = animationState.target
+        val target = nodeMarkers.toList()
+        animationState = MarkerAnimationState(previous, target)
+
+        // Build lookup: previous positions keyed by nodeId.
+        val previousPositions = previous.associateBy { it.nodeId }
+
+        val totalFrames = (MARKER_ANIMATION_MS / FRAME_INTERVAL_MS).toInt()
+        for (frame in 0..totalFrames) {
+            val rawT = frame.toFloat() / totalFrames
+            val t = quadraticEaseInOut(rawT)
+
+            // Interpolate each marker's position.
+            val interpolated = target.map { targetNode ->
+                val prev = previousPositions[targetNode.nodeId]
+                if (prev != null) {
+                    // Only interpolate if the position actually changed.
+                    val startLon = prev.position.longitude
+                    val startLat = prev.position.latitude
+                    val endLon = targetNode.position.longitude
+                    val endLat = targetNode.position.latitude
+                    if (startLon != endLon || startLat != endLat) {
+                        val interpLon = startLon + (endLon - startLon) * t
+                        val interpLat = startLat + (endLat - startLat) * t
+                        targetNode.copy(
+                            position = ru.tcynik.meshtactics.domain.marker.model.GeoPoint(interpLat, interpLon),
+                        )
+                    } else {
+                        targetNode
+                    }
+                } else {
+                    // New marker — no previous position to interpolate from.
+                    targetNode
+                }
+            }
+
+            animatedOnlineJson = buildNodeGeoJson(interpolated.filter { it.isOnline })
+            animatedOfflineJson = buildNodeGeoJson(interpolated.filter { !it.isOnline })
+
+            if (frame < totalFrames) {
+                delay(FRAME_INTERVAL_MS)
+            }
+        }
+    }
+
+    return animatedOnlineJson to animatedOfflineJson
 }
