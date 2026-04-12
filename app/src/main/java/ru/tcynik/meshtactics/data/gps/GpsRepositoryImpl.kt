@@ -14,11 +14,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import ru.tcynik.meshtactics.domain.gps.model.GpsLocation
+import ru.tcynik.meshtactics.domain.gps.repository.GpsLifecycleController
 import ru.tcynik.meshtactics.domain.gps.repository.GpsRepository
 
 class GpsRepositoryImpl(
     private val context: Application,
-) : GpsRepository {
+) : GpsRepository, GpsLifecycleController {
 
     companion object {
         private const val UPDATE_INTERVAL_MS = 5_000L
@@ -34,7 +35,7 @@ class GpsRepositoryImpl(
     @Volatile private var activeListener: LocationListenerCompat? = null
 
     @SuppressLint("MissingPermission")
-    fun start() {
+    override fun start() {
         Logger.i {"start gps repo"}
         if (_isReceivingUpdates.value) return
 
@@ -83,7 +84,7 @@ class GpsRepositoryImpl(
         _isReceivingUpdates.value = true
     }
 
-    fun stop() {
+    override fun stop() {
         Logger.i {"stop gps repo"}
         val lm = activeLocationManager ?: return
         val listener = activeListener ?: return

@@ -23,6 +23,7 @@
 | Стартовая позиция карты из последних координат | ✅ Done |
 | GPS-маркер позиции пользователя | ✅ Done |
 | Отправка GPS телефона на радиоузел (setFixedPosition) | ✅ Done |
+| GPS в фоне (GpsService foreground service) | ✅ Done |
 | Визуальный язык (цвет, типографика, HUD) | ⏳ Deferred (после отработки userFlow) |
 | BLE-узлы на карте (telemetry) | ⬜ Planned |
 | Чат | ⬜ Planned |

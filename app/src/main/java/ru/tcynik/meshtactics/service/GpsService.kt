@@ -9,14 +9,16 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import org.koin.android.ext.android.inject
 import ru.tcynik.meshtactics.R
-import ru.tcynik.meshtactics.data.gps.GpsRepositoryImpl
+import ru.tcynik.meshtactics.domain.gps.repository.GpsLifecycleController
 
 class GpsService : Service() {
 
     companion object {
+        private const val TAG = "GpsService"
         private const val NOTIFICATION_ID = 201
         private const val CHANNEL_ID = "gps_service_channel"
 
@@ -25,10 +27,11 @@ class GpsService : Service() {
         fun createIntent(context: Context): Intent = Intent(context, GpsService::class.java)
     }
 
-    private val gpsRepository: GpsRepositoryImpl by inject()
+    private val gpsLifecycle: GpsLifecycleController by inject()
 
     override fun onCreate() {
         super.onCreate()
+        Log.d(TAG, "onCreate")
         ensureNotificationChannel()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIFICATION_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
@@ -38,16 +41,19 @@ class GpsService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        gpsRepository.start()
+        Log.d(TAG, "onStartCommand")
+        gpsLifecycle.start()
         return START_STICKY
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
+        Log.d(TAG, "onTaskRemoved → stopSelf")
         stopSelf()
     }
 
     override fun onDestroy() {
-        gpsRepository.stop()
+        Log.d(TAG, "onDestroy")
+        gpsLifecycle.stop()
         super.onDestroy()
     }
 
