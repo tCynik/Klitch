@@ -19,6 +19,7 @@ import kotlinx.coroutines.delay
 import org.maplibre.compose.camera.CameraState
 import org.maplibre.compose.expressions.dsl.asString
 import org.maplibre.compose.expressions.dsl.const
+import org.maplibre.compose.expressions.dsl.eq
 import org.maplibre.compose.expressions.dsl.feature
 import org.maplibre.compose.expressions.dsl.format
 import org.maplibre.compose.expressions.dsl.image
@@ -102,15 +103,39 @@ fun MapLibreLayer(
             source = tileSource,
         )
 
-        val (animatedOnlineJson, animatedOfflineJson) = animateGeoJsonInterpolation(nodeMarkers)
+        val (animatedOnlineJson, animatedOfflineJson, animatedStaleJson) = animateGeoJsonInterpolation(nodeMarkers)
 
         val peerOnlineSource  = rememberGeoJsonSource(GeoJsonData.JsonString(animatedOnlineJson))
         val peerOfflineSource = rememberGeoJsonSource(GeoJsonData.JsonString(animatedOfflineJson))
+        val peerStaleSource   = rememberGeoJsonSource(GeoJsonData.JsonString(animatedStaleJson))
 
         val markerSize = MarkerSizeConfig.fromLevel(markerSizeLevel)
         val nodeMarkerRadius = markerSize / 2f
         val nodeMarkerStrokeWidth = nodeMarkerRadius / 4f
         val nodeIconSize = markerSize
+
+        // Stale nodes (position older than 2 min) — grey circle + grey label
+        CircleLayer(
+            id = "node-stale-dot",
+            source = peerStaleSource,
+            color = const(Color(0xFF9E9E9E)),
+            radius = const(nodeMarkerRadius),
+            strokeColor = const(Color.White),
+            strokeWidth = const(nodeMarkerStrokeWidth),
+        )
+
+        SymbolLayer(
+            id = "node-stale-label",
+            source = peerStaleSource,
+            textField = format(span(feature["longName"].asString())),
+            textAnchor = const(SymbolAnchor.Bottom),
+            textOffset = offset(0f.em, (-1.2f).em),
+            textSize = const(12.sp),
+            textColor = const(Color(0xFF9E9E9E)),
+            textHaloColor = const(Color.Black),
+            textHaloWidth = const(1.5.dp),
+            textAllowOverlap = const(true),
+        )
 
         val stationaryPainter = painterResource(R.drawable.ic_node_marker_stationary)
         val movingPainter = painterResource(R.drawable.ic_node_marker_moving)
@@ -186,7 +211,7 @@ private fun buildNodeGeoJson(nodes: List<NodeMarkerModel>): String {
         } else {
             ""
         }
-        """{"type":"Feature","geometry":{"type":"Point","coordinates":[$lon,$lat]},"properties":{"longName":"$name"$bearingProps}}"""
+        """{"type":"Feature","geometry":{"type":"Point","coordinates":[$lon,$lat]},"properties":{"longName":"$name","isStale":${node.isStale}$bearingProps}}"""
     }
     return """{"type":"FeatureCollection","features":[$features]}"""
 }
@@ -210,15 +235,16 @@ private data class MarkerAnimationState(
  * position. Removed markers vanish instantly. Only existing markers with changed positions
  * are animated.
  *
- * Returns a [Pair] of `(onlineGeoJson, offlineGeoJson)` that updates every animation frame.
+ * Returns a triple of `(onlineGeoJson, offlineGeoJson, staleGeoJson)` that updates every animation frame.
  */
 @Composable
 private fun animateGeoJsonInterpolation(
     nodeMarkers: ImmutableList<NodeMarkerModel>,
-): Pair<String, String> {
+): Triple<String, String, String> {
     var animationState by remember { mutableStateOf(MarkerAnimationState()) }
-    var animatedOnlineJson by remember { mutableStateOf(buildNodeGeoJson(nodeMarkers.filter { it.isOnline })) }
-    var animatedOfflineJson by remember { mutableStateOf(buildNodeGeoJson(nodeMarkers.filter { !it.isOnline })) }
+    var animatedOnlineJson by remember { mutableStateOf(buildNodeGeoJson(nodeMarkers.filter { it.isOnline && !it.isStale })) }
+    var animatedOfflineJson by remember { mutableStateOf(buildNodeGeoJson(nodeMarkers.filter { !it.isOnline && !it.isStale })) }
+    var animatedStaleJson by remember { mutableStateOf(buildNodeGeoJson(nodeMarkers.filter { it.isStale })) }
 
     // Detect changes in the nodeMarkers list and start animation.
     LaunchedEffect(nodeMarkers) {
@@ -258,8 +284,9 @@ private fun animateGeoJsonInterpolation(
                 }
             }
 
-            animatedOnlineJson = buildNodeGeoJson(interpolated.filter { it.isOnline })
-            animatedOfflineJson = buildNodeGeoJson(interpolated.filter { !it.isOnline })
+            animatedOnlineJson = buildNodeGeoJson(interpolated.filter { it.isOnline && !it.isStale })
+            animatedOfflineJson = buildNodeGeoJson(interpolated.filter { !it.isOnline && !it.isStale })
+            animatedStaleJson = buildNodeGeoJson(interpolated.filter { it.isStale })
 
             if (frame < totalFrames) {
                 delay(FRAME_INTERVAL_MS)
@@ -267,5 +294,5 @@ private fun animateGeoJsonInterpolation(
         }
     }
 
-    return animatedOnlineJson to animatedOfflineJson
+    return Triple(animatedOnlineJson, animatedOfflineJson, animatedStaleJson)
 }

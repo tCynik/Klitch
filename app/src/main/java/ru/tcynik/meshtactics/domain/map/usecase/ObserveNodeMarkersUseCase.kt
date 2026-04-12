@@ -15,8 +15,9 @@ private const val TAG = "NodeMarkers"
 private const val MIN_SPEED_FOR_HEADING = 1
 
 // Maximum age of a GPS position report to be considered fresh, in seconds.
-// Positions older than this threshold are excluded from the map and the node counter.
-// 2 minutes — position must be recent to appear on the map.
+// Positions fresher than this threshold are shown with normal colors;
+// older positions are shown as grey (stale) markers.
+// 2 minutes — threshold for fresh vs stale visual distinction.
 private const val POSITION_FRESHNESS_SECONDS = 2 * 60
 
 /**
@@ -28,9 +29,9 @@ private const val POSITION_FRESHNESS_SECONDS = 2 * 60
  *
  * Any future use case that lists or counts peer nodes must apply the same exclusion.
  *
- * A node's position is included only when [MeshNodeModel.positionTime] is within
- * [POSITION_FRESHNESS_SECONDS] of the current time. Nodes with valid coordinates but a stale
- * GPS timestamp (e.g. GPS disabled, node sending telemetry only) are excluded.
+ * Nodes with valid position are always shown. Fresh nodes (position within
+ * [POSITION_FRESHNESS_SECONDS]) are shown with normal colors. Stale nodes (older position)
+ * are shown as grey markers via the [NodeMarkerModel.isStale] flag.
  */
 class ObserveNodeMarkersUseCase(
     private val repository: MeshNetworkRepository,
@@ -46,21 +47,23 @@ class ObserveNodeMarkersUseCase(
             val freshnessThreshold = nowSeconds - POSITION_FRESHNESS_SECONDS
 
             val peers = nodes.filter { it.nodeId != ourNodeId }
-            val withFreshPosition = peers.filter {
-                // positionTime == 0 means the firmware did not embed a timestamp in the Position
-                // packet — fall back to lastHeard so the node still appears on the map.
+            val withPosition = peers.filter { it.hasValidPosition }
+            val freshCount = withPosition.count {
                 val effectiveTime = if (it.positionTime > 0) it.positionTime else it.lastHeard
-                it.hasValidPosition && effectiveTime > freshnessThreshold
+                effectiveTime > freshnessThreshold
             }
             Log.d(TAG, "update: myPosition = '${ourNode?.latitude}/${ourNode?.longitude}', nodes=${nodes.size}/${peers.size} " +
-                "freshCount=${withFreshPosition.size} " +
-                "[${withFreshPosition.joinToString { it.toLogString(ourNode, nowSeconds) }}]")
-            withFreshPosition.map { node ->
+                "withPosition=${withPosition.size} fresh=$freshCount " +
+                "[${withPosition.joinToString { it.toLogString(ourNode, nowSeconds) }}]")
+            withPosition.map { node ->
+                val effectiveTime = if (node.positionTime > 0) node.positionTime else node.lastHeard
+                val isStale = effectiveTime <= freshnessThreshold
                 NodeMarkerModel(
                     nodeId = node.nodeId,
                     longName = node.longName,
                     position = GeoPoint(node.latitude, node.longitude),
                     isOnline = node.isOnline,
+                    isStale = isStale,
                     heading = if (node.groundSpeed >= MIN_SPEED_FOR_HEADING) node.groundTrack.toFloat() else null,
                 )
             }
