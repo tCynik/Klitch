@@ -1,6 +1,6 @@
 package ru.tcynik.meshtactics.domain.map.usecase
 
-import android.util.Log
+import co.touchlab.kermit.Logger
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
@@ -9,9 +9,6 @@ import ru.tcynik.meshtactics.domain.mesh.model.MeshNodeModel
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshNetworkRepository
 import ru.tcynik.meshtactics.domain.usecase.base.FlowUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
-import ru.tcynik.meshtactics.mesh.common.util.latLongToMeter
-
-private const val TAG = "NodeMarkers"
 private const val MIN_SPEED_FOR_HEADING = 1
 
 // Maximum age of a GPS position report to be considered fresh, in seconds.
@@ -52,9 +49,9 @@ class ObserveNodeMarkersUseCase(
                 val effectiveTime = if (it.positionTime > 0) it.positionTime else it.lastHeard
                 effectiveTime > freshnessThreshold
             }
-            Log.d(TAG, "update: myPosition = '${ourNode?.latitude}/${ourNode?.longitude}', nodes=${nodes.size}/${peers.size} " +
+            Logger.d { "update: myPosition = '${ourNode?.latitude}/${ourNode?.longitude}', nodes=${nodes.size}/${peers.size} " +
                 "withPosition=${withPosition.size} fresh=$freshCount " +
-                "[${withPosition.joinToString { it.toLogString(ourNode, nowSeconds) }}]")
+                "[${withPosition.joinToString { it.toLogString(nowSeconds) }}]" }
             withPosition.map { node ->
                 val effectiveTime = if (node.positionTime > 0) node.positionTime else node.lastHeard
                 val isStale = effectiveTime <= freshnessThreshold
@@ -70,12 +67,8 @@ class ObserveNodeMarkersUseCase(
         }
 }
 
-private fun MeshNodeModel.toLogString(ourNode: MeshNodeModel?, nowSeconds: Long): String {
+private fun MeshNodeModel.toLogString(nowSeconds: Long): String {
     val ageStr = if (positionTime > 0) "${nowSeconds - positionTime}s ago" else "no time"
-    val distStr = if (ourNode != null && ourNode.hasValidPosition && hasValidPosition) {
-        val meters = latLongToMeter(latitude, longitude, ourNode.latitude, ourNode.longitude).toInt()
-        if (meters >= 1000) "${"%.1f".format(meters / 1000.0)}km" else "${meters}m"
-    } else "dist=?"
     val coordStr = "%.5f,%.5f".format(latitude, longitude)
-    return "$longName($ageStr $distStr $coordStr)"
+    return "$longName($ageStr $coordStr)"
 }

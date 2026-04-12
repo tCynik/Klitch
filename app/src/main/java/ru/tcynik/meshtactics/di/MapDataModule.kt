@@ -10,6 +10,8 @@ import ru.tcynik.meshtactics.domain.map.usecase.GetLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.GetTileUrlUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveNodeMarkersUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.GetMarkerSizeLevelUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.ObserveMarkerSizeLevelUseCase
 
 val mapDataModule = module {
     // MVP: single hardcoded tile source. Beta 1.0: replace with multi-source implementation.
@@ -23,4 +25,8 @@ val mapDataModule = module {
 
     // Node markers — MeshNetworkRepository resolved from meshDataModule
     single { ObserveNodeMarkersUseCase(get()) }
+
+    // Marker size level — MarkerSettingsRepository resolved from commonModule
+    single { GetMarkerSizeLevelUseCase(get()) }
+    single { ObserveMarkerSizeLevelUseCase(get()) }
 }

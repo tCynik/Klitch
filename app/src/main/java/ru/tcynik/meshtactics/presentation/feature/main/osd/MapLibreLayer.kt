@@ -18,6 +18,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.delay
 import org.maplibre.compose.camera.CameraState
 import org.maplibre.compose.expressions.dsl.asString
+import org.maplibre.spatialk.geojson.Position
 import org.maplibre.compose.expressions.dsl.const
 import org.maplibre.compose.expressions.dsl.eq
 import org.maplibre.compose.expressions.dsl.feature
@@ -70,6 +71,8 @@ fun MapLibreLayer(
     nodeMarkers: ImmutableList<NodeMarkerModel> = persistentListOf(),
     cameraState: CameraState,
     markerSizeLevel: Int = 5,
+    userPosition: Position? = null,
+    userBearing: Float = 0f,
 ) {
     var hasUserMoved by remember { mutableStateOf(false) }
 
@@ -197,8 +200,24 @@ fun MapLibreLayer(
             textAllowOverlap = const(true),
         )
 
-        // User location arrow is rendered as a Compose overlay in MainScreen.
+        // User location arrow — rendered as SymbolLayer so the Box stays at 2 layers.
+        val userLocationSource = rememberGeoJsonSource(GeoJsonData.JsonString(buildUserLocationGeoJson(userPosition)))
+        val navigationArrowPainter = painterResource(R.drawable.ic_navigation_arrow)
+        SymbolLayer(
+            id = "user-location-arrow",
+            source = userLocationSource,
+            iconImage = image(navigationArrowPainter, size = DpSize(nodeIconSize, nodeIconSize)),
+            iconSize = const(1f),
+            iconRotate = const(userBearing),
+            iconRotationAlignment = const(IconRotationAlignment.Map),
+            iconAllowOverlap = const(true),
+        )
     }
+}
+
+private fun buildUserLocationGeoJson(position: Position?): String {
+    if (position == null) return """{"type":"FeatureCollection","features":[]}"""
+    return """{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[${position.longitude},${position.latitude}]},"properties":{}}]}"""
 }
 
 private fun buildNodeGeoJson(nodes: List<NodeMarkerModel>): String {

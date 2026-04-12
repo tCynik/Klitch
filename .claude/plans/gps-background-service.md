@@ -212,3 +212,4 @@ Phase 7: [stage by name] → [propose commit] → [wait confirmation] → git co
 
 - 2026-04-10: created
 - 2026-04-12: implementation complete — GpsLifecycleController split interface added (Phase 5 architect review fix), GpsModule uses `binds arrayOf(...)` + `override = true`, unit tests written (JDK 25 infra issue blocks run), architect.md updated with Foreground Service Lifecycle Pattern + 2 new anti-patterns. Status → Done.
+- 2026-04-13: unit tests запущены вручную — все зелёные. JDK 25 infra issue не воспроизвелся.

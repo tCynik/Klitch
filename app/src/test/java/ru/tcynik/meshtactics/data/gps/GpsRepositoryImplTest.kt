@@ -7,7 +7,6 @@ import androidx.core.location.LocationListenerCompat
 import androidx.core.location.LocationManagerCompat
 import androidx.core.location.LocationRequestCompat
 import app.cash.turbine.test
-import io.mockk.capture
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
