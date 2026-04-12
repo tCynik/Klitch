@@ -35,6 +35,7 @@ import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MarkerSizeConfig
+import ru.tcynik.meshtactics.service.GpsService
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,6 +46,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     val exitApp = remember {
         {
+            context.stopService(GpsService.createIntent(context))
             val activity = context as? android.app.Activity
             activity?.finishAndRemoveTask()
             Unit
