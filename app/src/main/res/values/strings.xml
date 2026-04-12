@@ -8,4 +8,6 @@
     <string name="settings_back_description">Назад</string>
     <string name="settings_marker_size_label">Размер маркера: %ddp (уровень %d)</string>
     <string name="settings_save_button">Сохранить</string>
+    <string name="settings_exit_app_description">Выйти из приложения</string>
+    <string name="settings_exit_app_icon">Иконка выхода</string>
 </resources>
