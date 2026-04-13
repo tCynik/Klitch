@@ -1,20 +1,24 @@
 package ru.tcynik.meshtactics.presentation.feature.settings
 
-import androidx.compose.foundation.clickable
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
@@ -30,6 +34,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -48,6 +53,8 @@ import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MarkerSizeConfig
+import ru.tcynik.meshtactics.presentation.feature.settings.models.MapItem
+import ru.tcynik.meshtactics.presentation.feature.settings.models.formatDate
 import ru.tcynik.meshtactics.service.GpsService
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,6 +76,35 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val savedMessage = stringResource(R.string.settings_saved)
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val name = uri.lastPathSegment?.substringAfterLast('/')
+                ?: uri.lastPathSegment
+                ?: uri.toString()
+            viewModel.onAddMap(uri = uri.toString(), name = name)
+        }
+    }
+
+    if (state.deleteConfirmId != null) {
+        AlertDialog(
+            onDismissRequest = viewModel::onDismissDeleteDialog,
+            title = { Text(stringResource(R.string.map_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.map_delete_confirm_message)) },
+            confirmButton = {
+                TextButton(onClick = viewModel::onConfirmDelete) {
+                    Text(stringResource(R.string.map_delete_confirm_yes))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::onDismissDeleteDialog) {
+                    Text(stringResource(R.string.map_delete_confirm_no))
+                }
+            },
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -106,6 +142,17 @@ fun SettingsScreen(
             when (state.selectedTab) {
                 SettingsTab.Map -> MapTabContent(
                     mapItems = state.mapItems,
+                    onAddMap = {
+                        filePickerLauncher.launch(
+                            arrayOf(
+                                "application/vnd.google-earth.kmz",
+                                "application/vnd.google-earth.kml+xml",
+                            )
+                        )
+                    },
+                    onHide = viewModel::onHideMap,
+                    onDelete = viewModel::onRequestDeleteMap,
+                    onToggleSelection = viewModel::onToggleSelection,
                 )
                 SettingsTab.Screen -> ScreenTabContent(
                     markerSizeLevel = state.markerSizeLevelPending,
@@ -165,6 +212,10 @@ private fun ScreenTabContent(
 @Composable
 private fun MapTabContent(
     mapItems: List<MapItem>,
+    onAddMap: () -> Unit,
+    onHide: (String) -> Unit,
+    onDelete: (String) -> Unit,
+    onToggleSelection: (String, Boolean) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -174,16 +225,21 @@ private fun MapTabContent(
                 .fillMaxWidth()
                 .weight(1f)
                 .padding(horizontal = 16.dp),
-            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            contentPadding = PaddingValues(vertical = 8.dp),
         ) {
             items(mapItems, key = { it.id }) { item ->
-                MapItemRow(item = item)
+                MapItemRow(
+                    item = item,
+                    onHide = { onHide(item.id) },
+                    onDelete = { onDelete(item.id) },
+                    onToggleSelection = { onToggleSelection(item.id, !item.isSelected) },
+                )
             }
         }
 
         Button(
-            onClick = { /* TODO: добавить карту */ },
+            onClick = onAddMap,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
@@ -196,6 +252,9 @@ private fun MapTabContent(
 @Composable
 private fun MapItemRow(
     item: MapItem,
+    onHide: () -> Unit,
+    onDelete: () -> Unit,
+    onToggleSelection: () -> Unit,
 ) {
     var showDropdown by remember { mutableStateOf(false) }
 
@@ -207,7 +266,7 @@ private fun MapItemRow(
     ) {
         Checkbox(
             checked = item.isSelected,
-            onCheckedChange = null,
+            onCheckedChange = { onToggleSelection() },
         )
 
         Column(
@@ -230,19 +289,25 @@ private fun MapItemRow(
 
         Box {
             IconButton(onClick = { showDropdown = true }) {
-                Icon(Icons.Default.MoreVert, contentDescription = "Дополнительные настройки")
+                Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.map_item_more_actions))
             }
             DropdownMenu(
                 expanded = showDropdown,
                 onDismissRequest = { showDropdown = false },
             ) {
                 DropdownMenuItem(
-                    text = { Text("Скрыть") },
-                    onClick = { showDropdown = false },
+                    text = { Text(stringResource(R.string.map_item_hide)) },
+                    onClick = {
+                        showDropdown = false
+                        onHide()
+                    },
                 )
                 DropdownMenuItem(
-                    text = { Text("Удалить") },
-                    onClick = { showDropdown = false },
+                    text = { Text(stringResource(R.string.map_item_delete)) },
+                    onClick = {
+                        showDropdown = false
+                        onDelete()
+                    },
                 )
             }
         }

@@ -43,6 +43,7 @@ val commonModule: Module = module {
     // Data — local (SqlDriver предоставляется платформенным модулем)
     single { AppDatabase(get<SqlDriver>()) }
     single { get<AppDatabase>().nodeQueries }
+    single { get<AppDatabase>().importedMapOverlayQueries }
 
     // Data — settings (Settings предоставляется платформенным модулем)
     single { AppSettings(get()) }

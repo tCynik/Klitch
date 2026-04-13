@@ -1,0 +1,23 @@
+CREATE TABLE ImportedMapOverlay (
+    id          TEXT    NOT NULL PRIMARY KEY,
+    name        TEXT    NOT NULL,
+    uri         TEXT    NOT NULL,
+    created_at  INTEGER NOT NULL,
+    is_selected INTEGER NOT NULL DEFAULT 0
+);
+
+selectAll:
+SELECT * FROM ImportedMapOverlay ORDER BY created_at DESC;
+
+selectById:
+SELECT * FROM ImportedMapOverlay WHERE id = :id;
+
+insert:
+INSERT INTO ImportedMapOverlay(id, name, uri, created_at, is_selected)
+VALUES (:id, :name, :uri, :createdAt, :isSelected);
+
+deleteById:
+DELETE FROM ImportedMapOverlay WHERE id = :id;
+
+setSelected:
+UPDATE ImportedMapOverlay SET is_selected = :isSelected WHERE id = :id;

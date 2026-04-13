@@ -78,6 +78,10 @@ dependencies {
     // Coroutines
     implementation(libs.coroutines.android)
 
+    // SQLDelight — coroutines extensions (asFlow / mapToList used in ImportedMapRepositoryImpl)
+    implementation(libs.sqldelight.coroutines)
+    testImplementation(libs.sqldelight.jvm.driver)
+
     // WorkManager
     implementation(libs.work.runtime)
 
