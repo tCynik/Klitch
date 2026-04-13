@@ -154,20 +154,10 @@ class MainViewModel(
                         ?.let { it.toInt().coerceAtMost(99).toString() }
                         .takeIf { it != "0" },
                 ),
-                info = buildGpsAccuracyInfoSlot(state),
+                info = emptyInfoSlot(),
             ),
         ),
     )
-
-    private fun buildGpsAccuracyInfoSlot(state: MainUiState): HudInfoSlot {
-        val color = when (state.gpsStatus.signalLevel) {
-            GpsSignalLevel.None   -> Color.Red
-            GpsSignalLevel.Weak   -> Color.Yellow
-            GpsSignalLevel.Strong -> Color.Green
-        }
-        val text = state.gpsStatus.accuracyMeters?.let { "%.0fm".format(it) } ?: "--"
-        return HudInfoSlot(content = text, color = color)
-    }
 
     // Right column — main menu.
     // Info row 0: node status indicator (connection quality + peer count).
@@ -186,7 +176,7 @@ class MainViewModel(
                             else -> null
                         }.takeIf { it != "0" },
                     ),
-                    info = buildNodeStatusInfoSlot(state),
+                    info = emptyInfoSlot(),
                 ),
                 HudRowConfig(
                     button = HudButtonSlot(iconRes = R.drawable.ic_settings, label = "настройки", onClick = nav.onSettingsClick),
@@ -218,14 +208,5 @@ class MainViewModel(
             MeshConnectionStatus.Scanning,
             is MeshConnectionStatus.Connecting -> Color.Yellow
         }
-    }
-
-    private fun buildNodeStatusInfoSlot(state: MainUiState): HudInfoSlot {
-        val color = buildNodeStatusColor(state)
-        val content = when (state.connectionStatus) {
-            is MeshConnectionStatus.Connected -> state.nodeMarkers.size.toString()
-            else -> "--"
-        }
-        return HudInfoSlot(content = content, color = color)
     }
 }
