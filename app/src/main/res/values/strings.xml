@@ -10,4 +10,5 @@
     <string name="settings_save_button">Сохранить</string>
     <string name="settings_exit_app_description">Выйти из приложения</string>
     <string name="settings_exit_app_icon">Иконка выхода</string>
+    <string name="map_add_button">Добавить</string>
 </resources>
