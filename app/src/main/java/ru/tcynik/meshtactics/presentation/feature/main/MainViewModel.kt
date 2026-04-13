@@ -150,6 +150,9 @@ class MainViewModel(
                         GpsSignalLevel.Weak   -> Color.Yellow
                         GpsSignalLevel.Strong -> Color.Green
                     },
+                    infoBadge = state.gpsStatus.accuracyMeters
+                        ?.let { it.toInt().coerceAtMost(99).toString() }
+                        .takeIf { it != "0" },
                 ),
                 info = buildGpsAccuracyInfoSlot(state),
             ),
@@ -178,6 +181,10 @@ class MainViewModel(
                         label = "радио",
                         onClick = nav.onRadioClick,
                         tintOverride = buildNodeStatusColor(state),
+                        infoBadge = when (state.connectionStatus) {
+                            is MeshConnectionStatus.Connected -> state.nodeMarkers.size.toString().take(2)
+                            else -> null
+                        }.takeIf { it != "0" },
                     ),
                     info = buildNodeStatusInfoSlot(state),
                 ),

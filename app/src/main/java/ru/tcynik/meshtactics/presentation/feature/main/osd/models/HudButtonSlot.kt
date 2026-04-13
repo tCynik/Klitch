@@ -19,4 +19,6 @@ data class HudButtonSlot(
     // null  → color driven by enabled/selected state (default)
     // set   → overrides the computed content color (e.g. GPS signal level tint)
     val tintOverride: Color? = null,
+    // Additional info badge (max 2 characters) displayed as a circle overlay
+    val infoBadge: String? = null,
 )
