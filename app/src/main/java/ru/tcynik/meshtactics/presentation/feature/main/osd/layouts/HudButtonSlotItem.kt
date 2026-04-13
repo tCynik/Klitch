@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
@@ -47,6 +48,7 @@ fun HudButtonSlotItem(
     ) {
         Box {
             MeshIconButton(
+                modifier = Modifier.padding(6.dp),
                 icon = icon,
                 onClick = slot.onClick,
                 enabled = slot.enabled,
@@ -79,7 +81,7 @@ fun HudButtonSlotItem(
             }
         }
         // TODO: gap between button and label is 4.dp (provisional, confirm with /ui-designer)
-        Spacer(modifier = Modifier.height(4.dp))
+//        Spacer(modifier = Modifier.height(4.dp))
 //        Text(
 //            text = slot.label,
 //            // TODO: typography token is labelSmall (provisional, confirm with /ui-designer)
