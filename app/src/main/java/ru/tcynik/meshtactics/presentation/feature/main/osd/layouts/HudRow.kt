@@ -22,6 +22,7 @@ fun HudRow(
             HudSide.Left -> {
                 HudButtonSlotItem(
                     slot = config.button,
+                    side = side,
                 )
                 HudInfoSlotItem(
                     slot = config.info,
@@ -35,6 +36,7 @@ fun HudRow(
                 )
                 HudButtonSlotItem(
                     slot = config.button,
+                    side = side,
                 )
             }
         }
