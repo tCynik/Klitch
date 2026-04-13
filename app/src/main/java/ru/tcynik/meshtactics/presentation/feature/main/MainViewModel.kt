@@ -173,7 +173,12 @@ class MainViewModel(
         HudColumnConfig(
             rows = listOf(
                 HudRowConfig(
-                    button = HudButtonSlot(iconRes = R.drawable.ic_radio,    label = "радио",     onClick = nav.onRadioClick),
+                    button = HudButtonSlot(
+                        iconRes = R.drawable.ic_radio,
+                        label = "радио",
+                        onClick = nav.onRadioClick,
+                        tintOverride = buildNodeStatusColor(state),
+                    ),
                     info = buildNodeStatusInfoSlot(state),
                 ),
                 HudRowConfig(
@@ -196,14 +201,24 @@ class MainViewModel(
             ),
         )
 
-    private fun buildNodeStatusInfoSlot(state: MainUiState): HudInfoSlot {
+    private fun buildNodeStatusColor(state: MainUiState): Color {
         return when (val status = state.connectionStatus) {
-            is MeshConnectionStatus.Connected -> {
-                // TODO: color token — using raw Color until design system defines signal-quality tokens
-                val color = if (status.rssi < RSSI_LOW_THRESHOLD) Color.Red else Color.Green
-                HudInfoSlot(content = state.nodeMarkers.size.toString(), color = color)
-            }
-            else -> HudInfoSlot(content = "--", color = Color.Gray)
+            is MeshConnectionStatus.Connected ->
+                if (status.rssi < RSSI_LOW_THRESHOLD) Color.Yellow else Color.Green
+            MeshConnectionStatus.Disconnected,
+            is MeshConnectionStatus.Error,
+            MeshConnectionStatus.DeviceSleep -> Color.Red
+            MeshConnectionStatus.Scanning,
+            is MeshConnectionStatus.Connecting -> Color.Yellow
         }
+    }
+
+    private fun buildNodeStatusInfoSlot(state: MainUiState): HudInfoSlot {
+        val color = buildNodeStatusColor(state)
+        val content = when (state.connectionStatus) {
+            is MeshConnectionStatus.Connected -> state.nodeMarkers.size.toString()
+            else -> "--"
+        }
+        return HudInfoSlot(content = content, color = color)
     }
 }
