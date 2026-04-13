@@ -142,14 +142,10 @@ fun MapLibreLayer(
                 FillLayer(
                     id = "overlay-fill-${overlay.id}",
                     source = geoSource,
-                    color = const(Color(0x440000FF)),
-                    outlineColor = const(Color(0xFF0000FF)),
                 )
                 LineLayer(
                     id = "overlay-line-${overlay.id}",
                     source = geoSource,
-                    color = const(Color(0xFF0000FF)),
-                    width = const(2f),
                 )
             }
         }
