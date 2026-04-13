@@ -19,6 +19,9 @@ private const val MIN_SPEED_FOR_HEADING = 1
 // 2 minutes — threshold for fresh vs stale visual distinction.
 private const val POSITION_FRESHNESS_SECONDS = 2 * 60
 
+/** Maximum age of a GPS position to be displayed at all, in seconds. Positions older than this are hidden. */
+private const val MAX_POSITION_AGE_SECONDS = 12 * 60 * 60 // 12 hours
+
 /** How often to re-evaluate stale status, in milliseconds. */
 private const val STALE_CHECK_INTERVAL_MS = 10_000L
 
@@ -34,6 +37,8 @@ private const val STALE_CHECK_INTERVAL_MS = 10_000L
  * Nodes with valid position are always shown. Fresh nodes (position within
  * [POSITION_FRESHNESS_SECONDS]) are shown with normal colors. Stale nodes (older position)
  * are shown as grey markers via the [NodeMarkerModel.isStale] flag.
+ *
+ * Nodes with position older than [MAX_POSITION_AGE_SECONDS] are filtered out and not displayed.
  *
  * The stale status is re-evaluated periodically ([STALE_CHECK_INTERVAL_MS]) so that nodes
  * transition from fresh to stale dynamically while the app is running, not just on restart.
@@ -66,17 +71,25 @@ class ObserveNodeMarkersUseCase(
         val ourNodeId = ourNode?.nodeId
         val nowSeconds = System.currentTimeMillis() / 1000
         val freshnessThreshold = nowSeconds - POSITION_FRESHNESS_SECONDS
+        val maxAgeThreshold = nowSeconds - MAX_POSITION_AGE_SECONDS
 
         val peers = nodes.filter { it.nodeId != ourNodeId }
         val withPosition = peers.filter { it.hasValidPosition }
-        val freshCount = withPosition.count {
+        
+        // Filter out nodes with position older than MAX_POSITION_AGE_SECONDS
+        val recentEnough = withPosition.filter { node ->
+            val effectiveTime = if (node.positionTime > 0) node.positionTime else node.lastHeard
+            effectiveTime > maxAgeThreshold
+        }
+        
+        val freshCount = recentEnough.count {
             val effectiveTime = if (it.positionTime > 0) it.positionTime else it.lastHeard
             effectiveTime > freshnessThreshold
         }
         Logger.d { "update: myPosition = '${ourNode?.latitude}/${ourNode?.longitude}', nodes=${nodes.size}/${peers.size} " +
-                "withPosition=${withPosition.size} fresh=$freshCount " +
-                "[${withPosition.joinToString { it.toLogString(nowSeconds) }}]" }
-        return withPosition.map { node ->
+                "withPosition=${withPosition.size} recent=${recentEnough.size} fresh=$freshCount " +
+                "[${recentEnough.joinToString { it.toLogString(nowSeconds) }}]" }
+        return recentEnough.map { node ->
             val effectiveTime = if (node.positionTime > 0) node.positionTime else node.lastHeard
             val isStale = effectiveTime <= freshnessThreshold
             NodeMarkerModel(

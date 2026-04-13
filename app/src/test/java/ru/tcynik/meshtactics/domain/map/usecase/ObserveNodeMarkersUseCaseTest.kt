@@ -181,6 +181,55 @@ class ObserveNodeMarkersUseCaseTest {
         }
     }
 
+    // ── Max position age filtering (12 hours) ────────────────────────────────
+
+    @Test
+    fun `nodes older than 12 hours are filtered out`() = runTest {
+        val now = System.currentTimeMillis() / 1000
+        val thirteenHoursAgo = (now - 13 * 60 * 60).toInt()
+        val oldNode = node(nodeId = "OLD", hasValidPosition = true, positionTime = thirteenHoursAgo)
+        val recentNode = node(nodeId = "RECENT", hasValidPosition = true, positionTime = (now - 3600).toInt()) // 1 hour ago
+        every { repository.observeNodes() } returns flowOf(listOf(oldNode, recentNode))
+        every { repository.observeOurNode() } returns flowOf(null)
+
+        useCase(NoParams).test {
+            val markers = awaitItem()
+            assertEquals(1, markers.size)
+            assertEquals("RECENT", markers[0].nodeId)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `nodes just under 12 hours old are shown`() = runTest {
+        val now = System.currentTimeMillis() / 1000
+        val elevenHours59Min = (now - (12 * 60 * 60 - 60)).toInt() // 11h 59m ago
+        val boundaryNode = node(nodeId = "BOUNDARY", hasValidPosition = true, positionTime = elevenHours59Min)
+        every { repository.observeNodes() } returns flowOf(listOf(boundaryNode))
+        every { repository.observeOurNode() } returns flowOf(null)
+
+        useCase(NoParams).test {
+            val markers = awaitItem()
+            assertEquals(1, markers.size)
+            assertEquals("BOUNDARY", markers[0].nodeId)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `empty result when all nodes are older than 12 hours`() = runTest {
+        val now = System.currentTimeMillis() / 1000
+        val oldNode1 = node(nodeId = "A", hasValidPosition = true, positionTime = (now - 13 * 60 * 60).toInt())
+        val oldNode2 = node(nodeId = "B", hasValidPosition = true, positionTime = (now - 20 * 60 * 60).toInt())
+        every { repository.observeNodes() } returns flowOf(listOf(oldNode1, oldNode2))
+        every { repository.observeOurNode() } returns flowOf(null)
+
+        useCase(NoParams).test {
+            assertTrue(awaitItem().isEmpty())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private fun node(
