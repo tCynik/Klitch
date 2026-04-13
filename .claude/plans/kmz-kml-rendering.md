@@ -5,65 +5,65 @@
 
 ## Summary
 
-Отображение импортированных KMZ/KML оверлеев на карте MapLibre. Пользователь включает/выключает
-отображение чекбоксом в настройках (Settings → Map tab). Состояние `is_selected` уже персистируется
-в SQLDelight. Импорт файлов реализован. Эта фича добавляет:
+Rendering of imported KMZ/KML overlays on the MapLibre map. The user toggles display via a checkbox
+in settings (Settings → Map tab). The `is_selected` state is already persisted in SQLDelight. File
+import is already implemented. This feature adds:
 
-1. **Парсинг при импорте** — KMZ/KML → GeoJSON (вектор) + PNG (GroundOverlay), кэш в `filesDir`
-2. **Обновление схемы** — пути к кэшированным файлам хранятся в SQLDelight
-3. **Рендеринг в MapLibreLayer** — `GeoJsonSource` + слои для вектора; `ImageSource` + `RasterLayer` для растра
-4. **MainViewModel** — наблюдает за выбранными оверлеями и передаёт данные в MapLibreLayer
+1. **Parse-on-import** — KMZ/KML → GeoJSON (vector) + PNG (GroundOverlay), cached in `filesDir`
+2. **Schema update** — paths to cached files are stored in SQLDelight
+3. **Rendering in MapLibreLayer** — `GeoJsonSource` + layers for vector; `ImageSource` + `RasterLayer` for raster
+4. **MainViewModel** — observes selected overlays and passes data to MapLibreLayer
 
 ---
 
 ## Architecture Notes
 
-### Парсинг: import-time (рекомендовано research)
-- KMZ/KML тяжело парсить на каждом открытии карты → парсим один раз при импорте
-- Результат сохраняется в `context.filesDir/overlays/{id}/`:
-  - `features.geojson` — вектор (Placemark'и, линии, полигоны)
-  - `ground_overlay.png` — растровый оверлей (если есть)
-  - `ground_overlay_bounds.json` — `{north, south, east, west}` для `LatLngQuad`
-- SAF URI остаётся как ссылка на оригинал; кэш — рабочая копия для рендеринга
+### Parsing: import-time (recommended by research)
+- KMZ/KML are heavy to parse on every map open → parse once during import
+- Results are saved to `context.filesDir/overlays/{id}/`:
+  - `features.geojson` — vector (Placemarks, lines, polygons)
+  - `ground_overlay.png` — raster overlay (if present)
+  - `ground_overlay_bounds.json` — `{north, south, east, west}` for `LatLngQuad`
+- SAF URI remains as a reference to the original; cache is the working copy for rendering
 
-### Рендеринг в maplibre-compose
-- **Вектор**: `rememberGeoJsonSource` + `FillLayer` / `LineLayer` / `SymbolLayer` (уже используются в проекте)
-- **GroundOverlay**: `ImageSource` — нужно проверить, есть ли `rememberImageSource` в maplibre-compose 0.12.1.
-  Fallback: нативный SDK через `MapEffect { map -> map.style?.addSource(...) }`
+### Rendering in maplibre-compose
+- **Vector**: `rememberGeoJsonSource` + `FillLayer` / `LineLayer` / `SymbolLayer` (already used in the project)
+- **GroundOverlay**: `ImageSource` — need to verify if `rememberImageSource` exists in maplibre-compose 0.12.1.
+  Fallback: native SDK via `MapEffect { map -> map.style?.addSource(...) }`
 
-### Слои рендеринга оверлеев
-- Оверлеи рендерятся **поверх базовой растровой карты**, но **под маркерами узлов**
-- Порядок: `base-raster-layer` → `overlay-ground-*` → `overlay-fill-*` → `overlay-line-*` → `overlay-symbol-*` → node layers
+### Overlay rendering layer order
+- Overlays are rendered **above the base raster map**, but **below node markers**
+- Order: `base-raster-layer` → `overlay-ground-*` → `overlay-fill-*` → `overlay-line-*` → `overlay-symbol-*` → node layers
 
-### Изменения SQLDelight
-- Добавить колонки `geo_json_path TEXT` и `ground_overlay_path TEXT` (nullable, NULL = не распарсено)
-- Версия схемы SQLDelight (dev-проект, миграции нет) → bump version в `Database.sq` или пересоздать БД
+### SQLDelight changes
+- Add columns `geo_json_path TEXT` and `ground_overlay_path TEXT` (nullable, NULL = not parsed)
+- SQLDelight schema version (dev project, no migrations) → bump version in `Database.sq` or recreate DB
 
 ---
 
 ## Scope
 
 **In scope:**
-- OSMBonusPack как парсер KML/KMZ (уже исследован)
-- Расширение `ImportedMapOverlay.sq` — пути к кэшу
-- `KmlOverlayParser` в `app/data/local/map/` — unzip KMZ + parse KML + serialize GeoJSON + extract PNG
-- Обновление `ImportedMapRepositoryImpl.import()` — вызывает parser, сохраняет пути
-- Presentation model `OverlayRenderModel` в `presentation/feature/main/osd/models/`
-- `ObserveSelectedOverlaysUseCase` — фильтр `isSelected == true`, читает GeoJSON из кэша, загружает Bitmap
-- `MainUiState` — новое поле `selectedOverlays: ImmutableList<OverlayRenderModel>`
+- OSMBonusPack as KML/KMZ parser (already researched)
+- Extend `ImportedMapOverlay.sq` — cache paths
+- `KmlOverlayParser` in `app/data/local/map/` — unzip KMZ + parse KML + serialize GeoJSON + extract PNG
+- Update `ImportedMapRepositoryImpl.import()` — calls parser, saves paths
+- Presentation model `OverlayRenderModel` in `presentation/feature/main/osd/models/`
+- `ObserveSelectedOverlaysUseCase` — filter `isSelected == true`, reads GeoJSON from cache, loads Bitmap
+- `MainUiState` — new field `selectedOverlays: ImmutableList<OverlayRenderModel>`
 - `MainViewModel` — wires `ObserveSelectedOverlaysUseCase`
-- `MapLibreLayer` — рендерит оверлеи (GeoJSON layers + GroundOverlay)
+- `MapLibreLayer` — renders overlays (GeoJSON layers + GroundOverlay)
 
 **Out of scope:**
-- Поддержка `NetworkLink`, `TimeSpan`, 3D KML-элементов
-- Полная KML-стилизация (цвета, иконки Placemark'ов) — базовые стили, доработка позже
-- Повторный парсинг уже импортированных файлов (ретроактивно не применяется)
+- Support for `NetworkLink`, `TimeSpan`, 3D KML elements
+- Full KML stylization (colors, Placemark icons) — basic styles only, refinement later
+- Reparsing already imported files (not applied retroactively)
 
 ---
 
 ## Data Models
 
-### SQLDelight (изменение схемы)
+### SQLDelight (schema change)
 ```sql
 CREATE TABLE ImportedMapOverlay (
     id                   TEXT    NOT NULL PRIMARY KEY,
@@ -87,7 +87,7 @@ selectSelected:
 SELECT * FROM ImportedMapOverlay WHERE is_selected = 1;
 ```
 
-### Domain model `ImportedMapOverlay.kt` — расширить
+### Domain model `ImportedMapOverlay.kt` — extend
 ```kotlin
 data class ImportedMapOverlay(
     val id: String,
@@ -100,7 +100,7 @@ data class ImportedMapOverlay(
 )
 ```
 
-### Presentation model (новый файл)
+### Presentation model (new file)
 ```
 presentation/feature/main/osd/models/OverlayRenderModel.kt
 ```
@@ -125,70 +125,70 @@ data class GroundOverlayBounds(
 ## Phase Plan
 
 ### Phase 0 — Research ✅ Done
-**Результат:**
+**Result:**
 
-1. `rememberImageSource(position: PositionQuad, bitmap: ImageBitmap)` **есть** в maplibre-compose 0.12.1
-   — файл `commonMain/org/maplibre/compose/sources/ImageSource.kt`
-   — Вариант A (нативный `MapEffect`) не нужен
-2. `PositionQuad(topLeft, topRight, bottomRight, bottomLeft)` принимает `org.maplibre.spatialk.geojson.Position`
-3. `FillLayer`, `LineLayer` **есть** в `org.maplibre.compose.layers`
-4. OSMBonusPack совместим с minSdk 24 (Java 8+, подтверждено research)
+1. `rememberImageSource(position: PositionQuad, bitmap: ImageBitmap)` **exists** in maplibre-compose 0.12.1
+   — file `commonMain/org/maplibre/compose/sources/ImageSource.kt`
+   — Option A (native `MapEffect`) is not needed
+2. `PositionQuad(topLeft, topRight, bottomRight, bottomLeft)` accepts `org.maplibre.spatialk.geojson.Position`
+3. `FillLayer`, `LineLayer` **exist** in `org.maplibre.compose.layers`
+4. OSMBonusPack is compatible with minSdk 24 (Java 8+, confirmed by research)
 
 ### Phase 1 — Dependency + Schema
-1. Добавить в `app/build.gradle.kts`:
+1. Add to `app/build.gradle.kts`:
    ```kotlin
    implementation("org.osmdroid:osmbonuspack:6.9.0")
    ```
-2. Изменить `ImportedMapOverlay.sq` — добавить колонки + новые queries
-3. Расширить domain model `ImportedMapOverlay.kt`
-4. Обновить `ImportedMapRepositoryImpl.toDomain()` — маппинг новых полей
-5. Bump SQLDelight schema version (либо `fallbackToDestructiveMigration` в DatabaseFactory)
+2. Modify `ImportedMapOverlay.sq` — add columns + new queries
+3. Extend domain model `ImportedMapOverlay.kt`
+4. Update `ImportedMapRepositoryImpl.toDomain()` — map new fields
+5. Bump SQLDelight schema version (or `fallbackToDestructiveMigration` in DatabaseFactory)
 
-**Token checkpoint**: `/compact` после фазы
+**Token checkpoint**: `/compact` after phase
 
 ### Phase 2 — KML Parser
-**Файл**: `app/src/main/java/ru/tcynik/meshtactics/data/local/map/KmlOverlayParser.kt`
+**File**: `app/src/main/java/ru/tcynik/meshtactics/data/local/map/KmlOverlayParser.kt`
 
 ```kotlin
 class KmlOverlayParser(private val context: Context) {
-    // Возвращает пути к кэшированным файлам (null = тип отсутствует в KML)
+    // Returns paths to cached files (null = type absent in KML)
     suspend fun parse(id: String, uri: Uri): ParseResult
 
     data class ParseResult(
         val geoJsonPath: String?,
-        val groundOverlayPath: String?,    // path к PNG
-        val groundOverlayBoundsPath: String?, // path к JSON с bounds
+        val groundOverlayPath: String?,    // path to PNG
+        val groundOverlayBoundsPath: String?, // path to JSON with bounds
     )
 }
 ```
 
-**Логика**:
-- Определить формат по расширению (`uri.path?.endsWith(".kmz")`)
-- KMZ → unzip в temp dir → найти `.kml` внутри
-- KML → `KmlDocument().parseGeoJSON(context, kmlFile)` → `saveAsGeoJSON()` → записать в `filesDir/overlays/{id}/features.geojson`
-- Найти `GroundOverlay` в `KmlDocument` → взять `mIcon: Bitmap` + `mNorth/mSouth/mEast/mWest`
-  → записать PNG в `filesDir/overlays/{id}/ground_overlay.png`
-  → записать bounds JSON в `filesDir/overlays/{id}/ground_overlay_bounds.json`
+**Logic**:
+- Determine format by extension (`uri.path?.endsWith(".kmz")`)
+- KMZ → unzip to temp dir → find `.kml` inside
+- KML → `KmlDocument().parseGeoJSON(context, kmlFile)` → `saveAsGeoJSON()` → write to `filesDir/overlays/{id}/features.geojson`
+- Find `GroundOverlay` in `KmlDocument` → get `mIcon: Bitmap` + `mNorth/mSouth/mEast/mWest`
+  → write PNG to `filesDir/overlays/{id}/ground_overlay.png`
+  → write bounds JSON to `filesDir/overlays/{id}/ground_overlay_bounds.json`
 
 ### Phase 3 — Import wiring
-В `ImportedMapRepositoryImpl.import()`:
-- После `queries.insert(...)` вызвать `KmlOverlayParser.parse(id, parsedUri)`
-- Вызвать `queries.updateParsedPaths(geoJsonPath, groundOverlayPath, id)`
+In `ImportedMapRepositoryImpl.import()`:
+- After `queries.insert(...)` call `KmlOverlayParser.parse(id, parsedUri)`
+- Call `queries.updateParsedPaths(geoJsonPath, groundOverlayPath, id)`
 
 ### Phase 4 — Use case + Presentation model
-1. Создать `ObserveSelectedOverlaysUseCase`:
+1. Create `ObserveSelectedOverlaysUseCase`:
    - `ImportedMapRepository.observeSelected(): Flow<List<ImportedMapOverlay>>`
-   - Для каждого оверлея читает `geoJsonPath` → файл → строку GeoJSON
-   - Загружает `groundOverlayPath` → `BitmapFactory.decodeFile()` + читает bounds JSON
-   - Эмитит `List<OverlayRenderModel>`
-2. Создать `OverlayRenderModel.kt` + `GroundOverlayBounds.kt` в `presentation/feature/main/osd/models/`
+   - For each overlay reads `geoJsonPath` → file → GeoJSON string
+   - Loads `groundOverlayPath` → `BitmapFactory.decodeFile()` + reads bounds JSON
+   - Emits `List<OverlayRenderModel>`
+2. Create `OverlayRenderModel.kt` + `GroundOverlayBounds.kt` in `presentation/feature/main/osd/models/`
 
 ### Phase 5 — MainViewModel + MainUiState
-1. В `MainUiState` добавить:
+1. In `MainUiState` add:
    ```kotlin
    val selectedOverlays: ImmutableList<OverlayRenderModel> = persistentListOf()
    ```
-2. В `MainViewModel.init {}`:
+2. In `MainViewModel.init {}`:
    ```kotlin
    observeSelectedOverlays(NoParams)
        .onEach { overlays ->
@@ -196,17 +196,17 @@ class KmlOverlayParser(private val context: Context) {
        }
        .launchIn(viewModelScope)
    ```
-3. Пробросить `selectedOverlays` в `MapLibreLayer` через `MainScreen`
+3. Pass `selectedOverlays` to `MapLibreLayer` via `MainScreen`
 
 ### Phase 6 — MapLibreLayer rendering
-Добавить параметр:
+Add parameter:
 ```kotlin
 selectedOverlays: ImmutableList<OverlayRenderModel> = persistentListOf()
 ```
 
-Внутри `MaplibreMap { ... }` после базовой растровой карты и перед маркерами узлов:
+Inside `MaplibreMap { ... }` after the base raster map and before node markers:
 
-**GroundOverlay** (если `overlay.groundOverlayBitmap != null`):
+**GroundOverlay** (if `overlay.groundOverlayBitmap != null`):
 ```kotlin
 val imageSource = rememberImageSource(
     position = PositionQuad(topLeft, topRight, bottomRight, bottomLeft),
@@ -215,7 +215,7 @@ val imageSource = rememberImageSource(
 RasterLayer(id = "overlay-ground-${overlay.id}", source = imageSource)
 ```
 
-**GeoJSON вектор** (если `overlay.geoJson != null`):
+**GeoJSON vector** (if `overlay.geoJson != null`):
 ```kotlin
 val geoSource = rememberGeoJsonSource(GeoJsonData.JsonString(overlay.geoJson))
 FillLayer(id = "overlay-fill-${overlay.id}", source = geoSource, ...)
@@ -223,23 +223,23 @@ LineLayer(id = "overlay-line-${overlay.id}", source = geoSource, ...)
 SymbolLayer(id = "overlay-sym-${overlay.id}", source = geoSource, ...)
 ```
 
-Решение по Варианту A/B принимается по итогам Phase 0.
+Decision on Option A/B is made based on Phase 0 results.
 
 ### Phase 7 — DI wiring
 - `app/di/MapDataModule.kt`: bind `KmlOverlayParser`, `ObserveSelectedOverlaysUseCase`
-- `app/di/MainModule.kt` (или где живёт `MainViewModel`): inject `ObserveSelectedOverlaysUseCase`
+- `app/di/MainModule.kt` (or wherever `MainViewModel` lives): inject `ObserveSelectedOverlaysUseCase`
 
 ### Phase 8 — Testing
 - `ObserveSelectedOverlaysUseCase` — Turbine, mock repository
-- `KmlOverlayParser` — instrumental test с реальным KMZ/KML файлом из assets
+- `KmlOverlayParser` — instrumental test with real KMZ/KML file from assets
 
 ### Phase 9 — Simplify + Review
-- `/simplify` на `MapLibreLayer.kt`, `MainViewModel.kt`, `ImportedMapRepositoryImpl.kt`
-- `/architect review` на `app/domain/map/`, `app/data/local/map/`, `MapLibreLayer.kt`
+- `/simplify` on `MapLibreLayer.kt`, `MainViewModel.kt`, `ImportedMapRepositoryImpl.kt`
+- `/architect review` on `app/domain/map/`, `app/data/local/map/`, `MapLibreLayer.kt`
 
 ### Phase 10 — CLAUDE.md + commit
-- CLAUDE.md: обновить статус фичи KMZ/KML rendering → Done
-- Сформировать коммит на русском без `Co-Authored-By`
+- CLAUDE.md: update KMZ/KML rendering feature status → Done
+- Form commit message in Russian without `Co-Authored-By`
 
 ---
 
@@ -263,18 +263,18 @@ Phase 10: CLAUDE.md + commit
 
 ## Open Questions
 
-1. ~~**maplibre-compose 0.12.1 ImageSource**~~ ✅ `rememberImageSource(PositionQuad, ImageBitmap)` есть
-2. **OSMBonusPack GroundOverlay bounds** — уточнить поля при реализации Phase 2 (вероятно `mNorth`/`mSouth`/`mEast`/`mWest` в `KmlGroundOverlay`)
-3. **SQLDelight schema bump** — уточнить в Phase 1 (найти `DatabaseFactory` / версию схемы)
+1. ~~**maplibre-compose 0.12.1 ImageSource**~~ ✅ `rememberImageSource(PositionQuad, ImageBitmap)` exists
+2. **OSMBonusPack GroundOverlay bounds** — clarify fields during Phase 2 implementation (likely `mNorth`/`mSouth`/`mEast`/`mWest` in `KmlGroundOverlay`)
+3. **SQLDelight schema bump** — clarify in Phase 1 (find `DatabaseFactory` / schema version)
 
 ---
 
 ## Decisions
 
-1. **Парсинг при импорте, не при рендеринге** — CPU-тяжёлая операция; кэш в `filesDir` обеспечивает быстрый старт карты
-2. **Отдельный кэш-каталог** `filesDir/overlays/{id}/` — изоляция по оверлею, легко чистить при `hide`/`delete`
-3. **Bounds как JSON-файл** — не расширяем SQLDelight schema лишними полями float; читается вместе с bitmap
-4. **Слои рендерятся динамически** по списку selected overlays — нет захардкоженных ID
+1. **Parse on import, not on rendering** — CPU-heavy operation; cache in `filesDir` ensures fast map startup
+2. **Separate cache directory** `filesDir/overlays/{id}/` — isolation per overlay, easy to clean on `hide`/`delete`
+3. **Bounds as JSON file** — don't clutter SQLDelight schema with extra float fields; read together with bitmap
+4. **Layers rendered dynamically** from selected overlays list — no hardcoded IDs
 
 ## Change Log
-- 2026-04-13: создан
+- 2026-04-13: created
