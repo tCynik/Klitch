@@ -38,7 +38,13 @@
       "Bash(curl -s --max-time 30 \"https://api.github.com/repos/maplibre/maplibre-native/contents/platform/android/MapLibreAndroid/src/main/java/org/maplibre/geojson\")",
       "Bash(curl -s --max-time 30 \"https://api.github.com/repos/maplibre/maplibre-java/contents\")",
       "Bash(curl -s --max-time 30 \"https://api.github.com/repos/maplibre/maplibre-java/contents/services-geojson/src/main/java/org/maplibre/geojson\")",
-      "Bash(curl -s --max-time 30 \"https://raw.githubusercontent.com/maplibre/maplibre-java/main/services-geojson/src/main/java/org/maplibre/geojson/FeatureCollection.java\")"
+      "Bash(curl -s --max-time 30 \"https://raw.githubusercontent.com/maplibre/maplibre-java/main/services-geojson/src/main/java/org/maplibre/geojson/FeatureCollection.java\")",
+      "Bash(python3 -c ':*)",
+      "Bash(unzip -l maplibre-compose-android-0.12.1-sources.jar)",
+      "Bash(unzip -p maplibre-compose-android-0.12.1-sources.jar androidMain/org/maplibre/compose/sources/ImageSource.kt)",
+      "Bash(unzip -p maplibre-compose-android-0.12.1-sources.jar)",
+      "Bash(unzip -p maplibre-compose-android-0.12.1-sources.jar commonMain/org/maplibre/compose/sources/GeoJsonSource.kt)",
+      "Bash(unzip -p maplibre-compose-android-0.12.1-sources.jar commonMain/org/maplibre/compose/sources/ImageSource.kt)"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude"

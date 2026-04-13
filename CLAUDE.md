@@ -73,4 +73,5 @@
 | Directional Node Markers | `.claude/plans/directional_nodes_marks.md` | Done |
 | Fix GPS Sending Logic | `.claude/plans/fix-gps-sending-logic.md` | Done |
 | KMZ/KML Import | `.claude/plans/kmz-kml-import.md` | Done |
+| KMZ/KML Rendering | `.claude/plans/kmz-kml-rendering.md` | Planned |
 | Universal Orientation | `.claude/plans/universal-orientation.md` | Planned |
