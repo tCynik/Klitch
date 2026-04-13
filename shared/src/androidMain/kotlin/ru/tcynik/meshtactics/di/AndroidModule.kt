@@ -17,7 +17,7 @@ val androidModule: Module = module {
         AndroidSqliteDriver(
             schema = AppDatabase.Schema,
             context = androidContext(),
-            name = "mesh.db",
+            name = "mesh_v2.db",
         )
     }
 

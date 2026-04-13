@@ -1,9 +1,11 @@
 CREATE TABLE ImportedMapOverlay (
-    id          TEXT    NOT NULL PRIMARY KEY,
-    name        TEXT    NOT NULL,
-    uri         TEXT    NOT NULL,
-    created_at  INTEGER NOT NULL,
-    is_selected INTEGER NOT NULL DEFAULT 0
+    id                   TEXT    NOT NULL PRIMARY KEY,
+    name                 TEXT    NOT NULL,
+    uri                  TEXT    NOT NULL,
+    created_at           INTEGER NOT NULL,
+    is_selected          INTEGER NOT NULL DEFAULT 0,
+    geo_json_path        TEXT,
+    ground_overlay_path  TEXT
 );
 
 selectAll:
@@ -11,6 +13,9 @@ SELECT * FROM ImportedMapOverlay ORDER BY created_at DESC;
 
 selectById:
 SELECT * FROM ImportedMapOverlay WHERE id = :id;
+
+selectSelected:
+SELECT * FROM ImportedMapOverlay WHERE is_selected = 1;
 
 insert:
 INSERT INTO ImportedMapOverlay(id, name, uri, created_at, is_selected)
@@ -21,3 +26,8 @@ DELETE FROM ImportedMapOverlay WHERE id = :id;
 
 setSelected:
 UPDATE ImportedMapOverlay SET is_selected = :isSelected WHERE id = :id;
+
+updateParsedPaths:
+UPDATE ImportedMapOverlay
+SET geo_json_path = :geoJsonPath, ground_overlay_path = :groundOverlayPath
+WHERE id = :id;

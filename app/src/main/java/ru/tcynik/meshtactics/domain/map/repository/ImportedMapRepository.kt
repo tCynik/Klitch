@@ -5,6 +5,7 @@ import ru.tcynik.meshtactics.domain.map.model.ImportedMapOverlay
 
 interface ImportedMapRepository {
     fun observeAll(): Flow<List<ImportedMapOverlay>>
+    fun observeSelected(): Flow<List<ImportedMapOverlay>>
     suspend fun import(uri: String, name: String, createdAt: Long)
     suspend fun hide(id: String)
     suspend fun delete(id: String)

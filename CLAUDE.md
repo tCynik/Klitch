@@ -25,6 +25,7 @@
 | Отправка GPS телефона на радиоузел (setFixedPosition) | ✅ Done |
 | GPS в фоне (GpsService foreground service) | ✅ Done |
 | Импорт KMZ/KML оверлеев (SAF + SQLDelight) | ✅ Done |
+| Рендеринг KMZ/KML оверлеев на карте | ✅ Done |
 | Визуальный язык (цвет, типографика, HUD) | ⏳ Deferred (после отработки userFlow) |
 | BLE-узлы на карте (telemetry) | ⬜ Planned |
 | Чат | ⬜ Planned |
@@ -73,5 +74,5 @@
 | Directional Node Markers | `.claude/plans/directional_nodes_marks.md` | Done |
 | Fix GPS Sending Logic | `.claude/plans/fix-gps-sending-logic.md` | Done |
 | KMZ/KML Import | `.claude/plans/kmz-kml-import.md` | Done |
-| KMZ/KML Rendering | `.claude/plans/kmz-kml-rendering.md` | Planned |
+| KMZ/KML Rendering | `.claude/plans/kmz-kml-rendering.md` | Done |
 | Universal Orientation | `.claude/plans/universal-orientation.md` | Planned |

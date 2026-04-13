@@ -6,4 +6,6 @@ data class ImportedMapOverlay(
     val uri: String,
     val createdAt: Long,
     val isSelected: Boolean,
+    val geoJsonPath: String?,
+    val groundOverlayPath: String?,
 )

@@ -18,10 +18,17 @@ import java.util.UUID
 class ImportedMapRepositoryImpl(
     private val context: Context,
     private val queries: ImportedMapOverlayQueries,
+    private val parser: KmlOverlayParser,
 ) : ImportedMapRepository {
 
     override fun observeAll(): Flow<List<ImportedMapOverlay>> =
         queries.selectAll()
+            .asFlow()
+            .mapToList(Dispatchers.Default)
+            .map { rows -> rows.map { it.toDomain() } }
+
+    override fun observeSelected(): Flow<List<ImportedMapOverlay>> =
+        queries.selectSelected()
             .asFlow()
             .mapToList(Dispatchers.Default)
             .map { rows -> rows.map { it.toDomain() } }
@@ -34,12 +41,19 @@ class ImportedMapRepositoryImpl(
         )
         withContext(Dispatchers.IO) {
             val fileDate = queryFileDate(parsedUri) ?: createdAt
+            val id = UUID.randomUUID().toString()
             queries.insert(
-                id = UUID.randomUUID().toString(),
+                id = id,
                 name = name,
                 uri = uri,
                 createdAt = fileDate,
                 isSelected = 0L,
+            )
+            val result = parser.parse(id, parsedUri)
+            queries.updateParsedPaths(
+                geoJsonPath = result.geoJsonPath,
+                groundOverlayPath = result.groundOverlayPath,
+                id = id,
             )
         }
     }
@@ -103,5 +117,7 @@ class ImportedMapRepositoryImpl(
         uri = uri,
         createdAt = created_at,
         isSelected = is_selected != 0L,
+        geoJsonPath = geo_json_path,
+        groundOverlayPath = ground_overlay_path,
     )
 }

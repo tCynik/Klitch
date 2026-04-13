@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -31,17 +32,22 @@ import org.maplibre.compose.expressions.value.FloatValue
 import org.maplibre.compose.expressions.value.IconRotationAlignment
 import org.maplibre.compose.expressions.value.SymbolAnchor
 import org.maplibre.compose.layers.CircleLayer
+import org.maplibre.compose.layers.FillLayer
+import org.maplibre.compose.layers.LineLayer
 import org.maplibre.compose.layers.RasterLayer
 import org.maplibre.compose.layers.SymbolLayer
 import org.maplibre.compose.map.MaplibreMap
 import org.maplibre.compose.sources.GeoJsonData
 import org.maplibre.compose.sources.rememberGeoJsonSource
+import org.maplibre.compose.sources.rememberImageSource
 import org.maplibre.compose.sources.rememberRasterSource
 import org.maplibre.compose.style.BaseStyle
+import org.maplibre.compose.util.PositionQuad
 import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.domain.marker.model.NodeMarkerModel
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MarkerSizeConfig
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.OverlayRenderModel
 
 // BaseStyle.Empty has no `glyphs` URL — SymbolLayer text rendering fails without it and breaks
 // all other layers too. This style adds the MapLibre demotiles glyph server.
@@ -73,6 +79,7 @@ fun MapLibreLayer(
     markerSizeLevel: Int = 5,
     userPosition: Position? = null,
     userBearing: Float = 0f,
+    selectedOverlays: ImmutableList<OverlayRenderModel> = persistentListOf(),
 ) {
     var hasUserMoved by remember { mutableStateOf(false) }
 
@@ -105,6 +112,47 @@ fun MapLibreLayer(
             id = "base-raster-layer",
             source = tileSource,
         )
+
+        // ── Overlay layers (above base map, below node markers) ──────────────
+        for (overlay in selectedOverlays) {
+            // GroundOverlay raster
+            val bitmap = overlay.groundOverlayBitmap
+            val bounds = overlay.groundOverlayBounds
+            if (bitmap != null && bounds != null) {
+                val quad = PositionQuad(
+                    topLeft     = Position(longitude = bounds.west, latitude = bounds.north),
+                    topRight    = Position(longitude = bounds.east, latitude = bounds.north),
+                    bottomRight = Position(longitude = bounds.east, latitude = bounds.south),
+                    bottomLeft  = Position(longitude = bounds.west, latitude = bounds.south),
+                )
+                val imageSource = rememberImageSource(
+                    position = quad,
+                    bitmap = bitmap.asImageBitmap(),
+                )
+                RasterLayer(
+                    id = "overlay-ground-${overlay.id}",
+                    source = imageSource,
+                )
+            }
+
+            // GeoJSON vector
+            val geoJson = overlay.geoJson
+            if (geoJson != null) {
+                val geoSource = rememberGeoJsonSource(GeoJsonData.JsonString(geoJson))
+                FillLayer(
+                    id = "overlay-fill-${overlay.id}",
+                    source = geoSource,
+                    color = const(Color(0x440000FF)),
+                    outlineColor = const(Color(0xFF0000FF)),
+                )
+                LineLayer(
+                    id = "overlay-line-${overlay.id}",
+                    source = geoSource,
+                    color = const(Color(0xFF0000FF)),
+                    width = const(2f),
+                )
+            }
+        }
 
         val (animatedOnlineJson, animatedOfflineJson, animatedStaleJson) = animateGeoJsonInterpolation(nodeMarkers)
 

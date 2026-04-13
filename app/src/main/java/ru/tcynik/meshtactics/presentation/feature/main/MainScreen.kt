@@ -76,6 +76,7 @@ fun MainScreen(
                 markerSizeLevel = uiState.markerSizeLevel,
                 userPosition = currentLocation?.position,
                 userBearing = bearing,
+                selectedOverlays = uiState.selectedOverlays,
             )
         }
 

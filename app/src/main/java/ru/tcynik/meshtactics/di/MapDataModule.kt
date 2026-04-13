@@ -4,6 +4,7 @@ import com.russhwolf.settings.Settings
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 import ru.tcynik.meshtactics.data.local.map.ImportedMapRepositoryImpl
+import ru.tcynik.meshtactics.data.local.map.KmlOverlayParser
 import ru.tcynik.meshtactics.data.local.map.LastMapPositionRepositoryImpl
 import ru.tcynik.meshtactics.data.map.repository.MapTileRepositoryImpl
 import ru.tcynik.meshtactics.domain.map.repository.ImportedMapRepository
@@ -16,6 +17,7 @@ import ru.tcynik.meshtactics.domain.map.usecase.HideImportedMapUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ImportMapFileUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveImportedMapsUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveNodeMarkersUseCase
+import ru.tcynik.meshtactics.domain.map.usecase.ObserveSelectedOverlaysUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ToggleImportedMapSelectionUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetMarkerSizeLevelUseCase
@@ -39,8 +41,10 @@ val mapDataModule = module {
     single { ObserveMarkerSizeLevelUseCase(get()) }
 
     // Imported map overlays (KMZ/KML via SAF)
-    single<ImportedMapRepository> { ImportedMapRepositoryImpl(androidContext(), get()) }
+    single { KmlOverlayParser(androidContext()) }
+    single<ImportedMapRepository> { ImportedMapRepositoryImpl(androidContext(), get(), get()) }
     single { ObserveImportedMapsUseCase(get()) }
+    single { ObserveSelectedOverlaysUseCase(get()) }
     single { ImportMapFileUseCase(get()) }
     single { HideImportedMapUseCase(get()) }
     single { DeleteImportedMapUseCase(get()) }

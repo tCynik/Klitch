@@ -1,7 +1,7 @@
 # Plan: KMZ/KML Overlay Rendering
 
 **Date**: 2026-04-13
-**Status**: Planned
+**Status**: Done
 
 ## Summary
 
