@@ -134,7 +134,7 @@ data class GroundOverlayBounds(
 3. `FillLayer`, `LineLayer` **exist** in `org.maplibre.compose.layers`
 4. OSMBonusPack is compatible with minSdk 24 (Java 8+, confirmed by research)
 
-### Phase 1 — Dependency + Schema
+### Phase 1 — Dependency + Schema ✅ Done
 1. Add to `app/build.gradle.kts`:
    ```kotlin
    implementation("org.osmdroid:osmbonuspack:6.9.0")
@@ -146,7 +146,7 @@ data class GroundOverlayBounds(
 
 **Token checkpoint**: `/compact` after phase
 
-### Phase 2 — KML Parser
+### Phase 2 — KML Parser ✅ Done
 **File**: `app/src/main/java/ru/tcynik/meshtactics/data/local/map/KmlOverlayParser.kt`
 
 ```kotlin
@@ -170,12 +170,12 @@ class KmlOverlayParser(private val context: Context) {
   → write PNG to `filesDir/overlays/{id}/ground_overlay.png`
   → write bounds JSON to `filesDir/overlays/{id}/ground_overlay_bounds.json`
 
-### Phase 3 — Import wiring
+### Phase 3 — Import wiring ✅ Done
 In `ImportedMapRepositoryImpl.import()`:
 - After `queries.insert(...)` call `KmlOverlayParser.parse(id, parsedUri)`
 - Call `queries.updateParsedPaths(geoJsonPath, groundOverlayPath, id)`
 
-### Phase 4 — Use case + Presentation model
+### Phase 4 — Use case + Presentation model ✅ Done
 1. Create `ObserveSelectedOverlaysUseCase`:
    - `ImportedMapRepository.observeSelected(): Flow<List<ImportedMapOverlay>>`
    - For each overlay reads `geoJsonPath` → file → GeoJSON string
@@ -183,7 +183,7 @@ In `ImportedMapRepositoryImpl.import()`:
    - Emits `List<OverlayRenderModel>`
 2. Create `OverlayRenderModel.kt` + `GroundOverlayBounds.kt` in `presentation/feature/main/osd/models/`
 
-### Phase 5 — MainViewModel + MainUiState
+### Phase 5 — MainViewModel + MainUiState ✅ Done
 1. In `MainUiState` add:
    ```kotlin
    val selectedOverlays: ImmutableList<OverlayRenderModel> = persistentListOf()
@@ -198,7 +198,7 @@ In `ImportedMapRepositoryImpl.import()`:
    ```
 3. Pass `selectedOverlays` to `MapLibreLayer` via `MainScreen`
 
-### Phase 6 — MapLibreLayer rendering
+### Phase 6 — MapLibreLayer rendering ✅ Done
 Add parameter:
 ```kotlin
 selectedOverlays: ImmutableList<OverlayRenderModel> = persistentListOf()
@@ -225,19 +225,19 @@ SymbolLayer(id = "overlay-sym-${overlay.id}", source = geoSource, ...)
 
 Decision on Option A/B is made based on Phase 0 results.
 
-### Phase 7 — DI wiring
+### Phase 7 — DI wiring ✅ Done
 - `app/di/MapDataModule.kt`: bind `KmlOverlayParser`, `ObserveSelectedOverlaysUseCase`
 - `app/di/MainModule.kt` (or wherever `MainViewModel` lives): inject `ObserveSelectedOverlaysUseCase`
 
-### Phase 8 — Testing
+### Phase 8 — Testing ✅ Done
 - `ObserveSelectedOverlaysUseCase` — Turbine, mock repository
 - `KmlOverlayParser` — instrumental test with real KMZ/KML file from assets
 
-### Phase 9 — Simplify + Review
+### Phase 9 — Simplify + Review ✅ Done
 - `/simplify` on `MapLibreLayer.kt`, `MainViewModel.kt`, `ImportedMapRepositoryImpl.kt`
 - `/architect review` on `app/domain/map/`, `app/data/local/map/`, `MapLibreLayer.kt`
 
-### Phase 10 — CLAUDE.md + commit
+### Phase 10 — CLAUDE.md + commit ✅ Done
 - CLAUDE.md: update KMZ/KML rendering feature status → Done
 - Form commit message in Russian without `Co-Authored-By`
 
@@ -277,4 +277,5 @@ Phase 10: CLAUDE.md + commit
 4. **Layers rendered dynamically** from selected overlays list — no hardcoded IDs
 
 ## Change Log
-- 2026-04-13: created
+- 2026-04-13: создан план
+- 2026-04-13: все фазы завершены; фича влита в ветку kmz_integrating (коммиты dc05f6c, e385797)
