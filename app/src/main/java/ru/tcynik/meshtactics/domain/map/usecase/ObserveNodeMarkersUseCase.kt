@@ -1,8 +1,10 @@
 package ru.tcynik.meshtactics.domain.map.usecase
 
 import co.touchlab.kermit.Logger
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import ru.tcynik.meshtactics.domain.marker.model.NodeMarkerModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshNodeModel
@@ -17,6 +19,9 @@ private const val MIN_SPEED_FOR_HEADING = 1
 // 2 minutes — threshold for fresh vs stale visual distinction.
 private const val POSITION_FRESHNESS_SECONDS = 2 * 60
 
+/** How often to re-evaluate stale status, in milliseconds. */
+private const val STALE_CHECK_INTERVAL_MS = 10_000L
+
 /**
  * Returns map markers for **peer nodes only** — our own node is intentionally excluded.
  *
@@ -29,6 +34,9 @@ private const val POSITION_FRESHNESS_SECONDS = 2 * 60
  * Nodes with valid position are always shown. Fresh nodes (position within
  * [POSITION_FRESHNESS_SECONDS]) are shown with normal colors. Stale nodes (older position)
  * are shown as grey markers via the [NodeMarkerModel.isStale] flag.
+ *
+ * The stale status is re-evaluated periodically ([STALE_CHECK_INTERVAL_MS]) so that nodes
+ * transition from fresh to stale dynamically while the app is running, not just on restart.
  */
 class ObserveNodeMarkersUseCase(
     private val repository: MeshNetworkRepository,
@@ -38,33 +46,49 @@ class ObserveNodeMarkersUseCase(
         combine(
             repository.observeNodes(),
             repository.observeOurNode(),
-        ) { nodes, ourNode ->
-            val ourNodeId = ourNode?.nodeId
-            val nowSeconds = System.currentTimeMillis() / 1000
-            val freshnessThreshold = nowSeconds - POSITION_FRESHNESS_SECONDS
+            staleTicker(),
+        ) { nodes, ourNode, _ ->
+            buildMarkerList(nodes, ourNode)
+        }
 
-            val peers = nodes.filter { it.nodeId != ourNodeId }
-            val withPosition = peers.filter { it.hasValidPosition }
-            val freshCount = withPosition.count {
-                val effectiveTime = if (it.positionTime > 0) it.positionTime else it.lastHeard
-                effectiveTime > freshnessThreshold
-            }
-            Logger.d { "update: myPosition = '${ourNode?.latitude}/${ourNode?.longitude}', nodes=${nodes.size}/${peers.size} " +
+    /** Periodic ticker that emits at [STALE_CHECK_INTERVAL_MS] intervals to trigger stale re-evaluation. */
+    private fun staleTicker(): Flow<Unit> = flow {
+        while (true) {
+            emit(Unit)
+            delay(STALE_CHECK_INTERVAL_MS)
+        }
+    }
+
+    private fun buildMarkerList(
+        nodes: List<MeshNodeModel>,
+        ourNode: MeshNodeModel?,
+    ): List<NodeMarkerModel> {
+        val ourNodeId = ourNode?.nodeId
+        val nowSeconds = System.currentTimeMillis() / 1000
+        val freshnessThreshold = nowSeconds - POSITION_FRESHNESS_SECONDS
+
+        val peers = nodes.filter { it.nodeId != ourNodeId }
+        val withPosition = peers.filter { it.hasValidPosition }
+        val freshCount = withPosition.count {
+            val effectiveTime = if (it.positionTime > 0) it.positionTime else it.lastHeard
+            effectiveTime > freshnessThreshold
+        }
+        Logger.d { "update: myPosition = '${ourNode?.latitude}/${ourNode?.longitude}', nodes=${nodes.size}/${peers.size} " +
                 "withPosition=${withPosition.size} fresh=$freshCount " +
                 "[${withPosition.joinToString { it.toLogString(nowSeconds) }}]" }
-            withPosition.map { node ->
-                val effectiveTime = if (node.positionTime > 0) node.positionTime else node.lastHeard
-                val isStale = effectiveTime <= freshnessThreshold
-                NodeMarkerModel(
-                    nodeId = node.nodeId,
-                    longName = node.longName,
-                    position = GeoPoint(node.latitude, node.longitude),
-                    isOnline = node.isOnline,
-                    isStale = isStale,
-                    heading = if (node.groundSpeed >= MIN_SPEED_FOR_HEADING) node.groundTrack.toFloat() else null,
-                )
-            }
+        return withPosition.map { node ->
+            val effectiveTime = if (node.positionTime > 0) node.positionTime else node.lastHeard
+            val isStale = effectiveTime <= freshnessThreshold
+            NodeMarkerModel(
+                nodeId = node.nodeId,
+                longName = node.longName,
+                position = GeoPoint(node.latitude, node.longitude),
+                isOnline = node.isOnline,
+                isStale = isStale,
+                heading = if (node.groundSpeed >= MIN_SPEED_FOR_HEADING) node.groundTrack.toFloat() else null,
+            )
         }
+    }
 }
 
 private fun MeshNodeModel.toLogString(nowSeconds: Long): String {
