@@ -169,6 +169,69 @@ See canonical implementations:
 
 **DI injection point:** `LocationProvider` is injected in `NavGraph.kt` via `koinInject()` and passed as a parameter to `MainScreen` — never injected inside the Screen composable itself.
 
+### Android Foreground Service Lifecycle Pattern
+
+When an Android foreground service (app layer) needs to start/stop a data-layer singleton, use a **split interface** pattern. A service must not inject a concrete data class.
+
+**Two domain interfaces** for one implementation:
+
+```kotlin
+// app/domain/gps/repository/GpsRepository.kt  — read-only state
+interface GpsRepository {
+    val location: StateFlow<GpsLocation?>
+    val isReceivingUpdates: StateFlow<Boolean>
+}
+
+// app/domain/gps/repository/GpsLifecycleController.kt  — lifecycle control
+interface GpsLifecycleController {
+    fun start()
+    fun stop()
+}
+```
+
+**Implementation** in data layer implements both:
+
+```kotlin
+// app/data/gps/GpsRepositoryImpl.kt
+class GpsRepositoryImpl(context: Application) : GpsRepository, GpsLifecycleController { ... }
+```
+
+**DI** — register with `binds`:
+
+```kotlin
+single { GpsRepositoryImpl(context = androidApplication()) } binds arrayOf(
+    GpsRepository::class,
+    GpsLifecycleController::class,
+)
+```
+
+**Service** injects only the lifecycle interface:
+
+```kotlin
+class GpsService : Service() {
+    private val gpsLifecycle: GpsLifecycleController by inject()
+
+    override fun onStartCommand(...): Int { gpsLifecycle.start(); return START_STICKY }
+    override fun onDestroy() { gpsLifecycle.stop(); super.onDestroy() }
+    override fun onTaskRemoved(...) { stopSelf() }  // clean stop — START_STICKY не перезапускает
+}
+```
+
+**Service stop behaviour:**
+
+| Trigger | Mechanism | Outcome |
+|---|---|---|
+| Home / screen off | — | Service keeps running |
+| OS kill | — | `START_STICKY` → auto-restart |
+| Swipe from Recents | `onTaskRemoved() → stopSelf()` | Clean stop, no restart |
+| Explicit close button | `stopService(intent)` from Activity | Clean stop, no restart |
+
+`stopSelf()` = clean stop — `START_STICKY` does **not** reschedule restart for clean stops.
+
+See: `app/src/main/.../service/GpsService.kt`, `app/src/main/.../domain/gps/repository/GpsLifecycleController.kt`
+
+---
+
 ### Transport Repository Abstraction Contract
 
 All transports (Meshtastic, MQTT, WiFi) implement the same domain interfaces. Define in `domain/`; implementations in `data/`:
@@ -219,6 +282,8 @@ In MVP only Meshtastic implementations are non-stub. MQTT and WiFi implementatio
 | Synchronous use case extends `UseCase<P,R>` (suspend) | Use plain `operator fun invoke` — `UseCase` is for suspend operations only |
 | New feature adds keys to `AppSettings` | Create a new repository in `data/local/` that injects `Settings` directly |
 | `LocationPuck` / `rememberUserLocationState` with maplibre-compose 0.12.1 | Use `CircleLayer + GeoJsonData.JsonString` — `spatialk:geojson:0.6.0` crashes on empty `FeatureCollection()` serialization (LocationPuck's initial null-location path) |
+| Android Service injects concrete data class (`SomethingImpl`) | Extract lifecycle interface in domain (`LifecycleController`), service injects the interface — see Foreground Service Lifecycle Pattern |
+| `single<Iface> { Impl() }` in app module conflicts with mesh auto-scanned binding | In Koin 4.x `saveMapping` always overwrites — no `override` parameter needed; just declare the binding normally and ensure `gpsModule` is loaded after the mesh module |
 
 ---
 

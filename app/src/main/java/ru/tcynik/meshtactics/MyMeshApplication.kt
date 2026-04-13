@@ -8,6 +8,7 @@ import org.koin.core.context.startKoin
 import org.koin.core.logger.Level
 import ru.tcynik.meshtactics.di.androidModule
 import ru.tcynik.meshtactics.di.commonModule
+import ru.tcynik.meshtactics.di.gpsModule
 import ru.tcynik.meshtactics.di.locationDomainModule
 import ru.tcynik.meshtactics.di.mapDataModule
 import ru.tcynik.meshtactics.di.markerDataModule
@@ -27,10 +28,12 @@ class MyMeshApplication : Application() {
         startKoin {
             androidLogger(Level.ERROR)
             androidContext(this@MyMeshApplication)
+            allowOverride(true)
             modules(
                 commonModule,
                 androidModule,
                 meshModule,
+                gpsModule,
                 meshDataModule,
                 mapDataModule,
                 markerDataModule,

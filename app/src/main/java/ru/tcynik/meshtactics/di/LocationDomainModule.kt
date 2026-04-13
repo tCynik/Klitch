@@ -10,7 +10,7 @@ import ru.tcynik.meshtactics.domain.location.repository.GpsStatusRepository
 import ru.tcynik.meshtactics.domain.location.usecase.ObserveGpsStatusUseCase
 
 val locationDomainModule = module {
-    single<LocationProvider> { AppLocationProvider(context = androidApplication()) }
     single<GpsStatusRepository> { GpsStatusRepositoryImpl(context = androidApplication()) }
+    single<LocationProvider> { AppLocationProvider(gpsRepository = get()) }
     factoryOf(::ObserveGpsStatusUseCase)
 }

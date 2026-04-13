@@ -186,6 +186,133 @@ This keeps the MVP scope focused and avoids premature design decisions.
   - `textSize = 12.sp`
   - TODO: typography token for node label text size
 
+## Phase 3b — Show Stale Nodes as Grey Markers
+
+**Goal:** Nodes with position older than 2 minutes appear on the map as grey markers (instead of being hidden).
+
+### Changes Required
+
+**1. `NodeMarkerModel` — add `isStale` field:**
+```kotlin
+data class NodeMarkerModel(
+    val nodeId: String,
+    val longName: String,
+    val position: GeoPoint,
+    val isOnline: Boolean,
+    val isStale: Boolean,  // ← NEW: position older than 2 minutes
+    val heading: Float?,
+)
+```
+
+**2. `ObserveNodeMarkersUseCase` — remove freshness filter, add `isStale` flag:**
+```kotlin
+// BEFORE: filtered out stale nodes
+val withFreshPosition = peers.filter {
+    val effectiveTime = if (it.positionTime > 0) it.positionTime else it.lastHeard
+    it.hasValidPosition && effectiveTime > freshnessThreshold
+}
+
+// AFTER: keep all positioned nodes, mark stale ones
+val withPosition = peers.filter { it.hasValidPosition }.map { node ->
+    val effectiveTime = if (node.positionTime > 0) node.positionTime else node.lastHeard
+    val isStale = effectiveTime <= freshnessThreshold
+    NodeMarkerModel(
+        nodeId = node.nodeId,
+        longName = node.longName,
+        position = GeoPoint(node.latitude, node.longitude),
+        isOnline = node.isOnline && !isStale,  // stale nodes treated as offline visually
+        isStale = isStale,
+        heading = if (node.groundSpeed > 0 && node.groundTrack > 0) node.groundTrack.toFloat() else null,
+    )
+}
+```
+
+**3. `MapLibreLayer` — add stale node layers:**
+
+Current layer structure:
+- `node-online-stationary` / `node-online-moving` (green icons)
+- `node-remote-offline-dot` / offline labels (grey)
+
+New structure — stale nodes get their own GeoJSON source + layers:
+- Build **two** GeoJSON strings: one for fresh nodes, one for stale nodes
+- OR: single GeoJSON with `isStale` property, use `filter` expressions in layers
+
+**Option A: Single GeoJSON with filter (recommended)**
+```kotlin
+// In buildNodeGeoJson, add isStale property:
+"""{"type":"Feature","geometry":{"type":"Point","coordinates":[$lon,$lat]},
+   "properties":{"longName":"$name","isStale":$isStale,"bearing":...}}"""
+
+// Add new layers for stale nodes (before online layers, so stale render underneath):
+CircleLayer(
+    sourceId = "peerNodesSource",
+    layerId = "node-stale-dot",
+    filter = feature.get("isStale").eq(true),
+    circleColor = Color.StableColor(0xFF9E9E9E),  // grey
+    circleRadius = ...
+)
+SymbolLayer(
+    sourceId = "peerNodesSource",
+    layerId = "node-stale-label",
+    filter = feature.get("isStale").eq(true),
+    textField = format(span(feature.get("longName"))),
+    textColor = Color.StableColor(0xFF9E9E9E),  // grey text
+    ...
+)
+```
+
+**Option B: Two separate GeoJSON sources**
+- `peerFreshSource` — fresh nodes (green/colored as before)
+- `peerStaleSource` — stale nodes (grey)
+- Simpler filter logic but more sources to manage
+
+**Recommendation:** Option A (single source + filter) — less overhead, consistent with current offline layer pattern.
+
+**4. `isOnline` semantics update:**
+- For rendering purposes, stale nodes should be treated as offline (`isOnline = false` visually)
+- The `isOnline` field in `NodeMarkerModel` currently drives color in existing layers
+- Either: set `isOnline = false` for stale nodes in use case, OR add explicit `isStale` field and handle in layers
+- **Decision:** Add `isStale` field, keep `isOnline` as-is (connectivity status), use `isStale` in layer filters
+
+### Data Flow (updated)
+```
+MeshNodeModel (hasValidPosition, positionTime, lastHeard, isOnline)
+  → ObserveNodeMarkersUseCase:
+      - filter: hasValidPosition only
+      - compute: isStale = effectiveTime <= freshnessThreshold
+      - map: NodeMarkerModel(isStale, isOnline, heading, ...)
+  → MainViewModel._uiState.nodeMarkers
+  → MapLibreLayer:
+      - GeoJSON includes isStale property
+      - Layers: stale (grey circle + grey label) / offline (grey circle + grey label) / online (green circle + white label)
+```
+
+### Phase Plan
+
+**Phase 3b.1 — Model Update**
+- Add `isStale: Boolean` to `NodeMarkerModel`
+
+**Phase 3b.2 — Use Case Update**
+- Modify `ObserveNodeMarkersUseCase`: remove freshness filter, compute `isStale` for each node
+
+**Phase 3b.3 — MapLibreLayer Update**
+- Add `isStale` property to GeoJSON
+- Add `CircleLayer` + `SymbolLayer` for stale nodes (grey styling)
+- Layer ordering: stale → offline → online (bottom to top)
+
+**Phase 3b.4 — Testing**
+- Verify stale nodes appear grey on map
+- Verify fresh nodes remain green
+- Verify node transitions from fresh → stale → hidden (if goes offline entirely)
+
+### Open Decisions
+1. Should stale nodes use same icon as offline nodes, or a distinct visual (e.g., dashed circle)?
+   - **Recommendation:** Same grey style as offline for simplicity; differentiate later if needed
+2. Should there be a grace period (e.g., 2-5 min = yellow, 5+ min = grey)?
+   - **Decision:** No — binary fresh/stale for MVP; can add渐变 later
+
+---
+
 ### Phase 3 — Implementation ✅ (completed — 2026-04-10)
 - **Goal**: working node markers on map, buildable and runnable
 - **Prerequisite**: `gps-user-position-marker` branch merged ✅
@@ -197,8 +324,9 @@ This keeps the MVP scope focused and avoids premature design decisions.
 - `BaseStyle.Empty` replaced with `BASE_STYLE_WITH_GLYPHS` — `BaseStyle.Empty` has no `glyphs` URL; `SymbolLayer` text rendering requires it and without it MapLibre breaks all layer rendering (including `CircleLayer`)
   - Glyph URL: `https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf`
   - **TODO**: bundle fonts locally for offline use
-- `ObserveNodeMarkersUseCase` freshness filter: `POSITION_FRESHNESS_SECONDS = 2 * 60` (2 minutes)
-  - Fallback: if `positionTime == 0` (firmware omits timestamp in Position packet), use `lastHeard`
+- ~~`ObserveNodeMarkersUseCase` freshness filter: `POSITION_FRESHNESS_SECONDS = 2 * 60` (2 minutes)
+  - Fallback: if `positionTime == 0` (firmware omits timestamp in Position packet), use `lastHeard`~~
+  - **CHANGED (Phase 3b)**: stale nodes now shown as grey instead of filtered out
 - TODO: font size setting for node name labels
 - TODO: tap behavior
 - TODO: direction icon for our node

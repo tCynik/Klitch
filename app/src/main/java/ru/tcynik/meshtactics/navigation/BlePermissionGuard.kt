@@ -19,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,6 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import ru.tcynik.meshtactics.service.GpsService
 
 @Composable
 fun BlePermissionGuard(content: @Composable () -> Unit) {
@@ -51,6 +53,13 @@ fun BlePermissionGuard(content: @Composable () -> Unit) {
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) { granted = allGranted() }
+
+    // Запускаем GpsService как только разрешение получено (первый запуск или повторный вход).
+    // startForegroundService требует foreground-контекста и наличия ACCESS_FINE_LOCATION —
+    // оба условия выполнены здесь: Activity видима, разрешение только что выдано.
+    LaunchedEffect(granted) {
+        if (granted) context.startForegroundService(GpsService.createIntent(context))
+    }
 
     if (granted) {
         content()

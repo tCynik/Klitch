@@ -1,8 +1,13 @@
 <resources>
     <string name="app_name">MeshTactics</string>
+    <string name="gps_notification_channel_name">GPS Background</string>
+    <string name="gps_notification_title">GPS активен</string>
+    <string name="gps_notification_text">Отслеживание местоположения</string>
     <string name="settings_title">Настройки</string>
     <string name="settings_saved">Сохранено</string>
     <string name="settings_back_description">Назад</string>
     <string name="settings_marker_size_label">Размер маркера: %ddp (уровень %d)</string>
     <string name="settings_save_button">Сохранить</string>
+    <string name="settings_exit_app_description">Выйти из приложения</string>
+    <string name="settings_exit_app_icon">Иконка выхода</string>
 </resources>
