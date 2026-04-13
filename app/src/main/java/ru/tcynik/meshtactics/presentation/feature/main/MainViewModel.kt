@@ -150,21 +150,14 @@ class MainViewModel(
                         GpsSignalLevel.Weak   -> Color.Yellow
                         GpsSignalLevel.Strong -> Color.Green
                     },
+                    infoBadge = state.gpsStatus.accuracyMeters
+                        ?.let { it.toInt().coerceAtMost(99).toString() }
+                        .takeIf { it != "0" },
                 ),
-                info = buildGpsAccuracyInfoSlot(state),
+                info = emptyInfoSlot(),
             ),
         ),
     )
-
-    private fun buildGpsAccuracyInfoSlot(state: MainUiState): HudInfoSlot {
-        val color = when (state.gpsStatus.signalLevel) {
-            GpsSignalLevel.None   -> Color.Red
-            GpsSignalLevel.Weak   -> Color.Yellow
-            GpsSignalLevel.Strong -> Color.Green
-        }
-        val text = state.gpsStatus.accuracyMeters?.let { "%.0fm".format(it) } ?: "--"
-        return HudInfoSlot(content = text, color = color)
-    }
 
     // Right column — main menu.
     // Info row 0: node status indicator (connection quality + peer count).
@@ -173,8 +166,17 @@ class MainViewModel(
         HudColumnConfig(
             rows = listOf(
                 HudRowConfig(
-                    button = HudButtonSlot(iconRes = R.drawable.ic_radio,    label = "радио",     onClick = nav.onRadioClick),
-                    info = buildNodeStatusInfoSlot(state),
+                    button = HudButtonSlot(
+                        iconRes = R.drawable.ic_radio,
+                        label = "радио",
+                        onClick = nav.onRadioClick,
+                        tintOverride = buildNodeStatusColor(state),
+                        infoBadge = when (state.connectionStatus) {
+                            is MeshConnectionStatus.Connected -> state.nodeMarkers.size.toString().take(2)
+                            else -> null
+                        }.takeIf { it != "0" },
+                    ),
+                    info = emptyInfoSlot(),
                 ),
                 HudRowConfig(
                     button = HudButtonSlot(iconRes = R.drawable.ic_settings, label = "настройки", onClick = nav.onSettingsClick),
@@ -196,14 +198,15 @@ class MainViewModel(
             ),
         )
 
-    private fun buildNodeStatusInfoSlot(state: MainUiState): HudInfoSlot {
+    private fun buildNodeStatusColor(state: MainUiState): Color {
         return when (val status = state.connectionStatus) {
-            is MeshConnectionStatus.Connected -> {
-                // TODO: color token — using raw Color until design system defines signal-quality tokens
-                val color = if (status.rssi < RSSI_LOW_THRESHOLD) Color.Red else Color.Green
-                HudInfoSlot(content = state.nodeMarkers.size.toString(), color = color)
-            }
-            else -> HudInfoSlot(content = "--", color = Color.Gray)
+            is MeshConnectionStatus.Connected ->
+                if (status.rssi < RSSI_LOW_THRESHOLD) Color.Yellow else Color.Green
+            MeshConnectionStatus.Disconnected,
+            is MeshConnectionStatus.Error,
+            MeshConnectionStatus.DeviceSleep -> Color.Red
+            MeshConnectionStatus.Scanning,
+            is MeshConnectionStatus.Connecting -> Color.Yellow
         }
     }
 }
