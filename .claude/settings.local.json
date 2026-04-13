@@ -107,7 +107,21 @@
       "Bash(unzip -p ~/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar commonMain/org/maplibre/compose/expressions/dsl/format.kt)",
       "Bash(unzip -p ~/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar commonMain/org/maplibre/compose/expressions/dsl/types.kt)",
       "Bash(unzip -p ~/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar commonMain/org/maplibre/compose/expressions/dsl/literals.kt)",
-      "Bash(unzip -p ~/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar commonMain/org/maplibre/compose/expressions/ast/TextUnitOffsetCalculation.kt)"
+      "Bash(unzip -p ~/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar commonMain/org/maplibre/compose/expressions/ast/TextUnitOffsetCalculation.kt)",
+      "WebFetch(domain:mapscaping.com)",
+      "WebFetch(domain:fme.safe.com)",
+      "Bash(curl -s \"https://api.github.com/repos/MKergall/osmbonuspack/contents/OSMBonusPack/src/main/java/org/osmdroid/bonuspack/kml\")",
+      "Bash(curl -s \"https://api.github.com/repos/maplibre/maplibre-native/contents/platform/android\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/MKergall/osmbonuspack/master/OSMBonusPack/src/main/java/org/osmdroid/bonuspack/kml/KmlDocument.java\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/MKergall/osmbonuspack/master/OSMBonusPack/src/main/java/org/osmdroid/bonuspack/kml/KmlFeature.java\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/MKergall/osmbonuspack/master/OSMBonusPack/src/main/java/org/osmdroid/bonuspack/kml/KmlPlacemark.java\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/MKergall/osmbonuspack/master/OSMBonusPack/src/main/java/org/osmdroid/bonuspack/kml/KmlFolder.java\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/MKergall/osmbonuspack/master/OSMBonusPack/src/main/java/org/osmdroid/bonuspack/kml/KmlGroundOverlay.java\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/MKergall/osmbonuspack/master/OSMBonusPack/src/main/java/org/osmdroid/bonuspack/kml/KmlPoint.java\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(i['path']\\) for i in d.get\\('items',[]\\)]\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/MKergall/osmbonuspack/master/OSMBonusPack/src/main/java/org/osmdroid/bonuspack/kml/KmlGeometry.java\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(i['name']\\) for i in d if isinstance\\(d,list\\)]\")",
+      "Bash(curl -s \"https://api.github.com/search/code?q=ImageSource+repo:maplibre/maplibre-native+filename:ImageSource.java\" -H \"Accept: application/vnd.github.v3+json\")"
     ]
   }
 }
