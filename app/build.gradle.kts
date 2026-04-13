@@ -91,7 +91,7 @@ dependencies {
     implementation(libs.koin.compose.viewmodel)
 
     // OSMBonusPack — KML/KMZ parser
-    implementation("org.osmdroid:osmbonuspack:6.9.0")
+    implementation("com.github.MKergall:osmbonuspack:6.9.0")
 
     // maplibre-compose — Jetpack Compose wrapper for MapLibre (pulls in android-sdk transitively)
     // Note: if field device OpenGL ES compatibility issues arise, investigate android-sdk-opengl variant
