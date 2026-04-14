@@ -371,7 +371,11 @@ private fun ChatTabContent(
     onInputChanged: (String) -> Unit,
     onSend: () -> Unit,
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding()
+    ) {
         // Поиск + сообщения
         Column(modifier = Modifier.fillMaxSize()) {
             // Строка поиска
@@ -409,9 +413,7 @@ private fun ChatTabContent(
             inputText = inputText,
             onInputChanged = onInputChanged,
             onSend = onSend,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .imePadding()
+            modifier = Modifier.align(Alignment.BottomCenter)
         )
     }
 }
