@@ -1,5 +1,7 @@
 package ru.tcynik.meshtactics.presentation.feature.chat
 
+import android.content.Context
+import android.view.inputmethod.InputMethodManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -23,6 +25,7 @@ import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,6 +54,7 @@ fun ChatScreen(
     onNavigateBack: () -> Unit,
     viewModel: ChatViewModel = koinViewModel(),
 ) {
+    val view = LocalView.current
     val pagerState = rememberPagerState(
         initialPage = uiState.currentTab.ordinal,
         pageCount = { 2 }
@@ -67,6 +71,11 @@ fun ChatScreen(
     LaunchedEffect(uiState.currentTab) {
         if (pagerState.currentPage != uiState.currentTab.ordinal) {
             pagerState.animateScrollToPage(uiState.currentTab.ordinal)
+        }
+        // Скрываем клавиатуру при переходе на вкладку "Фильтр"
+        if (uiState.currentTab == ChatTab.FILTER) {
+            val imm = view.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(view.windowToken, 0)
         }
     }
 
@@ -371,40 +380,33 @@ private fun ChatTabContent(
     onInputChanged: (String) -> Unit,
     onSend: () -> Unit,
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .imePadding()
-    ) {
-        // Поиск + сообщения
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Строка поиска
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = onSearchChanged,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                placeholder = { Text(stringResource(R.string.chat_search_hint)) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                singleLine = true,
-                shape = RoundedCornerShape(20.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                )
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Строка поиска
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchChanged,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            placeholder = { Text(stringResource(R.string.chat_search_hint)) },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            singleLine = true,
+            shape = RoundedCornerShape(20.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
             )
+        )
 
-            // Список сообщений
-            val listState = rememberLazyListState()
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                items(messages, key = { it.id }) { message ->
-                    ChatMessageBubble(message = message)
-                }
+        // Список сообщений
+        val listState = rememberLazyListState()
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            items(messages, key = { it.id }) { message ->
+                ChatMessageBubble(message = message)
             }
         }
 
@@ -412,9 +414,23 @@ private fun ChatTabContent(
         ChatInputBar(
             inputText = inputText,
             onInputChanged = onInputChanged,
-            onSend = onSend,
-            modifier = Modifier.align(Alignment.BottomCenter)
+            onSend = onSend
         )
+
+        // Прокрутка вниз при открытии чата (мгновенно)
+        var isFirstScroll by remember { mutableStateOf(true) }
+        LaunchedEffect(Unit) {
+            if (messages.isNotEmpty()) {
+                listState.scrollToItem(messages.lastIndex)
+            }
+        }
+        // Прокрутка вниз при новых сообщениях (с анимацией)
+        LaunchedEffect(messages.size) {
+            if (!isFirstScroll && messages.isNotEmpty()) {
+                listState.animateScrollToItem(messages.lastIndex)
+            }
+            isFirstScroll = false
+        }
     }
 }
 
