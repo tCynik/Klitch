@@ -25,13 +25,13 @@ import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -380,7 +380,11 @@ private fun ChatTabContent(
     onInputChanged: (String) -> Unit,
     onSend: () -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding()
+    ) {
         // Строка поиска
         OutlinedTextField(
             value = searchQuery,
@@ -430,6 +434,14 @@ private fun ChatTabContent(
                 listState.animateScrollToItem(messages.lastIndex)
             }
             isFirstScroll = false
+        }
+        // Прокрутка вниз при открытии клавиатуры
+        val density = LocalDensity.current
+        val imeBottom = WindowInsets.ime.getBottom(density)
+        LaunchedEffect(imeBottom) {
+            if (imeBottom > 0 && messages.isNotEmpty()) {
+                listState.animateScrollToItem(messages.lastIndex)
+            }
         }
     }
 }
