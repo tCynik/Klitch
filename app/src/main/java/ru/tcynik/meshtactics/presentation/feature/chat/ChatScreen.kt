@@ -20,8 +20,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.Star
-import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
@@ -248,17 +246,17 @@ private fun ChatFilterItemRow(
             onCheckedChange = { onToggleCheck() }
         )
 
-        // Звезда / закрепление
-        IconButton(
-            onClick = onToggleFavorite,
-            modifier = Modifier.size(32.dp)
-        ) {
-            Icon(
-                imageVector = if (item.isFavorite) Icons.Outlined.Star else Icons.Outlined.StarBorder,
-                contentDescription = null,
-                tint = if (item.isFavorite) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurfaceVariant
+        // Жирная точка избранного
+        if (item.isFavorite) {
+            Text(
+                text = "●",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(end = 2.dp)
             )
+        } else {
+            Spacer(modifier = Modifier.width(16.dp))
         }
 
         // Индикатор типа
