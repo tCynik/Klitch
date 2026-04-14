@@ -52,7 +52,7 @@ fun ChatScreen(
     viewModel: ChatViewModel = koinViewModel(),
 ) {
     val pagerState = rememberPagerState(
-        initialPage = uiState.currentTab.index,
+        initialPage = uiState.currentTab.ordinal,
         pageCount = { 2 }
     )
 
@@ -65,8 +65,8 @@ fun ChatScreen(
     }
 
     LaunchedEffect(uiState.currentTab) {
-        if (pagerState.currentPage != uiState.currentTab.index) {
-            pagerState.animateScrollToPage(uiState.currentTab.index)
+        if (pagerState.currentPage != uiState.currentTab.ordinal) {
+            pagerState.animateScrollToPage(uiState.currentTab.ordinal)
         }
     }
 
@@ -86,24 +86,21 @@ fun ChatScreen(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             )
-        },
-        modifier = Modifier.fillMaxSize()
+        }
     ) { paddingValues ->
-        Column(modifier = Modifier.padding(paddingValues)) {
-            TabRow(
-                selectedTabIndex = uiState.currentTab.index,
-                containerColor = MaterialTheme.colorScheme.surface
-            ) {
-                Tab(
-                    selected = uiState.currentTab == ChatTab.FILTER,
-                    onClick = { viewModel.switchTab(ChatTab.FILTER) },
-                    text = { Text(stringResource(R.string.chat_tab_filter)) }
-                )
-                Tab(
-                    selected = uiState.currentTab == ChatTab.CHAT,
-                    onClick = { viewModel.switchTab(ChatTab.CHAT) },
-                    text = { Text(stringResource(R.string.chat_tab_chat)) }
-                )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            TabRow(selectedTabIndex = uiState.currentTab.ordinal) {
+                ChatTab.entries.forEach { tab ->
+                    Tab(
+                        selected = uiState.currentTab == tab,
+                        onClick = { viewModel.switchTab(tab) },
+                        text = { Text(stringResource(if (tab == ChatTab.FILTER) R.string.chat_tab_filter else R.string.chat_tab_chat)) },
+                    )
+                }
             }
 
             HorizontalPager(
@@ -192,12 +189,9 @@ private fun FilterTabContent(
 
 @Composable
 private fun RowScope.FilterButton(text: String, onClick: () -> Unit) {
-    Button(
+    OutlinedButton(
         onClick = onClick,
         modifier = Modifier.weight(1f),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        ),
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
     ) {
         Text(text, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -377,42 +371,47 @@ private fun ChatTabContent(
     onInputChanged: (String) -> Unit,
     onSend: () -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Строка поиска
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = onSearchChanged,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            placeholder = { Text(stringResource(R.string.chat_search_hint)) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-            singleLine = true,
-            shape = RoundedCornerShape(20.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Поиск + сообщения
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Строка поиска
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = onSearchChanged,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                placeholder = { Text(stringResource(R.string.chat_search_hint)) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                singleLine = true,
+                shape = RoundedCornerShape(20.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                )
             )
-        )
 
-        // Список сообщений
-        val listState = rememberLazyListState(initialFirstVisibleItemIndex = Int.MAX_VALUE)
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.weight(1f),
-            reverseLayout = false,
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            items(messages, key = { it.id }) { message ->
-                ChatMessageBubble(message = message)
+            // Список сообщений
+            val listState = rememberLazyListState()
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                items(messages, key = { it.id }) { message ->
+                    ChatMessageBubble(message = message)
+                }
             }
         }
 
-        // Строка ввода
+        // Строка ввода (снизу)
         ChatInputBar(
             inputText = inputText,
             onInputChanged = onInputChanged,
-            onSend = onSend
+            onSend = onSend,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .imePadding()
         )
     }
 }
@@ -475,16 +474,16 @@ private fun ChatInputBar(
     inputText: String,
     onInputChanged: (String) -> Unit,
     onSend: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Surface(
         tonalElevation = 4.dp,
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 6.dp)
-                .imePadding(),
+                .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(

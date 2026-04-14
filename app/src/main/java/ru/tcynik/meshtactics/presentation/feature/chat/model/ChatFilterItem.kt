@@ -27,7 +27,7 @@ data class ChatFilterItem(
 /**
  * Вкладка экрана чатов
  */
-enum class ChatTab(val index: Int) {
-    FILTER(0),
-    CHAT(1)
+enum class ChatTab {
+    FILTER,
+    CHAT
 }
