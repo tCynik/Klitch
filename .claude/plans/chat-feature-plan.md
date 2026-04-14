@@ -1,77 +1,77 @@
-# План разработки фичи Chat (исправленный)
+# Chat Feature Development Plan (Revised)
 
-## Архитектурный контекст
+## Architectural Context
 - **UI**: Jetpack Compose + Material3
-- **Навигация**: Navigation Compose (type-safe), `Route.Chat` уже существует
+- **Navigation**: Navigation Compose (type-safe), `Route.Chat` already exists
 - **DI**: Koin 4.x
-- **Данные**:
-  - **Room** (`mesh/`) — mesh-данные: сообщения (Packet), настройки контактов (ContactSettings), узлы, логи
-  - **SQLDelight** (`shared/`) — тактические узлы для KMP-карты (1 таблица `Node`, НЕ используется для чатов)
-  - **DataStore** (`mesh/`) — mesh/UI настройки, конфиги, protobuf
-  - **Multiplatform Settings** (`shared/`) — простые настройки (3 ключа: device_id, marker_size_level)
-- **Существующие сообщения**: `Packet` entity, `PacketDao`, `ContactSettings`, `Message`, `DataPacket`, `MeshMessagingRepository`, `ObserveMessagesUseCase`, `SendMeshMessageUseCase` в mesh-слое
+- **Data**:
+  - **Room** (`mesh/`) — mesh data: messages (Packet), contact settings (ContactSettings), nodes, logs
+  - **SQLDelight** (`shared/`) — tactical nodes for KMP map (1 table `Node`, NOT used for chats)
+  - **DataStore** (`mesh/`) — mesh/UI settings, configs, protobuf
+  - **Multiplatform Settings** (`shared/`) — simple settings (3 keys: device_id, marker_size_level)
+- **Existing messaging**: `Packet` entity, `PacketDao`, `ContactSettings`, `Message`, `DataPacket`, `MeshMessagingRepository`, `ObserveMessagesUseCase`, `SendMeshMessageUseCase` in the mesh layer
 
-## Существующая архитектура (важно)
+## Existing Architecture (Important)
 
-Проект использует **`app/` как слой presentation+domain+data**, а не `shared/`:
-- `app/domain/` — domain-интерфейсы (репозитории, use cases, модели) — **это каноническое место для domain в этом проекте**
-- `app/data/` — реализации репозиториев, mapper'ы, DTO, adapter'ы
-- `shared/` — KMP-слой с SQLDelight (только тактические данные)
-- `mesh/` — Meshtastic-протокол (Room, BLE, пакеты, сервис) — использует **аннотированный Koin** (`@Single`, `@Module`)
+The project uses **`app/` as the presentation+domain+data layer**, not `shared/`:
+- `app/domain/` — domain interfaces (repositories, use cases, models) — **this is the canonical location for domain in this project**
+- `app/data/` — repository implementations, mappers, DTOs, adapters
+- `shared/` — KMP layer with SQLDelight (tactical data only)
+- `mesh/` — Meshtastic protocol (Room, BLE, packets, service) — uses **annotated Koin** (`@Single`, `@Module`)
 
-**Dependency Law (фактическая в проекте):**
+**Dependency Law (actual in project):**
 ```
-app/presentation/          ← зависит от app/domain/
+app/presentation/          ← depends on app/domain/
     ↓
-app/domain/                ← чистый Kotlin, НЕ зависит от mesh/
+app/domain/                ← pure Kotlin, does NOT depend on mesh/
     ↓
-app/data/                  ← реализует app/domain/ интерфейсы
+app/data/                  ← implements app/domain/ interfaces
     ↓
-mesh/                      ← Meshtastic-протокол (Room, BLE, пакеты)
+mesh/                      ← Meshtastic protocol (Room, BLE, packets)
 ```
 
-## Ключевое правило: chat-фича НЕ импортирует mesh-модели
+## Key Rule: Chat feature does NOT import mesh models
 
-> **Chat-фича использует СВОИ DTO и СВОИ domain-модели.**
-> Конвертация из mesh-моделей в Chat-DTO происходит в **единственном** месте — `MeshToChatAdapter` в `app/data/chat/adapter/`.
-> Ни domain-слой, ни mapper'ы, ни ViewModel, ни UI — НЕ импортируют `ru.tcynik.meshtactics.mesh.model.*`.
+> **The chat feature uses its OWN DTOs and its OWN domain models.**
+> Conversion from mesh models to Chat DTOs happens in a **single** location — `MeshToChatAdapter` in `app/data/chat/adapter/`.
+> Neither the domain layer, nor mappers, nor ViewModel, nor UI import `ru.tcynik.meshtactics.mesh.model.*`.
 
 ```
-mesh-модели (DataPacket, Message, Contact)
+mesh models (DataPacket, Message, Contact)
     ↓
-MeshToChatAdapter          ← ЕДИНСТВЕННОЕ место, импортирующее mesh-модели
-    ↓ конвертирует mesh → DTO
-Chat-DTO (ChatContactDto, ChatMessageDto)
+MeshToChatAdapter          ← ONLY location that imports mesh models
+    ↓ converts mesh → DTO
+Chat DTOs (ChatContactDto, ChatMessageDto)
     ↓
 Mapper (dto.toDomain())
     ↓
-Domain-модели (ChatContact, ChatMessage)
+Domain models (ChatContact, ChatMessage)
     ↓
 ViewModel → UI
 ```
 
-## Уточнения от пользователя
-- Клик на айтем → показывает сообщения **только этого контакта**, чекбоксы не меняются
-- "Выбрать всё" и "Избранное" — **отмечают чекбоксы**, "Архив" — **заглушка**
-- Логика архива пока **не реализуется**, но интерфейс **должен быть** (`toggleArchived`)
-- Сообщения в общем потоке **перемешаны по времени** (как мессенджер)
-- Стили: **пузыри как в мессенджере** (исходящие справа, входящие слева)
-- Реакции: **нет**
-- Поиск: **по отфильтрованным** сообщениям
+## User Clarifications
+- Click on an item → shows messages **from that contact only**, checkboxes do not change
+- "Select all" and "Favorites" — **check checkboxes**, "Archive" — **stub**
+- Archive logic is **not implemented yet**, but the interface **must exist** (`toggleArchived`)
+- Messages in the unified feed are **interleaved by time** (like a messenger)
+- Styles: **messenger bubbles** (outgoing on the right, incoming on the left)
+- Reactions: **none**
+- Search: **within filtered** messages
 
 ---
 
-## ФАЗА 1: Domain-слой (app/domain/chat/)
+## PHASE 1: Domain Layer (app/domain/chat/)
 
-### 1.1. Domain-модели (app/domain/chat/model/)
+### 1.1. Domain Models (app/domain/chat/model/)
 
-#### `ChatContact.kt` — модель контакта для чата
+#### `ChatContact.kt` — contact model for chat
 ```kotlin
 package ru.tcynik.meshtactics.domain.chat.model
 
 /**
- * Domain-модель контакта для вкладки "Фильтр".
- * Полностью независима от mesh.model.Contact и mesh.model.ContactSettings.
+ * Domain model for a contact in the "Filter" tab.
+ * Completely independent of mesh.model.Contact and mesh.model.ContactSettings.
  */
 data class ChatContact(
     val id: String,                    // contactKey
@@ -86,38 +86,38 @@ data class ChatContact(
 )
 
 enum class ContactType {
-    CHANNEL,        // каналы (например "^all")
-    PRIVATE,        // личные беседы
+    CHANNEL,        // channels (e.g. "^all")
+    PRIVATE,        // private conversations
 }
 ```
 
-> ⚠️ **`isArchived` включён** — поле есть в модели, но логика архива — заглушка в MVP.
-> ⚠️ **`ChatContactItem` НЕ создаётся** — UI-состояние чекбокса живёт в `UiState.selectedContactIds`.
+> ⚠️ **`isArchived` is included** — the field exists in the model, but archive logic is a stub in MVP.
+> ⚠️ **`ChatContactItem` is NOT created** — checkbox state lives in `UiState.selectedContactIds`.
 
-#### `ChatMessage.kt` — модель сообщения для чата
+#### `ChatMessage.kt` — message model for chat
 ```kotlin
 package ru.tcynik.meshtactics.domain.chat.model
 
 /**
- * Domain-модель сообщения для вкладки "Чат".
- * Полностью независима от mesh.model.Message и mesh.model.DataPacket.
+ * Domain model for a message in the "Chat" tab.
+ * Completely independent of mesh.model.Message and mesh.model.DataPacket.
  */
 data class ChatMessage(
-    val id: Long,                      // уникальный ID
-    val contactId: String,             // contactKey (какому контакту принадлежит)
-    val senderName: String,            // имя отправителя
-    val text: String,                  // текст сообщения
-    val timestamp: Long,               // время в millis
-    val isOutgoing: Boolean,           // true = исходящее
-    val isRead: Boolean = false,       // прочитано ли
+    val id: Long,                      // unique ID
+    val contactId: String,             // contactKey (which contact it belongs to)
+    val senderName: String,            // sender name
+    val text: String,                  // message text
+    val timestamp: Long,               // time in millis
+    val isOutgoing: Boolean,           // true = outgoing
+    val isRead: Boolean = false,       // whether it has been read
     val deliveryStatus: ChatMessageDelivery = ChatMessageDelivery.Pending,
 )
 
 enum class ChatMessageDelivery {
-    Pending,    // ожидает отправки
-    Sent,       // отправлено на радио
-    Delivered,  // доставлено
-    Failed,     // ошибка
+    Pending,    // awaiting send
+    Sent,       // sent to radio
+    Delivered,  // delivered
+    Failed,     // error
 }
 ```
 
@@ -126,17 +126,17 @@ enum class ChatMessageDelivery {
 package ru.tcynik.meshtactics.domain.chat.model
 
 enum class ChatTab(val label: String) {
-    FILTER("Фильтр"),
-    CHAT("Чат"),
+    FILTER("Filter"),
+    CHAT("Chat"),
 }
 ```
 
-### 1.2. Params для Use Cases (app/domain/chat/usecase/)
+### 1.2. Params for Use Cases (app/domain/chat/usecase/)
 
 ```kotlin
 package ru.tcynik.meshtactics.domain.chat.usecase
 
-/** Params: Set<ContactId> для отображения сообщений выбранных контактов */
+/** Params: Set<ContactId> to display messages for selected contacts */
 data class ObserveChatMessagesParams(
     val contactIds: Set<String>,
     val searchQuery: String = "",
@@ -174,20 +174,20 @@ data class SearchMessagesParams(
 
 ### 1.3. Use Cases (app/domain/chat/usecase/)
 
-| Use Case | Базовый класс | Описание |
-|----------|---------------|----------|
-| `ObserveChatContactsUseCase` | `FlowUseCase<NoParams, List<ChatContact>>` | Flow списка контактов |
-| `ObserveChatMessagesUseCase` | `FlowUseCase<ObserveChatMessagesParams, List<ChatMessage>>` | Flow сообщений по contactId(s) |
-| `SendChatMessageUseCase` | `UseCase<SendChatMessageParams, Unit>` | Отправка сообщения |
-| `ToggleChatFavoriteContactUseCase` | `UseCase<ToggleFavoriteParams, Unit>` | Переключить избранное |
-| `ToggleChatArchivedContactUseCase` | `UseCase<ToggleArchivedParams, Unit>` | Переключить архив |
-| `ClearChatHistoryUseCase` | `UseCase<ClearHistoryParams, Unit>` | Очистить историю |
-| `MarkChatAsReadUseCase` | `UseCase<MarkAsReadParams, Unit>` | Пометить как прочитанное |
-| `SearchChatMessagesUseCase` | plain `operator fun invoke` | Синхронный поиск (НЕ extends UseCase) |
+| Use Case | Base Class | Description |
+|----------|------------|-------------|
+| `ObserveChatContactsUseCase` | `FlowUseCase<NoParams, List<ChatContact>>` | Flow of contact list |
+| `ObserveChatMessagesUseCase` | `FlowUseCase<ObserveChatMessagesParams, List<ChatMessage>>` | Flow of messages by contactId(s) |
+| `SendChatMessageUseCase` | `UseCase<SendChatMessageParams, Unit>` | Send a message |
+| `ToggleChatFavoriteContactUseCase` | `UseCase<ToggleFavoriteParams, Unit>` | Toggle favorite status |
+| `ToggleChatArchivedContactUseCase` | `UseCase<ToggleArchivedParams, Unit>` | Toggle archived status |
+| `ClearChatHistoryUseCase` | `UseCase<ClearHistoryParams, Unit>` | Clear conversation history |
+| `MarkChatAsReadUseCase` | `UseCase<MarkAsReadParams, Unit>` | Mark as read |
+| `SearchChatMessagesUseCase` | plain `operator fun invoke` | Synchronous search (NOT extends UseCase) |
 
-> ⚠️ **`SearchChatMessagesUseCase`** — синхронная операция, поэтому НЕ наследует `UseCase` (по правилу: «Do NOT use `UseCase` for synchronous operations — use plain `operator fun invoke`»).
+> ⚠️ **`SearchChatMessagesUseCase`** — synchronous operation, therefore does NOT extend `UseCase` (per the rule: "Do NOT use `UseCase` for synchronous operations — use plain `operator fun invoke`").
 
-### 1.4. Репозиторий интерфейс (app/domain/chat/repository/ChatRepository.kt)
+### 1.4. Repository Interface (app/domain/chat/repository/ChatRepository.kt)
 
 ```kotlin
 package ru.tcynik.meshtactics.domain.chat.repository
@@ -197,9 +197,9 @@ import ru.tcynik.meshtactics.domain.chat.model.ChatContact
 import ru.tcynik.meshtactics.domain.chat.model.ChatMessage
 
 /**
- * Репозиторий для фичи Chat.
- * Работает ТОЛЬКО с domain-моделями. НЕ импортирует mesh-модели.
- * Источник данных — MeshToChatAdapter в data-слое.
+ * Repository for the Chat feature.
+ * Works ONLY with domain models. Does NOT import mesh models.
+ * Data source is MeshToChatAdapter in the data layer.
  */
 interface ChatRepository {
     fun observeContacts(): Flow<List<ChatContact>>
@@ -216,11 +216,11 @@ interface ChatRepository {
 
 ---
 
-## ФАЗА 2: Data-слой (app/data/chat/)
+## PHASE 2: Data Layer (app/data/chat/)
 
-### 2.1. DTO (app/data/chat/dto/)
+### 2.1. DTOs (app/data/chat/dto/)
 
-> ⚠️ **Собственные DTO** — НЕ импортируют mesh-модели. Чистые data-классы.
+> ⚠️ **Own DTOs** — do NOT import mesh models. Pure data classes.
 
 #### `ChatContactDto.kt`
 ```kotlin
@@ -230,7 +230,7 @@ import ru.tcynik.meshtactics.domain.chat.model.ChatContact
 import ru.tcynik.meshtactics.domain.chat.model.ContactType
 
 /**
- * DTO контакта. Чистый data-класс, НЕ зависит от mesh-моделей.
+ * Contact DTO. Pure data class, independent of mesh models.
  */
 data class ChatContactDto(
     val id: String,
@@ -266,7 +266,7 @@ import ru.tcynik.meshtactics.domain.chat.model.ChatMessage
 import ru.tcynik.meshtactics.domain.chat.model.ChatMessageDelivery
 
 /**
- * DTO сообщения. Чистый data-класс, НЕ зависит от mesh-моделей.
+ * Message DTO. Pure data class, independent of mesh models.
  */
 data class ChatMessageDto(
     val id: Long,
@@ -293,8 +293,8 @@ fun ChatMessageDto.toDomain(): ChatMessage = ChatMessage(
 
 ### 2.2. Adapter (app/data/chat/adapter/)
 
-> ⚠️ **ЕДИНСТВЕННОЕ место в chat-фиче, которое импортирует mesh-модели.**
-> Конвертирует mesh-модели → Chat-DTO.
+> ⚠️ **The ONLY place in the chat feature that imports mesh models.**
+> Converts mesh models → Chat DTOs.
 
 #### `MeshToChatAdapter.kt`
 ```kotlin
@@ -305,7 +305,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import ru.tcynik.meshtactics.data.chat.dto.ChatContactDto
 import ru.tcynik.meshtactics.data.chat.dto.ChatMessageDto
-import ru.tcynik.meshtactics.data.chat.dto.toChatDelivery
 import ru.tcynik.meshtactics.domain.chat.model.ContactType
 import ru.tcynik.meshtactics.mesh.model.Contact
 import ru.tcynik.meshtactics.mesh.model.ContactSettings
@@ -317,9 +316,9 @@ import ru.tcynik.meshtactics.mesh.repository.NodeRepository
 import ru.tcynik.meshtactics.mesh.repository.PacketRepository
 
 /**
- * Адаптер: конвертирует mesh-модели → Chat-DTO.
- * Это ЕДИНСТВЕННОЕ место в chat-фиче, которое импортирует mesh-модели.
- * Все остальные компоненты chat-фичи работают только с DTO и domain-моделями.
+ * Adapter: converts mesh models → Chat DTOs.
+ * This is the ONLY place in the chat feature that imports mesh models.
+ * All other chat feature components work exclusively with DTOs and domain models.
  */
 class MeshToChatAdapter(
     private val packetRepository: PacketRepository,
@@ -365,8 +364,8 @@ class MeshToChatAdapter(
         }
 
     suspend fun sendMessage(text: String, contactId: String, channel: Int) {
-        // Делегирует в mesh-слой через PacketRepository
-        // Реализация зависит от того, как mesh отправляет сообщения
+        // Delegates to mesh layer via PacketRepository
+        // Implementation depends on how mesh sends messages
     }
 
     suspend fun toggleFavorite(contactId: String, isFavorite: Boolean) {
@@ -390,15 +389,15 @@ class MeshToChatAdapter(
     }
 
     fun searchMessages(contactIds: Set<String>, query: String): List<ChatMessageDto> {
-        // Синхронный поиск — реализуется при необходимости
+        // Synchronous search — implement when needed
         return emptyList()
     }
 }
 
-// ---- Extension-функции конвертации mesh → DTO ----
+// ---- Extension functions: mesh → DTO conversion ----
 
 private fun DataPacket.toContact(): Contact {
-    // Конвертация DataPacket → Contact (берём из dataPacket поля)
+    // Convert DataPacket → Contact (extract fields from dataPacket)
     return Contact(
         contactKey = contactKey,
         shortName = shortName ?: "",
@@ -451,15 +450,11 @@ private fun MessageStatus?.toChatDelivery() = when (this) {
     MessageStatus.ERROR -> ru.tcynik.meshtactics.domain.chat.model.ChatMessageDelivery.Failed
     else -> ru.tcynik.meshtactics.domain.chat.model.ChatMessageDelivery.Pending
 }
-
-// Alias для удобства
-private fun ru.tcynik.meshtactics.domain.chat.model.ChatMessageDelivery.Companion.toChatDelivery(): Nothing =
-    error("Use MessageStatus?.toChatDelivery() extension")
 ```
 
-### 2.3. Repository реализация (app/data/chat/repository/ChatRepositoryImpl.kt)
+### 2.3. Repository Implementation (app/data/chat/repository/ChatRepositoryImpl.kt)
 
-> ⚠️ **НЕ импортирует mesh-модели.** Работает только с `MeshToChatAdapter` и DTO.
+> ⚠️ **Does NOT import mesh models.** Works only with `MeshToChatAdapter` and DTOs.
 
 ```kotlin
 package ru.tcynik.meshtactics.data.chat.repository
@@ -473,8 +468,8 @@ import ru.tcynik.meshtactics.domain.chat.model.ChatMessage
 import ru.tcynik.meshtactics.domain.chat.repository.ChatRepository
 
 /**
- * ChatRepositoryImpl НЕ импортирует mesh-модели.
- * Вся конвертация из mesh происходит в MeshToChatAdapter.
+ * ChatRepositoryImpl does NOT import mesh models.
+ * All conversion from mesh happens in MeshToChatAdapter.
  */
 class ChatRepositoryImpl(
     private val adapter: MeshToChatAdapter,
@@ -523,28 +518,28 @@ class ChatRepositoryImpl(
 
 ---
 
-## ФАЗА 3: Сохранение состояния (Room в mesh-модуле)
+## PHASE 3: State Persistence (Room in mesh module)
 
-> ⚠️ **SQLDelight НЕ используется для чатов**. Он зарезервирован для тактических данных KMP-слоя.
-> Все данные чатов хранятся в **Room** (`mesh/` модуль).
+> ⚠️ **SQLDelight is NOT used for chats**. It is reserved for KMP-layer tactical data.
+> All chat data is stored in **Room** (`mesh/` module).
 
-### 3.1. Расширить ContactSettings (mesh/database/entity/Packet.kt)
+### 3.1. Extend ContactSettings (mesh/database/entity/Packet.kt)
 
-В `ContactSettings` entity добавить:
+In `ContactSettings` entity, add:
 ```kotlin
 @ColumnInfo(name = "is_favorite", defaultValue = "0") val isFavorite: Boolean = false,
 @ColumnInfo(name = "is_pinned", defaultValue = "0") val isPinned: Boolean = false,
 @ColumnInfo(name = "is_archived", defaultValue = "0") val isArchived: Boolean = false,
 ```
 
-### 3.2. Миграция БД
-- Версия: текущая → +1
+### 3.2. Database Migration
+- Version: current → +1
 - `ALTER TABLE contact_settings ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0`
 - `ALTER TABLE contact_settings ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0`
 - `ALTER TABLE contact_settings ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0`
-- На время разработки: `fallbackToDestructiveMigration()` до тестирования миграции
+- During development: `fallbackToDestructiveMigration()` until migration is tested
 
-### 3.3. PacketDao — новые методы
+### 3.3. PacketDao — New Methods
 
 ```kotlin
 @Query("UPDATE contact_settings SET is_favorite = :isFavorite WHERE contact_key = :contactKey")
@@ -556,7 +551,7 @@ suspend fun updatePinned(contactKey: String, isPinned: Boolean)
 @Query("UPDATE contact_settings SET is_archived = :isArchived WHERE contact_key = :contactKey")
 suspend fun updateArchived(contactKey: String, isArchived: Boolean)
 
-// Сортировка: закреплённые → обычные по времени
+// Sorting: pinned → normal by time
 @Query("""
     SELECT cs.*, p.* FROM contact_settings cs
     LEFT JOIN packet p ON cs.contact_key = p.contact_key
@@ -569,114 +564,114 @@ suspend fun updateArchived(contactKey: String, isArchived: Boolean)
 fun getContactsWithLastMessage(): Flow<List<ContactWithSettingsAndLastMessage>>
 ```
 
-### 3.4. PacketRepository (mesh интерфейс) — новые методы
+### 3.4. PacketRepository (mesh interface) — New Methods
 
-В `mesh/repository/PacketRepository.kt`:
+In `mesh/repository/PacketRepository.kt`:
 ```kotlin
 suspend fun setFavorite(contactKey: String, isFavorite: Boolean)
 suspend fun setPinned(contactKey: String, isPinned: Boolean)
 suspend fun setArchived(contactKey: String, isArchived: Boolean)
 ```
 
-В `mesh/data/repository/PacketRepositoryImpl.kt` — делегирование в DAO.
+In `mesh/data/repository/PacketRepositoryImpl.kt` — delegate to DAO.
 
 ---
 
-## ФАЗА 4: UI "Фильтр"
+## PHASE 4: UI "Filter" Tab
 
-### 4.1. Структура компонентов (app/presentation/feature/chat/components/filter/)
+### 4.1. Component Structure (app/presentation/feature/chat/components/filter/)
 
 ```
-FilterTabContent.kt          — основной экран вкладки
-FilterTopBar.kt              — кнопки: Выбрать всё, Избранное, Архив (заглушка)
-ContactList.kt               — LazyColumn контактов
-ContactListItem.kt           — один элемент списка
-ContactDropdownMenu.kt       — выпадающее меню (⋮)
+FilterTabContent.kt          — main tab screen
+FilterTopBar.kt              — buttons: Select All, Favorites, Archive (stub)
+ContactList.kt               — LazyColumn of contacts
+ContactListItem.kt           — single list item
+ContactDropdownMenu.kt       — overflow menu (⋮)
 ```
 
 ### 4.2. ContactListItem
 ```
 ┌────────────────────────────────────────────────────┐
-│ ☑  ★  Название канала    12   14:30         ⋮     │
+│ ☑  ★  Channel Name        12   14:30         ⋮     │
 └────────────────────────────────────────────────────┘
 ```
-- **Checkbox** (слева) — состояние чекбокса (из `UiState.selectedContactIds`)
-- **Star** (избранное) — видна если `contact.isFavorite = true`
-- **Archived badge** — если `contact.isArchived = true` (заглушка, визуально)
-- **Название** — `contact.displayName`
-- **Unread badge** — если `contact.unreadCount > 0`
-- **Время** — форматированное `contact.lastMessageTime`
+- **Checkbox** (left) — checkbox state (from `UiState.selectedContactIds`)
+- **Star** (favorite) — visible if `contact.isFavorite = true`
+- **Archived badge** — if `contact.isArchived = true` (stub, visual only)
+- **Name** — `contact.displayName`
+- **Unread badge** — if `contact.unreadCount > 0`
+- **Time** — formatted `contact.lastMessageTime`
 - **DropdownMenu** (⋮):
-  - Закрепить / Открепить
-  - В избранное / Убрать из избранного
-  - Пометить как прочитанное
-  - В архив / Из архива (переключает `isArchived` через `toggleArchived`)
-  - Очистить (с диалогом подтверждения)
+  - Pin / Unpin
+  - Add to Favorites / Remove from Favorites
+  - Mark as Read
+  - Archive / Unarchive (toggles `isArchived` via `toggleArchived`)
+  - Clear (with confirmation dialog)
 
 ### 4.3. FilterTopBar
 ```
-[ Выбрать всё ]  [ Избранное ]  [ Архив ]
+[ Select All ]  [ Favorites ]  [ Archive ]
 ```
-- "Выбрать всё" — отмечает все чекбоксы
-- "Избранное" — отмечает чекбоксами только избранные
-- "Архив" — заглушка (Snackbar "В разработке")
+- "Select All" — checks all checkboxes
+- "Favorites" — checks only favorite contacts
+- "Archive" — stub (Snackbar "Coming soon")
 
-### 4.4. Логика сортировки
-- Закреплённые сверху
-- Остальные по `lastMessageTime` (новые сверху)
+### 4.4. Sorting Logic
+- Pinned contacts at the top
+- Remaining sorted by `lastMessageTime` (newest first)
 
 ---
 
-## ФАЗА 5: UI "Чат"
+## PHASE 5: UI "Chat" Tab
 
-### 5.1. Структура компонентов (app/presentation/feature/chat/components/chat/)
+### 5.1. Component Structure (app/presentation/feature/chat/components/chat/)
 
 ```
-ChatTabContent.kt            — Scaffold вкладки
-ChatSearchBar.kt             — TopAppBar с поиском
-MessageList.kt               — LazyColumn сообщений
-MessageBubble.kt             — пузырь сообщения (входящие/исходящие)
-ChatInputBar.kt              — BottomAppBar (TextField + кнопка)
+ChatTabContent.kt            — Scaffold for the tab
+ChatSearchBar.kt             — TopAppBar with search
+MessageList.kt               — LazyColumn of messages
+MessageBubble.kt             — message bubble (incoming/outgoing)
+ChatInputBar.kt              — BottomAppBar (TextField + send button)
 ```
 
 ### 5.2. Layout
 ```
 ┌─────────────────────────────────────────┐
-│  [Поиск по сообщениям...]               │ ← ChatSearchBar
+│  [Search messages...]                   │ ← ChatSearchBar
 ├─────────────────────────────────────────┤
 │                                         │
-│  ╭────────────╮                         │ ← Входящее (слева)
-│  │ Привет!    │                         │
+│  ╭────────────╮                         │ ← Incoming (left)
+│  │ Hello!     │                         │
 │  ╰────────────╯                                  │
 │         ╭────────────╮                   │
-│         │   Привет!  │                   │ ← Исходящее (справа)
+│         │   Hello!   │                   │ ← Outgoing (right)
 │         ╰────────────╯                   │
 │                                         │
 ├─────────────────────────────────────────┤
-│  [Введите сообщение...]        [➤]      │ ← ChatInputBar
+│  [Type a message...]           [➤]      │ ← ChatInputBar
 └─────────────────────────────────────────┘
 ```
 
 ### 5.3. MessageBubble
-- **Входящие** (`isOutgoing = false`): выровнены влево, цвет фона `surfaceVariant`
-- **Исходящие** (`isOutgoing = true`): выровнены вправо, цвет фона `primaryContainer`
-- Текст + время внутри пузыря
-- Сортировка по времени (старые ↑)
-- `LazyColumn(reverseLayout = false)` с начальным скроллом вниз
+- **Incoming** (`isOutgoing = false`): aligned left, background color `surfaceVariant`
+- **Outgoing** (`isOutgoing = true`): aligned right, background color `primaryContainer`
+- Text + timestamp inside the bubble
+- Sorted by time (oldest ↑)
+- `LazyColumn(reverseLayout = false)` with initial scroll to bottom
 
 ### 5.4. ChatInputBar
-- `TextField` + `IconButton` (отправить)
-- `Modifier.imePadding()` для клавиатуры
-- При появлении клавиатуры — строка ввода поднимается
+- `TextField` + `IconButton` (send)
+- `Modifier.imePadding()` for keyboard handling
+- When keyboard appears — input bar rises above
 
-### 5.5. Логика
-- При клике на контакт → `activeContactId` → только его сообщения
-- При чекбоксах → сообщения всех выбранных в общем потоке
-- Поиск фильтрует по тексту (только в отфильтрованных)
+### 5.5. Logic
+- Click on contact → `activeContactId` → only that contact's messages
+- With checkboxes → messages from all selected contacts in unified feed
+- Search filters by text (within filtered contacts only)
 
 ---
 
-## ФАЗА 6: Навигация и свайпы
+## PHASE 6: Navigation & Swipes
 
 ### 6.1. TabRow
 ```kotlin
@@ -691,17 +686,17 @@ TabRow(selectedTabIndex = activeTab.ordinal) {
 }
 ```
 
-### 6.2. Свайпы
+### 6.2. Swipes
 - `Modifier.pointerInput` + `detectHorizontalDragGestures`
-- Свайп влево на "Фильтр" → переключить на "Чат"
-- Свайп вправо на "Чат" → переключить на "Фильтр"
-- Свайп вправо на "Фильтр" → `onNavigateBack()` (главный экран)
+- Swipe left on "Filter" → switch to "Chat"
+- Swipe right on "Chat" → switch to "Filter"
+- Swipe right on "Filter" → `onNavigateBack()` (main screen)
 
 ---
 
-## ФАЗА 7: ViewModel + UiState + DI
+## PHASE 7: ViewModel + UiState + DI
 
-### 7.1. ChatUiState (исправленный)
+### 7.1. ChatUiState (Revised)
 
 ```kotlin
 package ru.tcynik.meshtactics.presentation.feature.chat
@@ -715,15 +710,15 @@ import ru.tcynik.meshtactics.domain.chat.model.ChatMessage
 import ru.tcynik.meshtactics.domain.chat.model.ChatTab
 
 /**
- * ✅ Чекбоксы хранятся в UiState (selectedContactIds),
- * а НЕ в domain-модели ChatContactItem.
+ * ✅ Checkboxes are stored in UiState (selectedContactIds),
+ * NOT in a domain model like ChatContactItem.
  */
 data class ChatUiState(
     val activeTab: ChatTab = ChatTab.FILTER,
     val contacts: ImmutableList<ChatContact> = persistentListOf(),
     val messages: ImmutableList<ChatMessage> = persistentListOf(),
     val selectedContactIds: ImmutableSet<String> = persistentSetOf(),
-    val activeContactId: String? = null,   // при клике на контакт
+    val activeContactId: String? = null,   // when clicking on a contact
     val searchQuery: String = "",
     val inputText: String = "",
     val showAllChecked: Boolean = false,
@@ -804,14 +799,16 @@ class ChatViewModel(
         }
     }
 
-    // Навигация
+    // ── Navigation ──
+
     fun onTabSelected(tab: ChatTab) {
         _uiState.update { it.copy(activeTab = tab) }
     }
 
-    fun onNavigateBack() { /* callback через NavGraph */ }
+    fun onNavigateBack() { /* callback via NavGraph */ }
 
-    // Фильтр
+    // ── Filter Tab ──
+
     fun onContactChecked(contactId: String) {
         _uiState.update { state ->
             val newIds = if (state.selectedContactIds.contains(contactId)) {
@@ -885,7 +882,8 @@ class ChatViewModel(
         _uiState.update { it.copy(showClearConfirmation = false) }
     }
 
-    // Чат
+    // ── Chat Tab ──
+
     fun onInputChange(text: String) {
         _uiState.update { it.copy(inputText = text) }
     }
@@ -920,7 +918,7 @@ val meshToChatAdapterModule = module {
 }
 ```
 
-### 7.4. Koin — ChatDomainModule.kt (новый)
+### 7.4. Koin — ChatDomainModule.kt (New)
 
 ```kotlin
 package ru.tcynik.meshtactics.di
@@ -939,7 +937,7 @@ val chatDomainModule = module {
 }
 ```
 
-### 7.5. Koin — ChatDataModule.kt (новый)
+### 7.5. Koin — ChatDataModule.kt (New)
 
 ```kotlin
 package ru.tcynik.meshtactics.di
@@ -953,7 +951,7 @@ val chatDataModule = module {
 }
 ```
 
-### 7.6. Koin — PresentationModule.kt (обновить)
+### 7.6. Koin — PresentationModule.kt (Update)
 
 ```kotlin
 viewModel {
@@ -971,46 +969,46 @@ viewModel {
 
 ---
 
-## ФАЗА 8: Интеграция с mesh
+## PHASE 8: Mesh Integration
 
-> Mesh-модуль — **источник данных**. Chat-фича **НЕ импортирует** mesh-модели.
-> Конвертация происходит ТОЛЬКО в `MeshToChatAdapter`.
+> Mesh module — **data source**. Chat feature does **NOT import** mesh models.
+> Conversion happens **ONLY** in `MeshToChatAdapter`.
 
-### 8.1. Отправка сообщений
-- `SendChatMessageUseCase` → `ChatRepository.sendMessage()` → `MeshToChatAdapter.sendMessage()` → mesh-слой
+### 8.1. Sending Messages
+- `SendChatMessageUseCase` → `ChatRepository.sendMessage()` → `MeshToChatAdapter.sendMessage()` → mesh layer
 
-### 8.2. Получение сообщений
+### 8.2. Receiving Messages
 - `observeMessages(contactIds)` → `MeshToChatAdapter.observeMessagesAsFlow()` → `PacketRepository.getMessagesFrom()` → mapper → DTO → domain → Flow
 
-### 8.3. Получение контактов
+### 8.3. Receiving Contacts
 - `observeContacts()` → `MeshToChatAdapter.observeContactsAsFlow()` → `PacketRepository.getContacts()` + `getContactSettings()` → mapper → DTO → domain → Flow
 
 ---
 
-## ФАЗА 9: Тестирование
+## PHASE 9: Testing
 
-### 9.1. Сценарии
-- [ ] Сохранение состояния между сессиями (чекбоксы, избранное, закреплённые, архив)
-- [ ] Отправка сообщения через mesh
-- [ ] Получение сообщения через mesh
-- [ ] Свайпы между вкладками
-- [ ] Контекстное меню (закрепить, избранное, архив, прочитано, очистить)
-- [ ] Поиск по сообщениям
-- [ ] Клик на контакт → только его сообщения
-- [ ] Чекбоксы → сообщения всех выбранных
-- [ ] Клавиатура не перекрывает строку ввода
+### 9.1. Scenarios
+- [ ] State persistence between sessions (checkboxes, favorites, pinned, archived)
+- [ ] Sending a message through mesh
+- [ ] Receiving a message through mesh
+- [ ] Swiping between tabs
+- [ ] Context menu (pin, favorite, archive, mark as read, clear)
+- [ ] Searching messages
+- [ ] Click on contact → only that contact's messages
+- [ ] Checkboxes → messages from all selected contacts
+- [ ] Keyboard does not overlap the input bar
 
-### 9.2. Build check
-- [ ] `./gradlew :app:assembleDebug` — без ошибок
-- [ ] `./gradlew :app:lint` — без критических предупреждений
+### 9.2. Build Check
+- [ ] `./gradlew :app:assembleDebug` — no errors
+- [ ] `./gradlew :app:lint` — no critical warnings
 
 ---
 
-## Файлы для создания/изменения
+## Files to Create / Modify
 
-### Новые файлы:
+### New Files:
 
-**Domain-модели (app/domain/chat/model/):**
+**Domain models (app/domain/chat/model/):**
 ```
 app/src/main/java/ru/tcynik/meshtactics/domain/chat/model/ChatContact.kt
 app/src/main/java/ru/tcynik/meshtactics/domain/chat/model/ChatMessage.kt
@@ -1036,12 +1034,12 @@ app/src/main/java/ru/tcynik/meshtactics/domain/chat/usecase/ChatUseCaseParams.kt
    ToggleArchivedParams, ClearHistoryParams, MarkAsReadParams, SearchMessagesParams)
 ```
 
-**Repository интерфейс (app/domain/chat/repository/):**
+**Repository interface (app/domain/chat/repository/):**
 ```
 app/src/main/java/ru/tcynik/meshtactics/domain/chat/repository/ChatRepository.kt
 ```
 
-**DTO (app/data/chat/dto/):**
+**DTOs (app/data/chat/dto/):**
 ```
 app/src/main/java/ru/tcynik/meshtactics/data/chat/dto/ChatContactDto.kt
 app/src/main/java/ru/tcynik/meshtactics/data/chat/dto/ChatMessageDto.kt
@@ -1052,19 +1050,19 @@ app/src/main/java/ru/tcynik/meshtactics/data/chat/dto/ChatMessageDto.kt
 app/src/main/java/ru/tcynik/meshtactics/data/chat/adapter/MeshToChatAdapter.kt
 ```
 
-**Repository реализация (app/data/chat/repository/):**
+**Repository implementation (app/data/chat/repository/):**
 ```
 app/src/main/java/ru/tcynik/meshtactics/data/chat/repository/ChatRepositoryImpl.kt
 ```
 
-**DI модули (app/di/):**
+**DI modules (app/di/):**
 ```
 app/src/main/java/ru/tcynik/meshtactics/di/MeshToChatAdapterModule.kt
 app/src/main/java/ru/tcynik/meshtactics/di/ChatDomainModule.kt
 app/src/main/java/ru/tcynik/meshtactics/di/ChatDataModule.kt
 ```
 
-**UI компоненты (app/presentation/feature/chat/):**
+**UI components (app/presentation/feature/chat/):**
 ```
 app/src/main/java/ru/tcynik/meshtactics/presentation/feature/chat/components/filter/FilterTabContent.kt
 app/src/main/java/ru/tcynik/meshtactics/presentation/feature/chat/components/filter/FilterTopBar.kt
@@ -1078,34 +1076,34 @@ app/src/main/java/ru/tcynik/meshtactics/presentation/feature/chat/components/cha
 app/src/main/java/ru/tcynik/meshtactics/presentation/feature/chat/components/chat/ChatInputBar.kt
 ```
 
-### Изменяемые файлы:
+### Modified Files:
 ```
 app/src/main/java/ru/tcynik/meshtactics/presentation/feature/chat/ChatUiState.kt
 app/src/main/java/ru/tcynik/meshtactics/presentation/feature/chat/ChatViewModel.kt
 app/src/main/java/ru/tcynik/meshtactics/presentation/feature/chat/ChatScreen.kt
 app/src/main/java/ru/tcynik/meshtactics/di/PresentationModule.kt
-app/src/main/java/ru/tcynik/meshtactics/di/MyMeshApplication.kt (или где определён startKoin — добавить модули)
+app/src/main/java/ru/tcynik/meshtactics/di/MyMeshApplication.kt (or wherever startKoin is defined — add modules)
 
 mesh/src/main/kotlin/ru/tcynik/meshtactics/mesh/
 ├── database/entity/Packet.kt (ContactSettings: +isFavorite, +isPinned, +isArchived)
 ├── database/dao/PacketDao.kt (+ updateFavorite, updatePinned, updateArchived)
-├── database/MeshtasticDatabase.kt (миграция)
+├── database/MeshtasticDatabase.kt (migration)
 ├── repository/PacketRepository.kt (+ setFavorite, setPinned, setArchived)
-└── data/repository/PacketRepositoryImpl.kt (реализация новых методов)
+└── data/repository/PacketRepositoryImpl.kt (implementation of new methods)
 ```
 
 ---
 
-## Сводка ключевых архитектурных решений
+## Summary of Key Architectural Decisions
 
-| Решение | Обоснование |
-|---------|-------------|
-| Domain в `app/domain/chat/` | Каноническое место в проекте (10 существующих поддоменов) |
-| Собственные DTO (`ChatContactDto`, `ChatMessageDto`) | Chat-фича НЕ зависит от mesh-моделей |
-| `MeshToChatAdapter` — единственное место импорта mesh | Изоляция зависимости: только 1 файл в chat-фиче видит mesh-модели |
-| `ChatRepositoryImpl` НЕ импортирует mesh | Работает только через adapter + DTO |
-| Mapper = `dto.toDomain()` extension | Чистая конвертация DTO → domain |
-| `isArchived` в модели и репозитории | Интерфейс готов, логика — заглушка в MVP |
-| `SearchChatMessagesUseCase` — plain `invoke` | Синхронная операция, НЕ наследует `UseCase` |
-| Чекбоксы в `UiState.selectedContactIds` | UI-состояние НЕ в domain-моделях |
-| `togglePinned` в репозитории | Нужен для сортировки и UI |
+| Decision | Rationale |
+|---------|-----------|
+| Domain in `app/domain/chat/` | Canonical location in this project (10 existing subdomains) |
+| Own DTOs (`ChatContactDto`, `ChatMessageDto`) | Chat feature does NOT depend on mesh models |
+| `MeshToChatAdapter` — sole mesh import location | Dependency isolation: only 1 file in chat feature sees mesh models |
+| `ChatRepositoryImpl` does NOT import mesh | Works exclusively through adapter + DTOs |
+| Mapper = `dto.toDomain()` extension | Pure DTO → domain conversion |
+| `isArchived` in model and repository | Interface ready, logic is a stub in MVP |
+| `SearchChatMessagesUseCase` — plain `invoke` | Synchronous operation, does NOT extend `UseCase` |
+| Checkboxes in `UiState.selectedContactIds` | UI state is NOT in domain models |
+| `togglePinned` in repository | Required for sorting and UI |
