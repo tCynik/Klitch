@@ -1,18 +1,528 @@
 package ru.tcynik.meshtactics.presentation.feature.chat
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.StarBorder
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.compose.viewmodel.koinViewModel
+import ru.tcynik.meshtactics.R
+import ru.tcynik.meshtactics.domain.transport.model.ChatMessageModel
+import ru.tcynik.meshtactics.presentation.feature.chat.model.ChatFilterItem
+import ru.tcynik.meshtactics.presentation.feature.chat.model.ChatTab
+import ru.tcynik.meshtactics.presentation.feature.chat.model.ChatType
+import java.text.SimpleDateFormat
+import java.util.*
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ChatScreen(
     uiState: ChatUiState,
     onNavigateBack: () -> Unit,
+    viewModel: ChatViewModel = koinViewModel(),
 ) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Chat — TODO")
+    val pagerState = rememberPagerState(
+        initialPage = uiState.currentTab.index,
+        pageCount = { 2 }
+    )
+
+    // Синхронизация pager state с ViewModel
+    LaunchedEffect(pagerState.currentPage) {
+        val tab = if (pagerState.currentPage == 0) ChatTab.FILTER else ChatTab.CHAT
+        if (uiState.currentTab != tab) {
+            viewModel.switchTab(tab)
+        }
     }
+
+    LaunchedEffect(uiState.currentTab) {
+        if (pagerState.currentPage != uiState.currentTab.index) {
+            pagerState.animateScrollToPage(uiState.currentTab.index)
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.chat_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.settings_back_description)
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            )
+        },
+        modifier = Modifier.fillMaxSize()
+    ) { paddingValues ->
+        Column(modifier = Modifier.padding(paddingValues)) {
+            TabRow(
+                selectedTabIndex = uiState.currentTab.index,
+                containerColor = MaterialTheme.colorScheme.surface
+            ) {
+                Tab(
+                    selected = uiState.currentTab == ChatTab.FILTER,
+                    onClick = { viewModel.switchTab(ChatTab.FILTER) },
+                    text = { Text(stringResource(R.string.chat_tab_filter)) }
+                )
+                Tab(
+                    selected = uiState.currentTab == ChatTab.CHAT,
+                    onClick = { viewModel.switchTab(ChatTab.CHAT) },
+                    text = { Text(stringResource(R.string.chat_tab_chat)) }
+                )
+            }
+
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.weight(1f)
+            ) { page ->
+                when (page) {
+                    0 -> FilterTabContent(
+                        filterItems = uiState.filterItems,
+                        onToggleItem = { viewModel.toggleFilterItem(it) },
+                        onSelectAll = { viewModel.selectAllItems() },
+                        onSelectFavorite = { viewModel.selectFavoriteItems() },
+                        onSelectArchive = { viewModel.selectArchiveItems() },
+                        onToggleFavorite = { viewModel.toggleFavorite(it) },
+                        onTogglePinned = { viewModel.togglePinned(it) },
+                        onMarkAsRead = { viewModel.markAsRead(it) },
+                        onMoveToArchive = { viewModel.moveToArchive(it) },
+                        onClearChat = { viewModel.clearChat(it) },
+                        onChatClick = { viewModel.selectChat(it) }
+                    )
+
+                    1 -> ChatTabContent(
+                        messages = uiState.messages,
+                        searchQuery = uiState.searchQuery,
+                        inputText = uiState.inputText,
+                        onSearchChanged = { viewModel.updateSearchQuery(it) },
+                        onInputChanged = { viewModel.updateInputText(it) },
+                        onSend = { viewModel.sendMessage() }
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ==================== ВКЛАДКА ФИЛЬТР ====================
+
+@Composable
+private fun FilterTabContent(
+    filterItems: List<ChatFilterItem>,
+    onToggleItem: (String) -> Unit,
+    onSelectAll: () -> Unit,
+    onSelectFavorite: () -> Unit,
+    onSelectArchive: () -> Unit,
+    onToggleFavorite: (String) -> Unit,
+    onTogglePinned: (String) -> Unit,
+    onMarkAsRead: (String) -> Unit,
+    onMoveToArchive: (String) -> Unit,
+    onClearChat: (String) -> Unit,
+    onChatClick: (String) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Кнопки фильтрации
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterButton(stringResource(R.string.chat_select_all), onClick = onSelectAll)
+            FilterButton(stringResource(R.string.chat_select_favorite), onClick = onSelectFavorite)
+            FilterButton(stringResource(R.string.chat_select_archive), onClick = onSelectArchive)
+        }
+
+        // Список чатов
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            items(filterItems, key = { it.id }) { item ->
+                ChatFilterItemRow(
+                    item = item,
+                    onToggleCheck = { onToggleItem(item.id) },
+                    onToggleFavorite = { onToggleFavorite(item.id) },
+                    onTogglePinned = { onTogglePinned(item.id) },
+                    onMarkAsRead = { onMarkAsRead(item.id) },
+                    onMoveToArchive = { onMoveToArchive(item.id) },
+                    onClearChat = { onClearChat(item.id) },
+                    onChatClick = { onChatClick(item.id) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RowScope.FilterButton(text: String, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.weight(1f),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        ),
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+    ) {
+        Text(text, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+// ==================== АЙТЕМ ФИЛЬТРА ====================
+
+@Composable
+private fun ChatFilterItemRow(
+    item: ChatFilterItem,
+    onToggleCheck: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onTogglePinned: () -> Unit,
+    onMarkAsRead: () -> Unit,
+    onMoveToArchive: () -> Unit,
+    onClearChat: () -> Unit,
+    onChatClick: () -> Unit,
+) {
+    var showMenu by remember { mutableStateOf(false) }
+    var showClearDialog by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onChatClick() }
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Чекбокс
+        Checkbox(
+            checked = item.isChecked,
+            onCheckedChange = { onToggleCheck() }
+        )
+
+        // Звезда / закрепление
+        IconButton(
+            onClick = onToggleFavorite,
+            modifier = Modifier.size(32.dp)
+        ) {
+            Icon(
+                imageVector = if (item.isFavorite) Icons.Outlined.Star else Icons.Outlined.StarBorder,
+                contentDescription = null,
+                tint = if (item.isFavorite) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        // Индикатор типа
+        if (item.isPinned) {
+            Text("📌 ", fontSize = 12.sp)
+        }
+
+        // Название и превью
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 4.dp)
+        ) {
+            Text(
+                text = item.name,
+                fontWeight = FontWeight.Medium,
+                fontSize = 15.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (item.lastMessagePreview.isNotEmpty()) {
+                Text(
+                    text = item.lastMessagePreview,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        // Непрочитанные
+        if (item.unreadCount > 0) {
+            Badge(
+                modifier = Modifier.padding(end = 4.dp)
+            ) {
+                Text(item.unreadCount.toString())
+            }
+        }
+
+        // Время
+        Text(
+            text = formatTime(item.lastMessageTime),
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(end = 2.dp)
+        )
+
+        // Троеточие меню
+        Box {
+            IconButton(onClick = { showMenu = true }) {
+                Icon(Icons.Default.MoreVert, contentDescription = null)
+            }
+
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(if (item.isPinned) R.string.chat_menu_pin else R.string.chat_menu_pin)) },
+                    onClick = {
+                        onTogglePinned()
+                        showMenu = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(if (item.isFavorite) R.string.chat_menu_unfavorite else R.string.chat_menu_favorite)) },
+                    onClick = {
+                        onToggleFavorite()
+                        showMenu = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.chat_menu_read)) },
+                    onClick = {
+                        onMarkAsRead()
+                        showMenu = false
+                    }
+                )
+                if (item.type != ChatType.ARCHIVE) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.chat_menu_archive)) },
+                        onClick = {
+                            onMoveToArchive()
+                            showMenu = false
+                        }
+                    )
+                }
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.chat_menu_clear)) },
+                    onClick = {
+                        showMenu = false
+                        showClearDialog = true
+                    }
+                )
+            }
+        }
+    }
+
+    // Диалог подтверждения очистки
+    if (showClearDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearDialog = false },
+            title = { Text(stringResource(R.string.chat_clear_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    onClearChat()
+                    showClearDialog = false
+                }) {
+                    Text(stringResource(R.string.chat_clear_confirm_button))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearDialog = false }) {
+                    Text(stringResource(R.string.chat_cancel))
+                }
+            }
+        )
+    }
+}
+
+// ==================== ВКЛАДКА ЧАТ ====================
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ChatTabContent(
+    messages: List<ChatMessageModel>,
+    searchQuery: String,
+    inputText: String,
+    onSearchChanged: (String) -> Unit,
+    onInputChanged: (String) -> Unit,
+    onSend: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Строка поиска
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchChanged,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            placeholder = { Text(stringResource(R.string.chat_search_hint)) },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            singleLine = true,
+            shape = RoundedCornerShape(20.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+            )
+        )
+
+        // Список сообщений
+        val listState = rememberLazyListState(initialFirstVisibleItemIndex = Int.MAX_VALUE)
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.weight(1f),
+            reverseLayout = false,
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            items(messages, key = { it.id }) { message ->
+                ChatMessageBubble(message = message)
+            }
+        }
+
+        // Строка ввода
+        ChatInputBar(
+            inputText = inputText,
+            onInputChanged = onInputChanged,
+            onSend = onSend
+        )
+    }
+}
+
+// ==================== ПУЗЫРЬ СООБЩЕНИЯ ====================
+
+@Composable
+private fun ChatMessageBubble(
+    message: ChatMessageModel,
+) {
+    val isMe = message.senderCallsign == "Я"
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = if (isMe) Arrangement.End else Arrangement.Start
+    ) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = 280.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(
+                    if (isMe) MaterialTheme.colorScheme.primaryContainer
+                    else MaterialTheme.colorScheme.surfaceVariant
+                )
+                .padding(10.dp)
+        ) {
+            // Имя отправителя
+            Text(
+                text = message.senderCallsign,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (isMe) MaterialTheme.colorScheme.onPrimaryContainer
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            // Текст сообщения
+            Text(
+                text = message.text,
+                fontSize = 14.sp,
+                color = if (isMe) MaterialTheme.colorScheme.onPrimaryContainer
+                else MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            // Время
+            Text(
+                text = formatTime(message.sentAt),
+                fontSize = 10.sp,
+                color = if (isMe) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.align(Alignment.End)
+            )
+        }
+    }
+}
+
+// ==================== СТРОКА ВВОДА ====================
+
+@Composable
+private fun ChatInputBar(
+    inputText: String,
+    onInputChanged: (String) -> Unit,
+    onSend: () -> Unit,
+) {
+    Surface(
+        tonalElevation = 4.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 6.dp)
+                .imePadding(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = inputText,
+                onValueChange = onInputChanged,
+                modifier = Modifier.weight(1f),
+                placeholder = { Text(stringResource(R.string.chat_input_hint)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(
+                    onSend = { onSend() }
+                ),
+                shape = RoundedCornerShape(24.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                )
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            IconButton(
+                onClick = onSend,
+                enabled = inputText.trim().isNotEmpty(),
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Send,
+                    contentDescription = stringResource(R.string.chat_send)
+                )
+            }
+        }
+    }
+}
+
+// ==================== УТИЛИТЫ ====================
+
+private fun formatTime(timestamp: Long): String {
+    if (timestamp == 0L) return ""
+    val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+    return sdf.format(Date(timestamp))
 }
