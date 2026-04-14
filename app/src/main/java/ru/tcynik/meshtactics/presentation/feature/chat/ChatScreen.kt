@@ -119,8 +119,16 @@ fun ChatScreen(
                 when (page) {
                     0 -> FilterTabContent(
                         filterItems = uiState.filterItems,
+                        allSelected = uiState.filterItems.isNotEmpty() &&
+                                uiState.filterItems.all { it.isChecked },
+                        onToggleSelectAll = {
+                            if (uiState.filterItems.all { it.isChecked }) {
+                                viewModel.deselectAllItems()
+                            } else {
+                                viewModel.selectAllItems()
+                            }
+                        },
                         onToggleItem = { viewModel.toggleFilterItem(it) },
-                        onSelectAll = { viewModel.selectAllItems() },
                         onSelectFavorite = { viewModel.selectFavoriteItems() },
                         onSelectArchive = { viewModel.selectArchiveItems() },
                         onToggleFavorite = { viewModel.toggleFavorite(it) },
@@ -150,8 +158,9 @@ fun ChatScreen(
 @Composable
 private fun FilterTabContent(
     filterItems: List<ChatFilterItem>,
+    allSelected: Boolean,
+    onToggleSelectAll: () -> Unit,
     onToggleItem: (String) -> Unit,
-    onSelectAll: () -> Unit,
     onSelectFavorite: () -> Unit,
     onSelectArchive: () -> Unit,
     onToggleFavorite: (String) -> Unit,
@@ -169,7 +178,10 @@ private fun FilterTabContent(
                 .padding(8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            FilterButton(stringResource(R.string.chat_select_all), onClick = onSelectAll)
+            FilterButton(
+                stringResource(if (allSelected) R.string.chat_deselect_all else R.string.chat_select_all),
+                onClick = onToggleSelectAll
+            )
             FilterButton(stringResource(R.string.chat_select_favorite), onClick = onSelectFavorite)
             FilterButton(stringResource(R.string.chat_select_archive), onClick = onSelectArchive)
         }

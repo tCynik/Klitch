@@ -60,6 +60,14 @@ class ChatViewModel : ViewModel() {
         updateFilteredMessages()
     }
 
+    fun deselectAllItems() {
+        _uiState.update { state ->
+            val updatedItems = state.filterItems.map { it.copy(isChecked = false) }
+            state.copy(filterItems = updatedItems.toImmutableList())
+        }
+        updateFilteredMessages()
+    }
+
     fun selectFavoriteItems() {
         _uiState.update { state ->
             val updatedItems = state.filterItems.map {

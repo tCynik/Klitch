@@ -14,6 +14,7 @@
     <string name="chat_tab_filter">Фильтр</string>
     <string name="chat_tab_chat">Чат</string>
     <string name="chat_select_all">Выбрать всё</string>
+    <string name="chat_deselect_all">Снять выделение</string>
     <string name="chat_select_favorite">Избранное</string>
     <string name="chat_select_archive">Архив</string>
     <string name="chat_search_hint">Поиск...</string>
