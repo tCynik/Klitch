@@ -7,6 +7,7 @@ import ru.tcynik.meshtactics.presentation.feature.chat.model.ChatFilterItem
 import ru.tcynik.meshtactics.presentation.feature.chat.model.ChatTab
 
 data class ChatUiState(
+    val allMessages: ImmutableList<ChatMessageModel> = persistentListOf(),
     val messages: ImmutableList<ChatMessageModel> = persistentListOf(),
     val filterItems: ImmutableList<ChatFilterItem> = persistentListOf(),
     val inputText: String = "",

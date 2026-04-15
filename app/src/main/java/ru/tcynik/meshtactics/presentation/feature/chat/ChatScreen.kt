@@ -55,6 +55,18 @@ private fun findItemById(id: String?, items: List<ChatFilterItem>): ChatFilterIt
     return null
 }
 
+private fun collectUnreadAll(items: List<ChatFilterItem>): Int {
+    var total = 0
+    fun traverse(list: List<ChatFilterItem>) {
+        list.forEach { item ->
+            total += item.unreadCount
+            if (item.isArchiveSection) traverse(item.children)
+        }
+    }
+    traverse(items)
+    return total
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ChatScreen(
@@ -123,7 +135,7 @@ fun ChatScreen(
                         val totalUnread = if (uiState.selectedChatId != null) {
                             findItemById(uiState.selectedChatId, uiState.filterItems)?.unreadCount ?: 0
                         } else {
-                            uiState.filterItems.sumOf { it.unreadCount }
+                            collectUnreadAll(uiState.filterItems)
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
@@ -166,6 +178,7 @@ fun ChatScreen(
                         onTogglePinned = { viewModel.togglePinned(it) },
                         onMarkAsRead = { viewModel.markAsRead(it) },
                         onMoveToArchive = { viewModel.moveToArchive(it) },
+                        onMoveFromArchive = { viewModel.moveFromArchive(it) },
                         onClearChat = { viewModel.clearChat(it) },
                         onChatClick = { viewModel.selectChat(it) }
                     )
@@ -198,6 +211,7 @@ private fun FilterTabContent(
     onTogglePinned: (String) -> Unit,
     onMarkAsRead: (String) -> Unit,
     onMoveToArchive: (String) -> Unit,
+    onMoveFromArchive: (String) -> Unit,
     onClearChat: (String) -> Unit,
     onChatClick: (String) -> Unit,
 ) {
@@ -234,7 +248,7 @@ private fun FilterTabContent(
                         onMoveToArchive = { onMoveToArchive(it) },
                         onClearChat = { onClearChat(it) },
                         onChatClick = { onChatClick(it) },
-                        onMoveFromArchive = TODO()
+                        onMoveFromArchive = onMoveFromArchive
                     )
                 } else {
                     // Обычный айтем

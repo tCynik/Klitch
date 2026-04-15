@@ -43,11 +43,7 @@ class ChatViewModel : ViewModel() {
     fun selectChat(chatId: String) {
         val item = findItemById(chatId, _uiState.value.filterItems)
         _uiState.update { state ->
-            val title = if (item != null) {
-                "Чат с ${item.name}"
-            } else {
-                "Чат"
-            }
+            val title = if (item != null) "Чат с ${item.name}" else "Чат"
             state.copy(
                 selectedChatId = chatId,
                 currentTab = ChatTab.CHAT,
@@ -55,6 +51,7 @@ class ChatViewModel : ViewModel() {
                 isChatTabEnabled = true
             )
         }
+        markAsRead(chatId)
         updateFilteredMessages()
     }
 
@@ -120,15 +117,12 @@ class ChatViewModel : ViewModel() {
 
     fun selectArchiveItems() {
         _uiState.update { state ->
-            val archiveChildren = state.filterItems
-                .filter { it.isArchiveSection }
-                .flatMap { it.children }
-            val archiveIds = archiveChildren.map { it.id }.toSet()
             val updatedItems = state.filterItems.map { item ->
                 if (item.isArchiveSection) {
-                    item.copy(isExpanded = true)
-                } else if (item.id in archiveIds) {
-                    item.copy(isChecked = true)
+                    item.copy(
+                        isExpanded = true,
+                        children = item.children.map { it.copy(isChecked = true) }.toImmutableList()
+                    )
                 } else {
                     item.copy(isChecked = false)
                 }
@@ -163,22 +157,44 @@ class ChatViewModel : ViewModel() {
 
     fun markAsRead(itemId: String) {
         _uiState.update { state ->
-            val updatedItems = state.filterItems.map { item ->
-                if (item.id == itemId) item.copy(unreadCount = 0) else item
-            }
-            state.copy(filterItems = updatedItems.toImmutableList())
+            state.copy(filterItems = markAsReadInList(itemId, state.filterItems))
         }
+    }
+
+    private fun markAsReadInList(itemId: String, items: List<ChatFilterItem>): ImmutableList<ChatFilterItem> {
+        return items.map { item ->
+            when {
+                item.id == itemId -> item.copy(unreadCount = 0)
+                item.isArchiveSection -> item.copy(children = markAsReadInList(itemId, item.children))
+                else -> item
+            }
+        }.toImmutableList()
     }
 
     fun moveToArchive(itemId: String) {
         _uiState.update { state ->
-            val updatedItems = state.filterItems.map { item ->
-                if (item.id == itemId && !item.isArchiveSection) {
-                    // Перемещаем в секцию архива (в реале — обновить children секции)
-                    item.copy(isChecked = false)
-                } else item
+            val item = state.filterItems.find { !it.isArchiveSection && it.id == itemId }
+                ?: return@update state
+            val mainItems = state.filterItems.filter { !it.isArchiveSection && it.id != itemId }
+            val archiveItems = state.filterItems.filter { it.isArchiveSection }.map { section ->
+                section.copy(children = (section.children + item.copy(isChecked = false)).toImmutableList())
             }
-            state.copy(filterItems = updatedItems.toImmutableList())
+            state.copy(filterItems = (mainItems + archiveItems).toImmutableList())
+        }
+    }
+
+    fun moveFromArchive(itemId: String) {
+        _uiState.update { state ->
+            val archiveSection = state.filterItems.find { it.isArchiveSection }
+                ?: return@update state
+            val item = archiveSection.children.find { it.id == itemId }
+                ?: return@update state
+            val updatedArchive = archiveSection.copy(
+                children = archiveSection.children.filter { it.id != itemId }.toImmutableList()
+            )
+            val mainItems = (state.filterItems.filter { !it.isArchiveSection } + item)
+                .sortedWith(compareBy({ !it.isPinned }, { -it.lastMessageTime }))
+            state.copy(filterItems = (mainItems + updatedArchive).toImmutableList())
         }
     }
 
@@ -220,29 +236,29 @@ class ChatViewModel : ViewModel() {
         )
 
         _uiState.update { state ->
-            val updatedMessages = (state.messages + newMessage).toImmutableList()
             state.copy(
-                messages = updatedMessages,
+                allMessages = (state.allMessages + newMessage).toImmutableList(),
                 inputText = ""
             )
         }
+        updateFilteredMessages()
     }
 
     // ==================== ВНУТРЕННИЕ МЕТОДЫ ====================
 
     private fun updateFilteredMessages() {
         val state = _uiState.value
-        val checkedIds = state.filterItems.filter { it.isChecked }.map { it.id }.toSet()
+        val checkedIds = collectAllChecked(state.filterItems).map { it.id }.toSet()
 
         var filtered = if (state.selectedChatId != null) {
             // Если выбран конкретный чат — показываем только его сообщения
-            state.messages.filter { it.channelId == state.selectedChatId }
+            state.allMessages.filter { it.channelId == state.selectedChatId }
         } else if (checkedIds.isNotEmpty()) {
             // Если выбраны чекбоксами — показываем сообщения из выбранных
-            state.messages.filter { it.channelId in checkedIds }
+            state.allMessages.filter { it.channelId in checkedIds }
         } else {
             // Ничего не выбрано — показываем все
-            state.messages
+            state.allMessages.toList()
         }
 
         // Фильтр по поиску
@@ -323,6 +339,7 @@ class ChatViewModel : ViewModel() {
             _uiState.update {
                 it.copy(
                     filterItems = fakeFilterItems,
+                    allMessages = fakeMessages,
                     messages = fakeMessages
                 )
             }
