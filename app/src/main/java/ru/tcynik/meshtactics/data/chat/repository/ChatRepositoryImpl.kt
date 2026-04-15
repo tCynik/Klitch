@@ -15,6 +15,8 @@ class ChatRepositoryImpl(
     override fun observeContacts(): Flow<List<ChatContact>> =
         adapter.observeContactsAsFlow().map { list -> list.map { it.toDomain() } }
 
+    override fun observeTotalUnreadCount(): Flow<Int> = adapter.observeTotalUnreadCount()
+
     override fun observeMessages(contactIds: Set<String>, searchQuery: String): Flow<List<ChatMessageModel>> =
         adapter.observeMessagesAsFlow(contactIds, searchQuery)
 

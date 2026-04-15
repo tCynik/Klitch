@@ -63,6 +63,7 @@ mesh/                      ← Meshtastic protocol (Room, BLE, packets)
 | `onMoveFromArchive` wired up | ✅ Done | `ChatScreen.kt` — `FilterTabContent` param |
 | Auto-read on chat open | ✅ Done | `ChatViewModel.selectChat()` calls `markAsRead()` |
 | Unread badge counts archive children | ✅ Done | `collectUnreadAll()` in `ChatScreen.kt` |
+| Unread badge on HUD chat button | ✅ Done | `MainViewModel` — `observeChatContacts` → `unreadChatCount` в `MainUiState` → `infoBadge` на кнопке чата |
 
 ---
 

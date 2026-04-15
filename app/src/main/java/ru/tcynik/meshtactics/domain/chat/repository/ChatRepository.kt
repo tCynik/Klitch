@@ -6,6 +6,7 @@ import ru.tcynik.meshtactics.domain.chat.model.ChatMessageModel
 
 interface ChatRepository {
     fun observeContacts(): Flow<List<ChatContact>>
+    fun observeTotalUnreadCount(): Flow<Int>
     fun observeMessages(contactIds: Set<String>, searchQuery: String = ""): Flow<List<ChatMessageModel>>
     suspend fun sendMessage(text: String, contactId: String, channel: Int)
     suspend fun toggleFavorite(contactId: String, isFavorite: Boolean)

@@ -22,6 +22,7 @@ import ru.tcynik.meshtactics.domain.chat.usecase.ObserveChatMessagesUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.SendChatMessageUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.ToggleChatArchivedUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.ToggleChatFavoriteUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.ObserveTotalUnreadChatCountUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.ToggleChatPinnedUseCase
 
 val chatDataModule = module {
