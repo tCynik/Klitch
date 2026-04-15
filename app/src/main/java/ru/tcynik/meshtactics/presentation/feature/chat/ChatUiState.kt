@@ -17,6 +17,6 @@ data class ChatUiState(
     val error: String? = null,
     val showContextMenu: Boolean = false,
     val contextMenuItemId: String? = null,
-    val chatTabTitle: String = "",
+    val chatTabTitle: String = "Лента",
     val isChatTabEnabled: Boolean = false,
 )

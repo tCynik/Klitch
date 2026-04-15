@@ -61,11 +61,8 @@ fun ChatScreen(
     // Синхронизация pager state с ViewModel
     LaunchedEffect(pagerState.currentPage) {
         val tab = if (pagerState.currentPage == 0) ChatTab.FILTER else ChatTab.CHAT
-        if (uiState.currentTab != tab && (tab == ChatTab.FILTER || uiState.isChatTabEnabled)) {
+        if (uiState.currentTab != tab) {
             viewModel.switchTab(tab)
-        } else if (tab == ChatTab.CHAT && !uiState.isChatTabEnabled) {
-            // Возвращаем на вкладку FILTER если CHAT заблокирован
-            pagerState.animateScrollToPage(ChatTab.FILTER.ordinal)
         }
     }
 
@@ -111,12 +108,9 @@ fun ChatScreen(
                 )
                 Tab(
                     selected = uiState.currentTab == ChatTab.CHAT,
-                    onClick = { if (uiState.isChatTabEnabled) viewModel.switchTab(ChatTab.CHAT) },
-                    enabled = uiState.isChatTabEnabled,
+                    onClick = { viewModel.switchTab(ChatTab.CHAT) },
                     text = {
-                        val totalUnread = uiState.filterItems
-                            .filter { !it.isArchiveSection && it.isChecked }
-                            .sumOf { it.unreadCount }
+                        val totalUnread = uiState.filterItems.sumOf { it.unreadCount }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = uiState.chatTabTitle,

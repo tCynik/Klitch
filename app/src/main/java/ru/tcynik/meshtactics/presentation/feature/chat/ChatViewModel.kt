@@ -309,8 +309,8 @@ class ChatViewModel : ViewModel() {
             val checkedItems = collectAllChecked(state.filterItems)
             when {
                 checkedItems.isEmpty() -> state.copy(
-                    chatTabTitle = "Чат",
-                    isChatTabEnabled = false
+                    chatTabTitle = "Лента",
+                    isChatTabEnabled = true
                 )
                 checkedItems.size == 1 -> {
                     val item = checkedItems.first()
@@ -339,6 +339,18 @@ class ChatViewModel : ViewModel() {
         }
         traverse(items)
         return result
+    }
+
+    private fun collectUnreadAll(items: List<ChatFilterItem>): Int {
+        var total = 0
+        fun traverse(list: List<ChatFilterItem>) {
+            list.forEach { item ->
+                total += item.unreadCount
+                if (item.isArchiveSection) traverse(item.children)
+            }
+        }
+        traverse(items)
+        return total
     }
 
     private fun collectUnread(items: List<ChatFilterItem>): Int {
