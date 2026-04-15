@@ -233,7 +233,8 @@ private fun FilterTabContent(
                         onMarkAsRead = { onMarkAsRead(it) },
                         onMoveToArchive = { onMoveToArchive(it) },
                         onClearChat = { onClearChat(it) },
-                        onChatClick = { onChatClick(it) }
+                        onChatClick = { onChatClick(it) },
+                        onMoveFromArchive = TODO()
                     )
                 } else {
                     // Обычный айтем
@@ -274,6 +275,7 @@ private fun ArchiveSectionItem(
     onTogglePinned: (String) -> Unit,
     onMarkAsRead: (String) -> Unit,
     onMoveToArchive: (String) -> Unit,
+    onMoveFromArchive: (String) -> Unit,
     onClearChat: (String) -> Unit,
     onChatClick: (String) -> Unit,
 ) {
@@ -313,6 +315,7 @@ private fun ArchiveSectionItem(
                         onTogglePinned = { onTogglePinned(child.id) },
                         onMarkAsRead = { onMarkAsRead(child.id) },
                         onMoveToArchive = { onMoveToArchive(child.id) },
+                        onMoveFromArchive = { onMoveFromArchive(child.id) },
                         onClearChat = { onClearChat(child.id) },
                         onChatClick = { onChatClick(child.id) }
                     )
@@ -331,6 +334,7 @@ private fun ArchiveItemRow(
     onTogglePinned: () -> Unit,
     onMarkAsRead: () -> Unit,
     onMoveToArchive: () -> Unit,
+    onMoveFromArchive: () -> Unit,
     onClearChat: () -> Unit,
     onChatClick: () -> Unit,
 ) {
@@ -412,13 +416,6 @@ private fun ArchiveItemRow(
                 onDismissRequest = { showMenu = false }
             ) {
                 DropdownMenuItem(
-                    text = { Text(stringResource(if (item.isPinned) R.string.chat_menu_pin else R.string.chat_menu_pin)) },
-                    onClick = {
-                        onTogglePinned()
-                        showMenu = false
-                    }
-                )
-                DropdownMenuItem(
                     text = { Text(stringResource(if (item.isFavorite) R.string.chat_menu_unfavorite else R.string.chat_menu_favorite)) },
                     onClick = {
                         onToggleFavorite()
@@ -429,6 +426,13 @@ private fun ArchiveItemRow(
                     text = { Text(stringResource(R.string.chat_menu_read)) },
                     onClick = {
                         onMarkAsRead()
+                        showMenu = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.chat_menu_unarchive)) },
+                    onClick = {
+                        onMoveFromArchive()
                         showMenu = false
                     }
                 )
@@ -564,7 +568,7 @@ private fun ChatFilterItemRow(
                 onDismissRequest = { showMenu = false }
             ) {
                 DropdownMenuItem(
-                    text = { Text(stringResource(if (item.isPinned) R.string.chat_menu_pin else R.string.chat_menu_pin)) },
+                    text = { Text(stringResource(if (item.isPinned) R.string.chat_menu_unpin else R.string.chat_menu_pin)) },
                     onClick = {
                         onTogglePinned()
                         showMenu = false
