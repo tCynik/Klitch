@@ -79,10 +79,10 @@ class ChatViewModel : ViewModel() {
 
     fun selectFavoriteItems() {
         _uiState.update { state ->
-            val updatedItems = state.filterItems.map {
-                it.copy(isChecked = it.isFavorite)
-            }
-            state.copy(filterItems = updatedItems.toImmutableList())
+            val favorites = collectFavorites(state.filterItems)
+            // Если все избранные уже выбраны — снимаем выделение, иначе — выбираем
+            val shouldSelect = favorites.isEmpty() || !favorites.all { it.isChecked }
+            state.copy(filterItems = toggleFavoritesInList(state.filterItems, shouldSelect))
         }
         updateFilteredMessages()
     }
@@ -295,5 +295,31 @@ class ChatViewModel : ViewModel() {
                 )
             }
         }
+    }
+
+    // ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
+
+    private fun collectFavorites(items: List<ChatFilterItem>): List<ChatFilterItem> {
+        val result = mutableListOf<ChatFilterItem>()
+        fun traverse(list: List<ChatFilterItem>) {
+            list.forEach { item ->
+                if (item.isFavorite) result.add(item)
+                if (item.isArchiveSection) traverse(item.children)
+            }
+        }
+        traverse(items)
+        return result
+    }
+
+    private fun toggleFavoritesInList(items: List<ChatFilterItem>, shouldSelect: Boolean): ImmutableList<ChatFilterItem> {
+        return items.map { item ->
+            if (item.isArchiveSection) {
+                item.copy(children = toggleFavoritesInList(item.children, shouldSelect))
+            } else if (item.isFavorite) {
+                item.copy(isChecked = shouldSelect)
+            } else {
+                item
+            }
+        }.toImmutableList()
     }
 }

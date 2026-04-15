@@ -129,7 +129,6 @@ fun ChatScreen(
                         },
                         onToggleItem = { viewModel.toggleFilterItem(it) },
                         onSelectFavorite = { viewModel.selectFavoriteItems() },
-                        onSelectArchive = { viewModel.selectArchiveItems() },
                         onToggleArchiveSection = { viewModel.toggleArchiveSection() },
                         onToggleFavorite = { viewModel.toggleFavorite(it) },
                         onTogglePinned = { viewModel.togglePinned(it) },
@@ -162,7 +161,6 @@ private fun FilterTabContent(
     onToggleSelectAll: () -> Unit,
     onToggleItem: (String) -> Unit,
     onSelectFavorite: () -> Unit,
-    onSelectArchive: () -> Unit,
     onToggleArchiveSection: () -> Unit,
     onToggleFavorite: (String) -> Unit,
     onTogglePinned: (String) -> Unit,
@@ -184,7 +182,6 @@ private fun FilterTabContent(
                 onClick = onToggleSelectAll
             )
             FilterButton(stringResource(R.string.chat_select_favorite), onClick = onSelectFavorite)
-            FilterButton(stringResource(R.string.chat_select_archive), onClick = onSelectArchive)
         }
 
         // Список чатов
