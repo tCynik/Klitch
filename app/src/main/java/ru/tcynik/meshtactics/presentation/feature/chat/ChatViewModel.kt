@@ -42,6 +42,15 @@ class ChatViewModel : ViewModel() {
 
     // ==================== ФИЛЬТРЫ ====================
 
+    fun toggleArchiveSection() {
+        _uiState.update { state ->
+            val updatedItems = state.filterItems.map { item ->
+                if (item.isArchiveSection) item.copy(isExpanded = !item.isExpanded) else item
+            }
+            state.copy(filterItems = updatedItems.toImmutableList())
+        }
+    }
+
     fun toggleFilterItem(itemId: String) {
         _uiState.update { state ->
             val updatedItems = state.filterItems.map { item ->
@@ -80,8 +89,18 @@ class ChatViewModel : ViewModel() {
 
     fun selectArchiveItems() {
         _uiState.update { state ->
-            val updatedItems = state.filterItems.map {
-                it.copy(isChecked = it.type == ChatType.ARCHIVE)
+            val archiveChildren = state.filterItems
+                .filter { it.isArchiveSection }
+                .flatMap { it.children }
+            val archiveIds = archiveChildren.map { it.id }.toSet()
+            val updatedItems = state.filterItems.map { item ->
+                if (item.isArchiveSection) {
+                    item.copy(isExpanded = true)
+                } else if (item.id in archiveIds) {
+                    item.copy(isChecked = true)
+                } else {
+                    item.copy(isChecked = false)
+                }
             }
             state.copy(filterItems = updatedItems.toImmutableList())
         }
@@ -122,7 +141,10 @@ class ChatViewModel : ViewModel() {
     fun moveToArchive(itemId: String) {
         _uiState.update { state ->
             val updatedItems = state.filterItems.map { item ->
-                if (item.id == itemId) item.copy(type = ChatType.ARCHIVE) else item
+                if (item.id == itemId && !item.isArchiveSection) {
+                    // Перемещаем в секцию архива (в реале — обновить children секции)
+                    item.copy(isChecked = false)
+                } else item
             }
             state.copy(filterItems = updatedItems.toImmutableList())
         }
@@ -212,7 +234,12 @@ class ChatViewModel : ViewModel() {
             val hour = 3600_000L
             val minute = 60_000L
 
-            // Фейковые фильтры (каналы, беседы, архив)
+            // Фейковые фильтры (каналы, беседы + секция «Архив»)
+            val archiveItems = listOf(
+                ChatFilterItem("archive_001", "Группа Дельта", ChatType.CHANNEL, unreadCount = 0, lastMessageTime = now - 24 * hour, lastMessagePreview = "Миссия завершена"),
+                ChatFilterItem("archive_002", "Позывной Ворон", ChatType.DIRECT_CHAT, unreadCount = 0, lastMessageTime = now - 48 * hour, lastMessagePreview = "Отбой"),
+            ).toImmutableList()
+
             val fakeFilterItems = listOf(
                 ChatFilterItem("general", "Общий канал", ChatType.CHANNEL, unreadCount = 5, lastMessageTime = now - 2 * minute, lastMessagePreview = "Кто на связи?"),
                 ChatFilterItem("alpha", "Группа Альфа", ChatType.CHANNEL, unreadCount = 12, lastMessageTime = now - 5 * minute, lastMessagePreview = "Позиция Alpha-1: 55.75, 37.61"),
@@ -222,8 +249,14 @@ class ChatViewModel : ViewModel() {
                 ChatFilterItem("node_002", "Позывной Сокол", ChatType.DIRECT_CHAT, isFavorite = true, unreadCount = 0, lastMessageTime = now - 1 * hour, lastMessagePreview = "Связь отличная"),
                 ChatFilterItem("node_003", "Позывной Ястреб", ChatType.DIRECT_CHAT, unreadCount = 1, lastMessageTime = now - 45 * minute, lastMessagePreview = "Батарея 20%"),
                 ChatFilterItem("node_004", "Позывной Беркут", ChatType.DIRECT_CHAT, unreadCount = 0, lastMessageTime = now - 2 * hour, lastMessagePreview = "До связи"),
-                ChatFilterItem("archive_001", "Группа Дельта (архив)", ChatType.ARCHIVE, unreadCount = 0, lastMessageTime = now - 24 * hour, lastMessagePreview = "Миссия завершена"),
-                ChatFilterItem("archive_002", "Позывной Ворон (архив)", ChatType.ARCHIVE, unreadCount = 0, lastMessageTime = now - 48 * hour, lastMessagePreview = "Отбой"),
+                ChatFilterItem(
+                    id = "archive_section",
+                    name = "Архив",
+                    type = ChatType.CHANNEL,
+                    isArchiveSection = true,
+                    isExpanded = false,
+                    children = archiveItems
+                ),
             ).toImmutableList()
 
             // Фейковые сообщения

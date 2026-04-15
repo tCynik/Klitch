@@ -117,10 +117,11 @@ fun ChatScreen(
                 when (page) {
                     0 -> FilterTabContent(
                         filterItems = uiState.filterItems,
-                        allSelected = uiState.filterItems.isNotEmpty() &&
-                                uiState.filterItems.all { it.isChecked },
+                        allSelected = uiState.filterItems.filter { !it.isArchiveSection }.isNotEmpty() &&
+                                uiState.filterItems.filter { !it.isArchiveSection }.all { it.isChecked },
                         onToggleSelectAll = {
-                            if (uiState.filterItems.all { it.isChecked }) {
+                            val nonArchive = uiState.filterItems.filter { !it.isArchiveSection }
+                            if (nonArchive.all { it.isChecked }) {
                                 viewModel.deselectAllItems()
                             } else {
                                 viewModel.selectAllItems()
@@ -129,6 +130,7 @@ fun ChatScreen(
                         onToggleItem = { viewModel.toggleFilterItem(it) },
                         onSelectFavorite = { viewModel.selectFavoriteItems() },
                         onSelectArchive = { viewModel.selectArchiveItems() },
+                        onToggleArchiveSection = { viewModel.toggleArchiveSection() },
                         onToggleFavorite = { viewModel.toggleFavorite(it) },
                         onTogglePinned = { viewModel.togglePinned(it) },
                         onMarkAsRead = { viewModel.markAsRead(it) },
@@ -161,6 +163,7 @@ private fun FilterTabContent(
     onToggleItem: (String) -> Unit,
     onSelectFavorite: () -> Unit,
     onSelectArchive: () -> Unit,
+    onToggleArchiveSection: () -> Unit,
     onToggleFavorite: (String) -> Unit,
     onTogglePinned: (String) -> Unit,
     onMarkAsRead: (String) -> Unit,
@@ -191,16 +194,31 @@ private fun FilterTabContent(
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             items(filterItems, key = { it.id }) { item ->
-                ChatFilterItemRow(
-                    item = item,
-                    onToggleCheck = { onToggleItem(item.id) },
-                    onToggleFavorite = { onToggleFavorite(item.id) },
-                    onTogglePinned = { onTogglePinned(item.id) },
-                    onMarkAsRead = { onMarkAsRead(item.id) },
-                    onMoveToArchive = { onMoveToArchive(item.id) },
-                    onClearChat = { onClearChat(item.id) },
-                    onChatClick = { onChatClick(item.id) }
-                )
+                if (item.isArchiveSection) {
+                    // Секция «Архив»
+                    ArchiveSectionItem(
+                        item = item,
+                        onToggleExpand = onToggleArchiveSection,
+                        onToggleFavorite = { onToggleFavorite(it) },
+                        onTogglePinned = { onTogglePinned(it) },
+                        onMarkAsRead = { onMarkAsRead(it) },
+                        onMoveToArchive = { onMoveToArchive(it) },
+                        onClearChat = { onClearChat(it) },
+                        onChatClick = { onChatClick(it) }
+                    )
+                } else {
+                    // Обычный айтем
+                    ChatFilterItemRow(
+                        item = item,
+                        onToggleCheck = { onToggleItem(item.id) },
+                        onToggleFavorite = { onToggleFavorite(item.id) },
+                        onTogglePinned = { onTogglePinned(item.id) },
+                        onMarkAsRead = { onMarkAsRead(item.id) },
+                        onMoveToArchive = { onMoveToArchive(item.id) },
+                        onClearChat = { onClearChat(item.id) },
+                        onChatClick = { onChatClick(item.id) }
+                    )
+                }
             }
         }
     }
@@ -214,6 +232,207 @@ private fun RowScope.FilterButton(text: String, onClick: () -> Unit) {
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
     ) {
         Text(text, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+// ==================== СЕКЦИЯ АРХИВА ====================
+
+@Composable
+private fun ArchiveSectionItem(
+    item: ChatFilterItem,
+    onToggleExpand: () -> Unit,
+    onToggleFavorite: (String) -> Unit,
+    onTogglePinned: (String) -> Unit,
+    onMarkAsRead: (String) -> Unit,
+    onMoveToArchive: (String) -> Unit,
+    onClearChat: (String) -> Unit,
+    onChatClick: (String) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // Заголовок секции
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onToggleExpand() }
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Плюс / минус
+            Text(
+                text = if (item.isExpanded) "−" else "+",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(start = 8.dp, end = 4.dp)
+            )
+            Text(
+                text = item.name,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
+        }
+
+        // Дочерние элементы (если раскрыто)
+        if (item.isExpanded) {
+            Column(
+                modifier = Modifier.padding(start = 24.dp)
+            ) {
+                item.children.forEach { child ->
+                    ArchiveItemRow(
+                        item = child,
+                        onToggleFavorite = { onToggleFavorite(child.id) },
+                        onTogglePinned = { onTogglePinned(child.id) },
+                        onMarkAsRead = { onMarkAsRead(child.id) },
+                        onMoveToArchive = { onMoveToArchive(child.id) },
+                        onClearChat = { onClearChat(child.id) },
+                        onChatClick = { onChatClick(child.id) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ==================== АЙТЕМ АРХИВА (без чекбокса) ====================
+
+@Composable
+private fun ArchiveItemRow(
+    item: ChatFilterItem,
+    onToggleFavorite: () -> Unit,
+    onTogglePinned: () -> Unit,
+    onMarkAsRead: () -> Unit,
+    onMoveToArchive: () -> Unit,
+    onClearChat: () -> Unit,
+    onChatClick: () -> Unit,
+) {
+    var showMenu by remember { mutableStateOf(false) }
+    var showClearDialog by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onChatClick() }
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Жирная точка избранного
+        if (item.isFavorite) {
+            Text(
+                text = "●",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(end = 2.dp)
+            )
+        } else {
+            Spacer(modifier = Modifier.width(16.dp))
+        }
+
+        // Индикатор типа
+        if (item.isPinned) {
+            Text("📌 ", fontSize = 12.sp)
+        }
+
+        // Название и превью
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 4.dp)
+        ) {
+            Text(
+                text = item.name,
+                fontWeight = FontWeight.Medium,
+                fontSize = 15.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (item.lastMessagePreview.isNotEmpty()) {
+                Text(
+                    text = item.lastMessagePreview,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        // Непрочитанные
+        if (item.unreadCount > 0) {
+            Badge(modifier = Modifier.padding(end = 4.dp)) {
+                Text(item.unreadCount.toString())
+            }
+        }
+
+        // Время
+        Text(
+            text = formatTime(item.lastMessageTime),
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(end = 2.dp)
+        )
+
+        // Троеточие меню
+        Box {
+            IconButton(onClick = { showMenu = true }) {
+                Icon(Icons.Default.MoreVert, contentDescription = null)
+            }
+
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(if (item.isPinned) R.string.chat_menu_pin else R.string.chat_menu_pin)) },
+                    onClick = {
+                        onTogglePinned()
+                        showMenu = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(if (item.isFavorite) R.string.chat_menu_unfavorite else R.string.chat_menu_favorite)) },
+                    onClick = {
+                        onToggleFavorite()
+                        showMenu = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.chat_menu_read)) },
+                    onClick = {
+                        onMarkAsRead()
+                        showMenu = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.chat_menu_clear)) },
+                    onClick = {
+                        showMenu = false
+                        showClearDialog = true
+                    }
+                )
+            }
+        }
+    }
+
+    // Диалог подтверждения очистки
+    if (showClearDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearDialog = false },
+            title = { Text(stringResource(R.string.chat_clear_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    onClearChat()
+                    showClearDialog = false
+                }) {
+                    Text(stringResource(R.string.chat_clear_confirm_button))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearDialog = false }) {
+                    Text(stringResource(R.string.chat_cancel))
+                }
+            }
+        )
     }
 }
 
@@ -336,7 +555,7 @@ private fun ChatFilterItemRow(
                         showMenu = false
                     }
                 )
-                if (item.type != ChatType.ARCHIVE) {
+                if (!item.isArchiveSection) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.chat_menu_archive)) },
                         onClick = {
