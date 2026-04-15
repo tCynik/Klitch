@@ -59,6 +59,7 @@ class ChatViewModel : ViewModel() {
             state.copy(filterItems = updatedItems.toImmutableList())
         }
         updateFilteredMessages()
+        updateChatTabInfo()
     }
 
     fun selectAllItems() {
@@ -67,6 +68,7 @@ class ChatViewModel : ViewModel() {
             state.copy(filterItems = updatedItems.toImmutableList())
         }
         updateFilteredMessages()
+        updateChatTabInfo()
     }
 
     fun deselectAllItems() {
@@ -75,6 +77,7 @@ class ChatViewModel : ViewModel() {
             state.copy(filterItems = updatedItems.toImmutableList())
         }
         updateFilteredMessages()
+        updateChatTabInfo()
     }
 
     fun selectFavoriteItems() {
@@ -85,6 +88,7 @@ class ChatViewModel : ViewModel() {
             state.copy(filterItems = toggleFavoritesInList(state.filterItems, shouldSelect))
         }
         updateFilteredMessages()
+        updateChatTabInfo()
     }
 
     fun selectArchiveItems() {
@@ -105,6 +109,7 @@ class ChatViewModel : ViewModel() {
             state.copy(filterItems = updatedItems.toImmutableList())
         }
         updateFilteredMessages()
+        updateChatTabInfo()
     }
 
     fun toggleFavorite(itemId: String) {
@@ -298,6 +303,55 @@ class ChatViewModel : ViewModel() {
     }
 
     // ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
+
+    private fun updateChatTabInfo() {
+        _uiState.update { state ->
+            val checkedItems = collectAllChecked(state.filterItems)
+            when {
+                checkedItems.isEmpty() -> state.copy(
+                    chatTabTitle = "Чат",
+                    isChatTabEnabled = false
+                )
+                checkedItems.size == 1 -> {
+                    val item = checkedItems.first()
+                    state.copy(
+                        chatTabTitle = "Чат с ${item.name}",
+                        isChatTabEnabled = true
+                    )
+                }
+                else -> {
+                    state.copy(
+                        chatTabTitle = "Лента (${checkedItems.size})",
+                        isChatTabEnabled = true
+                    )
+                }
+            }
+        }
+    }
+
+    private fun collectAllChecked(items: List<ChatFilterItem>): List<ChatFilterItem> {
+        val result = mutableListOf<ChatFilterItem>()
+        fun traverse(list: List<ChatFilterItem>) {
+            list.forEach { item ->
+                if (!item.isArchiveSection && item.isChecked) result.add(item)
+                if (item.isArchiveSection) traverse(item.children)
+            }
+        }
+        traverse(items)
+        return result
+    }
+
+    private fun collectUnread(items: List<ChatFilterItem>): Int {
+        var total = 0
+        fun traverse(list: List<ChatFilterItem>) {
+            list.forEach { item ->
+                if (!item.isArchiveSection && item.isChecked) total += item.unreadCount
+                if (item.isArchiveSection) traverse(item.children)
+            }
+        }
+        traverse(items)
+        return total
+    }
 
     private fun collectFavorites(items: List<ChatFilterItem>): List<ChatFilterItem> {
         val result = mutableListOf<ChatFilterItem>()

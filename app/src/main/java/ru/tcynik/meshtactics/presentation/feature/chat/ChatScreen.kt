@@ -61,8 +61,11 @@ fun ChatScreen(
     // Синхронизация pager state с ViewModel
     LaunchedEffect(pagerState.currentPage) {
         val tab = if (pagerState.currentPage == 0) ChatTab.FILTER else ChatTab.CHAT
-        if (uiState.currentTab != tab) {
+        if (uiState.currentTab != tab && (tab == ChatTab.FILTER || uiState.isChatTabEnabled)) {
             viewModel.switchTab(tab)
+        } else if (tab == ChatTab.CHAT && !uiState.isChatTabEnabled) {
+            // Возвращаем на вкладку FILTER если CHAT заблокирован
+            pagerState.animateScrollToPage(ChatTab.FILTER.ordinal)
         }
     }
 
@@ -101,13 +104,34 @@ fun ChatScreen(
                 .padding(paddingValues)
         ) {
             TabRow(selectedTabIndex = uiState.currentTab.ordinal) {
-                ChatTab.entries.forEach { tab ->
-                    Tab(
-                        selected = uiState.currentTab == tab,
-                        onClick = { viewModel.switchTab(tab) },
-                        text = { Text(stringResource(if (tab == ChatTab.FILTER) R.string.chat_tab_filter else R.string.chat_tab_chat)) },
-                    )
-                }
+                Tab(
+                    selected = uiState.currentTab == ChatTab.FILTER,
+                    onClick = { viewModel.switchTab(ChatTab.FILTER) },
+                    text = { Text(stringResource(R.string.chat_tab_filter)) },
+                )
+                Tab(
+                    selected = uiState.currentTab == ChatTab.CHAT,
+                    onClick = { if (uiState.isChatTabEnabled) viewModel.switchTab(ChatTab.CHAT) },
+                    enabled = uiState.isChatTabEnabled,
+                    text = {
+                        val totalUnread = uiState.filterItems
+                            .filter { !it.isArchiveSection && it.isChecked }
+                            .sumOf { it.unreadCount }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = uiState.chatTabTitle,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            if (totalUnread > 0) {
+                                Badge(
+                                    modifier = Modifier.padding(start = 4.dp)
+                                ) { Text(totalUnread.toString()) }
+                            }
+                        }
+                    },
+                )
             }
 
             HorizontalPager(
