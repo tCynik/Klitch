@@ -1,4 +1,4 @@
-package ru.tcynik.meshtactics.domain.transport.model
+package ru.tcynik.meshtactics.domain.chat.model
 
 data class ChatMessageModel(
     val id: String,

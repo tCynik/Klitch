@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import ru.tcynik.meshtactics.domain.transport.model.ChatMessageModel
+import ru.tcynik.meshtactics.domain.chat.model.ChatMessageModel
 import ru.tcynik.meshtactics.presentation.feature.chat.model.ChatFilterItem
 import ru.tcynik.meshtactics.presentation.feature.chat.model.ChatTab
 import ru.tcynik.meshtactics.presentation.feature.chat.model.ChatType

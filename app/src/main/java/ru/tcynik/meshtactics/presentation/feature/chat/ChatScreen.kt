@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.meshtactics.R
-import ru.tcynik.meshtactics.domain.transport.model.ChatMessageModel
+import ru.tcynik.meshtactics.domain.chat.model.ChatMessageModel
 import ru.tcynik.meshtactics.presentation.feature.chat.model.ChatFilterItem
 import ru.tcynik.meshtactics.presentation.feature.chat.model.ChatTab
 import ru.tcynik.meshtactics.presentation.feature.chat.model.ChatType

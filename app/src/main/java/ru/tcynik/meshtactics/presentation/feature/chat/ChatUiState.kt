@@ -2,7 +2,7 @@ package ru.tcynik.meshtactics.presentation.feature.chat
 
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
-import ru.tcynik.meshtactics.domain.transport.model.ChatMessageModel
+import ru.tcynik.meshtactics.domain.chat.model.ChatMessageModel
 import ru.tcynik.meshtactics.presentation.feature.chat.model.ChatFilterItem
 import ru.tcynik.meshtactics.presentation.feature.chat.model.ChatTab
 
