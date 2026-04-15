@@ -41,4 +41,7 @@ data class ContactSettings(
     val lastReadMessageTimestamp: Long? = null,
     val filteringDisabled: Boolean = false,
     val isMuted: Boolean = false,
+    val isFavorite: Boolean = false,
+    val isPinned: Boolean = false,
+    val isArchived: Boolean = false,
 )

@@ -122,6 +122,9 @@ data class ContactSettings(
     @ColumnInfo(name = "last_read_message_uuid") val lastReadMessageUuid: Long? = null,
     @ColumnInfo(name = "last_read_message_timestamp") val lastReadMessageTimestamp: Long? = null,
     @ColumnInfo(name = "filtering_disabled", defaultValue = "0") val filteringDisabled: Boolean = false,
+    @ColumnInfo(name = "is_favorite", defaultValue = "0") val isFavorite: Boolean = false,
+    @ColumnInfo(name = "is_pinned", defaultValue = "0") val isPinned: Boolean = false,
+    @ColumnInfo(name = "is_archived", defaultValue = "0") val isArchived: Boolean = false,
 ) {
     val isMuted
         get() = nowMillis <= muteUntil

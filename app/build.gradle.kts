@@ -75,6 +75,9 @@ dependencies {
     // Immutable collections
     implementation(libs.immutable.collections)
 
+    // DataStore
+    implementation(libs.datastore.preferences)
+
     // Coroutines
     implementation(libs.coroutines.android)
 

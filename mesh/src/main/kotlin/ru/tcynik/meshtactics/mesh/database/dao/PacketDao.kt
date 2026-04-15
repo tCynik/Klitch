@@ -359,6 +359,15 @@ interface PacketDao {
 
     @Upsert suspend fun upsertContactSettings(contacts: List<ContactSettings>)
 
+    @Query("UPDATE contact_settings SET is_favorite = :value WHERE contact_key = :key")
+    suspend fun updateFavorite(key: String, value: Boolean)
+
+    @Query("UPDATE contact_settings SET is_pinned = :value WHERE contact_key = :key")
+    suspend fun updatePinned(key: String, value: Boolean)
+
+    @Query("UPDATE contact_settings SET is_archived = :value WHERE contact_key = :key")
+    suspend fun updateArchived(key: String, value: Boolean)
+
     @Transaction
     suspend fun setMuteUntil(contacts: List<String>, until: Long) {
         val contactList = contacts.map { contact ->

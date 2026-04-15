@@ -10,19 +10,47 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import ru.tcynik.meshtactics.domain.chat.model.ChatMessageModel
+import ru.tcynik.meshtactics.data.chat.prefs.ChatPrefsRepository
+import ru.tcynik.meshtactics.domain.chat.model.ChatContact
+import ru.tcynik.meshtactics.domain.chat.model.ContactType
+import ru.tcynik.meshtactics.domain.chat.usecase.ClearChatHistoryUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.ClearHistoryParams
+import ru.tcynik.meshtactics.domain.chat.usecase.MarkAsReadParams
+import ru.tcynik.meshtactics.domain.chat.usecase.MarkChatAsReadUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.ObserveChatContactsUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.ObserveChatMessagesParams
+import ru.tcynik.meshtactics.domain.chat.usecase.ObserveChatMessagesUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.SendChatMessageParams
+import ru.tcynik.meshtactics.domain.chat.usecase.SendChatMessageUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.ToggleArchivedParams
+import ru.tcynik.meshtactics.domain.chat.usecase.ToggleChatArchivedUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.ToggleChatFavoriteUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.ToggleChatPinnedUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.ToggleFavoriteParams
+import ru.tcynik.meshtactics.domain.chat.usecase.TogglePinnedParams
+import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import ru.tcynik.meshtactics.presentation.feature.chat.model.ChatFilterItem
 import ru.tcynik.meshtactics.presentation.feature.chat.model.ChatTab
 import ru.tcynik.meshtactics.presentation.feature.chat.model.ChatType
-import java.util.UUID
 
-class ChatViewModel : ViewModel() {
+class ChatViewModel(
+    private val observeContactsUseCase: ObserveChatContactsUseCase,
+    private val observeMessagesUseCase: ObserveChatMessagesUseCase,
+    private val sendMessageUseCase: SendChatMessageUseCase,
+    private val toggleFavoriteUseCase: ToggleChatFavoriteUseCase,
+    private val toggleArchivedUseCase: ToggleChatArchivedUseCase,
+    private val togglePinnedUseCase: ToggleChatPinnedUseCase,
+    private val clearHistoryUseCase: ClearChatHistoryUseCase,
+    private val markAsReadUseCase: MarkChatAsReadUseCase,
+    private val chatPrefs: ChatPrefsRepository,
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     init {
-        loadFakeData()
+        observeContacts()
+        observeAllMessages()
     }
 
     // ==================== ТАБЫ ====================
@@ -38,6 +66,7 @@ class ChatViewModel : ViewModel() {
         if (tab == ChatTab.FILTER) {
             updateChatTabInfo()
         }
+        viewModelScope.launch { chatPrefs.setCurrentTab(tab) }
     }
 
     fun selectChat(chatId: String) {
@@ -53,6 +82,7 @@ class ChatViewModel : ViewModel() {
         }
         markAsRead(chatId)
         updateFilteredMessages()
+        viewModelScope.launch { chatPrefs.setSelectedChatId(chatId) }
     }
 
     private fun findItemById(id: String, items: List<ChatFilterItem>): ChatFilterItem? {
@@ -107,7 +137,6 @@ class ChatViewModel : ViewModel() {
     fun selectFavoriteItems() {
         _uiState.update { state ->
             val favorites = collectFavorites(state.filterItems)
-            // Если все избранные уже выбраны — снимаем выделение, иначе — выбираем
             val shouldSelect = favorites.isEmpty() || !favorites.all { it.isChecked }
             state.copy(filterItems = toggleFavoritesInList(state.filterItems, shouldSelect))
         }
@@ -134,24 +163,16 @@ class ChatViewModel : ViewModel() {
     }
 
     fun toggleFavorite(itemId: String) {
-        _uiState.update { state ->
-            val updatedItems = state.filterItems.map { item ->
-                if (item.id == itemId) item.copy(isFavorite = !item.isFavorite) else item
-            }
-            state.copy(filterItems = updatedItems.toImmutableList())
+        val item = findItemById(itemId, _uiState.value.filterItems) ?: return
+        viewModelScope.launch {
+            toggleFavoriteUseCase(ToggleFavoriteParams(contactId = itemId, isFavorite = !item.isFavorite))
         }
     }
 
     fun togglePinned(itemId: String) {
-        _uiState.update { state ->
-            val updatedItems = state.filterItems.map { item ->
-                if (item.id == itemId) item.copy(isPinned = !item.isPinned) else item
-            }
-            // Сортируем: закреплённые сверху
-            val sortedItems = updatedItems.sortedWith(
-                compareBy({ !it.isPinned }, { -it.lastMessageTime })
-            )
-            state.copy(filterItems = sortedItems.toImmutableList())
+        val item = findItemById(itemId, _uiState.value.filterItems) ?: return
+        viewModelScope.launch {
+            togglePinnedUseCase(TogglePinnedParams(contactId = itemId, isPinned = !item.isPinned))
         }
     }
 
@@ -159,16 +180,9 @@ class ChatViewModel : ViewModel() {
         _uiState.update { state ->
             state.copy(filterItems = markAsReadInList(itemId, state.filterItems))
         }
-    }
-
-    private fun markAsReadInList(itemId: String, items: List<ChatFilterItem>): ImmutableList<ChatFilterItem> {
-        return items.map { item ->
-            when {
-                item.id == itemId -> item.copy(unreadCount = 0)
-                item.isArchiveSection -> item.copy(children = markAsReadInList(itemId, item.children))
-                else -> item
-            }
-        }.toImmutableList()
+        viewModelScope.launch {
+            markAsReadUseCase(MarkAsReadParams(contactId = itemId))
+        }
     }
 
     fun moveToArchive(itemId: String) {
@@ -180,6 +194,9 @@ class ChatViewModel : ViewModel() {
                 section.copy(children = (section.children + item.copy(isChecked = false)).toImmutableList())
             }
             state.copy(filterItems = (mainItems + archiveItems).toImmutableList())
+        }
+        viewModelScope.launch {
+            toggleArchivedUseCase(ToggleArchivedParams(contactId = itemId, isArchived = true))
         }
     }
 
@@ -196,15 +213,14 @@ class ChatViewModel : ViewModel() {
                 .sortedWith(compareBy({ !it.isPinned }, { -it.lastMessageTime }))
             state.copy(filterItems = (mainItems + updatedArchive).toImmutableList())
         }
+        viewModelScope.launch {
+            toggleArchivedUseCase(ToggleArchivedParams(contactId = itemId, isArchived = false))
+        }
     }
 
     fun clearChat(itemId: String) {
-        // Для UI демо просто сбрасываем непрочитанные
-        _uiState.update { state ->
-            val updatedItems = state.filterItems.map { item ->
-                if (item.id == itemId) item.copy(unreadCount = 0, lastMessagePreview = "Чат очищен") else item
-            }
-            state.copy(filterItems = updatedItems.toImmutableList())
+        viewModelScope.launch {
+            clearHistoryUseCase(ClearHistoryParams(contactId = itemId))
         }
     }
 
@@ -222,26 +238,59 @@ class ChatViewModel : ViewModel() {
     }
 
     fun sendMessage() {
-        val currentState = _uiState.value
-        val text = currentState.inputText.trim()
+        val state = _uiState.value
+        val text = state.inputText.trim()
         if (text.isEmpty()) return
+        val contactId = state.selectedChatId ?: return
 
-        val newMessage = ChatMessageModel(
-            id = UUID.randomUUID().toString(),
-            senderNodeId = "local-node",
-            senderCallsign = "Я",
-            text = text,
-            sentAt = System.currentTimeMillis(),
-            channelId = currentState.selectedChatId ?: "general"
-        )
+        _uiState.update { it.copy(inputText = "") }
 
-        _uiState.update { state ->
-            state.copy(
-                allMessages = (state.allMessages + newMessage).toImmutableList(),
-                inputText = ""
-            )
+        viewModelScope.launch {
+            sendMessageUseCase(SendChatMessageParams(text = text, contactId = contactId))
         }
-        updateFilteredMessages()
+    }
+
+    // ==================== НАБЛЮДЕНИЕ РЕАЛЬНЫХ ДАННЫХ ====================
+
+    private fun observeContacts() {
+        viewModelScope.launch {
+            observeContactsUseCase(NoParams).collect { contacts ->
+                _uiState.update { state ->
+                    val checkedMap = buildCheckedMap(state.filterItems)
+                    val existingArchiveSection = state.filterItems.find { it.isArchiveSection }
+
+                    val mainItems = contacts
+                        .filter { !it.isArchived }
+                        .sortedWith(compareBy({ !it.isPinned }, { -(it.lastMessageTime ?: 0L) }))
+                        .map { it.toFilterItem(isChecked = checkedMap[it.id] ?: false) }
+
+                    val archivedItems = contacts
+                        .filter { it.isArchived }
+                        .map { it.toFilterItem(isChecked = false) }
+
+                    val archiveSection = ChatFilterItem(
+                        id = "archive_section",
+                        name = "Архив",
+                        type = ChatType.CHANNEL,
+                        isArchiveSection = true,
+                        isExpanded = existingArchiveSection?.isExpanded ?: false,
+                        children = archivedItems.toImmutableList()
+                    )
+
+                    state.copy(filterItems = (mainItems + archiveSection).toImmutableList())
+                }
+                updateChatTabInfo()
+            }
+        }
+    }
+
+    private fun observeAllMessages() {
+        viewModelScope.launch {
+            observeMessagesUseCase(ObserveChatMessagesParams(emptySet(), "")).collect { messages ->
+                _uiState.update { it.copy(allMessages = messages.toImmutableList()) }
+                updateFilteredMessages()
+            }
+        }
     }
 
     // ==================== ВНУТРЕННИЕ МЕТОДЫ ====================
@@ -251,17 +300,13 @@ class ChatViewModel : ViewModel() {
         val checkedIds = collectAllChecked(state.filterItems).map { it.id }.toSet()
 
         var filtered = if (state.selectedChatId != null) {
-            // Если выбран конкретный чат — показываем только его сообщения
             state.allMessages.filter { it.channelId == state.selectedChatId }
         } else if (checkedIds.isNotEmpty()) {
-            // Если выбраны чекбоксами — показываем сообщения из выбранных
             state.allMessages.filter { it.channelId in checkedIds }
         } else {
-            // Ничего не выбрано — показываем все
             state.allMessages.toList()
         }
 
-        // Фильтр по поиску
         val query = state.searchQuery.trim()
         if (query.isNotEmpty()) {
             filtered = filtered.filter {
@@ -270,80 +315,31 @@ class ChatViewModel : ViewModel() {
             }
         }
 
-        // Сортировка по времени (старые сверху)
         filtered = filtered.sortedBy { it.sentAt }
 
         _uiState.update { it.copy(messages = filtered.toImmutableList()) }
     }
 
-    private fun loadFakeData() {
-        viewModelScope.launch {
-            val now = System.currentTimeMillis()
-            val hour = 3600_000L
-            val minute = 60_000L
+    private fun markAsReadInList(itemId: String, items: List<ChatFilterItem>): ImmutableList<ChatFilterItem> {
+        return items.map { item ->
+            when {
+                item.id == itemId -> item.copy(unreadCount = 0)
+                item.isArchiveSection -> item.copy(children = markAsReadInList(itemId, item.children))
+                else -> item
+            }
+        }.toImmutableList()
+    }
 
-            // Фейковые фильтры (каналы, беседы + секция «Архив»)
-            val archiveItems = listOf(
-                ChatFilterItem("archive_001", "Группа Дельта", ChatType.CHANNEL, unreadCount = 0, lastMessageTime = now - 24 * hour, lastMessagePreview = "Миссия завершена"),
-                ChatFilterItem("archive_002", "Позывной Ворон", ChatType.DIRECT_CHAT, unreadCount = 0, lastMessageTime = now - 48 * hour, lastMessagePreview = "Отбой"),
-            ).toImmutableList()
-
-            val fakeFilterItems = listOf(
-                ChatFilterItem("general", "Общий канал", ChatType.CHANNEL, unreadCount = 5, lastMessageTime = now - 2 * minute, lastMessagePreview = "Кто на связи?"),
-                ChatFilterItem("alpha", "Группа Альфа", ChatType.CHANNEL, unreadCount = 12, lastMessageTime = now - 5 * minute, lastMessagePreview = "Позиция Alpha-1: 55.75, 37.61"),
-                ChatFilterItem("bravo", "Группа Браво", ChatType.CHANNEL, unreadCount = 0, lastMessageTime = now - 15 * minute, lastMessagePreview = "Принято, выдвигаемся"),
-                ChatFilterItem("charlie", "Группа Чарли", ChatType.CHANNEL, unreadCount = 3, lastMessageTime = now - 30 * minute, lastMessagePreview = "Нужна поддержка"),
-                ChatFilterItem("node_001", "Позывной Орёл", ChatType.DIRECT_CHAT, isFavorite = true, unreadCount = 2, lastMessageTime = now - 3 * minute, lastMessagePreview = "Вас вижу на карте"),
-                ChatFilterItem("node_002", "Позывной Сокол", ChatType.DIRECT_CHAT, isFavorite = true, unreadCount = 0, lastMessageTime = now - 1 * hour, lastMessagePreview = "Связь отличная"),
-                ChatFilterItem("node_003", "Позывной Ястреб", ChatType.DIRECT_CHAT, unreadCount = 1, lastMessageTime = now - 45 * minute, lastMessagePreview = "Батарея 20%"),
-                ChatFilterItem("node_004", "Позывной Беркут", ChatType.DIRECT_CHAT, unreadCount = 0, lastMessageTime = now - 2 * hour, lastMessagePreview = "До связи"),
-                ChatFilterItem(
-                    id = "archive_section",
-                    name = "Архив",
-                    type = ChatType.CHANNEL,
-                    isArchiveSection = true,
-                    isExpanded = false,
-                    children = archiveItems
-                ),
-            ).toImmutableList()
-
-            // Фейковые сообщения
-            val senders = listOf(
-                "Орёл" to "node_001",
-                "Сокол" to "node_002",
-                "Ястреб" to "node_003",
-                "Альфа-1" to "alpha",
-                "Альфа-2" to "alpha",
-                "Браво-1" to "bravo",
-                "Чарли-1" to "charlie",
-            )
-
-            val fakeMessages = listOf(
-                ChatMessageModel(UUID.randomUUID().toString(), "alpha", "Альфа-1", "Всем привет, начинаем движение", now - 60 * minute, "alpha"),
-                ChatMessageModel(UUID.randomUUID().toString(), "alpha", "Альфа-2", "Принял, на связи", now - 58 * minute, "alpha"),
-                ChatMessageModel(UUID.randomUUID().toString(), "general", "Орёл", "Кто на связи?", now - 55 * minute, "general"),
-                ChatMessageModel(UUID.randomUUID().toString(), "node_001", "Орёл", "Вижу всех на карте", now - 50 * minute, "node_001"),
-                ChatMessageModel(UUID.randomUUID().toString(), "bravo", "Браво-1", "Выдвигаемся на позицию", now - 45 * minute, "bravo"),
-                ChatMessageModel(UUID.randomUUID().toString(), "charlie", "Чарли-1", "Нужна поддержка, координаты 55.75, 37.61", now - 40 * minute, "charlie"),
-                ChatMessageModel(UUID.randomUUID().toString(), "general", "Сокол", "Связь проверочная", now - 35 * minute, "general"),
-                ChatMessageModel(UUID.randomUUID().toString(), "node_002", "Сокол", "Связь отличная, принимаю", now - 30 * minute, "node_002"),
-                ChatMessageModel(UUID.randomUUID().toString(), "alpha", "Альфа-1", "Позиция Alpha-1: 55.75, 37.61", now - 25 * minute, "alpha"),
-                ChatMessageModel(UUID.randomUUID().toString(), "general", "Ястреб", "Батарея 20%, экономлю", now - 20 * minute, "general"),
-                ChatMessageModel(UUID.randomUUID().toString(), "node_003", "Ястреб", "Вас вижу на карте", now - 15 * minute, "node_003"),
-                ChatMessageModel(UUID.randomUUID().toString(), "charlie", "Чарли-1", "Подтверждаю координаты", now - 10 * minute, "charlie"),
-                ChatMessageModel(UUID.randomUUID().toString(), "alpha", "Альфа-2", "Движемся по маршруту №2", now - 5 * minute, "alpha"),
-                ChatMessageModel(UUID.randomUUID().toString(), "general", "Орёл", "Общий сбор через 30 минут", now - 2 * minute, "general"),
-                ChatMessageModel(UUID.randomUUID().toString(), "node_001", "Орёл", "Понял, буду", now - 1 * minute, "node_001"),
-            ).toImmutableList()
-
-            _uiState.update {
-                it.copy(
-                    filterItems = fakeFilterItems,
-                    allMessages = fakeMessages,
-                    messages = fakeMessages
-                )
+    private fun buildCheckedMap(items: List<ChatFilterItem>): Map<String, Boolean> {
+        val result = mutableMapOf<String, Boolean>()
+        fun traverse(list: List<ChatFilterItem>) {
+            list.forEach { item ->
+                if (!item.isArchiveSection) result[item.id] = item.isChecked
+                if (item.isArchiveSection) traverse(item.children)
             }
         }
+        traverse(items)
+        return result
     }
 
     // ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
@@ -356,19 +352,14 @@ class ChatViewModel : ViewModel() {
                     chatTabTitle = "Лента",
                     isChatTabEnabled = true
                 )
-                checkedItems.size == 1 -> {
-                    val item = checkedItems.first()
-                    state.copy(
-                        chatTabTitle = "Чат с ${item.name}",
-                        isChatTabEnabled = true
-                    )
-                }
-                else -> {
-                    state.copy(
-                        chatTabTitle = "Лента (${checkedItems.size})",
-                        isChatTabEnabled = true
-                    )
-                }
+                checkedItems.size == 1 -> state.copy(
+                    chatTabTitle = "Чат с ${checkedItems.first().name}",
+                    isChatTabEnabled = true
+                )
+                else -> state.copy(
+                    chatTabTitle = "Лента (${checkedItems.size})",
+                    isChatTabEnabled = true
+                )
             }
         }
     }
@@ -390,18 +381,6 @@ class ChatViewModel : ViewModel() {
         fun traverse(list: List<ChatFilterItem>) {
             list.forEach { item ->
                 total += item.unreadCount
-                if (item.isArchiveSection) traverse(item.children)
-            }
-        }
-        traverse(items)
-        return total
-    }
-
-    private fun collectUnread(items: List<ChatFilterItem>): Int {
-        var total = 0
-        fun traverse(list: List<ChatFilterItem>) {
-            list.forEach { item ->
-                if (!item.isArchiveSection && item.isChecked) total += item.unreadCount
                 if (item.isArchiveSection) traverse(item.children)
             }
         }
@@ -433,3 +412,17 @@ class ChatViewModel : ViewModel() {
         }.toImmutableList()
     }
 }
+
+// ==================== MAPPER ====================
+
+private fun ChatContact.toFilterItem(isChecked: Boolean): ChatFilterItem = ChatFilterItem(
+    id = id,
+    name = displayName,
+    type = if (type == ContactType.CHANNEL) ChatType.CHANNEL else ChatType.DIRECT_CHAT,
+    isChecked = isChecked,
+    isFavorite = isFavorite,
+    isPinned = isPinned,
+    unreadCount = unreadCount,
+    lastMessageTime = lastMessageTime ?: 0L,
+    lastMessagePreview = lastMessagePreview ?: "",
+)

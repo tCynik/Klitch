@@ -40,21 +40,29 @@ mesh/                      ← Meshtastic protocol (Room, BLE, packets)
 
 | Component | Status | File |
 |---|---|---|
-| `ChatMessageModel` | ✅ Done, relocated | `domain/chat/model/ChatMessageModel.kt` |
+| `ChatMessageModel` | ✅ Done | `domain/chat/model/ChatMessageModel.kt` |
+| `ChatContact`, `ContactType` | ✅ Done | `domain/chat/model/ChatContact.kt`, `ContactType.kt` |
+| `ChatRepository` interface | ✅ Done | `domain/chat/repository/ChatRepository.kt` |
+| 8 use cases + params | ✅ Done | `domain/chat/usecase/` |
+| `ChatContactDto` + toDomain() | ✅ Done | `data/chat/dto/ChatContactDto.kt` |
+| `MeshToChatAdapter` | ✅ Done | `data/chat/adapter/MeshToChatAdapter.kt` |
+| `ChatRepositoryImpl` | ✅ Done | `data/chat/repository/ChatRepositoryImpl.kt` |
+| `ChatPrefsRepository` (DataStore) | ✅ Done | `data/chat/prefs/ChatPrefsRepository.kt` |
+| `ChatDataModule` (Koin) | ✅ Done | `di/ChatDataModule.kt` |
+| Room `ContactSettings` + 3 new columns | ✅ Done | `mesh/.../entity/Packet.kt`, DB version 2 |
+| `PacketDao` — updateFavorite/Pinned/Archived | ✅ Done | `mesh/.../dao/PacketDao.kt` |
+| `PacketRepository` — setFavorite/Pinned/Archived | ✅ Done | `mesh/.../repository/PacketRepository.kt` |
 | `ChatFilterItem` | ✅ Done | `presentation/feature/chat/model/ChatFilterItem.kt` |
 | `ChatTab`, `ChatType` | ✅ Done | `presentation/feature/chat/model/ChatFilterItem.kt` |
-| `ChatUiState` | ✅ Done | `presentation/feature/chat/ChatUiState.kt` |
-| `ChatViewModel` (fake data) | ✅ Done | `presentation/feature/chat/ChatViewModel.kt` |
+| `ChatUiState` (with `allMessages`) | ✅ Done | `presentation/feature/chat/ChatUiState.kt` |
+| `ChatViewModel` (real data, 8 use cases) | ✅ Done | `presentation/feature/chat/ChatViewModel.kt` |
 | `ChatScreen` — Filter tab | ✅ Done | `presentation/feature/chat/ChatScreen.kt` |
 | `ChatScreen` — Chat tab | ✅ Done | `presentation/feature/chat/ChatScreen.kt` |
 | Archive UI (section + ArchiveItemRow) | ✅ Done | `presentation/feature/chat/ChatScreen.kt` |
-| Archive logic (move / unarchive) | ⚠️ Incomplete | `ChatViewModel.kt` — `moveToArchive`, `onMoveFromArchive = TODO()` |
-| Domain layer (`domain/chat/`) | ⬜ Not started | Phase 1 |
-| Data layer (`data/chat/`) | ⬜ Not started | Phase 2 |
-| Room extensions (ContactSettings) | ⬜ Not started | Phase 3 |
-| DataStore (UI state) | ⬜ Not started | Phase 3 |
-| Auto-read on chat open | ⬜ Not started | Phase 4 |
-| Real data integration | ⬜ Not started | Phase 6 |
+| Archive logic (move / unarchive) | ✅ Done | `ChatViewModel.kt` |
+| `onMoveFromArchive` wired up | ✅ Done | `ChatScreen.kt` — `FilterTabContent` param |
+| Auto-read on chat open | ✅ Done | `ChatViewModel.selectChat()` calls `markAsRead()` |
+| Unread badge counts archive children | ✅ Done | `collectUnreadAll()` in `ChatScreen.kt` |
 
 ---
 
@@ -136,16 +144,13 @@ When a user opens a chat (`selectChat(chatId)`), all messages of that contact ar
 
 ---
 
-## Known Bugs / Incomplete Work
+## Known Gaps / Deferred Work
 
 | # | Problem | Location | Priority |
 |---|---|---|---|
-| 1 | `onMoveFromArchive = TODO()` — crash when archive section is expanded | `ChatScreen.kt:237` | 🔴 Critical |
-| 2 | `updateFilteredMessages()` overwrites `allMessages` with filtered result | `ChatViewModel.kt:233` | 🔴 Critical |
-| 3 | `selectArchiveItems()` broken — searches archive IDs at the top level, but children are nested | `ChatViewModel.kt:122` | 🟡 Medium |
-| 4 | `moveToArchive()` only clears `isChecked`, does not physically move the item into archive children | `ChatViewModel.kt:173` | 🟡 Medium |
-| 5 | Unread badge in TabRow does not count archive section children | `ChatScreen.kt:126` | 🟡 Medium |
-| 6 | `findItemById` is duplicated in `ChatScreen` and `ChatViewModel` | — | 🟢 Low |
+| 1 | Unread count reactive — `unreadCount = 0` hardcoded in `MeshToChatAdapter` | `MeshToChatAdapter.kt:51` | 🟡 Medium — needs `getUnreadCountFlow` per contact |
+| 2 | DataStore state not restored on ViewModel `init` (tab, selectedChatId) | `ChatViewModel.kt` | 🟡 Medium — persistence saves but doesn't reload |
+| 3 | `collectUnreadAll` duplicated in `ChatScreen` and `ChatViewModel` | — | 🟢 Low |
 
 ---
 
