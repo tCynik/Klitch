@@ -28,16 +28,43 @@ class ChatViewModel : ViewModel() {
     // ==================== ТАБЫ ====================
 
     fun switchTab(tab: ChatTab) {
-        _uiState.update { it.copy(currentTab = tab) }
+        _uiState.update { state ->
+            if (tab == ChatTab.FILTER) {
+                state.copy(currentTab = tab, selectedChatId = null)
+            } else {
+                state.copy(currentTab = tab)
+            }
+        }
+        if (tab == ChatTab.FILTER) {
+            updateChatTabInfo()
+        }
     }
 
     fun selectChat(chatId: String) {
-        _uiState.update {
-            it.copy(
+        val item = findItemById(chatId, _uiState.value.filterItems)
+        _uiState.update { state ->
+            val title = if (item != null) {
+                "Чат с ${item.name}"
+            } else {
+                "Чат"
+            }
+            state.copy(
                 selectedChatId = chatId,
-                currentTab = ChatTab.CHAT
+                currentTab = ChatTab.CHAT,
+                chatTabTitle = title,
+                isChatTabEnabled = true
             )
         }
+        updateFilteredMessages()
+    }
+
+    private fun findItemById(id: String, items: List<ChatFilterItem>): ChatFilterItem? {
+        for (item in items) {
+            if (item.id == id) return item
+            val found = findItemById(id, item.children)
+            if (found != null) return found
+        }
+        return null
     }
 
     // ==================== ФИЛЬТРЫ ====================

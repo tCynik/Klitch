@@ -45,6 +45,16 @@ import ru.tcynik.meshtactics.presentation.feature.chat.model.ChatType
 import java.text.SimpleDateFormat
 import java.util.*
 
+private fun findItemById(id: String?, items: List<ChatFilterItem>): ChatFilterItem? {
+    if (id == null) return null
+    for (item in items) {
+        if (item.id == id) return item
+        val found = findItemById(id, item.children)
+        if (found != null) return found
+    }
+    return null
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ChatScreen(
@@ -110,7 +120,11 @@ fun ChatScreen(
                     selected = uiState.currentTab == ChatTab.CHAT,
                     onClick = { viewModel.switchTab(ChatTab.CHAT) },
                     text = {
-                        val totalUnread = uiState.filterItems.sumOf { it.unreadCount }
+                        val totalUnread = if (uiState.selectedChatId != null) {
+                            findItemById(uiState.selectedChatId, uiState.filterItems)?.unreadCount ?: 0
+                        } else {
+                            uiState.filterItems.sumOf { it.unreadCount }
+                        }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = uiState.chatTabTitle,
