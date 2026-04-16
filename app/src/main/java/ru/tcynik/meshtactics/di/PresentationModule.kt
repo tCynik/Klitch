@@ -26,7 +26,7 @@ val presentationModule = module {
             observeGpsStatus = get(),
             getMarkerSizeLevel = get(),
             observeMarkerSizeLevel = get(),
-            observeChatContacts = get(),
+            observeTotalUnreadChatCount = get(),
         )
     }
 

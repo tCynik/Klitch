@@ -24,7 +24,7 @@ import ru.tcynik.meshtactics.domain.location.usecase.ObserveGpsStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.settings.usecase.GetMarkerSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveMarkerSizeLevelUseCase
-import ru.tcynik.meshtactics.domain.chat.usecase.ObserveChatContactsUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.ObserveTotalUnreadChatCountUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudButtonSlot
@@ -49,7 +49,7 @@ class MainViewModel(
     observeGpsStatus: ObserveGpsStatusUseCase,
     getMarkerSizeLevel: GetMarkerSizeLevelUseCase,
     observeMarkerSizeLevel: ObserveMarkerSizeLevelUseCase,
-    observeChatContacts: ObserveChatContactsUseCase,
+    observeTotalUnreadChatCount: ObserveTotalUnreadChatCountUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -102,10 +102,9 @@ class MainViewModel(
             }
             .launchIn(viewModelScope)
 
-        observeChatContacts(NoParams)
-            .onEach { contacts ->
-                val total = contacts.sumOf { it.unreadCount }.coerceAtMost(99)
-                _uiState.update { it.copy(unreadChatCount = total) }
+        observeTotalUnreadChatCount(NoParams)
+            .onEach { total ->
+                _uiState.update { it.copy(unreadChatCount = total.coerceAtMost(99)) }
             }
             .launchIn(viewModelScope)
     }

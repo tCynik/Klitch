@@ -59,4 +59,5 @@ val chatDataModule = module {
     single { ToggleChatPinnedUseCase(get()) }
     single { ClearChatHistoryUseCase(get()) }
     single { MarkChatAsReadUseCase(get()) }
+    single { ObserveTotalUnreadChatCountUseCase(get()) }
 }
