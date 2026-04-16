@@ -237,6 +237,7 @@ private fun FilterTabContent(
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             items(filterItems, key = { it.id }) { item ->
+                if (item.isArchiveSection && item.children.isEmpty()) return@items
                 if (item.isArchiveSection) {
                     // Секция «Архив»
                     ArchiveSectionItem(
@@ -429,13 +430,6 @@ private fun ArchiveItemRow(
                 expanded = showMenu,
                 onDismissRequest = { showMenu = false }
             ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(if (item.isFavorite) R.string.chat_menu_unfavorite else R.string.chat_menu_favorite)) },
-                    onClick = {
-                        onToggleFavorite()
-                        showMenu = false
-                    }
-                )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.chat_menu_read)) },
                     onClick = {
