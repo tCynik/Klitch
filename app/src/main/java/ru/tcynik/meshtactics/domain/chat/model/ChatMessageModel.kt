@@ -1,4 +1,4 @@
-package ru.tcynik.meshtactics.domain.transport.model
+package ru.tcynik.meshtactics.domain.chat.model
 
 data class ChatMessageModel(
     val id: String,
@@ -7,4 +7,5 @@ data class ChatMessageModel(
     val text: String,
     val sentAt: Long,
     val channelId: String,
+    val isFromMe: Boolean = false,
 )

@@ -18,4 +18,5 @@ data class MainUiState(
     val connectionStatus: MeshConnectionStatus = MeshConnectionStatus.Disconnected,
     val gpsStatus: GpsStatusModel = GpsStatusModel.None,
     val markerSizeLevel: Int = 5,
+    val unreadChatCount: Int = 0,
 )
