@@ -96,7 +96,14 @@ class MeshTestViewModel(
     init {
         observeConnectionStatus(NoParams).onEach { status ->
             Log.i("MeshTestVM", "DBG connectionStatus flow emitted: $status")
-            _uiState.update { it.copy(connectionStatus = status.toUi()) }
+            _uiState.update { state ->
+                state.copy(
+                    connectionStatus = status.toUi(),
+                    connectionTab = state.connectionTab.copy(
+                        isScanning = status is MeshConnectionStatus.Scanning,
+                    ),
+                )
+            }
         }.launchIn(viewModelScope)
 
         observeNodes(NoParams).onEach { nodes ->
@@ -207,12 +214,7 @@ class MeshTestViewModel(
 
     fun onScanClick() {
         scanJob?.cancel()
-        _uiState.update { state ->
-            state.copy(
-                connectionStatus = MeshConnectionStatusUi.Scanning,
-                connectionTab = state.connectionTab.copy(isScanning = true),
-            )
-        }
+        // isScanning driven by observeConnectionStatus → _isScanning in repo
         scanJob = scanDevices(NoParams)
             .onEach { devices ->
                 _uiState.update { state ->
@@ -224,23 +226,13 @@ class MeshTestViewModel(
                     )
                 }
             }
-            .onCompletion {
-                _uiState.update { state ->
-                    state.copy(connectionTab = state.connectionTab.copy(isScanning = false))
-                }
-            }
             .launchIn(viewModelScope)
     }
 
     fun onStopScanClick() {
         scanJob?.cancel()
         scanJob = null
-        _uiState.update { state ->
-            state.copy(
-                connectionStatus = MeshConnectionStatusUi.Disconnected,
-                connectionTab = state.connectionTab.copy(isScanning = false),
-            )
-        }
+        // isScanning will be reset via observeConnectionStatus when _isScanning → false
     }
 
     fun onConnectClick(address: String) {

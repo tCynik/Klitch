@@ -22,4 +22,5 @@ data class MainUiState(
     val selectedOverlays: ImmutableList<OverlayRenderModel> = persistentListOf(),
     val unreadChatCount: Int = 0,
     val showConnectionLabel: Boolean = false,
+    val foundOtherDevicesDuringScan: Boolean = false,
 )

@@ -12,17 +12,21 @@ import ru.tcynik.meshtactics.NoOpPlatformAnalytics
 import ru.tcynik.meshtactics.mesh.common.BuildConfigProvider
 import ru.tcynik.meshtactics.mesh.repository.AppWidgetUpdater
 import ru.tcynik.meshtactics.mesh.repository.PlatformAnalytics
+import ru.tcynik.meshtactics.data.local.mesh.LastConnectedDeviceRepositoryImpl
 import ru.tcynik.meshtactics.data.mesh.repository.MeshConfigRepositoryImpl
 import ru.tcynik.meshtactics.data.mesh.repository.MeshConnectionRepositoryImpl
 import ru.tcynik.meshtactics.data.mesh.repository.MeshMessagingRepositoryImpl
 import ru.tcynik.meshtactics.data.mesh.repository.MeshNetworkRepositoryImpl
 import ru.tcynik.meshtactics.data.mesh.repository.MeshPacketLogRepositoryImpl
+import ru.tcynik.meshtactics.domain.mesh.repository.LastConnectedDeviceRepository
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshConfigRepository
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshConnectionRepository
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshMessagingRepository
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshNetworkRepository
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshPacketLogRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.SaveLastConnectedDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
@@ -91,6 +95,10 @@ val meshDataModule = module {
             context = androidContext(),
         )
     }
+
+    single<LastConnectedDeviceRepository> { LastConnectedDeviceRepositoryImpl(get()) }
+    single { GetLastConnectedDeviceUseCase(get()) }
+    single { SaveLastConnectedDeviceUseCase(get()) }
 
     // --- Use Cases ---
     single { ObserveConnectionStatusUseCase(get()) }

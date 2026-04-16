@@ -7,88 +7,88 @@
 
 ## Summary
 
-При запуске приложения (после получения BLE-разрешений) автоматически стартует сканирование BLE-нод.
-Если найдена последняя использовавшаяся нода — подключаемся к ней автоматически.
-Если найдены другие ноды (но не последняя) — HUD показывает «выбрать ноду» (жёлтый).
-Если ноды не найдены — сканирование перезапускается, HUD показывает «Поиск…» (красный).
-Если сканирование не активно (будущая фича: остановлено пользователем) — просто красная кнопка Радио, info пустой.
+On app launch (after BLE permissions are granted) BLE scanning starts automatically.
+If the last used node is found — connect to it automatically.
+If other nodes are found but not the last one — HUD shows "select node" (yellow).
+If no nodes are found — scanning restarts, HUD shows "Searching…" (red).
+If scanning is not active (future feature: stopped by user) — red Radio button only, info slot empty.
 
 ---
 
-## Разрешения
+## Permissions
 
-`BlePermissionGuard` в `NavGraph` уже обрабатывает все BLE/Location разрешения **до** рендера любого контента.
-`MainScreen` (и, следовательно, `MainViewModel`) создаются только после получения разрешений → дополнительного кода запроса разрешений **не требуется**.
+`BlePermissionGuard` in `NavGraph` already handles all BLE/Location permissions **before** any content is rendered.
+`MainScreen` (and therefore `MainViewModel`) is created only after permissions are granted → no additional permission request code needed.
 
 ---
 
-## Поведение по состояниям HUD
+## HUD State Behaviour
 
-| Состояние | Цвет кнопки Радио | Info-слот |
+| State | Radio button color | Info slot |
 |---|---|---|
-| Scan активен, нод не найдено | Red | «Поиск…» |
-| Scan активен, найдены другие ноды (не последняя) | Yellow | «выбрать ноду» |
-| Connecting | Yellow | «Сопряжение с $deviceName» |
-| Connected (2 с после подключения) | Green | «Сопряжено с $shortName» |
-| Connected (после автоскрытия) | Green | — |
-| Disconnected / scan не активен | Red | — |
+| Scan active, no nodes found | Red | "Searching…" |
+| Scan active, other nodes found (not the last one) | Yellow | "select node" |
+| Connecting | Yellow | "Pairing with $deviceName" |
+| Connected (first 2 s) | Green | "Paired with $shortName" |
+| Connected (after auto-hide) | Green | — |
+| Disconnected / scan not active | Red | — |
 
 ---
 
-## Архитектура
+## Architecture
 
-### Ключевые решения
+### Key decisions
 
-**1. `MeshConnectionStatus.Scanning` теперь реально эмитируется**
-`MeshConnectionRepositoryImpl` добавляет `_isScanning: MutableStateFlow<Boolean>`.
-`connectionStatus` flow расширяется до `combine(…, _isScanning)`:
-если `_isScanning == true` && `serviceState == Disconnected` → эмитируем `MeshConnectionStatus.Scanning`.
-`scanDevices()` устанавливает `_isScanning = true` в начале и `false` в `finally`.
+**1. `MeshConnectionStatus.Scanning` is now actually emitted**
+`MeshConnectionRepositoryImpl` adds `_isScanning: MutableStateFlow<Boolean>`.
+The `connectionStatus` flow is extended to `combine(…, _isScanning)`:
+if `_isScanning == true` && `serviceState == Disconnected` → emit `MeshConnectionStatus.Scanning`.
+`scanDevices()` sets `_isScanning = true` on entry and `false` in `finally`.
 
-**2. `foundOtherDevicesDuringScan` в `MainUiState`**
-Presentation-слой отслеживает факт «во время скана найдены ноды, но не последняя».
-Управляется `MainViewModel` в auto-connect корутине.
+**2. `foundOtherDevicesDuringScan` in `MainUiState`**
+The presentation layer tracks whether nodes were found during scan that are not the last device.
+Managed by `MainViewModel` inside the auto-connect coroutine.
 
-**3. Последняя нода хранится в `Settings` (multiplatform-settings)**
-Тот же механизм, что у `LastMapPositionRepositoryImpl`.
-Ключи: `last_ble_address`, `last_ble_name`.
+**3. Last connected device stored in `Settings` (multiplatform-settings)**
+Same mechanism as `LastMapPositionRepositoryImpl`.
+Keys: `last_ble_address`, `last_ble_name`.
 
-**4. Auto-connect flow в `MainViewModel`**
-Запускается из `init{}` через `startAutoConnect()`.
-Отменяется из `observeConnectionStatus` при переходе в `Connecting` / `Connected`.
-После успешного подключения сохраняет устройство как «последнее».
-Если скан завершился естественным образом (30 с timeout) и нод не найдено — перезапускает скан.
+**4. Auto-connect flow in `MainViewModel`**
+Started from `init{}` via `startAutoConnect()`.
+Cancelled from the `observeConnectionStatus` collector when status transitions to `Connecting` / `Connected`.
+On successful connection — saves the device as the new "last connected".
+If scan ends naturally (30 s timeout) with no nodes found — restarts scan.
 
 ---
 
-## Затрагиваемые файлы
+## Affected Files
 
-### Новые файлы
+### New files
 
-| Файл | Назначение |
+| File | Purpose |
 |---|---|
-| `domain/mesh/repository/LastConnectedDeviceRepository.kt` | Интерфейс хранилища последней ноды |
-| `domain/mesh/usecase/GetLastConnectedDeviceUseCase.kt` | Синхронный get |
+| `domain/mesh/repository/LastConnectedDeviceRepository.kt` | Repository interface for last-node persistence |
+| `domain/mesh/usecase/GetLastConnectedDeviceUseCase.kt` | Synchronous get |
 | `domain/mesh/usecase/SaveLastConnectedDeviceUseCase.kt` | Suspend save |
-| `data/local/mesh/LastConnectedDeviceRepositoryImpl.kt` | Реализация на `Settings` |
+| `data/local/mesh/LastConnectedDeviceRepositoryImpl.kt` | `Settings`-based implementation |
 
-### Изменяемые файлы
+### Modified files
 
-| Файл | Изменение |
+| File | Change |
 |---|---|
-| `data/mesh/repository/MeshConnectionRepositoryImpl.kt` | `_isScanning` + обновить `connectionStatus` combine + обернуть `scanDevices()` в try/finally |
-| `presentation/feature/main/MainUiState.kt` | Добавить `foundOtherDevicesDuringScan: Boolean = false` |
-| `presentation/feature/main/MainViewModel.kt` | Auto-connect логика + обновить цвет/info кнопки Радио |
-| `di/MeshDataModule.kt` | Добавить `LastConnectedDeviceRepository` + use cases |
-| `di/PresentationModule.kt` | Добавить новые use cases в `MainViewModel` |
+| `data/mesh/repository/MeshConnectionRepositoryImpl.kt` | Add `_isScanning` + expand `connectionStatus` combine + wrap `scanDevices()` in try/finally |
+| `presentation/feature/main/MainUiState.kt` | Add `foundOtherDevicesDuringScan: Boolean = false` |
+| `presentation/feature/main/MainViewModel.kt` | Auto-connect logic + update Radio button color/info |
+| `di/MeshDataModule.kt` | Bind `LastConnectedDeviceRepository` + use cases |
+| `di/PresentationModule.kt` | Add new use cases to `MainViewModel` constructor |
 
 ---
 
-## Фазовый план
+## Phase Plan
 
 ### Phase 1 — Domain: Last Connected Device
 
-**Файл**: `domain/mesh/repository/LastConnectedDeviceRepository.kt`
+**File**: `domain/mesh/repository/LastConnectedDeviceRepository.kt`
 ```kotlin
 interface LastConnectedDeviceRepository {
     fun get(): MeshDeviceModel?
@@ -96,7 +96,7 @@ interface LastConnectedDeviceRepository {
 }
 ```
 
-**Файл**: `domain/mesh/usecase/GetLastConnectedDeviceUseCase.kt`
+**File**: `domain/mesh/usecase/GetLastConnectedDeviceUseCase.kt`
 ```kotlin
 class GetLastConnectedDeviceUseCase(
     private val repository: LastConnectedDeviceRepository,
@@ -105,7 +105,7 @@ class GetLastConnectedDeviceUseCase(
 }
 ```
 
-**Файл**: `domain/mesh/usecase/SaveLastConnectedDeviceUseCase.kt`
+**File**: `domain/mesh/usecase/SaveLastConnectedDeviceUseCase.kt`
 ```kotlin
 class SaveLastConnectedDeviceUseCase(
     private val repository: LastConnectedDeviceRepository,
@@ -118,7 +118,7 @@ class SaveLastConnectedDeviceUseCase(
 
 ### Phase 2 — Data: Last Connected Device Persistence
 
-**Файл**: `data/local/mesh/LastConnectedDeviceRepositoryImpl.kt`
+**File**: `data/local/mesh/LastConnectedDeviceRepositoryImpl.kt`
 
 ```kotlin
 private const val KEY_ADDRESS = "last_ble_address"
@@ -145,14 +145,14 @@ class LastConnectedDeviceRepositoryImpl(
 
 ### Phase 3 — Data: `MeshConnectionRepositoryImpl` — emit Scanning
 
-**Изменения**:
+**Changes**:
 
-1. Добавить поле:
+1. Add field:
    ```kotlin
    private val _isScanning = MutableStateFlow(false)
    ```
 
-2. Изменить `connectionStatus` с `combine(3 flows)` на `combine(4 flows)`:
+2. Expand `connectionStatus` from `combine(3 flows)` to `combine(4 flows)`:
    ```kotlin
    override val connectionStatus: Flow<MeshConnectionStatus> =
        combine(
@@ -169,7 +169,7 @@ class LastConnectedDeviceRepositoryImpl(
        }
    ```
 
-3. Обернуть тело `scanDevices()` в `try/finally`:
+3. Wrap `scanDevices()` body in `try/finally`:
    ```kotlin
    override fun scanDevices(): Flow<List<MeshDeviceModel>> = flow {
        _isScanning.value = true
@@ -191,7 +191,7 @@ class LastConnectedDeviceRepositoryImpl(
 
 ### Phase 4 — Presentation: `MainUiState`
 
-Добавить:
+Add field:
 ```kotlin
 val foundOtherDevicesDuringScan: Boolean = false,
 ```
@@ -200,7 +200,7 @@ val foundOtherDevicesDuringScan: Boolean = false,
 
 ### Phase 5 — Presentation: `MainViewModel`
 
-#### 5a — Новые зависимости в конструкторе
+#### 5a — New constructor parameters
 
 ```kotlin
 private val scanDevices: ScanMeshDevicesUseCase,
@@ -209,22 +209,22 @@ private val getLastConnectedDevice: GetLastConnectedDeviceUseCase,
 private val saveLastConnectedDevice: SaveLastConnectedDeviceUseCase,
 ```
 
-#### 5b — Новое поле
+#### 5b — New field
 
 ```kotlin
 private var scanJob: Job? = null
 ```
 
-#### 5c — `init{}`: запуск auto-connect
+#### 5c — `init{}`: kick off auto-connect
 
-В конце `init {}` добавить:
+At the end of `init {}` add:
 ```kotlin
 startAutoConnect()
 ```
 
-#### 5d — `observeConnectionStatus` collector: отмена скана при подключении
+#### 5d — `observeConnectionStatus` collector: cancel scan on connect
 
-Внутри существующего `.onEach { status -> … }` добавить в начало:
+At the top of the existing `.onEach { status -> … }` block add:
 ```kotlin
 if (status is MeshConnectionStatus.Connecting || status is MeshConnectionStatus.Connected) {
     scanJob?.cancel()
@@ -233,14 +233,7 @@ if (status is MeshConnectionStatus.Connecting || status is MeshConnectionStatus.
 }
 ```
 
-Также: при `Connected` — сохранять последнюю ноду. В блоке обработки `Connected`:
-```kotlin
-if (!wasConnected) {
-    val bleAddress = /* недоступен здесь — сохраняется в startAutoConnect перед connect() */
-    // сохранение происходит в startAutoConnect до вызова connectToDevice()
-    …
-}
-```
+Note: the last-device save happens in `startAutoConnect()` before `connectToDevice()` is called, so no save is needed here.
 
 #### 5e — `startAutoConnect()`
 
@@ -267,23 +260,23 @@ private fun startAutoConnect() {
             }
         }
         .onCompletion { cause ->
-            // Скан завершился естественно (timeout 30 с), НЕ по отмене
+            // Flow completed naturally (30 s timeout), NOT via cancellation
             if (cause == null && !autoConnectAttempted) {
                 val currentStatus = _uiState.value.connectionStatus
                 val foundOthers   = _uiState.value.foundOtherDevicesDuringScan
-                // Если ноды не найдены вообще — перезапуск скана
+                // No nodes found at all — restart scan
                 if (currentStatus is MeshConnectionStatus.Disconnected && !foundOthers) {
                     startAutoConnect()
                 }
-                // Если найдены другие — оставляем "выбрать ноду", ждём действия пользователя
+                // Other nodes found — leave "select node" visible, wait for user action
             }
         }
-        .catch { /* CancellationException — штатное завершение */ }
+        .catch { /* CancellationException — normal job termination, ignored */ }
         .launchIn(viewModelScope)
 }
 ```
 
-#### 5f — `buildNodeStatusColor()`: обновить логику Scanning
+#### 5f — `buildNodeStatusColor()`: update Scanning branch
 
 ```kotlin
 MeshConnectionStatus.Scanning ->
@@ -291,14 +284,14 @@ MeshConnectionStatus.Scanning ->
 is MeshConnectionStatus.Connecting -> Color.Yellow
 ```
 
-#### 5g — `buildConnectionInfoSlot()`: обновить Scanning
+#### 5g — `buildConnectionInfoSlot()`: update Scanning branch
 
 ```kotlin
 MeshConnectionStatus.Scanning ->
     if (state.foundOtherDevicesDuringScan)
-        HudInfoSlot(content = "выбрать ноду", color = Color.Yellow)
+        HudInfoSlot(content = "select node", color = Color.Yellow)
     else
-        HudInfoSlot(content = "Поиск...", color = Color.Red)
+        HudInfoSlot(content = "Searching...", color = Color.Red)
 ```
 
 ---
@@ -307,7 +300,7 @@ MeshConnectionStatus.Scanning ->
 
 #### `MeshDataModule.kt`
 
-Добавить в блок `single { … }`:
+Add to the `single { … }` block:
 ```kotlin
 single<LastConnectedDeviceRepository> { LastConnectedDeviceRepositoryImpl(get<Settings>()) }
 single { GetLastConnectedDeviceUseCase(get()) }
@@ -316,7 +309,7 @@ single { SaveLastConnectedDeviceUseCase(get()) }
 
 #### `PresentationModule.kt`
 
-В `viewModel { MainViewModel(…) }` добавить:
+In `viewModel { MainViewModel(…) }` add:
 ```kotlin
 scanDevices = get(),
 connectToDevice = get(),
@@ -328,7 +321,7 @@ saveLastConnectedDevice = get(),
 
 ### Phase 7 — Simplify
 
-`/simplify` на изменённых файлах:
+Run `/simplify` on changed files:
 - `MeshConnectionRepositoryImpl.kt`
 - `MainViewModel.kt`
 - `MainUiState.kt`
@@ -337,26 +330,26 @@ saveLastConnectedDevice = get(),
 
 ### Phase 8 — Integration Review
 
-- Убедиться, что `scanJob` не утекает: отменяется в `onCleared()` (ViewModelScope автоматически) ✅
-- `_isScanning` является частью репозитория (singleton), убедиться что нет гонок при параллельных вызовах `scanDevices()` (в текущем коде только один вызов из MainViewModel)
-- Убедиться, что `onCompletion` вызывается только при нормальном завершении, не при `CancellationException`
+- `scanJob` does not leak: cancelled automatically by `viewModelScope` in `onCleared()` ✅
+- `_isScanning` belongs to a singleton repository — verify no races from concurrent `scanDevices()` calls (currently only one call site: `MainViewModel`)
+- `onCompletion` fires only on natural completion, not on `CancellationException` ✅
 
 ---
 
 ### Phase 9 — Docs & Memory Update
 
-- CLAUDE.md: обновить статус фичи «Авто-подключение при старте» → Done (после реализации)
-- Установить статус этого плана → Done
-- Добавить запись в Change Log
+- CLAUDE.md: add "Auto-connect on start" feature → Done (after implementation)
+- Set this plan status → Done
+- Append entry to Change Log
 
 ---
 
 ### Phase 10 — Commit Preparation
 
-1. `git status` — перечислить изменённые файлы
-2. Stage по именам (никогда `git add -A`)
-3. Сообщение коммита на русском, повелительное наклонение
-4. Показать staged файлы + сообщение → ждать подтверждения → `git commit`
+1. `git status` — list changed files
+2. Stage by name (never `git add -A`)
+3. Draft commit message in Russian, imperative mood
+4. Present staged files + message → wait for confirmation → `git commit`
 
 ---
 
@@ -379,10 +372,10 @@ Phase 10: [stage → commit]
 
 ## Open Questions
 
-- Нет.
+- None.
 
 ---
 
 ## Change Log
 
-- 2026-04-16: создан
+- 2026-04-16: created
