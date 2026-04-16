@@ -4,6 +4,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -55,6 +58,7 @@ class MainViewModel(
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
+    private var connectedLabelJob: Job? = null
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
     // Navigation callbacks provided by NavGraph (has navController access).
@@ -88,7 +92,22 @@ class MainViewModel(
 
         observeConnectionStatus(NoParams)
             .onEach { status ->
-                _uiState.update { it.copy(connectionStatus = status) }
+                if (status is MeshConnectionStatus.Connected) {
+                    val wasConnected = _uiState.value.connectionStatus is MeshConnectionStatus.Connected
+                    _uiState.update { it.copy(connectionStatus = status) }
+                    if (!wasConnected) {
+                        _uiState.update { it.copy(showConnectionLabel = true) }
+                        connectedLabelJob?.cancel()
+                        connectedLabelJob = viewModelScope.launch {
+                            delay(2_000)
+                            _uiState.update { it.copy(showConnectionLabel = false) }
+                        }
+                    }
+                } else {
+                    connectedLabelJob?.cancel()
+                    connectedLabelJob = null
+                    _uiState.update { it.copy(connectionStatus = status, showConnectionLabel = false) }
+                }
             }
             .launchIn(viewModelScope)
 
@@ -192,7 +211,7 @@ class MainViewModel(
                             else -> null
                         }.takeIf { it != "0" },
                     ),
-                    info = emptyInfoSlot(),
+                    info = buildConnectionInfoSlot(state),
                 ),
                 HudRowConfig(
                     button = HudButtonSlot(iconRes = R.drawable.ic_settings, label = "настройки", onClick = nav.onSettingsClick),
@@ -218,6 +237,19 @@ class MainViewModel(
                 ),
             ),
         )
+
+    private fun buildConnectionInfoSlot(state: MainUiState): HudInfoSlot = when (val status = state.connectionStatus) {
+        MeshConnectionStatus.Scanning ->
+            HudInfoSlot(content = "Поиск...", color = Color.Red)
+        is MeshConnectionStatus.Connecting ->
+            HudInfoSlot(content = "Сопряжение с ${status.deviceName}", color = Color.Yellow)
+        is MeshConnectionStatus.Connected ->
+            if (state.showConnectionLabel)
+                HudInfoSlot(content = "Сопряжено с ${status.shortName}", color = Color.Green)
+            else
+                emptyInfoSlot()
+        else -> emptyInfoSlot()
+    }
 
     private fun buildNodeStatusColor(state: MainUiState): Color {
         return when (val status = state.connectionStatus) {
