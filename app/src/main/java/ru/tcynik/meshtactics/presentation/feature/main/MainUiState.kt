@@ -20,4 +20,5 @@ data class MainUiState(
     val gpsStatus: GpsStatusModel = GpsStatusModel.None,
     val markerSizeLevel: Int = 5,
     val selectedOverlays: ImmutableList<OverlayRenderModel> = persistentListOf(),
+    val unreadChatCount: Int = 0,
 )

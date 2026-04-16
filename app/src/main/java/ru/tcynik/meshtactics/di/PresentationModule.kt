@@ -33,6 +33,7 @@ val presentationModule = module {
             getMarkerSizeLevel = get(),
             observeMarkerSizeLevel = get(),
             observeSelectedOverlays = get<ObserveSelectedOverlaysUseCase>(),
+            observeTotalUnreadChatCount = get(),
         )
     }
 

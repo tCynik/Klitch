@@ -18,4 +18,25 @@
     <string name="map_delete_confirm_message">Файл будет удалён из системы. Это действие необратимо.</string>
     <string name="map_delete_confirm_yes">Удалить</string>
     <string name="map_delete_confirm_no">Отмена</string>
+    <string name="chat_title">Чаты</string>
+    <string name="chat_tab_filter">Фильтр</string>
+    <string name="chat_tab_chat">Чат</string>
+    <string name="chat_select_all">Выбрать всё</string>
+    <string name="chat_deselect_all">Снять выделение</string>
+    <string name="chat_select_favorite">Избранное</string>
+    <string name="chat_select_archive">Архив</string>
+    <string name="chat_search_hint">Поиск...</string>
+    <string name="chat_send">Отправить</string>
+    <string name="chat_input_hint">Сообщение...</string>
+    <string name="chat_menu_pin">Закрепить</string>
+    <string name="chat_menu_unpin">Открепить</string>
+    <string name="chat_menu_favorite">В избранное</string>
+    <string name="chat_menu_unfavorite">Убрать из избранного</string>
+    <string name="chat_menu_read">Пометить прочитанным</string>
+    <string name="chat_menu_archive">В архив</string>
+    <string name="chat_menu_unarchive">Из архива</string>
+    <string name="chat_menu_clear">Очистить</string>
+    <string name="chat_clear_confirm">Очистить чат?</string>
+    <string name="chat_clear_confirm_button">Очистить</string>
+    <string name="chat_cancel">Отмена</string>
 </resources>

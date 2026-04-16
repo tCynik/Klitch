@@ -25,6 +25,7 @@ import ru.tcynik.meshtactics.domain.location.usecase.ObserveGpsStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.settings.usecase.GetMarkerSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveMarkerSizeLevelUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.ObserveTotalUnreadChatCountUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudButtonSlot
@@ -50,6 +51,7 @@ class MainViewModel(
     getMarkerSizeLevel: GetMarkerSizeLevelUseCase,
     observeMarkerSizeLevel: ObserveMarkerSizeLevelUseCase,
     observeSelectedOverlays: ObserveSelectedOverlaysUseCase,
+    observeTotalUnreadChatCount: ObserveTotalUnreadChatCountUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -105,6 +107,12 @@ class MainViewModel(
         observeSelectedOverlays(NoParams)
             .onEach { overlays ->
                 _uiState.update { it.copy(selectedOverlays = overlays.toImmutableList()) }
+            }
+            .launchIn(viewModelScope)
+
+        observeTotalUnreadChatCount(NoParams)
+            .onEach { total ->
+                _uiState.update { it.copy(unreadChatCount = total.coerceAtMost(99)) }
             }
             .launchIn(viewModelScope)
     }
@@ -200,7 +208,12 @@ class MainViewModel(
                     info = emptyInfoSlot(),
                 ),
                 HudRowConfig(
-                    button = HudButtonSlot(iconRes = R.drawable.ic_chat,     label = "чаты",      onClick = nav.onChatClick),
+                    button = HudButtonSlot(
+                        iconRes = R.drawable.ic_chat,
+                        label = "чаты",
+                        onClick = nav.onChatClick,
+                        infoBadge = state.unreadChatCount.takeIf { it > 0 }?.toString(),
+                    ),
                     info = emptyInfoSlot(),
                 ),
             ),

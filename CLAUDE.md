@@ -28,7 +28,7 @@
 | Рендеринг KMZ/KML оверлеев на карте | ✅ Done |
 | Визуальный язык (цвет, типографика, HUD) | ⏳ Deferred (после отработки userFlow) |
 | BLE-узлы на карте (telemetry) | ⬜ Planned |
-| Чат | ⬜ Planned |
+| Чат | ⏳ In Progress |
 | Маркеры / заметки | ⬜ Planned |
 | Настройки ноды | ⬜ Planned |
 
