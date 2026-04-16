@@ -728,7 +728,7 @@ private fun ChatTabContent(
 private fun ChatMessageBubble(
     message: ChatMessageModel,
 ) {
-    val isMe = message.senderCallsign == "Я"
+    val isMe = message.isFromMe
 
     Row(
         modifier = Modifier.fillMaxWidth(),

@@ -163,4 +163,5 @@ private fun Message.toChatMessageModel(contactKey: String): ChatMessageModel = C
     text = text,
     sentAt = receivedTime,
     channelId = contactKey,
+    isFromMe = fromLocal,
 )

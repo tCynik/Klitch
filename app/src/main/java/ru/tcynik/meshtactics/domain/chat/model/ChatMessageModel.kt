@@ -7,4 +7,5 @@ data class ChatMessageModel(
     val text: String,
     val sentAt: Long,
     val channelId: String,
+    val isFromMe: Boolean = false,
 )
