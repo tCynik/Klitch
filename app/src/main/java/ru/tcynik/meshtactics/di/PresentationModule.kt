@@ -11,6 +11,12 @@ import ru.tcynik.meshtactics.presentation.feature.meshtest.MeshTestViewModel
 import ru.tcynik.meshtactics.presentation.feature.node.NodeSettingsViewModel
 import ru.tcynik.meshtactics.presentation.feature.node.NodeStatusViewModel
 import ru.tcynik.meshtactics.presentation.feature.nodes.NodesViewModel
+import ru.tcynik.meshtactics.domain.map.usecase.DeleteImportedMapUseCase
+import ru.tcynik.meshtactics.domain.map.usecase.HideImportedMapUseCase
+import ru.tcynik.meshtactics.domain.map.usecase.ImportMapFileUseCase
+import ru.tcynik.meshtactics.domain.map.usecase.ObserveImportedMapsUseCase
+import ru.tcynik.meshtactics.domain.map.usecase.ObserveSelectedOverlaysUseCase
+import ru.tcynik.meshtactics.domain.map.usecase.ToggleImportedMapSelectionUseCase
 import ru.tcynik.meshtactics.presentation.feature.settings.SettingsViewModel
 
 val presentationModule = module {
@@ -26,13 +32,23 @@ val presentationModule = module {
             observeGpsStatus = get(),
             getMarkerSizeLevel = get(),
             observeMarkerSizeLevel = get(),
+            observeSelectedOverlays = get<ObserveSelectedOverlaysUseCase>(),
             observeTotalUnreadChatCount = get(),
         )
     }
 
     // ── Feature screens ──────────────────────────────────────────────────────
     viewModelOf(::ChatViewModel)
-    viewModelOf(::SettingsViewModel)
+    viewModel {
+        SettingsViewModel(
+            repository = get(),
+            observeImportedMaps = get<ObserveImportedMapsUseCase>(),
+            importMapFile = get<ImportMapFileUseCase>(),
+            hideImportedMap = get<HideImportedMapUseCase>(),
+            deleteImportedMap = get<DeleteImportedMapUseCase>(),
+            toggleImportedMapSelection = get<ToggleImportedMapSelectionUseCase>(),
+        )
+    }
     viewModelOf(::NodeSettingsViewModel)
     viewModelOf(::NodeStatusViewModel)
     viewModelOf(::MarkersViewModel)

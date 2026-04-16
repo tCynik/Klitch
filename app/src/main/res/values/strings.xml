@@ -10,6 +10,14 @@
     <string name="settings_save_button">Сохранить</string>
     <string name="settings_exit_app_description">Выйти из приложения</string>
     <string name="settings_exit_app_icon">Иконка выхода</string>
+    <string name="map_add_button">Добавить</string>
+    <string name="map_item_more_actions">Дополнительные действия</string>
+    <string name="map_item_hide">Скрыть</string>
+    <string name="map_item_delete">Удалить</string>
+    <string name="map_delete_confirm_title">Удалить файл?</string>
+    <string name="map_delete_confirm_message">Файл будет удалён из системы. Это действие необратимо.</string>
+    <string name="map_delete_confirm_yes">Удалить</string>
+    <string name="map_delete_confirm_no">Отмена</string>
     <string name="chat_title">Чаты</string>
     <string name="chat_tab_filter">Фильтр</string>
     <string name="chat_tab_chat">Чат</string>

@@ -18,6 +18,7 @@ import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.domain.map.usecase.GetLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.GetTileUrlUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveNodeMarkersUseCase
+import ru.tcynik.meshtactics.domain.map.usecase.ObserveSelectedOverlaysUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.location.model.GpsSignalLevel
 import ru.tcynik.meshtactics.domain.location.usecase.ObserveGpsStatusUseCase
@@ -49,6 +50,7 @@ class MainViewModel(
     observeGpsStatus: ObserveGpsStatusUseCase,
     getMarkerSizeLevel: GetMarkerSizeLevelUseCase,
     observeMarkerSizeLevel: ObserveMarkerSizeLevelUseCase,
+    observeSelectedOverlays: ObserveSelectedOverlaysUseCase,
     observeTotalUnreadChatCount: ObserveTotalUnreadChatCountUseCase,
 ) : ViewModel() {
 
@@ -99,6 +101,12 @@ class MainViewModel(
         observeMarkerSizeLevel(NoParams)
             .onEach { level ->
                 _uiState.update { it.copy(markerSizeLevel = level) }
+            }
+            .launchIn(viewModelScope)
+
+        observeSelectedOverlays(NoParams)
+            .onEach { overlays ->
+                _uiState.update { it.copy(selectedOverlays = overlays.toImmutableList()) }
             }
             .launchIn(viewModelScope)
 

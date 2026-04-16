@@ -81,6 +81,10 @@ dependencies {
     // Coroutines
     implementation(libs.coroutines.android)
 
+    // SQLDelight — coroutines extensions (asFlow / mapToList used in ImportedMapRepositoryImpl)
+    implementation(libs.sqldelight.coroutines)
+    testImplementation(libs.sqldelight.jvm.driver)
+
     // WorkManager
     implementation(libs.work.runtime)
 
@@ -88,6 +92,9 @@ dependencies {
     implementation(libs.koin.android)
     implementation(libs.koin.compose)
     implementation(libs.koin.compose.viewmodel)
+
+    // OSMBonusPack — KML/KMZ parser
+    implementation("com.github.MKergall:osmbonuspack:6.9.0")
 
     // maplibre-compose — Jetpack Compose wrapper for MapLibre (pulls in android-sdk transitively)
     // Note: if field device OpenGL ES compatibility issues arise, investigate android-sdk-opengl variant
