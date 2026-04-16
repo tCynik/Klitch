@@ -31,7 +31,7 @@ class MeshToChatAdapter(
 
     // ==================== CONTACTS ====================
 
-    fun observeTotalUnreadCount(): Flow<Int> = packetRepository.getUnreadCountTotal()
+    fun observeTotalUnreadCount(): Flow<Int> = packetRepository.getUnreadCountExcludingArchived()
 
     fun observeContactsAsFlow(): Flow<List<ChatContactDto>> =
         combine(

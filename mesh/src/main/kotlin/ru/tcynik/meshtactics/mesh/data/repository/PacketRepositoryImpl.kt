@@ -87,6 +87,9 @@ class PacketRepositoryImpl(private val dbManager: DatabaseProvider, private val 
     override fun getUnreadCountTotal(): Flow<Int> =
         dbManager.currentDb.flatMapLatest { db -> db.packetDao().getUnreadCountTotal() }
 
+    override fun getUnreadCountExcludingArchived(): Flow<Int> =
+        dbManager.currentDb.flatMapLatest { db -> db.packetDao().getUnreadCountExcludingArchived() }
+
     override suspend fun clearUnreadCount(contact: String, timestamp: Long) =
         withContext(dispatchers.io) { dbManager.currentDb.value.packetDao().clearUnreadCount(contact, timestamp) }
 

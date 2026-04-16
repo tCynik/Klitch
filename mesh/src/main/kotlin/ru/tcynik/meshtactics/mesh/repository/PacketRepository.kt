@@ -61,6 +61,9 @@ interface PacketRepository {
     /** Reactive flow of the total unread message count across all conversations. */
     fun getUnreadCountTotal(): Flow<Int>
 
+    /** Reactive flow of the total unread message count, excluding archived conversations. */
+    fun getUnreadCountExcludingArchived(): Flow<Int>
+
     /** Clears the unread status for messages in a conversation up to the given timestamp. */
     suspend fun clearUnreadCount(contact: String, timestamp: Long)
 
