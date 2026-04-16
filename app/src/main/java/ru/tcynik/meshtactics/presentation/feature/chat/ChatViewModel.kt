@@ -3,11 +3,12 @@ package ru.tcynik.meshtactics.presentation.feature.chat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import ru.tcynik.meshtactics.data.chat.prefs.ChatPrefsRepository
@@ -48,9 +49,49 @@ class ChatViewModel(
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
+    /** Единый источник истины для отмеченных контактов. Персистируется в DataStore. */
+    private val _checkedIds = MutableStateFlow<Set<String>>(emptySet())
+
     init {
+        viewModelScope.launch {
+            val checkedIds = chatPrefs.observeCheckedIds().first()
+            _checkedIds.value = checkedIds
+
+            if (isSessionActive) {
+                // Повторный вход в экран внутри той же сессии — восстанавливаем таб и чат
+                val tab = chatPrefs.observeCurrentTab().first()
+                val chatId = chatPrefs.observeSelectedChatId().first()
+                _uiState.update {
+                    it.copy(
+                        currentTab = tab,
+                        selectedChatId = chatId,
+                        isChatTabEnabled = true,
+                    )
+                }
+                // Пересчитываем заголовок с учётом уже загруженных контактов
+                updateChatTabInfo()
+            } else {
+                // Первый вход за сессию — всегда на вкладку Фильтр, без выбранного чата
+                isSessionActive = true
+                chatPrefs.setCurrentTab(ChatTab.FILTER)
+                chatPrefs.setSelectedChatId(null)
+                _uiState.update {
+                    it.copy(
+                        currentTab = ChatTab.FILTER,
+                        selectedChatId = null,
+                        isChatTabEnabled = true,
+                        chatTabTitle = "Лента",
+                    )
+                }
+            }
+        }
         observeContacts()
         observeAllMessages()
+    }
+
+    companion object {
+        /** true — если в этой сессии (жизни процесса) экран уже открывался хотя бы раз */
+        private var isSessionActive = false
     }
 
     // ==================== ТАБЫ ====================
@@ -66,7 +107,10 @@ class ChatViewModel(
         if (tab == ChatTab.FILTER) {
             updateChatTabInfo()
         }
-        viewModelScope.launch { chatPrefs.setCurrentTab(tab) }
+        viewModelScope.launch {
+            chatPrefs.setCurrentTab(tab)
+            if (tab == ChatTab.FILTER) chatPrefs.setSelectedChatId(null)
+        }
     }
 
     fun selectChat(chatId: String) {
@@ -106,40 +150,38 @@ class ChatViewModel(
     }
 
     fun toggleFilterItem(itemId: String) {
-        _uiState.update { state ->
-            val updatedItems = state.filterItems.map { item ->
-                if (item.id == itemId) item.copy(isChecked = !item.isChecked) else item
-            }
-            state.copy(filterItems = updatedItems.toImmutableList())
-        }
+        val current = _checkedIds.value
+        val newIds = if (itemId in current) current - itemId else current + itemId
+        _checkedIds.value = newIds
+        viewModelScope.launch { chatPrefs.setCheckedIds(newIds) }
         updateFilteredMessages()
         updateChatTabInfo()
     }
 
     fun selectAllItems() {
-        _uiState.update { state ->
-            val updatedItems = state.filterItems.map { it.copy(isChecked = true) }
-            state.copy(filterItems = updatedItems.toImmutableList())
-        }
+        val allIds = _uiState.value.filterItems
+            .filter { !it.isArchiveSection }
+            .map { it.id }
+            .toSet()
+        _checkedIds.value = allIds
+        viewModelScope.launch { chatPrefs.setCheckedIds(allIds) }
         updateFilteredMessages()
         updateChatTabInfo()
     }
 
     fun deselectAllItems() {
-        _uiState.update { state ->
-            val updatedItems = state.filterItems.map { it.copy(isChecked = false) }
-            state.copy(filterItems = updatedItems.toImmutableList())
-        }
+        _checkedIds.value = emptySet()
+        viewModelScope.launch { chatPrefs.setCheckedIds(emptySet()) }
         updateFilteredMessages()
         updateChatTabInfo()
     }
 
     fun selectFavoriteItems() {
-        _uiState.update { state ->
-            val favorites = collectFavorites(state.filterItems)
-            val shouldSelect = favorites.isEmpty() || !favorites.all { it.isChecked }
-            state.copy(filterItems = toggleFavoritesInList(state.filterItems, shouldSelect))
-        }
+        val favoriteIds = collectFavorites(_uiState.value.filterItems).map { it.id }.toSet()
+        val shouldSelect = favoriteIds.isEmpty() || !favoriteIds.all { it in _checkedIds.value }
+        val newIds = if (shouldSelect) favoriteIds else emptySet()
+        _checkedIds.value = newIds
+        viewModelScope.launch { chatPrefs.setCheckedIds(newIds) }
         updateFilteredMessages()
         updateChatTabInfo()
     }
@@ -254,20 +296,20 @@ class ChatViewModel(
 
     private fun observeContacts() {
         viewModelScope.launch {
-            observeContactsUseCase(NoParams).collect { contacts ->
+            combine(
+                observeContactsUseCase(NoParams),
+                _checkedIds,
+            ) { contacts, checkedIds -> contacts to checkedIds }
+            .collect { (contacts, checkedIds) ->
                 _uiState.update { state ->
-                    val checkedMap = buildCheckedMap(state.filterItems)
                     val existingArchiveSection = state.filterItems.find { it.isArchiveSection }
-
                     val mainItems = contacts
                         .filter { !it.isArchived }
                         .sortedWith(compareBy({ !it.isPinned }, { -(it.lastMessageTime ?: 0L) }))
-                        .map { it.toFilterItem(isChecked = checkedMap[it.id] ?: false) }
-
+                        .map { it.toFilterItem(isChecked = it.id in checkedIds) }
                     val archivedItems = contacts
                         .filter { it.isArchived }
                         .map { it.toFilterItem(isChecked = false) }
-
                     val archiveSection = ChatFilterItem(
                         id = "archive_section",
                         name = "Архив",
@@ -276,10 +318,10 @@ class ChatViewModel(
                         isExpanded = existingArchiveSection?.isExpanded ?: false,
                         children = archivedItems.toImmutableList()
                     )
-
                     state.copy(filterItems = (mainItems + archiveSection).toImmutableList())
                 }
                 updateChatTabInfo()
+                updateFilteredMessages()
             }
         }
     }
@@ -297,7 +339,7 @@ class ChatViewModel(
 
     private fun updateFilteredMessages() {
         val state = _uiState.value
-        val checkedIds = collectAllChecked(state.filterItems).map { it.id }.toSet()
+        val checkedIds = _checkedIds.value
 
         var filtered = if (state.selectedChatId != null) {
             state.allMessages.filter { it.channelId == state.selectedChatId }
@@ -330,62 +372,32 @@ class ChatViewModel(
         }.toImmutableList()
     }
 
-    private fun buildCheckedMap(items: List<ChatFilterItem>): Map<String, Boolean> {
-        val result = mutableMapOf<String, Boolean>()
-        fun traverse(list: List<ChatFilterItem>) {
-            list.forEach { item ->
-                if (!item.isArchiveSection) result[item.id] = item.isChecked
-                if (item.isArchiveSection) traverse(item.children)
-            }
-        }
-        traverse(items)
-        return result
-    }
-
     // ==================== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
 
     private fun updateChatTabInfo() {
         _uiState.update { state ->
-            val checkedItems = collectAllChecked(state.filterItems)
-            when {
-                checkedItems.isEmpty() -> state.copy(
-                    chatTabTitle = "Лента",
-                    isChatTabEnabled = true
+            val selectedId = state.selectedChatId
+            if (selectedId != null) {
+                val item = findItemById(selectedId, state.filterItems)
+                return@update state.copy(
+                    chatTabTitle = if (item != null) "Чат с ${item.name}" else "Чат",
+                    isChatTabEnabled = true,
                 )
+            }
+            val checkedItems = state.filterItems
+                .filter { !it.isArchiveSection && it.id in _checkedIds.value }
+            when {
+                checkedItems.isEmpty() -> state.copy(chatTabTitle = "Лента", isChatTabEnabled = true)
                 checkedItems.size == 1 -> state.copy(
                     chatTabTitle = "Чат с ${checkedItems.first().name}",
-                    isChatTabEnabled = true
+                    isChatTabEnabled = true,
                 )
                 else -> state.copy(
                     chatTabTitle = "Лента (${checkedItems.size})",
-                    isChatTabEnabled = true
+                    isChatTabEnabled = true,
                 )
             }
         }
-    }
-
-    private fun collectAllChecked(items: List<ChatFilterItem>): List<ChatFilterItem> {
-        val result = mutableListOf<ChatFilterItem>()
-        fun traverse(list: List<ChatFilterItem>) {
-            list.forEach { item ->
-                if (!item.isArchiveSection && item.isChecked) result.add(item)
-                if (item.isArchiveSection) traverse(item.children)
-            }
-        }
-        traverse(items)
-        return result
-    }
-
-    private fun collectUnreadAll(items: List<ChatFilterItem>): Int {
-        var total = 0
-        fun traverse(list: List<ChatFilterItem>) {
-            list.forEach { item ->
-                total += item.unreadCount
-                if (item.isArchiveSection) traverse(item.children)
-            }
-        }
-        traverse(items)
-        return total
     }
 
     private fun collectFavorites(items: List<ChatFilterItem>): List<ChatFilterItem> {
@@ -400,17 +412,6 @@ class ChatViewModel(
         return result
     }
 
-    private fun toggleFavoritesInList(items: List<ChatFilterItem>, shouldSelect: Boolean): ImmutableList<ChatFilterItem> {
-        return items.map { item ->
-            if (item.isArchiveSection) {
-                item.copy(children = toggleFavoritesInList(item.children, shouldSelect))
-            } else if (item.isFavorite) {
-                item.copy(isChecked = shouldSelect)
-            } else {
-                item
-            }
-        }.toImmutableList()
-    }
 }
 
 // ==================== MAPPER ====================

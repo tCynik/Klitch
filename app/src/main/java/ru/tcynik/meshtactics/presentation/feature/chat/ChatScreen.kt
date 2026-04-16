@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.drop
 import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.domain.chat.model.ChatMessageModel
@@ -80,12 +81,14 @@ fun ChatScreen(
         pageCount = { 2 }
     )
 
-    // Синхронизация pager state с ViewModel
-    LaunchedEffect(pagerState.currentPage) {
-        val tab = if (pagerState.currentPage == 0) ChatTab.FILTER else ChatTab.CHAT
-        if (uiState.currentTab != tab) {
-            viewModel.switchTab(tab)
-        }
+    // Синхронизация pager → ViewModel (только свайпы пользователя, не первая эмиссия)
+    LaunchedEffect(Unit) {
+        snapshotFlow { pagerState.currentPage }
+            .drop(1)
+            .collect { page ->
+                val tab = if (page == 0) ChatTab.FILTER else ChatTab.CHAT
+                viewModel.switchTab(tab)
+            }
     }
 
     LaunchedEffect(uiState.currentTab) {
