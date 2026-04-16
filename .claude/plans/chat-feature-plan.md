@@ -149,7 +149,7 @@ When a user opens a chat (`selectChat(chatId)`), all messages of that contact ar
 
 | # | Problem | Location | Priority |
 |---|---|---|---|
-| 1 | Unread count reactive — `unreadCount = 0` hardcoded in `MeshToChatAdapter` | `MeshToChatAdapter.kt:51` | 🟡 Medium — needs `getUnreadCountFlow` per contact |
+| 1 | ~~Unread count reactive — `unreadCount = 0` hardcoded in `MeshToChatAdapter`~~ | ✅ Fixed — `getUnreadCountFlow` подключён через `flatMapLatest` + `combine` | ✅ Done |
 | 2 | DataStore state not restored on ViewModel `init` (tab, selectedChatId) | `ChatViewModel.kt` | 🟡 Medium — persistence saves but doesn't reload |
 | 3 | `collectUnreadAll` duplicated in `ChatScreen` and `ChatViewModel` | — | 🟢 Low |
 

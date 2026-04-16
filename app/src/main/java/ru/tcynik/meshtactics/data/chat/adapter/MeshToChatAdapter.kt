@@ -33,29 +33,39 @@ class MeshToChatAdapter(
 
     fun observeTotalUnreadCount(): Flow<Int> = packetRepository.getUnreadCountExcludingArchived()
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun observeContactsAsFlow(): Flow<List<ChatContactDto>> =
         combine(
             packetRepository.getContacts(),
             packetRepository.getContactSettings(),
-        ) { contacts, settings ->
-            contacts.map { (contactKey, lastPacket) ->
-                val nodeId = contactKey.dropWhile { it.isDigit() }
-                val node = nodeRepository.getNode(nodeId)
-                val isChannel = nodeId.startsWith("^")
-                val setting = settings[contactKey]
-                ChatContactDto(
-                    id = contactKey,
-                    shortName = node.user.short_name.ifBlank { nodeId },
-                    longName = node.user.long_name.ifBlank { node.user.short_name }.ifBlank { nodeId },
-                    type = if (isChannel) ContactType.CHANNEL else ContactType.PRIVATE,
-                    isFavorite = setting?.isFavorite ?: false,
-                    isPinned = setting?.isPinned ?: false,
-                    isArchived = setting?.isArchived ?: false,
-                    unreadCount = 0, // Phase 6: подключить через getUnreadCountFlow
-                    lastMessageTime = lastPacket.time.takeIf { it > 0 },
-                    lastMessagePreview = lastPacket.text,
-                )
-            }.sortedByDescending { it.lastMessageTime }
+        ) { contacts, settings -> contacts to settings }
+        .flatMapLatest { (contacts, settings) ->
+            val entries = contacts.entries.toList()
+            if (entries.isEmpty()) return@flatMapLatest flowOf(emptyList())
+
+            val unreadFlows = entries.map { (key, _) ->
+                packetRepository.getUnreadCountFlow(key)
+            }
+            combine(unreadFlows) { unreadCounts ->
+                entries.mapIndexed { index, (contactKey, lastPacket) ->
+                    val nodeId = contactKey.dropWhile { it.isDigit() }
+                    val node = nodeRepository.getNode(nodeId)
+                    val isChannel = nodeId.startsWith("^")
+                    val setting = settings[contactKey]
+                    ChatContactDto(
+                        id = contactKey,
+                        shortName = node.user.short_name.ifBlank { nodeId },
+                        longName = node.user.long_name.ifBlank { node.user.short_name }.ifBlank { nodeId },
+                        type = if (isChannel) ContactType.CHANNEL else ContactType.PRIVATE,
+                        isFavorite = setting?.isFavorite ?: false,
+                        isPinned = setting?.isPinned ?: false,
+                        isArchived = setting?.isArchived ?: false,
+                        unreadCount = unreadCounts[index],
+                        lastMessageTime = lastPacket.time.takeIf { it > 0 },
+                        lastMessagePreview = lastPacket.text,
+                    )
+                }.sortedByDescending { it.lastMessageTime }
+            }
         }
 
     // ==================== MESSAGES ====================
