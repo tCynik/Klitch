@@ -55,7 +55,12 @@
       "Bash(cp plans/map-start-position.md archive/map-start-position.md)",
       "Bash(cp plans/gps-user-position-marker.md archive/gps-user-position-marker.md)",
       "Bash(cp plans/phone-gps-to-radio.md archive/phone-gps-to-radio.md)",
-      "Bash(cp plans/hud-structure.md archive/hud-structure.md)"
+      "Bash(cp plans/hud-structure.md archive/hud-structure.md)",
+      "Bash(jar tf *)",
+      "Bash(python3 -c \"import zipfile; z=zipfile.ZipFile\\('maplibre-compose-android-0.12.1-sources.jar'\\); files=[f for f in z.namelist\\(\\) if 'click' in f.lower\\(\\) or 'map' in f.lower\\(\\)]; print\\('\\\\n'.join\\(files[:30]\\)\\)\")",
+      "Bash(powershell -Command 'Add-Type -Assembly System.IO.Compression.FileSystem; $zip = [System.IO.Compression.ZipFile]::OpenRead\\('\\\\''C:/Users/LocAdmin/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar'\\\\''\\); $zip.Entries | Where-Object { $_.Name -match '\\\\''Map|Click|Gesture|Tap'\\\\'' } | Select-Object -First 30 -ExpandProperty FullName; $zip.Dispose\\(\\)')",
+      "Bash(powershell -Command 'Add-Type -Assembly System.IO.Compression.FileSystem; $zip = [System.IO.Compression.ZipFile]::OpenRead\\('\\\\''C:/Users/LocAdmin/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar'\\\\''\\); $entry = $zip.GetEntry\\('\\\\''commonMain/org/maplibre/compose/map/MaplibreMap.kt'\\\\''\\); $reader = New-Object System.IO.StreamReader\\($entry.Open\\(\\)\\); $content = $reader.ReadToEnd\\(\\); $reader.Close\\(\\); $zip.Dispose\\(\\); Write-Output $content')",
+      "Bash(powershell -Command 'Add-Type -Assembly System.IO.Compression.FileSystem; $zip = [System.IO.Compression.ZipFile]::OpenRead\\('\\\\''C:/Users/LocAdmin/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar'\\\\''\\); $entry = $zip.GetEntry\\('\\\\''commonMain/org/maplibre/compose/util/MapClickHandler.kt'\\\\''\\); $reader = New-Object System.IO.StreamReader\\($entry.Open\\(\\)\\); $content = $reader.ReadToEnd\\(\\); $reader.Close\\(\\); $zip.Dispose\\(\\); Write-Output $content')"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",
