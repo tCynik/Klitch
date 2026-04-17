@@ -35,7 +35,6 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceParams
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.SaveLastConnectedDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudButtonSlot
@@ -65,7 +64,6 @@ class MainViewModel(
     private val scanDevices: ScanMeshDevicesUseCase,
     private val connectToDevice: ConnectToMeshDeviceUseCase,
     private val getLastConnectedDevice: GetLastConnectedDeviceUseCase,
-    private val saveLastConnectedDevice: SaveLastConnectedDeviceUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -172,21 +170,17 @@ class MainViewModel(
                     autoConnectAttempted = true
                     _uiState.update { it.copy(foundOtherDevicesDuringScan = false) }
                     viewModelScope.launch {
-                        saveLastConnectedDevice(target)
                         connectToDevice(ConnectToMeshDeviceParams(target.address, target.name))
                     }
                     scanJob?.cancel()
                 } else {
-                    _uiState.update { it.copy(foundOtherDevicesDuringScan = lastDevice != null && devices.isNotEmpty()) }
+                    _uiState.update { it.copy(foundOtherDevicesDuringScan = devices.isNotEmpty()) }
                 }
             }
             .onCompletion { cause ->
-                if (cause == null && !autoConnectAttempted) {
-                    val currentStatus = _uiState.value.connectionStatus
-                    val foundOthers   = _uiState.value.foundOtherDevicesDuringScan
-                    if (currentStatus is MeshConnectionStatus.Disconnected && !foundOthers) {
-                        startAutoConnect()
-                    }
+                // cause != null means cancelled (Connecting/Connected path) — skip restart
+                if (cause == null && !autoConnectAttempted && !_uiState.value.foundOtherDevicesDuringScan) {
+                    startAutoConnect()
                 }
             }
             .catch { /* CancellationException — normal job termination, ignored */ }

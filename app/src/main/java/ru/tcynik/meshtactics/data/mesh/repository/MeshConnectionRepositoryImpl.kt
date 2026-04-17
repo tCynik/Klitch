@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onEach
+import java.util.concurrent.atomic.AtomicInteger
 import ru.tcynik.meshtactics.data.mesh.mapper.toMeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.model.MeshDeviceModel
@@ -33,6 +34,9 @@ class MeshConnectionRepositoryImpl(
      */
     @Volatile private var pendingDeviceName: String = ""
 
+    // Counts active scanDevices() collectors. Multiple callers (e.g. MainViewModel + MeshTestViewModel)
+    // can scan concurrently; _isScanning stays true until ALL of them finish.
+    private val activeScanCount = AtomicInteger(0)
     private val _isScanning = MutableStateFlow(false)
 
     override val connectionStatus: Flow<MeshConnectionStatus> =
@@ -53,6 +57,7 @@ class MeshConnectionRepositoryImpl(
 
     @OptIn(ExperimentalUuidApi::class)
     override fun scanDevices(): Flow<List<MeshDeviceModel>> = flow {
+        activeScanCount.incrementAndGet()
         _isScanning.value = true
         try {
             val discovered = mutableListOf<MeshDeviceModel>()
@@ -69,7 +74,9 @@ class MeshConnectionRepositoryImpl(
                 }
             }
         } finally {
-            _isScanning.value = false
+            if (activeScanCount.decrementAndGet() == 0) {
+                _isScanning.value = false
+            }
         }
     }
 

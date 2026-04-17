@@ -103,7 +103,7 @@ val meshDataModule = module {
     // --- Use Cases ---
     single { ObserveConnectionStatusUseCase(get()) }
     single { ScanMeshDevicesUseCase(get()) }
-    single { ConnectToMeshDeviceUseCase(get()) }
+    single { ConnectToMeshDeviceUseCase(get(), get()) }
     single { DisconnectFromMeshUseCase(get()) }
     single { ObserveMeshNodesUseCase(get()) }
     single { ObserveOurNodeUseCase(get()) }
