@@ -50,10 +50,16 @@
       "Bash(powershell -Command ':*)",
       "Bash(find \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\app\\\\src\\\\main\\\\java\\\\ru\\\\tcynik\\\\meshtactics\\\\presentation\\\\feature\\\\main\" -name \"*.kt\" -type f -exec grep -l \"emptyInfoSlot\" {} \\\\;)",
       "Bash(unzip -o \"/c/Users/LocAdmin/.gradle/caches/modules-2/files-2.1/com.juul.kable/kable-core-android/0.42.0/bee24f0ffb8e8de84fd4ff1f1a981d9ac2bf52a8/kable-core-android-sources.jar\" \"*/Scanner*\" -d kable_src)",
-      "Bash(unzip -o \"/c/Users/LocAdmin/.gradle/caches/modules-2/files-2.1/com.juul.kable/kable-core-android/0.42.0/bee24f0ffb8e8de84fd4ff1f1a981d9ac2bf52a8/kable-core-android-sources.jar\" -d /tmp/kable_src)"
+      "Bash(unzip -o \"/c/Users/LocAdmin/.gradle/caches/modules-2/files-2.1/com.juul.kable/kable-core-android/0.42.0/bee24f0ffb8e8de84fd4ff1f1a981d9ac2bf52a8/kable-core-android-sources.jar\" -d /tmp/kable_src)",
+      "Bash(cp plans/app-structure.md archive/app-structure.md)",
+      "Bash(cp plans/map-start-position.md archive/map-start-position.md)",
+      "Bash(cp plans/gps-user-position-marker.md archive/gps-user-position-marker.md)",
+      "Bash(cp plans/phone-gps-to-radio.md archive/phone-gps-to-radio.md)",
+      "Bash(cp plans/hud-structure.md archive/hud-structure.md)"
     ],
     "additionalDirectories": [
-      "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude"
+      "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",
+      "c:\\Users\\LocAdmin\\AndroidStudioProjects\\MeshTactics\\.claude"
     ]
   }
 }
