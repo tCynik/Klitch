@@ -26,6 +26,7 @@
 | GPS в фоне (GpsService foreground service) | ✅ Done |
 | Импорт KMZ/KML оверлеев (SAF + SQLDelight) | ✅ Done |
 | Рендеринг KMZ/KML оверлеев на карте | ✅ Done |
+| Автоподключение к последнему узлу при старте | ✅ Done |
 | Визуальный язык (цвет, типографика, HUD) | ⏳ Deferred (после отработки userFlow) |
 | BLE-узлы на карте (telemetry) | ⬜ Planned |
 | Чат | ⏳ In Progress |
@@ -45,6 +46,7 @@
 | `/ui-designer` | Дизайн-система: цвета, типографика, компоненты, UX-паттерны |
 | `/icon-designer` | Иконки в стиле MeshIconButton (делегировано из `/ui-designer`) |
 | `/tester` | Шаблоны тестов: FlowUseCase/Turbine, ViewModel/MockK, SQLDelight integration |
+| `/iterate` | Дебаг и итерация по готовым фичам: диагностика багов, скоупные расширения, ревью состояния фичи |
 
 ---
 
@@ -75,4 +77,5 @@
 | Fix GPS Sending Logic | `.claude/plans/fix-gps-sending-logic.md` | Done |
 | KMZ/KML Import | `.claude/plans/kmz-kml-import.md` | Done |
 | KMZ/KML Rendering | `.claude/plans/kmz-kml-rendering.md` | Done |
+| Auto-connect on Start | `.claude/plans/auto-connect-on-start.md` | Done |
 | Universal Orientation | `.claude/plans/universal-orientation.md` | Planned |
