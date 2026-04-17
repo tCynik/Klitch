@@ -1,35 +1,27 @@
-# Plan: Auto-connect on App Start
+# Feature: Auto-connect on App Start + BLE Device Discovery
 
-**Date**: 2026-04-16
-**Status**: Approved
+**Date**: 2026-04-16  
+**Status**: Done
 
 ---
 
 ## Summary
 
-On app launch (after BLE permissions are granted) BLE scanning starts automatically.
-If the last used node is found — connect to it automatically.
-If other nodes are found but not the last one — HUD shows "select node" (yellow).
-If no nodes are found — scanning restarts, HUD shows "Searching…" (red).
-If scanning is not active (future feature: stopped by user) — red Radio button only, info slot empty.
-
----
-
-## Permissions
-
-`BlePermissionGuard` in `NavGraph` already handles all BLE/Location permissions **before** any content is rendered.
-`MainScreen` (and therefore `MainViewModel`) is created only after permissions are granted → no additional permission request code needed.
+On app launch (after BLE permissions are granted) scanning starts automatically.
+- If the last used node is found — connect to it without user action.
+- If other nodes are found but not the last one — HUD shows "выбор узла" (yellow); MeshTest Connection tab shows the device list immediately.
+- If no nodes found — scan restarts in a loop; HUD shows "Поиск…" (red).
 
 ---
 
 ## HUD State Behaviour
 
-| State | Radio button color | Info slot |
+| State | Radio button colour | Info slot |
 |---|---|---|
-| Scan active, no nodes found | Red | "Searching…" |
-| Scan active, other nodes found (not the last one) | Yellow | "select node" |
-| Connecting | Yellow | "Pairing with $deviceName" |
-| Connected (first 2 s) | Green | "Paired with $shortName" |
+| Scan active, no nodes found | Red | "Поиск…" |
+| Scan active, other nodes found | Yellow | "выбор узла" |
+| Connecting | Yellow | "Сопряжение с $deviceName" |
+| Connected (first 2 s) | Green | "Сопряжено с $shortName" |
 | Connected (after auto-hide) | Green | — |
 | Disconnected / scan not active | Red | — |
 
@@ -39,343 +31,139 @@ If scanning is not active (future feature: stopped by user) — red Radio button
 
 ### Key decisions
 
-**1. `MeshConnectionStatus.Scanning` is now actually emitted**
-`MeshConnectionRepositoryImpl` adds `_isScanning: MutableStateFlow<Boolean>`.
-The `connectionStatus` flow is extended to `combine(…, _isScanning)`:
-if `_isScanning == true` && `serviceState == Disconnected` → emit `MeshConnectionStatus.Scanning`.
-`scanDevices()` sets `_isScanning = true` on entry and `false` in `finally`.
+**1. `MeshConnectionStatus.Scanning` emitted from repository**  
+`MeshConnectionRepositoryImpl` has `_isScanning: MutableStateFlow<Boolean>`.  
+`connectionStatus` is `combine(serviceState, ourNodeInfo, bleRssi, _isScanning)`:  
+if `_isScanning == true && serviceState == Disconnected` → emit `Scanning`.
 
-**2. `foundOtherDevicesDuringScan` in `MainUiState`**
-The presentation layer tracks whether nodes were found during scan that are not the last device.
-Managed by `MainViewModel` inside the auto-connect coroutine.
+**2. `AtomicInteger activeScanCount` for concurrent scans**  
+`MainViewModel` and `MeshTestViewModel` can both call `scanDevices()` concurrently.  
+`_isScanning` must stay `true` until ALL collectors finish.  
+`activeScanCount.incrementAndGet()` on entry, `decrementAndGet() == 0` guards the reset.
 
-**3. Last connected device stored in `Settings` (multiplatform-settings)**
-Same mechanism as `LastMapPositionRepositoryImpl`.
-Keys: `last_ble_address`, `last_ble_name`.
+**3. `foundDevices: ImmutableList<MeshDeviceModel>` in `MainUiState`**  
+Replaced the earlier `foundOtherDevicesDuringScan: Boolean`.  
+Accumulates across scan restarts via `distinctBy { it.address }`.  
+Cleared to `persistentListOf()` on `Connecting` / `Connected`.  
+Drives HUD colour and text via `foundDevices.isNotEmpty()`.
 
-**4. Auto-connect flow in `MainViewModel`**
-Started from `init{}` via `startAutoConnect()`.
-Cancelled from the `observeConnectionStatus` collector when status transitions to `Connecting` / `Connected`.
-On successful connection — saves the device as the new "last connected".
-If scan ends naturally (30 s timeout) with no nodes found — restarts scan.
+**4. Last connected device saved inside `ConnectToMeshDeviceUseCase`**  
+`LastConnectedDeviceRepository.save()` is called at the start of every `connect()` call — regardless of whether the connection originated from auto-connect, MeshTest, or any future screen.  
+This is the only place that saves, preventing the circular dependency described in Bug 5 below.
+
+**5. Auto-connect flow in `MainViewModel.startAutoConnect()`**  
+- Called from `init{}`.
+- Cancelled by `observeConnectionStatus` collector when status → `Connecting` / `Connected`.
+- `onCompletion { cause }`: restarts scan whenever `cause == null && !autoConnectAttempted` (scan timed out naturally without auto-connect firing). No additional status check needed — `cause != null` already covers cancellation.
+- `foundDevices` accumulates across restarts; never cleared mid-scan.
+
+**6. MeshTest Connection tab auto-populates**  
+`MeshTestViewModel` observes `connectionStatus`. When `Scanning && scanJob == null` → calls `onScanClick()` internally. When `Connecting || Connected` → cancels `scanJob`. The user sees device list appear without pressing the "Scan" button.
 
 ---
 
-## Affected Files
+## Bug Fixes (discovered during implementation)
 
-### New files
+### Bug 1 — Android hardware ScanFilter drops device on first scan pass
 
-| File | Purpose |
-|---|---|
-| `domain/mesh/repository/LastConnectedDeviceRepository.kt` | Repository interface for last-node persistence |
-| `domain/mesh/usecase/GetLastConnectedDeviceUseCase.kt` | Synchronous get |
-| `domain/mesh/usecase/SaveLastConnectedDeviceUseCase.kt` | Suspend save |
-| `data/local/mesh/LastConnectedDeviceRepositoryImpl.kt` | `Settings`-based implementation |
+**Root cause:** Android's hardware `ScanFilter.setServiceUuid()` is evaluated before the scan response packet is received. Meshtastic nodes advertise their service UUID in the scan response (not the primary advertisement). On the first scan pass the hardware filter silently drops the device. On restart Android has the scan response cached → device is found.
 
-### Modified files
+**Symptom:** Node never found on first launch; found immediately after restarting scan.
+
+**Fix:** Removed service UUID from `Scanner { filters { match { … } } }` in `KableBleScanner`.  
+Software filter applied instead: `advertisement.uuids.any { it == serviceUuid }`.  
+Kable's `advertisement.uuids` assembles from both primary advertisement and scan response — immune to the timing issue.  
+Address-only hardware filter is kept because address is always present in the primary advertisement.
+
+**File:** [KableBleScanner.kt](mesh/src/main/kotlin/ru/tcynik/meshtactics/mesh/ble/KableBleScanner.kt)
+
+---
+
+### Bug 2 — `_isScanning` reset too early with concurrent scans
+
+**Root cause:** `MainViewModel` and `MeshTestViewModel` can both hold an active `scanDevices()` Flow. Whichever finishes first was calling `_isScanning.value = false` even though the other scan was still running. `connectionStatus` dropped out of `Scanning` prematurely.
+
+**Fix:** `activeScanCount: AtomicInteger` in `MeshConnectionRepositoryImpl`.  
+`_isScanning = false` is only set in `finally` when `activeScanCount.decrementAndGet() == 0`.
+
+**File:** [MeshConnectionRepositoryImpl.kt](app/src/main/java/ru/tcynik/meshtactics/data/mesh/repository/MeshConnectionRepositoryImpl.kt)
+
+---
+
+### Bug 3 — `onCompletion` race condition with stale `connectionStatus`
+
+**Root cause:** Original `onCompletion` read `_uiState.value.connectionStatus` to decide whether to restart. At the moment `onCompletion` fires, `_isScanning` has already gone `false`, but the `observeConnectionStatus` collector in a separate coroutine hasn't processed the resulting `Disconnected` emission yet. `_uiState.connectionStatus` still held `Scanning` → `is MeshConnectionStatus.Disconnected` check failed → `startAutoConnect()` was never called again.
+
+**Fix:** Removed the stale status check entirely.  
+New condition: `cause == null && !autoConnectAttempted`.  
+`cause != null` (CancellationException) already covers the Connecting/Connected path.
+
+**File:** [MainViewModel.kt](app/src/main/java/ru/tcynik/meshtactics/presentation/feature/main/MainViewModel.kt)
+
+---
+
+### Bug 4 — Infinite restart loop when no last device is saved
+
+**Root cause:** `foundOtherDevicesDuringScan` was set only when `lastDevice != null && devices.isNotEmpty()`. When no device had ever been saved (`lastDevice == null`), the flag stayed `false` even when nodes were found. `onCompletion` always restarted the scan (correct) but `foundDevices.isNotEmpty()` was never `true` for the HUD.
+
+**Fix:** Simplified to `devices.isNotEmpty()` — any discovered device sets the flag regardless of whether it matches a saved device.
+
+---
+
+### Bug 5 — Circular dependency: `lastDevice` always `null` (root cause of auto-connect never firing)
+
+**Root cause:** `saveLastConnectedDevice` was called only inside `startAutoConnect()` after finding `target != null`. But `target != null` requires `lastDevice != null`. Since manual connections from MeshTest never saved the device, `lastDevice` was always `null` on every launch → auto-connect could never fire.
+
+**Trace from logs:**
+```
+startAutoConnect: lastDevice=null
+autoConnect onEach: devices=[F0:9E:9E:76:76:A1], lastDevice=null, autoConnectAttempted=false
+```
+
+**Fix:** Moved `lastConnectedDevice.save(...)` into `ConnectToMeshDeviceUseCase.invoke()` — the single place all connect paths converge. Called before `repository.connect()` on every connection, regardless of source.
+
+**File:** [ConnectToMeshDeviceUseCase.kt](app/src/main/java/ru/tcynik/meshtactics/domain/mesh/usecase/ConnectToMeshDeviceUseCase.kt)
+
+---
+
+## Final State of Affected Files
 
 | File | Change |
 |---|---|
-| `data/mesh/repository/MeshConnectionRepositoryImpl.kt` | Add `_isScanning` + expand `connectionStatus` combine + wrap `scanDevices()` in try/finally |
-| `presentation/feature/main/MainUiState.kt` | Add `foundOtherDevicesDuringScan: Boolean = false` |
-| `presentation/feature/main/MainViewModel.kt` | Auto-connect logic + update Radio button color/info |
-| `di/MeshDataModule.kt` | Bind `LastConnectedDeviceRepository` + use cases |
-| `di/PresentationModule.kt` | Add new use cases to `MainViewModel` constructor |
+| `mesh/.../ble/KableBleScanner.kt` | Software UUID filter; address-only hardware filter |
+| `data/.../repository/MeshConnectionRepositoryImpl.kt` | `AtomicInteger activeScanCount`; Scanning state via `_isScanning` |
+| `domain/.../usecase/ConnectToMeshDeviceUseCase.kt` | Added `LastConnectedDeviceRepository`; saves device on every connect |
+| `presentation/feature/main/MainUiState.kt` | `foundDevices: ImmutableList<MeshDeviceModel>` replaces boolean flag |
+| `presentation/feature/main/MainViewModel.kt` | Fixed `onCompletion`; accumulates `foundDevices`; always restarts scan if not auto-connected |
+| `presentation/feature/meshtest/MeshTestViewModel.kt` | Auto-starts scan when `Scanning && scanJob == null`; stops on `Connecting/Connected` |
+| `di/MeshDataModule.kt` | `ConnectToMeshDeviceUseCase(get(), get())` — second arg is `LastConnectedDeviceRepository` |
+| `di/PresentationModule.kt` | Removed `saveLastConnectedDevice` from `MainViewModel` DI |
+| `domain/.../repository/LastConnectedDeviceRepository.kt` | New interface |
+| `domain/.../usecase/GetLastConnectedDeviceUseCase.kt` | New; synchronous get |
+| `domain/.../usecase/SaveLastConnectedDeviceUseCase.kt` | New; suspend save |
+| `data/local/mesh/LastConnectedDeviceRepositoryImpl.kt` | New; `multiplatform-settings` persistence |
 
 ---
 
-## Phase Plan
+## Device Selection UI — Deliberately NOT on Main Screen
 
-### Phase 1 — Domain: Last Connected Device
-
-**File**: `domain/mesh/repository/LastConnectedDeviceRepository.kt`
-```kotlin
-interface LastConnectedDeviceRepository {
-    fun get(): MeshDeviceModel?
-    suspend fun save(device: MeshDeviceModel)
-}
-```
-
-**File**: `domain/mesh/usecase/GetLastConnectedDeviceUseCase.kt`
-```kotlin
-class GetLastConnectedDeviceUseCase(
-    private val repository: LastConnectedDeviceRepository,
-) {
-    operator fun invoke(): MeshDeviceModel? = repository.get()
-}
-```
-
-**File**: `domain/mesh/usecase/SaveLastConnectedDeviceUseCase.kt`
-```kotlin
-class SaveLastConnectedDeviceUseCase(
-    private val repository: LastConnectedDeviceRepository,
-) : UseCase<MeshDeviceModel, Unit>() {
-    override suspend fun invoke(params: MeshDeviceModel) = repository.save(params)
-}
-```
+A `NodeSelectorPanel` overlay was built and then removed per product decision.  
+Device selection from scan results belongs to a dedicated screen, not the map view.  
+Currently handled in MeshTest → Connection tab.  
+Future: dedicated radio/connection screen.
 
 ---
 
-### Phase 2 — Data: Last Connected Device Persistence
+## Invariants to Preserve
 
-**File**: `data/local/mesh/LastConnectedDeviceRepositoryImpl.kt`
-
-```kotlin
-private const val KEY_ADDRESS = "last_ble_address"
-private const val KEY_NAME    = "last_ble_name"
-
-class LastConnectedDeviceRepositoryImpl(
-    private val settings: Settings,
-) : LastConnectedDeviceRepository {
-
-    override fun get(): MeshDeviceModel? {
-        val address = settings.getStringOrNull(KEY_ADDRESS) ?: return null
-        val name    = settings.getStringOrNull(KEY_NAME) ?: address
-        return MeshDeviceModel(address = address, name = name, rssi = 0)
-    }
-
-    override suspend fun save(device: MeshDeviceModel) {
-        settings.putString(KEY_ADDRESS, device.address)
-        settings.putString(KEY_NAME, device.name)
-    }
-}
-```
-
----
-
-### Phase 3 — Data: `MeshConnectionRepositoryImpl` — emit Scanning
-
-**Changes**:
-
-1. Add field:
-   ```kotlin
-   private val _isScanning = MutableStateFlow(false)
-   ```
-
-2. Expand `connectionStatus` from `combine(3 flows)` to `combine(4 flows)`:
-   ```kotlin
-   override val connectionStatus: Flow<MeshConnectionStatus> =
-       combine(
-           serviceRepository.connectionState.onEach { … },
-           nodeRepository.ourNodeInfo,
-           radioInterfaceService.bleRssi,
-           _isScanning,
-       ) { state, node, bleRssi, isScanning ->
-           if (isScanning && state == ConnectionState.Disconnected) {
-               MeshConnectionStatus.Scanning
-           } else {
-               state.toMeshConnectionStatus(node, pendingDeviceName, bleRssi)
-           }
-       }
-   ```
-
-3. Wrap `scanDevices()` body in `try/finally`:
-   ```kotlin
-   override fun scanDevices(): Flow<List<MeshDeviceModel>> = flow {
-       _isScanning.value = true
-       try {
-           val discovered = mutableListOf<MeshDeviceModel>()
-           bleScanner.scan(timeout = 30.seconds, serviceUuid = …).collect { device ->
-               if (discovered.none { it.address == device.address }) {
-                   discovered.add(MeshDeviceModel(…))
-                   emit(discovered.toList())
-               }
-           }
-       } finally {
-           _isScanning.value = false
-       }
-   }
-   ```
-
----
-
-### Phase 4 — Presentation: `MainUiState`
-
-Add field:
-```kotlin
-val foundOtherDevicesDuringScan: Boolean = false,
-```
-
----
-
-### Phase 5 — Presentation: `MainViewModel`
-
-#### 5a — New constructor parameters
-
-```kotlin
-private val scanDevices: ScanMeshDevicesUseCase,
-private val connectToDevice: ConnectToMeshDeviceUseCase,
-private val getLastConnectedDevice: GetLastConnectedDeviceUseCase,
-private val saveLastConnectedDevice: SaveLastConnectedDeviceUseCase,
-```
-
-#### 5b — New field
-
-```kotlin
-private var scanJob: Job? = null
-```
-
-#### 5c — `init{}`: kick off auto-connect
-
-At the end of `init {}` add:
-```kotlin
-startAutoConnect()
-```
-
-#### 5d — `observeConnectionStatus` collector: cancel scan on connect
-
-At the top of the existing `.onEach { status -> … }` block add:
-```kotlin
-if (status is MeshConnectionStatus.Connecting || status is MeshConnectionStatus.Connected) {
-    scanJob?.cancel()
-    scanJob = null
-    _uiState.update { it.copy(foundOtherDevicesDuringScan = false) }
-}
-```
-
-Note: the last-device save happens in `startAutoConnect()` before `connectToDevice()` is called, so no save is needed here.
-
-#### 5e — `startAutoConnect()`
-
-```kotlin
-private fun startAutoConnect() {
-    val lastDevice = getLastConnectedDevice()
-    scanJob?.cancel()
-    var autoConnectAttempted = false
-
-    scanJob = scanDevices(NoParams)
-        .onEach { devices ->
-            if (autoConnectAttempted) return@onEach
-            val target = lastDevice?.let { last -> devices.find { it.address == last.address } }
-            if (target != null) {
-                autoConnectAttempted = true
-                _uiState.update { it.copy(foundOtherDevicesDuringScan = false) }
-                viewModelScope.launch {
-                    saveLastConnectedDevice(target)
-                    connectToDevice(ConnectToMeshDeviceParams(target.address, target.name))
-                }
-                scanJob?.cancel()
-            } else {
-                _uiState.update { it.copy(foundOtherDevicesDuringScan = devices.isNotEmpty()) }
-            }
-        }
-        .onCompletion { cause ->
-            // Flow completed naturally (30 s timeout), NOT via cancellation
-            if (cause == null && !autoConnectAttempted) {
-                val currentStatus = _uiState.value.connectionStatus
-                val foundOthers   = _uiState.value.foundOtherDevicesDuringScan
-                // No nodes found at all — restart scan
-                if (currentStatus is MeshConnectionStatus.Disconnected && !foundOthers) {
-                    startAutoConnect()
-                }
-                // Other nodes found — leave "select node" visible, wait for user action
-            }
-        }
-        .catch { /* CancellationException — normal job termination, ignored */ }
-        .launchIn(viewModelScope)
-}
-```
-
-#### 5f — `buildNodeStatusColor()`: update Scanning branch
-
-```kotlin
-MeshConnectionStatus.Scanning ->
-    if (state.foundOtherDevicesDuringScan) Color.Yellow else Color.Red
-is MeshConnectionStatus.Connecting -> Color.Yellow
-```
-
-#### 5g — `buildConnectionInfoSlot()`: update Scanning branch
-
-```kotlin
-MeshConnectionStatus.Scanning ->
-    if (state.foundOtherDevicesDuringScan)
-        HudInfoSlot(content = "select node", color = Color.Yellow)
-    else
-        HudInfoSlot(content = "Searching...", color = Color.Red)
-```
-
----
-
-### Phase 6 — DI
-
-#### `MeshDataModule.kt`
-
-Add to the `single { … }` block:
-```kotlin
-single<LastConnectedDeviceRepository> { LastConnectedDeviceRepositoryImpl(get<Settings>()) }
-single { GetLastConnectedDeviceUseCase(get()) }
-single { SaveLastConnectedDeviceUseCase(get()) }
-```
-
-#### `PresentationModule.kt`
-
-In `viewModel { MainViewModel(…) }` add:
-```kotlin
-scanDevices = get(),
-connectToDevice = get(),
-getLastConnectedDevice = get(),
-saveLastConnectedDevice = get(),
-```
-
----
-
-### Phase 7 — Simplify
-
-Run `/simplify` on changed files:
-- `MeshConnectionRepositoryImpl.kt`
-- `MainViewModel.kt`
-- `MainUiState.kt`
-
----
-
-### Phase 8 — Integration Review
-
-- `scanJob` does not leak: cancelled automatically by `viewModelScope` in `onCleared()` ✅
-- `_isScanning` belongs to a singleton repository — verify no races from concurrent `scanDevices()` calls (currently only one call site: `MainViewModel`)
-- `onCompletion` fires only on natural completion, not on `CancellationException` ✅
-
----
-
-### Phase 9 — Docs & Memory Update
-
-- CLAUDE.md: add "Auto-connect on start" feature → Done (after implementation)
-- Set this plan status → Done
-- Append entry to Change Log
-
----
-
-### Phase 10 — Commit Preparation
-
-1. `git status` — list changed files
-2. Stage by name (never `git add -A`)
-3. Draft commit message in Russian, imperative mood
-4. Present staged files + message → wait for confirmation → `git commit`
-
----
-
-## Coordination Map
-
-```
-Phase 1:  [direct coding] — domain: repository interface + use cases
-Phase 2:  [direct coding] — data: Settings-based persistence
-Phase 3:  [direct coding] — data: MeshConnectionRepositoryImpl + _isScanning
-Phase 4:  [direct coding] — presentation: MainUiState
-Phase 5:  [direct coding] — presentation: MainViewModel auto-connect logic
-Phase 6:  [direct coding] — DI wiring
-Phase 7:  /simplify
-Phase 8:  [direct review]
-Phase 9:  [docs & memory]
-Phase 10: [stage → commit]
-```
-
----
-
-## Open Questions
-
-- None.
+- `saveLastConnectedDevice` must remain inside `ConnectToMeshDeviceUseCase` — not in individual callers.
+- `_isScanning` must only be set to `false` when `activeScanCount == 0`.
+- `onCompletion` restart check must NOT read `_uiState.connectionStatus` — that value is stale at the point `onCompletion` fires.
+- Hardware `ScanFilter` must NOT include service UUID — use software filter on `advertisement.uuids` only.
 
 ---
 
 ## Change Log
 
-- 2026-04-16: created
+- 2026-04-16: initial plan created (pre-implementation)
+- 2026-04-17: rewritten as post-implementation doc; added all 5 bug fixes with root causes, traces, and fixes; updated architecture section; added invariants
