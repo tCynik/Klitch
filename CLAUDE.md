@@ -26,6 +26,7 @@
 | GPS в фоне (GpsService foreground service) | ✅ Done |
 | Импорт KMZ/KML оверлеев (SAF + SQLDelight) | ✅ Done |
 | Рендеринг KMZ/KML оверлеев на карте | ✅ Done |
+| Автоподключение к последнему узлу при старте | ✅ Done |
 | Визуальный язык (цвет, типографика, HUD) | ⏳ Deferred (после отработки userFlow) |
 | BLE-узлы на карте (telemetry) | ⬜ Planned |
 | Чат | ⏳ In Progress |
@@ -45,6 +46,7 @@
 | `/ui-designer` | Дизайн-система: цвета, типографика, компоненты, UX-паттерны |
 | `/icon-designer` | Иконки в стиле MeshIconButton (делегировано из `/ui-designer`) |
 | `/tester` | Шаблоны тестов: FlowUseCase/Turbine, ViewModel/MockK, SQLDelight integration |
+| `/iterate` | Дебаг и итерация по готовым фичам: диагностика багов, скоупные расширения, ревью состояния фичи |
 
 ---
 
@@ -62,17 +64,35 @@
 
 ---
 
+## Документация
+
+Живая документация по реализованным фичам: `.claude/docs/`
+Архив завершённых планов: `.claude/archive/`
+
+| Фича | Документ |
+|---|---|
+| App Structure | `.claude/docs/app-structure.md` |
+| Map Start Position | `.claude/docs/map-start-position.md` |
+| GPS User Position Marker | `.claude/docs/gps-user-position-marker.md` |
+| Phone GPS to Radio | `.claude/docs/phone-gps-to-radio.md` |
+| HUD Structure | `.claude/docs/hud-structure.md` |
+| Directional Node Markers | `.claude/docs/directional-node-markers.md` |
+| GPS Sending Logic & Location Settings | `.claude/docs/fix-gps-sending-logic.md` |
+| KMZ/KML Import | `.claude/docs/kmz-kml-import.md` |
+| KMZ/KML Rendering | `.claude/docs/kmz-kml-rendering.md` |
+| GPS Background Service | `.claude/docs/gps-background-service.md` |
+| Universal Orientation | `.claude/docs/universal-orientation.md` |
+| Auto-connect on Start | `.claude/docs/auto-connect-on-start.md` |
+
+---
+
 ## Активные планы
 
 | План | Файл | Статус |
 |---|---|---|
-| GPS User Position Marker | `.claude/plans/gps-user-position-marker.md` | Done |
-| App Structure | `.claude/plans/app-structure.md` | Done |
-| Map Start Position | `.claude/plans/map-start-position.md` | Done |
-| Phone GPS to Radio | `.claude/plans/phone-gps-to-radio.md` | Done |
-| HUD Structure | `.claude/plans/hud-structure.md` | Done |
-| Directional Node Markers | `.claude/plans/directional_nodes_marks.md` | Done |
-| Fix GPS Sending Logic | `.claude/plans/fix-gps-sending-logic.md` | Done |
-| KMZ/KML Import | `.claude/plans/kmz-kml-import.md` | Done |
-| KMZ/KML Rendering | `.claude/plans/kmz-kml-rendering.md` | Done |
-| Universal Orientation | `.claude/plans/universal-orientation.md` | Planned |
+| HUD Node Status Indicator | `.claude/plans/hud-node-status-indicator.md` | In Progress |
+| Connection Status HUD Info | `.claude/plans/connection-status-hud-info.md` | Approved |
+| Settings Refactor | `.claude/plans/settings-refactor.md` | Approved |
+| Geo Nodes Tab | `.claude/plans/geo-nodes-tab.md` | Approved |
+| Node Markers on Map | `.claude/plans/node-markers-on-map.md` | Approved |
+| Chat Feature | `.claude/plans/chat-feature-plan.md` | In Progress |
