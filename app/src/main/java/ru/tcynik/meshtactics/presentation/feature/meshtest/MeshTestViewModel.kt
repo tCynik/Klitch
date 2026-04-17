@@ -96,7 +96,24 @@ class MeshTestViewModel(
     init {
         observeConnectionStatus(NoParams).onEach { status ->
             Log.i("MeshTestVM", "DBG connectionStatus flow emitted: $status")
-            _uiState.update { it.copy(connectionStatus = status.toUi()) }
+            _uiState.update { state ->
+                state.copy(
+                    connectionStatus = status.toUi(),
+                    connectionTab = state.connectionTab.copy(
+                        isScanning = status is MeshConnectionStatus.Scanning,
+                    ),
+                )
+            }
+            // Auto-start scan when the app is already scanning (MainViewModel auto-scan)
+            // but this VM hasn't started collecting devices yet.
+            if (status is MeshConnectionStatus.Scanning && scanJob == null) {
+                onScanClick()
+            }
+            // Stop scan when auto-connect from MainViewModel kicks in.
+            if (status is MeshConnectionStatus.Connecting || status is MeshConnectionStatus.Connected) {
+                scanJob?.cancel()
+                scanJob = null
+            }
         }.launchIn(viewModelScope)
 
         observeNodes(NoParams).onEach { nodes ->
@@ -207,12 +224,7 @@ class MeshTestViewModel(
 
     fun onScanClick() {
         scanJob?.cancel()
-        _uiState.update { state ->
-            state.copy(
-                connectionStatus = MeshConnectionStatusUi.Scanning,
-                connectionTab = state.connectionTab.copy(isScanning = true),
-            )
-        }
+        // isScanning driven by observeConnectionStatus → _isScanning in repo
         scanJob = scanDevices(NoParams)
             .onEach { devices ->
                 _uiState.update { state ->
@@ -224,23 +236,13 @@ class MeshTestViewModel(
                     )
                 }
             }
-            .onCompletion {
-                _uiState.update { state ->
-                    state.copy(connectionTab = state.connectionTab.copy(isScanning = false))
-                }
-            }
             .launchIn(viewModelScope)
     }
 
     fun onStopScanClick() {
         scanJob?.cancel()
         scanJob = null
-        _uiState.update { state ->
-            state.copy(
-                connectionStatus = MeshConnectionStatusUi.Disconnected,
-                connectionTab = state.connectionTab.copy(isScanning = false),
-            )
-        }
+        // isScanning will be reset via observeConnectionStatus when _isScanning → false
     }
 
     fun onConnectClick(address: String) {

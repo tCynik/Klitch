@@ -17,6 +17,9 @@ import ru.tcynik.meshtactics.domain.map.usecase.ImportMapFileUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveImportedMapsUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveSelectedOverlaysUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ToggleImportedMapSelectionUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.presentation.feature.settings.SettingsViewModel
 
 val presentationModule = module {
@@ -34,6 +37,9 @@ val presentationModule = module {
             observeMarkerSizeLevel = get(),
             observeSelectedOverlays = get<ObserveSelectedOverlaysUseCase>(),
             observeTotalUnreadChatCount = get(),
+            scanDevices = get<ScanMeshDevicesUseCase>(),
+            connectToDevice = get<ConnectToMeshDeviceUseCase>(),
+            getLastConnectedDevice = get<GetLastConnectedDeviceUseCase>(),
         )
     }
 

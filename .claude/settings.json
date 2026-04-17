@@ -47,7 +47,10 @@
       "Bash(unzip -p maplibre-compose-android-0.12.1-sources.jar commonMain/org/maplibre/compose/sources/ImageSource.kt)",
       "Bash(jar -tf \"caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar\")",
       "Bash(powershell -Command 'Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::OpenRead\\('\\\\''C:\\\\Users\\\\LocAdmin\\\\.gradle\\\\caches\\\\modules-2\\\\files-2.1\\\\org.maplibre.compose\\\\maplibre-compose-android\\\\0.12.1\\\\f708ef7c0df0289f479839037afe34ad1917b751\\\\maplibre-compose-android-0.12.1-sources.jar'\\\\''\\).Entries | Where-Object { $_.Name -match '\\\\''Image|Source|source'\\\\'' } | Select-Object -ExpandProperty FullName')",
-      "Bash(powershell -Command ':*)"
+      "Bash(powershell -Command ':*)",
+      "Bash(find \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\app\\\\src\\\\main\\\\java\\\\ru\\\\tcynik\\\\meshtactics\\\\presentation\\\\feature\\\\main\" -name \"*.kt\" -type f -exec grep -l \"emptyInfoSlot\" {} \\\\;)",
+      "Bash(unzip -o \"/c/Users/LocAdmin/.gradle/caches/modules-2/files-2.1/com.juul.kable/kable-core-android/0.42.0/bee24f0ffb8e8de84fd4ff1f1a981d9ac2bf52a8/kable-core-android-sources.jar\" \"*/Scanner*\" -d kable_src)",
+      "Bash(unzip -o \"/c/Users/LocAdmin/.gradle/caches/modules-2/files-2.1/com.juul.kable/kable-core-android/0.42.0/bee24f0ffb8e8de84fd4ff1f1a981d9ac2bf52a8/kable-core-android-sources.jar\" -d /tmp/kable_src)"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude"

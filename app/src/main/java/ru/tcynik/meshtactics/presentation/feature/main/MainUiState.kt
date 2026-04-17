@@ -6,6 +6,7 @@ import ru.tcynik.meshtactics.domain.location.model.GpsStatusModel
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.domain.marker.model.NodeMarkerModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
+import ru.tcynik.meshtactics.domain.mesh.model.MeshDeviceModel
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.OverlayRenderModel
 
 // TODO: replace default with GPS first-fix or user-configurable home position
@@ -21,4 +22,9 @@ data class MainUiState(
     val markerSizeLevel: Int = 5,
     val selectedOverlays: ImmutableList<OverlayRenderModel> = persistentListOf(),
     val unreadChatCount: Int = 0,
+    val showConnectionLabel: Boolean = false,
+    // Devices found during BLE scan that are NOT the last connected device.
+    // Shown in NodeSelectorPanel when non-empty and status == Scanning.
+    // Accumulates across scan restarts; cleared on connect.
+    val foundDevices: ImmutableList<MeshDeviceModel> = persistentListOf(),
 )

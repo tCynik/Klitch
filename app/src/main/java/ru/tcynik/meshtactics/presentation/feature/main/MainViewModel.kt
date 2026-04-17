@@ -3,7 +3,13 @@ package ru.tcynik.meshtactics.presentation.feature.main
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -26,7 +32,11 @@ import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.settings.usecase.GetMarkerSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveMarkerSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.ObserveTotalUnreadChatCountUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceParams
+import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudButtonSlot
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudColumnConfig
@@ -52,9 +62,14 @@ class MainViewModel(
     observeMarkerSizeLevel: ObserveMarkerSizeLevelUseCase,
     observeSelectedOverlays: ObserveSelectedOverlaysUseCase,
     observeTotalUnreadChatCount: ObserveTotalUnreadChatCountUseCase,
+    private val scanDevices: ScanMeshDevicesUseCase,
+    private val connectToDevice: ConnectToMeshDeviceUseCase,
+    private val getLastConnectedDevice: GetLastConnectedDeviceUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
+    private var connectedLabelJob: Job? = null
+    private var scanJob: Job? = null
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
     // Navigation callbacks provided by NavGraph (has navController access).
@@ -88,7 +103,27 @@ class MainViewModel(
 
         observeConnectionStatus(NoParams)
             .onEach { status ->
-                _uiState.update { it.copy(connectionStatus = status) }
+                if (status is MeshConnectionStatus.Connecting || status is MeshConnectionStatus.Connected) {
+                    scanJob?.cancel()
+                    scanJob = null
+                    _uiState.update { it.copy(foundDevices = persistentListOf()) }
+                }
+                if (status is MeshConnectionStatus.Connected) {
+                    val wasConnected = _uiState.value.connectionStatus is MeshConnectionStatus.Connected
+                    _uiState.update { it.copy(connectionStatus = status) }
+                    if (!wasConnected) {
+                        _uiState.update { it.copy(showConnectionLabel = true) }
+                        connectedLabelJob?.cancel()
+                        connectedLabelJob = viewModelScope.launch {
+                            delay(2_000)
+                            _uiState.update { it.copy(showConnectionLabel = false) }
+                        }
+                    }
+                } else {
+                    connectedLabelJob?.cancel()
+                    connectedLabelJob = null
+                    _uiState.update { it.copy(connectionStatus = status, showConnectionLabel = false) }
+                }
             }
             .launchIn(viewModelScope)
 
@@ -115,11 +150,52 @@ class MainViewModel(
                 _uiState.update { it.copy(unreadChatCount = total.coerceAtMost(99)) }
             }
             .launchIn(viewModelScope)
+
+        startAutoConnect()
     }
 
     fun onCameraPositionChanged(position: MapCameraPosition) {
         saveLastPosition(position)
     }
+
+    private fun startAutoConnect() {
+        val lastDevice = getLastConnectedDevice()
+        scanJob?.cancel()
+        var autoConnectAttempted = false
+
+        scanJob = scanDevices(NoParams)
+            .onEach { devices ->
+                if (autoConnectAttempted) return@onEach
+                val target = lastDevice?.let { last -> devices.find { it.address == last.address } }
+                if (target != null) {
+                    autoConnectAttempted = true
+                    _uiState.update { it.copy(foundDevices = persistentListOf()) }
+                    viewModelScope.launch {
+                        connectToDevice(ConnectToMeshDeviceParams(target.address, target.name))
+                    }
+                    scanJob?.cancel()
+                } else {
+                    // Accumulate discovered devices across scan restarts (deduplicate by address).
+                    _uiState.update { current ->
+                        val merged = (current.foundDevices + devices)
+                            .distinctBy { it.address }
+                            .toImmutableList()
+                        current.copy(foundDevices = merged)
+                    }
+                }
+            }
+            .onCompletion { cause ->
+                // cause != null means cancelled (Connecting/Connected path) — skip restart.
+                // Always restart if scan expired naturally and auto-connect didn't fire,
+                // so the device list stays fresh.
+                if (cause == null && !autoConnectAttempted) {
+                    startAutoConnect()
+                }
+            }
+            .catch { /* CancellationException — normal job termination, ignored */ }
+            .launchIn(viewModelScope)
+    }
+
 
     // Called by NavGraph once navController is available.
     fun provideNavCallbacks(callbacks: HudNavCallbacks) {
@@ -192,7 +268,7 @@ class MainViewModel(
                             else -> null
                         }.takeIf { it != "0" },
                     ),
-                    info = emptyInfoSlot(),
+                    info = buildConnectionInfoSlot(state),
                 ),
                 HudRowConfig(
                     button = HudButtonSlot(iconRes = R.drawable.ic_settings, label = "настройки", onClick = nav.onSettingsClick),
@@ -219,6 +295,22 @@ class MainViewModel(
             ),
         )
 
+    private fun buildConnectionInfoSlot(state: MainUiState): HudInfoSlot = when (val status = state.connectionStatus) {
+        MeshConnectionStatus.Scanning ->
+            if (state.foundDevices.isNotEmpty())
+                HudInfoSlot(content = "выбор узла", color = Color.Yellow)
+            else
+                HudInfoSlot(content = "Поиск...", color = Color.Red)
+        is MeshConnectionStatus.Connecting ->
+            HudInfoSlot(content = "Сопряжение с ${status.deviceName}", color = Color.Yellow)
+        is MeshConnectionStatus.Connected ->
+            if (state.showConnectionLabel)
+                HudInfoSlot(content = "Сопряжено с ${status.shortName}", color = Color.Green)
+            else
+                emptyInfoSlot()
+        else -> emptyInfoSlot()
+    }
+
     private fun buildNodeStatusColor(state: MainUiState): Color {
         return when (val status = state.connectionStatus) {
             is MeshConnectionStatus.Connected ->
@@ -226,7 +318,8 @@ class MainViewModel(
             MeshConnectionStatus.Disconnected,
             is MeshConnectionStatus.Error,
             MeshConnectionStatus.DeviceSleep -> Color.Red
-            MeshConnectionStatus.Scanning,
+            MeshConnectionStatus.Scanning ->
+                if (state.foundDevices.isNotEmpty()) Color.Yellow else Color.Red
             is MeshConnectionStatus.Connecting -> Color.Yellow
         }
     }
