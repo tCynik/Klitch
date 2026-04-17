@@ -3,6 +3,7 @@ package ru.tcynik.meshtactics.presentation.feature.main
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -105,7 +106,7 @@ class MainViewModel(
                 if (status is MeshConnectionStatus.Connecting || status is MeshConnectionStatus.Connected) {
                     scanJob?.cancel()
                     scanJob = null
-                    _uiState.update { it.copy(foundOtherDevicesDuringScan = false) }
+                    _uiState.update { it.copy(foundDevices = persistentListOf()) }
                 }
                 if (status is MeshConnectionStatus.Connected) {
                     val wasConnected = _uiState.value.connectionStatus is MeshConnectionStatus.Connected
@@ -168,24 +169,33 @@ class MainViewModel(
                 val target = lastDevice?.let { last -> devices.find { it.address == last.address } }
                 if (target != null) {
                     autoConnectAttempted = true
-                    _uiState.update { it.copy(foundOtherDevicesDuringScan = false) }
+                    _uiState.update { it.copy(foundDevices = persistentListOf()) }
                     viewModelScope.launch {
                         connectToDevice(ConnectToMeshDeviceParams(target.address, target.name))
                     }
                     scanJob?.cancel()
                 } else {
-                    _uiState.update { it.copy(foundOtherDevicesDuringScan = devices.isNotEmpty()) }
+                    // Accumulate discovered devices across scan restarts (deduplicate by address).
+                    _uiState.update { current ->
+                        val merged = (current.foundDevices + devices)
+                            .distinctBy { it.address }
+                            .toImmutableList()
+                        current.copy(foundDevices = merged)
+                    }
                 }
             }
             .onCompletion { cause ->
-                // cause != null means cancelled (Connecting/Connected path) — skip restart
-                if (cause == null && !autoConnectAttempted && !_uiState.value.foundOtherDevicesDuringScan) {
+                // cause != null means cancelled (Connecting/Connected path) — skip restart.
+                // Always restart if scan expired naturally and auto-connect didn't fire,
+                // so the device list stays fresh.
+                if (cause == null && !autoConnectAttempted) {
                     startAutoConnect()
                 }
             }
             .catch { /* CancellationException — normal job termination, ignored */ }
             .launchIn(viewModelScope)
     }
+
 
     // Called by NavGraph once navController is available.
     fun provideNavCallbacks(callbacks: HudNavCallbacks) {
@@ -287,7 +297,7 @@ class MainViewModel(
 
     private fun buildConnectionInfoSlot(state: MainUiState): HudInfoSlot = when (val status = state.connectionStatus) {
         MeshConnectionStatus.Scanning ->
-            if (state.foundOtherDevicesDuringScan)
+            if (state.foundDevices.isNotEmpty())
                 HudInfoSlot(content = "выбор узла", color = Color.Yellow)
             else
                 HudInfoSlot(content = "Поиск...", color = Color.Red)
@@ -309,7 +319,7 @@ class MainViewModel(
             is MeshConnectionStatus.Error,
             MeshConnectionStatus.DeviceSleep -> Color.Red
             MeshConnectionStatus.Scanning ->
-                if (state.foundOtherDevicesDuringScan) Color.Yellow else Color.Red
+                if (state.foundDevices.isNotEmpty()) Color.Yellow else Color.Red
             is MeshConnectionStatus.Connecting -> Color.Yellow
         }
     }

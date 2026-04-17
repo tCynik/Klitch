@@ -104,6 +104,16 @@ class MeshTestViewModel(
                     ),
                 )
             }
+            // Auto-start scan when the app is already scanning (MainViewModel auto-scan)
+            // but this VM hasn't started collecting devices yet.
+            if (status is MeshConnectionStatus.Scanning && scanJob == null) {
+                onScanClick()
+            }
+            // Stop scan when auto-connect from MainViewModel kicks in.
+            if (status is MeshConnectionStatus.Connecting || status is MeshConnectionStatus.Connected) {
+                scanJob?.cancel()
+                scanJob = null
+            }
         }.launchIn(viewModelScope)
 
         observeNodes(NoParams).onEach { nodes ->
