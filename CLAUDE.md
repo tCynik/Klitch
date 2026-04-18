@@ -30,7 +30,7 @@
 | Визуальный язык (цвет, типографика, HUD) | ⏳ Deferred (после отработки userFlow) |
 | BLE-узлы на карте (telemetry) | ⬜ Planned |
 | Чат | ⏳ In Progress |
-| Маркеры / заметки | ⬜ Planned |
+| Маркеры / заметки | ⏳ In Progress |
 | Настройки ноды | ⬜ Planned |
 
 ---
@@ -71,6 +71,7 @@
 
 | Фича | Документ |
 |---|---|
+| Geo Marks | `.claude/docs/geo-marks.md` |
 | App Structure | `.claude/docs/app-structure.md` |
 | Map Start Position | `.claude/docs/map-start-position.md` |
 | GPS User Position Marker | `.claude/docs/gps-user-position-marker.md` |
