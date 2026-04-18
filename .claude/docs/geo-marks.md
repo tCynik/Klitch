@@ -32,10 +32,10 @@ app/
 │       └── GeoMarkRepositoryImpl.kt    — combines PacketRepository + SQLDelight + adapter
 └── presentation/feature/main/
     ├── MainUiState.kt            — geoMarks, markToolActive, pendingMarkPoints
-    ├── MainViewModel.kt          — mark tool logic, gesture handlers, double-tap debounce
+    ├── MainViewModel.kt          — mark tool logic, gesture handlers, double-tap debounce, buildLeftColumn/buildRightColumn (HUD wiring)
+    ├── MainScreen.kt             — send panel (AnimatedVisibility), context menu (DropdownMenu)
     └── osd/
-        ├── MapLibreLayer.kt      — gesture callbacks + geo mark rendering layers
-        └── HudConfigFactory.kt   — "метки" button in left column (row 3)
+        └── MapLibreLayer.kt      — gesture callbacks + geo mark rendering layers
 
 shared/src/commonMain/sqldelight/.../data/local/
 └── GeoMark.sq                    — geo_mark table + selectAll/selectById/selectSelfIds/insert/deleteById/deleteExpired
