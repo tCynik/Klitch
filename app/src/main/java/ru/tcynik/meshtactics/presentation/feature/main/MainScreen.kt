@@ -33,6 +33,8 @@ fun MainScreen(
     onCameraPositionChanged: (MapCameraPosition) -> Unit,
     locationProvider: LocationProvider,
     orientationProvider: DeviceOrientationProvider,
+    onMapClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
+    onMapLongClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit = { _, _, _, _ -> },
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var lastKnownPosition by remember { mutableStateOf(uiState.initialCameraPosition) }
@@ -77,6 +79,11 @@ fun MainScreen(
                 userPosition = currentLocation?.position,
                 userBearing = bearing,
                 selectedOverlays = uiState.selectedOverlays,
+                geoMarks = uiState.geoMarks,
+                pendingMarkPoints = uiState.pendingMarkPoints,
+                markToolActive = uiState.markToolActive,
+                onMapClick = onMapClick,
+                onMapLongClick = onMapLongClick,
             )
         }
 

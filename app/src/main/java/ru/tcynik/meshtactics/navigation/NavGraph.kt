@@ -70,6 +70,8 @@ fun NavGraph() {
                     onCameraPositionChanged = viewModel::onCameraPositionChanged,
                     locationProvider = locationProvider,
                     orientationProvider = orientationProvider,
+                    onMapClick = viewModel::onMapClick,
+                    onMapLongClick = viewModel::onMapLongClick,
                 )
             }
 

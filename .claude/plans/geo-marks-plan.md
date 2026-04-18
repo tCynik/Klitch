@@ -107,13 +107,13 @@ Long-tap on a **draft point** (vs. arbitrary map position) is detected by proxim
 
 ## Phase Plan
 
-### Phase 0 — Research *(skip — domain is understood from spec)*
+### Phase 0 — Research ✅ *(skip — domain is understood from spec)*
 
 The transport encoding is fully specified in `.claude/specs/geo-series-sharing.md`. MapLibre gesture API is confirmed: `onMapClick` + `onMapLongClick` are available; `GestureOptions` allows disabling double-tap zoom. No external research needed.
 
 ---
 
-### Phase 1 — Architecture Design
+### Phase 1 — Architecture Design ✅
 
 **Goal**: Approved architecture — layers, interfaces, data flow, SQLDelight schema.
 
@@ -133,7 +133,7 @@ The transport encoding is fully specified in `.claude/specs/geo-series-sharing.m
 
 ---
 
-### Phase 2 — UI / Icon Design
+### Phase 2 — UI / Icon Design ✅
 
 **Goal**: HUD button icon approved; map rendering style approved.
 
@@ -149,7 +149,7 @@ The transport encoding is fully specified in `.claude/specs/geo-series-sharing.m
 
 ---
 
-### Phase 3 — Implementation
+### Phase 3 — Implementation ✅
 
 **Goal**: Buildable, working feature across all layers.
 
@@ -255,7 +255,7 @@ val pendingMarkPoints: ImmutableList<GeoPoint> = persistentListOf(),
 
 ---
 
-### Phase 4 — Testing
+### Phase 4 — Testing ✅
 
 **Goal**: Feature verified at unit + integration level.
 
@@ -268,7 +268,7 @@ val pendingMarkPoints: ImmutableList<GeoPoint> = persistentListOf(),
 
 ---
 
-### Phase 5 — Integration Review
+### Phase 5 — Integration Review ✅
 
 **Goal**: Confirm no Clean Architecture violations.
 
