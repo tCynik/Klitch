@@ -30,7 +30,7 @@
 | Визуальный язык (цвет, типографика, HUD) | ⏳ Deferred (после отработки userFlow) |
 | BLE-узлы на карте (telemetry) | ⬜ Planned |
 | Чат | ⏳ In Progress |
-| Маркеры / заметки | ⏳ In Progress |
+| Маркеры / заметки | ✅ Done |
 | Настройки ноды | ⬜ Planned |
 
 ---

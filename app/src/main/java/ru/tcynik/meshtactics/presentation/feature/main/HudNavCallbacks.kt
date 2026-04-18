@@ -6,6 +6,5 @@ data class HudNavCallbacks(
     val onRadioClick: () -> Unit = {},
     val onSettingsClick: () -> Unit = {},
     val onMeshClick: () -> Unit = {},
-    val onMarkersClick: () -> Unit = {},
     val onChatClick: () -> Unit = {},
 )

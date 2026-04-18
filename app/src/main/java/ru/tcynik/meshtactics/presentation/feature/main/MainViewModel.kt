@@ -403,9 +403,14 @@ class MainViewModel(
                     button = HudButtonSlot(iconRes = R.drawable.ic_mesh,     label = "сетка",     onClick = nav.onMeshClick),
                     info = emptyInfoSlot(),
                 ),
-                // TODO: confirm icon for "метки" — using ic_marks as closest available match
                 HudRowConfig(
-                    button = HudButtonSlot(iconRes = R.drawable.ic_marks,    label = "метки",     onClick = nav.onMarkersClick),
+                    button = HudButtonSlot(
+                        iconRes   = R.drawable.ic_marks,
+                        label     = "метки",
+                        selected  = state.markToolActive,
+                        onClick   = { toggleMarkTool() },
+                        infoBadge = state.pendingMarkPoints.size.takeIf { it > 0 }?.toString(),
+                    ),
                     info = emptyInfoSlot(),
                 ),
                 HudRowConfig(

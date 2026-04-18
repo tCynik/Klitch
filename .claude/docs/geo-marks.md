@@ -202,7 +202,23 @@ Key: cancelling `doubleTapJob` **is** the signal that a double-tap occurred — 
 
 ### HUD
 
-Mark tool toggle: left column, row 3 — `ic_marks_tool`, `selected = state.markToolActive`, `onClick = toggleMarkTool()`.
+Mark tool toggle is wired in two places:
+- **Left column, row 3** — `ic_marks_tool`, `selected = state.markToolActive`, `onClick = toggleMarkTool()` (map-tool shortcut)
+- **Right column, row 3** — `ic_marks`, `selected = state.markToolActive`, `onClick = toggleMarkTool()`, `infoBadge = pendingMarkPoints.size` when > 0 (main menu entry; replaced the old `onMarkersClick → Route.MarkerManagement` nav)
+
+`onMarkersClick` has been removed from `HudNavCallbacks`. `Route.MarkerManagement` remains in the nav graph as an unreachable stub for a future feature.
+
+### Send panel
+
+`AnimatedVisibility` at `Alignment.BottomCenter`, `padding(bottom = 420.dp)` above the HUD block:
+```kotlin
+visible = uiState.markToolActive && uiState.pendingMarkPoints.isNotEmpty()
+```
+Shows a `Button("Отправить (N)")` that calls `sendPendingMark()`. Animated with `fadeIn + slideInVertically`.
+
+### Context menu
+
+A `DropdownMenu` anchored at the long-tap screen position. When `onMapLongClick` detects a draft point within 30m, `GeoMarkContextMenuEvent(pointIndex, screenX, screenY)` is emitted via `contextMenuEvent: SharedFlow`. `MainScreen` collects it into a local `contextMenu` state and renders the menu at `Modifier.offset(screenX.dp, screenY.dp)` (coordinates are already in dp). "Удалить точку" calls `deletePendingPoint(index)`.
 
 ---
 
@@ -213,6 +229,8 @@ Mark tool toggle: left column, row 3 — `ic_marks_tool`, `selected = state.mark
 | Expiry TTL | 8 hours, fixed. Make configurable in Settings in a future iteration |
 | `locked_to` field | sender's own `nodeNum`, read from `MeshNetworkRepository` at send time |
 | Context menu | `DropdownMenu` anchored to tap screen coordinates |
+| Context menu anchor units | `screenX/screenY` in `GeoMarkContextMenuEvent` are dp values (`DpOffset.x.value`); use directly as `.offset(x.dp, y.dp)` — no density conversion needed |
+| Send panel position | `BottomCenter` + `padding(bottom = 420.dp)` clears the ~400dp HUD block; thumb-reachable without covering draft points |
 | Long-tap proximity | 30m radius (approximate, not dp-scaled) |
 | SQLDelight location | `shared/` module — consistent with KMZ/KML overlay storage |
 | Double-tap zoom | Disabled via `GestureOptions` when tool is active; re-enabled on deactivation |
