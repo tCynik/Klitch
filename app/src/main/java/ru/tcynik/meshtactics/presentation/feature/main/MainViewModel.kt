@@ -7,6 +7,9 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.launch
@@ -46,10 +49,25 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudRowConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyButtonSlot
 import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyHudColumn
 import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyInfoSlot
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
+import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
+import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkContextMenuEvent
+import java.util.UUID
 
 // BLE RSSI threshold separating low signal (red) from medium/high signal (green).
 // Adjust based on field experience; -90 dBm is the standard Meshtastic convention.
 private const val RSSI_LOW_THRESHOLD = -90
+
+// Double-tap detection window in milliseconds.
+private const val DOUBLE_TAP_WINDOW_MS = 300L
+
+// Proximity threshold for long-tap on a draft point (~30 metres).
+// TODO: replace with dp-based calculation using current camera zoom in Phase 3 refinement.
+private const val DRAFT_POINT_TOUCH_RADIUS_M = 30.0
+private const val METERS_PER_DEG_LAT_APPROX = 111_320.0
 
 class MainViewModel(
     getTileUrl: GetTileUrlUseCase,
@@ -65,12 +83,18 @@ class MainViewModel(
     private val scanDevices: ScanMeshDevicesUseCase,
     private val connectToDevice: ConnectToMeshDeviceUseCase,
     private val getLastConnectedDevice: GetLastConnectedDeviceUseCase,
+    observeGeoMarks: ObserveGeoMarksUseCase,
+    private val sendGeoMark: SendGeoMarkUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
     private var connectedLabelJob: Job? = null
     private var scanJob: Job? = null
+    private var doubleTapJob: Job? = null
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
+
+    private val _contextMenuEvent = MutableSharedFlow<GeoMarkContextMenuEvent>()
+    val contextMenuEvent: SharedFlow<GeoMarkContextMenuEvent> = _contextMenuEvent.asSharedFlow()
 
     // Navigation callbacks provided by NavGraph (has navController access).
     // Updated via provideNavCallbacks() before the first frame renders.
@@ -151,12 +175,109 @@ class MainViewModel(
             }
             .launchIn(viewModelScope)
 
+        observeGeoMarks(NoParams)
+            .onEach { marks ->
+                _uiState.update { it.copy(geoMarks = marks.toImmutableList()) }
+            }
+            .launchIn(viewModelScope)
+
         startAutoConnect()
     }
 
     fun onCameraPositionChanged(position: MapCameraPosition) {
         saveLastPosition(position)
     }
+
+    // ── Mark tool ─────────────────────────────────────────────────────────────
+
+    fun toggleMarkTool() {
+        _uiState.update { state ->
+            if (state.markToolActive) {
+                doubleTapJob?.cancel()
+                state.copy(markToolActive = false, pendingMarkPoints = persistentListOf())
+            } else {
+                state.copy(markToolActive = true)
+            }
+        }
+    }
+
+    fun onMapClick(lat: Double, lon: Double) {
+        if (!_uiState.value.markToolActive) return
+        if (doubleTapJob?.isActive == true) {
+            // Second tap within the window — treat as double-tap.
+            doubleTapJob?.cancel()
+            doubleTapJob = null
+            onMapDoubleClick(lat, lon)
+            return
+        }
+        doubleTapJob = viewModelScope.launch {
+            delay(DOUBLE_TAP_WINDOW_MS)
+            doubleTapJob = null
+            _uiState.update { state ->
+                state.copy(
+                    pendingMarkPoints = (state.pendingMarkPoints + GeoPoint(lat, lon)).toImmutableList()
+                )
+            }
+        }
+    }
+
+    fun onMapDoubleClick(lat: Double, lon: Double) {
+        if (!_uiState.value.markToolActive) return
+        doubleTapJob?.cancel()
+        val mark = GeoMarkModel(
+            id           = UUID.randomUUID().toString(),
+            waypointId   = 0,
+            type         = GeoMarkType.POINT,
+            points       = listOf(GeoPoint(lat, lon)),
+            authorNodeId = "",
+            createdAt    = System.currentTimeMillis() / 1_000,
+            expiresAt    = null,
+            isSelf       = true,
+        )
+        viewModelScope.launch { sendGeoMark(mark) }
+    }
+
+    fun onMapLongClick(lat: Double, lon: Double, screenX: Float, screenY: Float) {
+        if (!_uiState.value.markToolActive) return
+        val pending = _uiState.value.pendingMarkPoints
+        val nearestIndex = pending.indexOfFirst { pt ->
+            val dLat = (pt.latitude  - lat) * METERS_PER_DEG_LAT_APPROX
+            val dLon = (pt.longitude - lon) * METERS_PER_DEG_LAT_APPROX
+            (dLat * dLat + dLon * dLon) < DRAFT_POINT_TOUCH_RADIUS_M * DRAFT_POINT_TOUCH_RADIUS_M
+        }
+        if (nearestIndex >= 0) {
+            viewModelScope.launch {
+                _contextMenuEvent.emit(GeoMarkContextMenuEvent(nearestIndex, screenX, screenY))
+            }
+        }
+    }
+
+    fun sendPendingMark() {
+        val points = _uiState.value.pendingMarkPoints.toList()
+        if (points.isEmpty()) return
+        val type = if (points.size >= 2) GeoMarkType.TRACK else GeoMarkType.POINT
+        val mark = GeoMarkModel(
+            id           = UUID.randomUUID().toString(),
+            waypointId   = 0,
+            type         = type,
+            points       = points,
+            authorNodeId = "",
+            createdAt    = System.currentTimeMillis() / 1_000,
+            expiresAt    = null,
+            isSelf       = true,
+        )
+        viewModelScope.launch { sendGeoMark(mark) }
+        _uiState.update { it.copy(pendingMarkPoints = persistentListOf()) }
+    }
+
+    fun deletePendingPoint(index: Int) {
+        _uiState.update { state ->
+            val updated = state.pendingMarkPoints.toMutableList().also { it.removeAt(index) }
+            state.copy(pendingMarkPoints = updated.toImmutableList())
+        }
+    }
+
+    // ── Private helpers ───────────────────────────────────────────────────────
 
     private fun startAutoConnect() {
         val lastDevice = getLastConnectedDevice()
@@ -222,9 +343,13 @@ class MainViewModel(
                 button = HudButtonSlot(iconRes = R.drawable.ic_target,    label = "привязка",     onClick = {}),
                 info = emptyInfoSlot(),
             ),
-            // TODO: wire to track recording toggle when implemented
             HudRowConfig(
-                button = HudButtonSlot(iconRes = R.drawable.ic_edit,      label = "запись трека", onClick = {}),
+                button = HudButtonSlot(
+                    iconRes  = R.drawable.ic_marks_tool,
+                    label    = "метки",
+                    selected = state.markToolActive,
+                    onClick  = { toggleMarkTool() },
+                ),
                 info = emptyInfoSlot(),
             ),
             // TODO: wire to map tools panel when implemented
@@ -278,9 +403,14 @@ class MainViewModel(
                     button = HudButtonSlot(iconRes = R.drawable.ic_mesh,     label = "сетка",     onClick = nav.onMeshClick),
                     info = emptyInfoSlot(),
                 ),
-                // TODO: confirm icon for "метки" — using ic_marks as closest available match
                 HudRowConfig(
-                    button = HudButtonSlot(iconRes = R.drawable.ic_marks,    label = "метки",     onClick = nav.onMarkersClick),
+                    button = HudButtonSlot(
+                        iconRes   = R.drawable.ic_marks,
+                        label     = "метки",
+                        selected  = state.markToolActive,
+                        onClick   = { toggleMarkTool() },
+                        infoBadge = state.pendingMarkPoints.size.takeIf { it > 0 }?.toString(),
+                    ),
                     info = emptyInfoSlot(),
                 ),
                 HudRowConfig(

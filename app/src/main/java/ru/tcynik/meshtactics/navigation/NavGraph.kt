@@ -57,8 +57,6 @@ fun NavGraph() {
                             onRadioClick    = { navController.navigate(Route.MeshTest()) },
                             onSettingsClick = { navController.navigate(Route.Settings) },
                             onMeshClick     = { navController.navigate(Route.Nodes) },
-                            // TODO: confirm destination for "метки" — using MarkerManagement
-                            onMarkersClick  = { navController.navigate(Route.MarkerManagement) },
                             onChatClick     = { navController.navigate(Route.Chat) },
                         )
                     )
@@ -70,6 +68,11 @@ fun NavGraph() {
                     onCameraPositionChanged = viewModel::onCameraPositionChanged,
                     locationProvider = locationProvider,
                     orientationProvider = orientationProvider,
+                    onMapClick = viewModel::onMapClick,
+                    onMapLongClick = viewModel::onMapLongClick,
+                    onSendPendingMark = viewModel::sendPendingMark,
+                    contextMenuEvents = viewModel.contextMenuEvent,
+                    onDeletePendingPoint = viewModel::deletePendingPoint,
                 )
             }
 

@@ -44,6 +44,7 @@ val commonModule: Module = module {
     single { AppDatabase(get<SqlDriver>()) }
     single { get<AppDatabase>().nodeQueries }
     single { get<AppDatabase>().importedMapOverlayQueries }
+    single { get<AppDatabase>().geoMarkQueries }
 
     // Data — settings (Settings предоставляется платформенным модулем)
     single { AppSettings(get()) }

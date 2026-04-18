@@ -4,6 +4,8 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import ru.tcynik.meshtactics.domain.location.model.GpsStatusModel
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
+import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import ru.tcynik.meshtactics.domain.marker.model.NodeMarkerModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.model.MeshDeviceModel
@@ -27,4 +29,7 @@ data class MainUiState(
     // Shown in NodeSelectorPanel when non-empty and status == Scanning.
     // Accumulates across scan restarts; cleared on connect.
     val foundDevices: ImmutableList<MeshDeviceModel> = persistentListOf(),
+    val geoMarks: ImmutableList<GeoMarkModel> = persistentListOf(),
+    val markToolActive: Boolean = false,
+    val pendingMarkPoints: ImmutableList<GeoPoint> = persistentListOf(),
 )

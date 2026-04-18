@@ -1,0 +1,32 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="80dp"
+    android:height="80dp"
+    android:viewportWidth="80"
+    android:viewportHeight="80">
+
+    <!--
+        Map pin: semicircle dome (top arc) + straight sides to tip.
+        Content area: x ∈ [12,68], y ∈ [12,68]
+        Top of dome: (40, 24). Sides at: (28, 36) and (52, 36). Tip: (40, 64).
+    -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 28,36 A 12,12 0 1 1 52,36 L 40,64 Z" />
+
+    <!--
+        Center dot inside the pin head.
+        Circle at (40, 30), radius 4. Drawn as two counter-clockwise semicircles.
+    -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 40,30 m -4,0 a 4,4 0 1,0 8,0 a 4,4 0 1,0 -8,0" />
+
+</vector>

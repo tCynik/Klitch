@@ -40,6 +40,8 @@ val presentationModule = module {
             scanDevices = get<ScanMeshDevicesUseCase>(),
             connectToDevice = get<ConnectToMeshDeviceUseCase>(),
             getLastConnectedDevice = get<GetLastConnectedDeviceUseCase>(),
+            observeGeoMarks = get(),
+            sendGeoMark = get(),
         )
     }
 

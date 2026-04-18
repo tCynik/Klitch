@@ -121,7 +121,20 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(i['path']\\) for i in d.get\\('items',[]\\)]\")",
       "Bash(curl -s \"https://raw.githubusercontent.com/MKergall/osmbonuspack/master/OSMBonusPack/src/main/java/org/osmdroid/bonuspack/kml/KmlGeometry.java\")",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(i['name']\\) for i in d if isinstance\\(d,list\\)]\")",
-      "Bash(curl -s \"https://api.github.com/search/code?q=ImageSource+repo:maplibre/maplibre-native+filename:ImageSource.java\" -H \"Accept: application/vnd.github.v3+json\")"
+      "Bash(curl -s \"https://api.github.com/search/code?q=ImageSource+repo:maplibre/maplibre-native+filename:ImageSource.java\" -H \"Accept: application/vnd.github.v3+json\")",
+      "Read(//c/Users/tcynik/.gradle/**)",
+      "Bash(java -version)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Program Files/Microsoft/**)",
+      "Bash(\"C:/Program Files/Android/Android Studio/jbr/bin/java\" -version)",
+      "Bash(\"/c/Program Files/Android/Android Studio/jbr/bin/java\" -version)",
+      "Read(//c/Users/tcynik/AppData/Local/Programs//**)",
+      "Read(//c/Users/tcynik/AppData/Local/Android/sdk//**)",
+      "Bash(cmd //c \"where java\")",
+      "Bash(cmd //c \"dir \\\\\"C:\\\\\\\\Program Files\\\\\\\\Java\\\\\" /b\")",
+      "Bash(cmd //c \"dir \\\\\"C:\\\\\\\\Program Files\\\\\\\\Eclipse Adoptium\\\\\" /b\")",
+      "Bash(cmd //c \"dir \\\\\"C:\\\\\\\\Program Files\\\\\\\\Android\\\\\" /s /b 2>&1 | findstr java.exe\")",
+      "Bash(cmd //c \"dir \\\\\"C:\\\\\\\\Program Files\\\\\\\\Android\\\\\\\\\\\\\" /s /b 2>&1\")"
     ]
   }
 }

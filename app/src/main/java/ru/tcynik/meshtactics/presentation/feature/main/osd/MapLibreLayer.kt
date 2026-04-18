@@ -36,13 +36,18 @@ import org.maplibre.compose.layers.FillLayer
 import org.maplibre.compose.layers.LineLayer
 import org.maplibre.compose.layers.RasterLayer
 import org.maplibre.compose.layers.SymbolLayer
+import org.maplibre.compose.map.GestureOptions
+import org.maplibre.compose.map.MapOptions
 import org.maplibre.compose.map.MaplibreMap
 import org.maplibre.compose.sources.GeoJsonData
 import org.maplibre.compose.sources.rememberGeoJsonSource
 import org.maplibre.compose.sources.rememberImageSource
 import org.maplibre.compose.sources.rememberRasterSource
 import org.maplibre.compose.style.BaseStyle
+import org.maplibre.compose.util.ClickResult
 import org.maplibre.compose.util.PositionQuad
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.domain.marker.model.NodeMarkerModel
@@ -80,6 +85,11 @@ fun MapLibreLayer(
     userPosition: Position? = null,
     userBearing: Float = 0f,
     selectedOverlays: ImmutableList<OverlayRenderModel> = persistentListOf(),
+    geoMarks: ImmutableList<GeoMarkModel> = persistentListOf(),
+    pendingMarkPoints: ImmutableList<ru.tcynik.meshtactics.domain.marker.model.GeoPoint> = persistentListOf(),
+    markToolActive: Boolean = false,
+    onMapClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
+    onMapLongClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit = { _, _, _, _ -> },
 ) {
     var hasUserMoved by remember { mutableStateOf(false) }
 
@@ -103,6 +113,25 @@ fun MapLibreLayer(
         modifier = modifier,
         baseStyle = BASE_STYLE_WITH_GLYPHS,
         cameraState = cameraState,
+        options = if (markToolActive) {
+            MapOptions(gestureOptions = GestureOptions(
+                isDoubleTapEnabled = false,
+                isQuickZoomEnabled = false,
+            ))
+        } else {
+            MapOptions()
+        },
+        onMapClick = { position, _ ->
+            onMapClick(position.latitude, position.longitude)
+            ClickResult.Pass
+        },
+        onMapLongClick = { position, dpOffset ->
+            onMapLongClick(
+                position.latitude, position.longitude,
+                dpOffset.x.value, dpOffset.y.value,
+            )
+            ClickResult.Pass
+        },
     ) {
         val tileSource = rememberRasterSource(
             tiles = listOf(tileUrlTemplate),
@@ -256,6 +285,71 @@ fun MapLibreLayer(
             iconRotationAlignment = const(IconRotationAlignment.Map),
             iconAllowOverlap = const(true),
         )
+
+        // ── Geo marks ────────────────────────────────────────────────────────
+        // Draft (unsent) marks — hollow cyan circles + dashed line
+        val draftPointsSource = rememberGeoJsonSource(
+            GeoJsonData.JsonString(buildDraftPointsGeoJson(pendingMarkPoints.toList()))
+        )
+        CircleLayer(
+            id = "geo-draft-points",
+            source = draftPointsSource,
+            color = const(Color(0x0029B6F6)),      // transparent fill
+            strokeColor = const(Color(0xFF29B6F6)),
+            strokeWidth = const(2.dp),
+            radius = const(8.dp),
+        )
+        if (pendingMarkPoints.size >= 2) {
+            val draftLineSource = rememberGeoJsonSource(
+                GeoJsonData.JsonString(buildDraftLineGeoJson(pendingMarkPoints.toList()))
+            )
+            LineLayer(
+                id = "geo-draft-line",
+                source = draftLineSource,
+                color = const(Color(0xFF29B6F6)),
+                width = const(2.dp),
+            )
+        }
+
+        // Received / confirmed marks — solid blue
+        val receivedPoints = geoMarks.filter { it.type == GeoMarkType.POINT }
+        val receivedTracks = geoMarks.filter { it.type == GeoMarkType.TRACK }
+
+        val receivedPointsSource = rememberGeoJsonSource(
+            GeoJsonData.JsonString(buildReceivedPointsGeoJson(receivedPoints))
+        )
+        CircleLayer(
+            id = "geo-received-points",
+            source = receivedPointsSource,
+            color = const(Color(0xFF1E88E5)),
+            strokeColor = const(Color.White),
+            strokeWidth = const(2.dp),
+            radius = const(8.dp),
+        )
+
+        if (receivedTracks.isNotEmpty()) {
+            val receivedTracksSource = rememberGeoJsonSource(
+                GeoJsonData.JsonString(buildReceivedTracksGeoJson(receivedTracks))
+            )
+            LineLayer(
+                id = "geo-received-tracks",
+                source = receivedTracksSource,
+                color = const(Color(0xFF1E88E5)),
+                width = const(3.dp),
+            )
+            // Track endpoint circles
+            val trackAnchorsSource = rememberGeoJsonSource(
+                GeoJsonData.JsonString(buildTrackAnchorsGeoJson(receivedTracks))
+            )
+            CircleLayer(
+                id = "geo-received-track-anchors",
+                source = trackAnchorsSource,
+                color = const(Color(0xFF1E88E5)),
+                strokeColor = const(Color.White),
+                strokeWidth = const(2.dp),
+                radius = const(5.dp),
+            )
+        }
     }
 }
 
@@ -358,4 +452,54 @@ private fun animateGeoJsonInterpolation(
     }
 
     return Triple(animatedOnlineJson, animatedOfflineJson, animatedStaleJson)
+}
+
+// ── Geo mark GeoJSON builders ─────────────────────────────────────────────────
+
+private fun buildDraftPointsGeoJson(
+    points: List<ru.tcynik.meshtactics.domain.marker.model.GeoPoint>,
+): String {
+    if (points.isEmpty()) return """{"type":"FeatureCollection","features":[]}"""
+    val features = points.joinToString(",") { pt ->
+        """{"type":"Feature","geometry":{"type":"Point","coordinates":[${pt.longitude},${pt.latitude}]},"properties":{}}"""
+    }
+    return """{"type":"FeatureCollection","features":[$features]}"""
+}
+
+private fun buildDraftLineGeoJson(
+    points: List<ru.tcynik.meshtactics.domain.marker.model.GeoPoint>,
+): String {
+    if (points.size < 2) return """{"type":"FeatureCollection","features":[]}"""
+    val coords = points.joinToString(",") { "[${it.longitude},${it.latitude}]" }
+    return """{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"LineString","coordinates":[$coords]},"properties":{}}]}"""
+}
+
+private fun buildReceivedPointsGeoJson(marks: List<GeoMarkModel>): String {
+    if (marks.isEmpty()) return """{"type":"FeatureCollection","features":[]}"""
+    val features = marks.joinToString(",") { mark ->
+        val anchor = mark.points.first()
+        """{"type":"Feature","geometry":{"type":"Point","coordinates":[${anchor.longitude},${anchor.latitude}]},"properties":{}}"""
+    }
+    return """{"type":"FeatureCollection","features":[$features]}"""
+}
+
+private fun buildReceivedTracksGeoJson(marks: List<GeoMarkModel>): String {
+    if (marks.isEmpty()) return """{"type":"FeatureCollection","features":[]}"""
+    val features = marks.joinToString(",") { mark ->
+        val coords = mark.points.joinToString(",") { "[${it.longitude},${it.latitude}]" }
+        """{"type":"Feature","geometry":{"type":"LineString","coordinates":[$coords]},"properties":{}}"""
+    }
+    return """{"type":"FeatureCollection","features":[$features]}"""
+}
+
+/** Anchor (first) and last point of each track — rendered as endpoint circles. */
+private fun buildTrackAnchorsGeoJson(marks: List<GeoMarkModel>): String {
+    if (marks.isEmpty()) return """{"type":"FeatureCollection","features":[]}"""
+    val features = marks.flatMap { mark ->
+        listOfNotNull(mark.points.firstOrNull(), mark.points.lastOrNull()
+            .takeIf { mark.points.size > 1 })
+    }.joinToString(",") { pt ->
+        """{"type":"Feature","geometry":{"type":"Point","coordinates":[${pt.longitude},${pt.latitude}]},"properties":{}}"""
+    }
+    return """{"type":"FeatureCollection","features":[$features]}"""
 }
