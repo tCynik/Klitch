@@ -64,6 +64,18 @@
 
 ---
 
+## База знаний Meshtastic
+
+Технические справочники по протоколу: `.claude/knowledge/meshtastic/`
+
+| Файл | Содержание |
+|---|---|
+| `meshtastic-node-model.md` | Структура `Node`: идентификаторы, `User`, `Position`, `isOnline`, `DeviceMetrics` |
+| `meshtastic-contacts-channels.md` | `contactKey` формат, адресация `^all`/`!nodeId`, каналы 0–7, отправка сообщения |
+| `meshtastic-packets.md` | `MeshPacket`, `DataPacket`, `PortNum` enum, Position-поля, Waypoint, Admin-команды |
+
+---
+
 ## Документация
 
 Живая документация по реализованным фичам: `.claude/docs/`
