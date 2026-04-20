@@ -109,3 +109,5 @@
 | Geo Nodes Tab | `.claude/plans/geo-nodes-tab.md` | Approved |
 | Node Markers on Map | `.claude/plans/node-markers-on-map.md` | Approved |
 | Chat Feature | `.claude/plans/chat-feature-plan.md` | In Progress |
+| User & Channels Settings | `.claude/plans/user-and-channels-settings.md` | Approved |
+| Implementation Roadmap | `.claude/plans/implementation-roadmap.md` | Active |
