@@ -164,6 +164,7 @@ fun SettingsScreen(
                         }
                     },
                 )
+                SettingsTab.User -> UserTabContent()
                 else -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("${state.selectedTab.label} — TODO")
                 }

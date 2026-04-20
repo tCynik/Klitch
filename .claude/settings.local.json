@@ -134,7 +134,10 @@
       "Bash(cmd //c \"dir \\\\\"C:\\\\\\\\Program Files\\\\\\\\Java\\\\\" /b\")",
       "Bash(cmd //c \"dir \\\\\"C:\\\\\\\\Program Files\\\\\\\\Eclipse Adoptium\\\\\" /b\")",
       "Bash(cmd //c \"dir \\\\\"C:\\\\\\\\Program Files\\\\\\\\Android\\\\\" /s /b 2>&1 | findstr java.exe\")",
-      "Bash(cmd //c \"dir \\\\\"C:\\\\\\\\Program Files\\\\\\\\Android\\\\\\\\\\\\\" /s /b 2>&1\")"
+      "Bash(cmd //c \"dir \\\\\"C:\\\\\\\\Program Files\\\\\\\\Android\\\\\\\\\\\\\" /s /b 2>&1\")",
+      "Bash(./gradlew :app:compileDebugKotlin --stacktrace)",
+      "Bash(JAVA_HOME=\"\" GRADLE_OPTS=\"-Dorg.gradle.java.home=\" ./gradlew :app:compileDebugKotlin -Dorg.gradle.java.home=)",
+      "Bash(./gradlew :app:compileDebugKotlin --info)"
     ]
   }
 }

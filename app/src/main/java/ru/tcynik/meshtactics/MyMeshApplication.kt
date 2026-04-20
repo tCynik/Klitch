@@ -18,6 +18,7 @@ import ru.tcynik.meshtactics.di.meshDataModule
 import ru.tcynik.meshtactics.di.orientationModule
 import ru.tcynik.meshtactics.di.presentationModule
 import ru.tcynik.meshtactics.di.userDataModule
+import ru.tcynik.meshtactics.di.userSettingsModule
 import ru.tcynik.meshtactics.mesh.common.ContextServices
 import ru.tcynik.meshtactics.mesh.di.meshModule
 import ru.tcynik.meshtactics.mesh.service.MeshServiceOrchestrator
@@ -42,6 +43,7 @@ class MyMeshApplication : Application() {
                 markerDataModule,
                 geoMarkDataModule,
                 userDataModule,
+                userSettingsModule,
                 locationDomainModule,
                 orientationModule,
                 presentationModule,

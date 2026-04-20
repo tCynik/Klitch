@@ -21,6 +21,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.presentation.feature.settings.SettingsViewModel
+import ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModel
 
 val presentationModule = module {
 
@@ -57,6 +58,7 @@ val presentationModule = module {
             toggleImportedMapSelection = get<ToggleImportedMapSelectionUseCase>(),
         )
     }
+    viewModelOf(::UserSettingsViewModel)
     viewModelOf(::NodeSettingsViewModel)
     viewModelOf(::NodeStatusViewModel)
     viewModelOf(::MarkersViewModel)

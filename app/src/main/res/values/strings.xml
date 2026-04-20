@@ -39,4 +39,31 @@
     <string name="chat_clear_confirm">Очистить чат?</string>
     <string name="chat_clear_confirm_button">Очистить</string>
     <string name="chat_cancel">Отмена</string>
+
+    <!-- User Settings Tab -->
+    <string name="user_section_profile">Профиль</string>
+    <string name="user_display_name_label">Позывной</string>
+    <string name="user_short_name_label">Короткое имя</string>
+    <string name="user_save_button">Сохранить</string>
+    <string name="user_section_channels">Каналы</string>
+    <string name="user_add_channel_button">+ Добавить канал</string>
+    <string name="user_channel_edit">Редактировать</string>
+    <string name="user_channel_delete">Удалить</string>
+    <string name="user_channel_more_actions">Действия с каналом</string>
+    <string name="user_channel_delete_title">Удалить канал?</string>
+    <string name="user_channel_delete_message">Канал будет удалён. Это действие необратимо.</string>
+    <string name="user_channel_delete_confirm">Удалить</string>
+    <string name="user_channel_delete_cancel">Отмена</string>
+
+    <!-- Channel Editor Sheet -->
+    <string name="channel_editor_title_new">Новый канал</string>
+    <string name="channel_editor_title_edit">Редактировать канал</string>
+    <string name="channel_editor_name_label">Название</string>
+    <string name="channel_editor_meshtastic_section">Meshtastic</string>
+    <string name="channel_editor_slot_label">Слот</string>
+    <string name="channel_editor_psk_label">PSK (base64)</string>
+    <string name="channel_editor_psk_generate">Сгенерировать</string>
+    <string name="channel_editor_psk_error">Невалидный PSK: требуется 16 или 32 байта в base64</string>
+    <string name="channel_editor_cancel">Отмена</string>
+    <string name="channel_editor_save">Сохранить</string>
 </resources>
