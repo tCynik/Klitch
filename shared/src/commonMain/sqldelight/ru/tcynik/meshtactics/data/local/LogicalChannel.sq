@@ -1,0 +1,16 @@
+CREATE TABLE logical_channel (
+    id              TEXT NOT NULL PRIMARY KEY,
+    name            TEXT NOT NULL,
+    meshtastic_slot INTEGER,
+    meshtastic_psk  BLOB
+);
+
+selectAll:
+SELECT * FROM logical_channel ORDER BY rowid ASC;
+
+upsert:
+INSERT OR REPLACE INTO logical_channel(id, name, meshtastic_slot, meshtastic_psk)
+VALUES (:id, :name, :meshtasticSlot, :meshtasticPsk);
+
+deleteById:
+DELETE FROM logical_channel WHERE id = :id;
