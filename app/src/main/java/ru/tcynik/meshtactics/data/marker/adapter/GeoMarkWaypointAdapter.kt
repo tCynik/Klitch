@@ -123,6 +123,25 @@ class GeoMarkWaypointAdapter {
         )
     }
 
+    // ── Points JSON serialisation ─────────────────────────────────────────────
+
+    fun encodePointsJson(points: List<GeoPoint>): String {
+        val items = points.joinToString(",") { pt ->
+            """{"lat":${pt.latitude},"lon":${pt.longitude}}"""
+        }
+        return "[$items]"
+    }
+
+    fun decodePointsJson(json: String): List<GeoPoint> {
+        return Regex(""""lat":([-\d.E]+).*?"lon":([-\d.E]+)""")
+            .findAll(json)
+            .mapNotNull { m ->
+                val lat = m.groupValues[1].toDoubleOrNull() ?: return@mapNotNull null
+                val lon = m.groupValues[2].toDoubleOrNull() ?: return@mapNotNull null
+                GeoPoint(lat, lon)
+            }.toList()
+    }
+
     // ── Private helpers ────────────────────────────────────────────────────────
 
     private fun buildIcon(type: GeoMarkType, color: Int, variant: Int): Int =

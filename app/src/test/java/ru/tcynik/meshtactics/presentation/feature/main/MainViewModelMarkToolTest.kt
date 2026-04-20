@@ -29,11 +29,13 @@ import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
+import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetMarkerSizeLevelUseCase
@@ -45,39 +47,23 @@ class MainViewModelMarkToolTest {
 
     // ── use case mocks ────────────────────────────────────────────────────────
 
-    private val getTileUrl: GetTileUrlUseCase = mockk { every { invoke() } returns "" }
-    private val getLastPosition: GetLastMapPositionUseCase = mockk { every { invoke() } returns null }
+    private val getTileUrl: GetTileUrlUseCase = mockk()
+    private val getLastPosition: GetLastMapPositionUseCase = mockk()
     private val saveLastPosition: SaveLastMapPositionUseCase = mockk(relaxed = true)
-    private val observeNodeMarkers: ObserveNodeMarkersUseCase = mockk {
-        every { invoke(any()) } returns flowOf(emptyList())
-    }
-    private val observeConnectionStatus: ObserveConnectionStatusUseCase = mockk {
-        every { invoke(any()) } returns flowOf(MeshConnectionStatus.Disconnected)
-    }
-    private val observeGpsStatus: ObserveGpsStatusUseCase = mockk {
-        every { invoke(any()) } returns flowOf(GpsStatusModel.None)
-    }
-    private val getMarkerSizeLevel: GetMarkerSizeLevelUseCase = mockk { every { invoke() } returns 5 }
-    private val observeMarkerSizeLevel: ObserveMarkerSizeLevelUseCase = mockk {
-        every { invoke(any()) } returns flowOf(5)
-    }
-    private val observeSelectedOverlays: ObserveSelectedOverlaysUseCase = mockk {
-        every { invoke(any()) } returns flowOf(emptyList())
-    }
-    private val observeTotalUnreadChatCount: ObserveTotalUnreadChatCountUseCase = mockk {
-        every { invoke(any()) } returns flowOf(0)
-    }
-    private val scanDevices: ScanMeshDevicesUseCase = mockk {
-        every { invoke(any()) } returns flowOf(emptyList())
-    }
+    private val observeNodeMarkers: ObserveNodeMarkersUseCase = mockk()
+    private val observeConnectionStatus: ObserveConnectionStatusUseCase = mockk()
+    private val observeGpsStatus: ObserveGpsStatusUseCase = mockk()
+    private val getMarkerSizeLevel: GetMarkerSizeLevelUseCase = mockk()
+    private val observeMarkerSizeLevel: ObserveMarkerSizeLevelUseCase = mockk()
+    private val observeSelectedOverlays: ObserveSelectedOverlaysUseCase = mockk()
+    private val observeTotalUnreadChatCount: ObserveTotalUnreadChatCountUseCase = mockk()
+    private val scanDevices: ScanMeshDevicesUseCase = mockk()
     private val connectToDevice: ConnectToMeshDeviceUseCase = mockk(relaxed = true)
-    private val getLastConnectedDevice: GetLastConnectedDeviceUseCase = mockk {
-        every { invoke() } returns null
-    }
-    private val observeGeoMarks: ObserveGeoMarksUseCase = mockk {
-        every { invoke(any()) } returns flowOf(emptyList())
-    }
+    private val getLastConnectedDevice: GetLastConnectedDeviceUseCase = mockk()
+    private val nodeProvisioning: NodeProvisioningUseCase = mockk(relaxed = true)
+    private val observeGeoMarks: ObserveGeoMarksUseCase = mockk()
     private val sendGeoMark: SendGeoMarkUseCase = mockk(relaxed = true)
+    private val ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase = mockk()
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var viewModel: MainViewModel
@@ -85,6 +71,19 @@ class MainViewModelMarkToolTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        every { getTileUrl.invoke() } returns ""
+        every { getLastPosition.invoke() } returns null
+        every { observeNodeMarkers.invoke(any()) } returns flowOf(emptyList())
+        every { observeConnectionStatus.invoke(any()) } returns flowOf(MeshConnectionStatus.Disconnected)
+        every { observeGpsStatus.invoke(any()) } returns flowOf(GpsStatusModel.None)
+        every { getMarkerSizeLevel.invoke() } returns 5
+        every { observeMarkerSizeLevel.invoke(any()) } returns flowOf(5)
+        every { observeSelectedOverlays.invoke(any()) } returns flowOf(emptyList())
+        every { observeTotalUnreadChatCount.invoke(any()) } returns flowOf(0)
+        every { scanDevices.invoke(any()) } returns flowOf(emptyList())
+        every { getLastConnectedDevice.invoke() } returns null
+        every { observeGeoMarks.invoke(any()) } returns flowOf(emptyList())
+        every { ingestReceivedGeoMarks.observe() } returns flowOf(Unit)
         viewModel = MainViewModel(
             getTileUrl = getTileUrl,
             getLastPosition = getLastPosition,
@@ -99,8 +98,10 @@ class MainViewModelMarkToolTest {
             scanDevices = scanDevices,
             connectToDevice = connectToDevice,
             getLastConnectedDevice = getLastConnectedDevice,
+            nodeProvisioning = nodeProvisioning,
             observeGeoMarks = observeGeoMarks,
             sendGeoMark = sendGeoMark,
+            ingestReceivedGeoMarks = ingestReceivedGeoMarks,
         )
     }
 

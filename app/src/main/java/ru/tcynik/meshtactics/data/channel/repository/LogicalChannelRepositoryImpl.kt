@@ -39,8 +39,10 @@ class LogicalChannelRepositoryImpl(
 }
 
 private fun Logical_channel.toDomain(): LogicalChannel {
-    val binding = if (meshtastic_slot != null && meshtastic_psk != null) {
-        listOf(MeshtasticBinding(channelIndex = meshtastic_slot.toInt(), psk = meshtastic_psk))
+    val slot = meshtastic_slot
+    val psk = meshtastic_psk
+    val binding = if (slot != null && psk != null) {
+        listOf(MeshtasticBinding(channelIndex = slot.toInt(), psk = psk))
     } else emptyList()
     return LogicalChannel(
         id = LogicalChannelId(id),

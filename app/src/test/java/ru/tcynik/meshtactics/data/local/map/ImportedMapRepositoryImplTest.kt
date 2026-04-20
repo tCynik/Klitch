@@ -30,7 +30,7 @@ class ImportedMapRepositoryImplTest {
             every { this@mockk.contentResolver } returns contentResolver
         }
 
-        repo = ImportedMapRepositoryImpl(context = context, queries = db.importedMapOverlayQueries)
+        repo = ImportedMapRepositoryImpl(context = context, queries = db.importedMapOverlayQueries, parser = mockk(relaxed = true))
     }
 
     // ── setSelected ──────────────────────────────────────────────────────────

@@ -53,6 +53,7 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyInfoSlot
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
+import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkContextMenuEvent
@@ -87,6 +88,7 @@ class MainViewModel(
     private val nodeProvisioning: NodeProvisioningUseCase,
     observeGeoMarks: ObserveGeoMarksUseCase,
     private val sendGeoMark: SendGeoMarkUseCase,
+    ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -182,6 +184,9 @@ class MainViewModel(
             .onEach { marks ->
                 _uiState.update { it.copy(geoMarks = marks.toImmutableList()) }
             }
+            .launchIn(viewModelScope)
+
+        ingestReceivedGeoMarks.observe()
             .launchIn(viewModelScope)
 
         startAutoConnect()

@@ -17,14 +17,14 @@ import org.junit.Before
 import org.junit.Test
 import ru.tcynik.meshtactics.data.local.AppDatabase
 import ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapter
+import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelId
+import ru.tcynik.meshtactics.domain.channel.repository.LogicalChannelRepository
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import ru.tcynik.meshtactics.domain.mesh.model.MeshNodeModel
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshNetworkRepository
-import ru.tcynik.meshtactics.mesh.model.DataPacket
 import ru.tcynik.meshtactics.mesh.repository.CommandSender
-import ru.tcynik.meshtactics.mesh.repository.PacketRepository
 
 class GeoMarkRepositoryImplTest {
 
@@ -32,8 +32,8 @@ class GeoMarkRepositoryImplTest {
     private lateinit var db: AppDatabase
 
     private val commandSender: CommandSender = mockk(relaxed = true)
-    private val packetRepository: PacketRepository = mockk()
     private val meshNetwork: MeshNetworkRepository = mockk()
+    private val channelRepository: LogicalChannelRepository = mockk()
     private val adapter = GeoMarkWaypointAdapter()
 
     private val ourNode = MeshNodeModel(
@@ -46,7 +46,6 @@ class GeoMarkRepositoryImplTest {
 
     @Before
     fun setUp() {
-        // Redirect android.util.Base64 to java.util.Base64 for JVM tests
         mockkStatic(Base64::class)
         every { Base64.encodeToString(any(), any()) } answers {
             java.util.Base64.getEncoder().encodeToString(firstArg<ByteArray>())
@@ -60,13 +59,14 @@ class GeoMarkRepositoryImplTest {
         db = AppDatabase(driver)
 
         every { meshNetwork.observeOurNode() } returns flowOf(ourNode)
+        every { channelRepository.observeChannels() } returns flowOf(emptyList())
 
         repo = GeoMarkRepositoryImpl(
-            packetRepository = packetRepository,
-            commandSender = commandSender,
-            meshNetwork = meshNetwork,
-            adapter = adapter,
-            geoMarkQueries = db.geoMarkQueries,
+            commandSender     = commandSender,
+            meshNetwork       = meshNetwork,
+            channelRepository = channelRepository,
+            adapter           = adapter,
+            geoMarkQueries    = db.geoMarkQueries,
         )
     }
 
@@ -86,9 +86,7 @@ class GeoMarkRepositoryImplTest {
     // ── observeGeoMarks ───────────────────────────────────────────────────────
 
     @Test
-    fun `observeGeoMarks — emits empty list when no packets`() = runTest {
-        every { packetRepository.getWaypoints() } returns flowOf(emptyList())
-
+    fun `observeGeoMarks — emits empty list when no marks in SQLDelight`() = runTest {
         repo.observeGeoMarks().test {
             val marks = awaitItem()
             assertTrue(marks.isEmpty())
@@ -97,59 +95,42 @@ class GeoMarkRepositoryImplTest {
     }
 
     @Test
-    fun `observeGeoMarks — decodes valid MT1 packet from PacketRepository`() = runTest {
-        val packet = adapter.encode(makePointMark(), ourNode.num, ourNode.nodeId, 1000L)
-        every { packetRepository.getWaypoints() } returns flowOf(listOf(packet))
-
+    fun `observeGeoMarks — emits mark after persistReceived`() = runTest {
         repo.observeGeoMarks().test {
+            awaitItem() // initial empty
+
+            repo.persistReceived(makePointMark("rcv-1"), LogicalChannelId("ch-1"))
+
             val marks = awaitItem()
             assertEquals(1, marks.size)
+            assertEquals("rcv-1", marks[0].id)
             assertEquals(GeoMarkType.POINT, marks[0].type)
             cancel()
         }
     }
 
     @Test
-    fun `observeGeoMarks — skips non-MT1 packet`() = runTest {
-        val nonMt1Packet = DataPacket(to = "^all", channel = 0, text = "hello")
-        every { packetRepository.getWaypoints() } returns flowOf(listOf(nonMt1Packet))
+    fun `observeGeoMarks — isSelf=false for persistReceived`() = runTest {
+        repo.persistReceived(makePointMark("rcv-self"), LogicalChannelId("ch-1"))
 
         repo.observeGeoMarks().test {
             val marks = awaitItem()
-            assertTrue(marks.isEmpty())
+            assertEquals(false, marks[0].isSelf)
             cancel()
         }
     }
 
+    // ── persistReceived ───────────────────────────────────────────────────────
+
     @Test
-    fun `observeGeoMarks — marks self-sent IDs as isSelf=true`() = runTest {
-        val mark = makePointMark(id = "self-mark")
-        val packet = adapter.encode(mark, ourNode.num, ourNode.nodeId, 1000L)
+    fun `persistReceived — INSERT OR IGNORE does not overwrite existing mark`() = runTest {
+        val mark = makePointMark("dup-mark")
+        repo.persistReceived(mark, LogicalChannelId("ch-1"))
+        repo.persistReceived(mark.copy(authorNodeId = "other"), LogicalChannelId("ch-2"))
 
-        // Pre-insert self ID into SQLDelight as if it was sent by us
-        db.geoMarkQueries.insert(
-            id = "self-mark",
-            waypointId = 0L,
-            type = "POINT",
-            pointsJson = """[{"lat":55.75,"lon":37.62}]""",
-            authorNodeId = ourNode.nodeId,
-            createdAt = 1000L,
-            expiresAt = 9000L,
-            isSelf = 1L,
-        )
-
-        // The decoded mark has waypointId=0 → uses UUID, not "self-mark"
-        // isSelf is matched on the decoded id ("wp-X" or UUID), which won't match "self-mark"
-        // This tests that the selfIds flow is correctly wired; actual isSelf match
-        // depends on stable IDs (waypoint.id != 0).
-        // Here we verify the combine runs without error and emits a result.
-        every { packetRepository.getWaypoints() } returns flowOf(listOf(packet))
-
-        repo.observeGeoMarks().test {
-            val marks = awaitItem()
-            assertEquals(1, marks.size)
-            cancel()
-        }
+        val rows = db.geoMarkQueries.selectAll().executeAsList()
+        assertEquals(1, rows.size)
+        assertEquals("", rows[0].author_node_id) // first insert wins
     }
 
     // ── sendGeoMark ───────────────────────────────────────────────────────────
@@ -186,5 +167,29 @@ class GeoMarkRepositoryImplTest {
         val rows = db.geoMarkQueries.selectAll().executeAsList()
         assertEquals(1, rows.size)
         assertEquals("list-mark", rows[0].id)
+    }
+
+    // ── deleteExpired ─────────────────────────────────────────────────────────
+
+    @Test
+    fun `deleteExpired — removes expired marks`() = runTest {
+        db.geoMarkQueries.insert(
+            id = "expired", waypointId = 0L, type = "POINT",
+            pointsJson = """[{"lat":0.0,"lon":0.0}]""",
+            authorNodeId = "", createdAt = 100L, expiresAt = 500L, isSelf = 0L,
+            logicalChannelId = "ch-1",
+        )
+        db.geoMarkQueries.insert(
+            id = "live", waypointId = 0L, type = "POINT",
+            pointsJson = """[{"lat":0.0,"lon":0.0}]""",
+            authorNodeId = "", createdAt = 100L, expiresAt = null, isSelf = 0L,
+            logicalChannelId = "ch-1",
+        )
+
+        repo.deleteExpired(nowSeconds = 1000L)
+
+        val rows = db.geoMarkQueries.selectAll().executeAsList()
+        assertEquals(1, rows.size)
+        assertEquals("live", rows[0].id)
     }
 }
