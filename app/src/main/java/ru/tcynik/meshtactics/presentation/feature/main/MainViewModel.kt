@@ -38,6 +38,7 @@ import ru.tcynik.meshtactics.domain.chat.usecase.ObserveTotalUnreadChatCountUseC
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceParams
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
@@ -83,6 +84,7 @@ class MainViewModel(
     private val scanDevices: ScanMeshDevicesUseCase,
     private val connectToDevice: ConnectToMeshDeviceUseCase,
     private val getLastConnectedDevice: GetLastConnectedDeviceUseCase,
+    private val nodeProvisioning: NodeProvisioningUseCase,
     observeGeoMarks: ObserveGeoMarksUseCase,
     private val sendGeoMark: SendGeoMarkUseCase,
 ) : ViewModel() {
@@ -136,6 +138,7 @@ class MainViewModel(
                     val wasConnected = _uiState.value.connectionStatus is MeshConnectionStatus.Connected
                     _uiState.update { it.copy(connectionStatus = status) }
                     if (!wasConnected) {
+                        viewModelScope.launch { nodeProvisioning.provision() }
                         _uiState.update { it.copy(showConnectionLabel = true) }
                         connectedLabelJob?.cancel()
                         connectedLabelJob = viewModelScope.launch {

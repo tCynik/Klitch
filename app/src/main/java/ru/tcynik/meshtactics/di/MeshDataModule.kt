@@ -39,6 +39,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveOurNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGeoNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveLocationConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObservePacketLogUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RemoveFixedPositionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SendMeshMessageUseCase
@@ -120,4 +121,5 @@ val meshDataModule = module {
     single { WritePositionConfigUseCase(get()) }
     single { WriteChannelPositionPrecisionUseCase(get()) }
     single { RemoveFixedPositionUseCase(get()) }
+    single { NodeProvisioningUseCase(get(), get(), get(), get(), get()) }
 }
