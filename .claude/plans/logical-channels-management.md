@@ -1,7 +1,7 @@
 # Plan: Logical Channels Management & Node Import
 
 **Date**: 2026-04-23
-**Status**: In Progress (revised)
+**Status**: Done (Phase 3 implemented 2026-04-23; Phase 4 tests pending)
 
 ## Summary
 

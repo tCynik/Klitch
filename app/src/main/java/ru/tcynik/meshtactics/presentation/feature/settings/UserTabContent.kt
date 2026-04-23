@@ -18,6 +18,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -27,10 +28,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,8 +47,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.meshtactics.R
-import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelId
+import ru.tcynik.meshtactics.domain.channel.model.ChannelSyncStatus
 import ru.tcynik.meshtactics.presentation.feature.settings.models.ChannelItem
+import ru.tcynik.meshtactics.presentation.feature.settings.models.NodeWriteEvent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +57,20 @@ fun UserTabContent(
     viewModel: UserSettingsViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    val event = state.nodeWriteEvent
+    LaunchedEffect(event) {
+        if (event != null) {
+            val message = when (event) {
+                is NodeWriteEvent.Sent -> "Канал «${event.channelName}» записан в ноду"
+                NodeWriteEvent.NotConnected -> "Нет подключения к ноде"
+                NodeWriteEvent.NoFreeSlot -> "Нет свободных слотов (1–7)"
+            }
+            snackbarHostState.showSnackbar(message)
+            viewModel.onNodeWriteEventConsumed()
+        }
+    }
 
     if (state.deleteConfirmId != null) {
         AlertDialog(
@@ -79,7 +99,6 @@ fun UserTabContent(
             ChannelEditorSheet(
                 state = editor,
                 onNameChange = viewModel::onEditorNameChange,
-                onSlotChange = viewModel::onEditorSlotChange,
                 onPskChange = viewModel::onEditorPskChange,
                 onGeneratePsk = viewModel::onEditorGeneratePsk,
                 onSave = viewModel::onEditorSave,
@@ -136,9 +155,17 @@ fun UserTabContent(
                     item = channel,
                     onEdit = { viewModel.onEditChannelClick(channel.id) },
                     onDelete = { viewModel.onDeleteChannelRequest(channel.id) },
+                    onPushToNode = { viewModel.onPushToNode(channel.id) },
+                    onDeleteFromNode = { viewModel.onDeleteFromNode(channel.id) },
+                    onToggleAutoSync = { enabled -> viewModel.onToggleAutoSync(channel.id, enabled) },
                 )
             }
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        ) { data -> Snackbar(snackbarData = data) }
 
         Button(
             onClick = viewModel::onAddChannelClick,
@@ -156,6 +183,9 @@ private fun ChannelCard(
     item: ChannelItem,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onPushToNode: () -> Unit,
+    onDeleteFromNode: () -> Unit,
+    onToggleAutoSync: (Boolean) -> Unit,
 ) {
     var showDropdown by remember { mutableStateOf(false) }
 
@@ -163,24 +193,20 @@ private fun ChannelCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(start = 4.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Checkbox(
+                checked = item.isAutoSync,
+                onCheckedChange = onToggleAutoSync,
+            )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.name,
                     style = MaterialTheme.typography.bodyLarge,
                 )
-                if (item.transportLabel.isNotEmpty()) {
-                    Spacer(Modifier.height(4.dp))
-                    Badge(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                        Text(
-                            text = item.transportLabel,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            style = MaterialTheme.typography.labelSmall,
-                        )
-                    }
-                }
+                Spacer(Modifier.height(4.dp))
+                SyncStatusBadge(item.syncStatus)
             }
             IconButton(onClick = { showDropdown = true }) {
                 Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.user_channel_more_actions))
@@ -189,6 +215,16 @@ private fun ChannelCard(
                 expanded = showDropdown,
                 onDismissRequest = { showDropdown = false },
             ) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.user_channel_push_to_node)) },
+                    onClick = { showDropdown = false; onPushToNode() },
+                )
+                if (item.syncStatus is ChannelSyncStatus.OnNode && item.syncStatus.slot != 0) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.user_channel_delete_from_node)) },
+                        onClick = { showDropdown = false; onDeleteFromNode() },
+                    )
+                }
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.user_channel_edit)) },
                     onClick = { showDropdown = false; onEdit() },
@@ -203,10 +239,43 @@ private fun ChannelCard(
 }
 
 @Composable
+private fun SyncStatusBadge(status: ChannelSyncStatus) {
+    when (status) {
+        is ChannelSyncStatus.OnNode -> Badge(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+        ) {
+            Text(
+                text = stringResource(R.string.channel_sync_on_node, status.slot),
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
+        ChannelSyncStatus.NotOnNode -> Badge(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+        ) {
+            Text(
+                text = stringResource(R.string.channel_sync_not_on_node),
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
+        ChannelSyncStatus.NoFreeSlot -> Badge(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+        ) {
+            Text(
+                text = stringResource(R.string.channel_sync_no_free_slot),
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
+        ChannelSyncStatus.NotConnected -> {}
+    }
+}
+
+@Composable
 private fun ChannelEditorSheet(
     state: ChannelEditorState,
     onNameChange: (String) -> Unit,
-    onSlotChange: (Int) -> Unit,
     onPskChange: (String) -> Unit,
     onGeneratePsk: () -> Unit,
     onSave: () -> Unit,
@@ -246,11 +315,6 @@ private fun ChannelEditorSheet(
             color = MaterialTheme.colorScheme.primary,
         )
 
-        SlotDropdown(
-            selected = state.slotIndex,
-            onSelect = onSlotChange,
-        )
-
         OutlinedTextField(
             value = state.pskBase64,
             onValueChange = onPskChange,
@@ -284,32 +348,5 @@ private fun ChannelEditorSheet(
         }
 
         Spacer(Modifier.height(16.dp))
-    }
-}
-
-@Composable
-private fun SlotDropdown(
-    selected: Int,
-    onSelect: (Int) -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = stringResource(R.string.channel_editor_slot_label),
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f),
-        )
-        OutlinedButton(onClick = { expanded = true }) {
-            Text("Слот $selected")
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            (0..7).forEach { slot ->
-                DropdownMenuItem(
-                    text = { Text("Слот $slot") },
-                    onClick = { expanded = false; onSelect(slot) },
-                )
-            }
-        }
     }
 }

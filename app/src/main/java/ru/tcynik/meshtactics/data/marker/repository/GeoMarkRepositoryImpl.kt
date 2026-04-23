@@ -75,7 +75,7 @@ class GeoMarkRepositoryImpl(
         return channelRepository.observeChannels().first()
             .firstOrNull { ch ->
                 ch.transports.filterIsInstance<MeshtasticBinding>()
-                    .any { it.channelIndex == channelIndex }
+                    .any { it.resolvedSlot == channelIndex }
             }?.id?.value ?: ""
     }
 

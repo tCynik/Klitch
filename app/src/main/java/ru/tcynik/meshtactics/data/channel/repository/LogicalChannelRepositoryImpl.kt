@@ -28,8 +28,9 @@ class LogicalChannelRepositoryImpl(
         queries.upsert(
             id = channel.id.value,
             name = channel.metadata.name,
-            meshtasticSlot = binding?.channelIndex?.toLong(),
+            meshtasticSlot = binding?.resolvedSlot?.toLong(),
             meshtasticPsk = binding?.psk,
+            isAutoSync = if (channel.isAutoSync) 1L else 0L,
         )
     }
 
@@ -39,14 +40,14 @@ class LogicalChannelRepositoryImpl(
 }
 
 private fun Logical_channel.toDomain(): LogicalChannel {
-    val slot = meshtastic_slot
     val psk = meshtastic_psk
-    val binding = if (slot != null && psk != null) {
-        listOf(MeshtasticBinding(channelIndex = slot.toInt(), psk = psk))
+    val binding = if (psk != null) {
+        listOf(MeshtasticBinding(psk = psk, resolvedSlot = meshtastic_slot?.toInt()))
     } else emptyList()
     return LogicalChannel(
         id = LogicalChannelId(id),
         metadata = ChannelMetadata(name = name),
         transports = binding,
+        isAutoSync = is_auto_sync != 0L,
     )
 }

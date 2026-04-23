@@ -31,6 +31,7 @@
 | BLE-узлы на карте (telemetry) | ⬜ Planned |
 | Чат | ✅ Done |
 | Маркеры / заметки | ✅ Done |
+| Логические каналы (CRUD + авто-синхронизация с нодой) | ✅ Done |
 | Настройки ноды | ⬜ Planned |
 
 ---
@@ -97,6 +98,7 @@
 | Universal Orientation | `.claude/docs/universal-orientation.md` |
 | Auto-connect on Start | `.claude/docs/auto-connect-on-start.md` |
 | Chat | `.claude/docs/chat.md` |
+| Logical Channels Management | `.claude/docs/logical-channels-management.md` |
 
 ---
 
@@ -112,4 +114,5 @@
 | Chat Feature | `.claude/plans/chat-feature-plan.md` | Done |
 | User & Channels Settings | `.claude/plans/user-and-channels-settings.md` | Done |
 | Node Provisioning | `.claude/plans/node-provisioning.md` | Done |
+| Logical Channels Management | `.claude/plans/logical-channels-management.md` | Done |
 | Implementation Roadmap | `.claude/plans/implementation-roadmap.md` | Active |

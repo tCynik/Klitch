@@ -21,7 +21,7 @@ class IngestReceivedChatMessagesUseCase(
         val channelByIndex: Map<Int, LogicalChannelId> = channels
             .flatMap { ch ->
                 ch.transports.filterIsInstance<MeshtasticBinding>()
-                    .map { it.channelIndex to ch.id }
+                    .mapNotNull { b -> b.resolvedSlot?.let { slot -> slot to ch.id } }
             }.toMap()
 
         messages.forEach { msg ->

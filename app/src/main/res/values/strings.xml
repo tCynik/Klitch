@@ -55,12 +55,23 @@
     <string name="user_channel_delete_confirm">Удалить</string>
     <string name="user_channel_delete_cancel">Отмена</string>
 
+    <string name="user_channel_push_to_node">Записать в ноду</string>
+    <string name="user_channel_delete_from_node">Удалить из ноды</string>
+
+    <!-- Channel sync status badges -->
+    <string name="channel_sync_on_node">На ноде · слот %d</string>
+    <string name="channel_sync_not_on_node">Не на ноде</string>
+    <string name="channel_sync_no_free_slot">Нет слотов</string>
+    <string name="channel_auto_sync_label">Авто-синхронизация</string>
+
+    <!-- HUD -->
+    <string name="hud_radio_setup_channel">Настройте канал</string>
+
     <!-- Channel Editor Sheet -->
     <string name="channel_editor_title_new">Новый канал</string>
     <string name="channel_editor_title_edit">Редактировать канал</string>
     <string name="channel_editor_name_label">Название</string>
     <string name="channel_editor_meshtastic_section">Meshtastic</string>
-    <string name="channel_editor_slot_label">Слот</string>
     <string name="channel_editor_psk_label">PSK (base64)</string>
     <string name="channel_editor_psk_generate">Сгенерировать</string>
     <string name="channel_editor_psk_error">Невалидный PSK: требуется 16 или 32 байта в base64</string>

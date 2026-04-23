@@ -49,7 +49,7 @@ class MeshToChatAdapter(
                 val channelByIndex: Map<Int, LogicalChannelId> = channels
                     .flatMap { ch ->
                         ch.transports.filterIsInstance<MeshtasticBinding>()
-                            .map { it.channelIndex to ch.id }
+                            .mapNotNull { b -> b.resolvedSlot?.let { slot -> slot to ch.id } }
                     }.toMap()
                 val channelNameById: Map<String, String> =
                     channels.associate { it.id.value to it.metadata.name }
@@ -167,7 +167,7 @@ class MeshToChatAdapter(
             val logicalChannel = channels.find { it.id.value == contactId } ?: return
             val binding = logicalChannel.transports
                 .filterIsInstance<MeshtasticBinding>().firstOrNull() ?: return
-            val channelIndex = binding.channelIndex
+            val channelIndex = binding.resolvedSlot ?: return
             doSend(text, DataPacket.ID_BROADCAST, channelIndex, "$channelIndex${DataPacket.ID_BROADCAST}")
         }
     }
@@ -217,7 +217,8 @@ class MeshToChatAdapter(
         val channel = channels.find { it.id.value == contactId } ?: return null
         val binding = channel.transports.filterIsInstance<MeshtasticBinding>().firstOrNull()
             ?: return null
-        return "${binding.channelIndex}${DataPacket.ID_BROADCAST}"
+        val slot = binding.resolvedSlot ?: return null
+        return "${slot}${DataPacket.ID_BROADCAST}"
     }
 }
 

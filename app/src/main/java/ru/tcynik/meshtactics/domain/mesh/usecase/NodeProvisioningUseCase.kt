@@ -22,8 +22,9 @@ class NodeProvisioningUseCase(
         channels.forEach { channel ->
             val binding = channel.transports.filterIsInstance<MeshtasticBinding>().firstOrNull()
                 ?: return@forEach
+            val slot = binding.resolvedSlot ?: return@forEach
             val pskBase64 = Base64.encodeToString(binding.psk, Base64.NO_WRAP)
-            writeChannel(binding.channelIndex, channel.metadata.name, pskBase64)
+            writeChannel(slot, channel.metadata.name, pskBase64)
         }
 
         if (user.displayName.isNotBlank()) {

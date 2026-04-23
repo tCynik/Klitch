@@ -1,16 +1,17 @@
 CREATE TABLE logical_channel (
-    id              TEXT NOT NULL PRIMARY KEY,
-    name            TEXT NOT NULL,
+    id              TEXT    NOT NULL PRIMARY KEY,
+    name            TEXT    NOT NULL,
     meshtastic_slot INTEGER,
-    meshtastic_psk  BLOB
+    meshtastic_psk  BLOB,
+    is_auto_sync    INTEGER NOT NULL DEFAULT 0
 );
 
 selectAll:
 SELECT * FROM logical_channel ORDER BY rowid ASC;
 
 upsert:
-INSERT OR REPLACE INTO logical_channel(id, name, meshtastic_slot, meshtastic_psk)
-VALUES (:id, :name, :meshtasticSlot, :meshtasticPsk);
+INSERT OR REPLACE INTO logical_channel(id, name, meshtastic_slot, meshtastic_psk, is_auto_sync)
+VALUES (:id, :name, :meshtasticSlot, :meshtasticPsk, :isAutoSync);
 
 deleteById:
 DELETE FROM logical_channel WHERE id = :id;

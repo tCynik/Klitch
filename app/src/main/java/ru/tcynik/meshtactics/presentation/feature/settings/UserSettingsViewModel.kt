@@ -6,22 +6,32 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import ru.tcynik.meshtactics.domain.channel.model.ChannelMetadata
+import ru.tcynik.meshtactics.domain.channel.model.ChannelSyncStatus
 import ru.tcynik.meshtactics.domain.channel.model.LogicalChannel
 import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelId
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticBinding
+import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
 import ru.tcynik.meshtactics.domain.channel.usecase.DeleteLogicalChannelUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveLogicalChannelsUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SaveLogicalChannelUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.SlotResolution
+import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.meshtactics.domain.user.model.AppUser
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import ru.tcynik.meshtactics.presentation.feature.settings.models.ChannelItem
+import ru.tcynik.meshtactics.presentation.feature.settings.models.NodeWriteEvent
 import java.security.SecureRandom
 import java.util.UUID
 
@@ -31,38 +41,129 @@ class UserSettingsViewModel(
     private val observeLogicalChannels: ObserveLogicalChannelsUseCase,
     private val saveLogicalChannel: SaveLogicalChannelUseCase,
     private val deleteLogicalChannel: DeleteLogicalChannelUseCase,
+    private val observeNodeChannels: ObserveNodeChannelsUseCase,
+    private val writeChannel: WriteChannelUseCase,
+    private val resolveSlot: ResolveChannelSlotUseCase,
+    private val observeConnectionStatus: ObserveConnectionStatusUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UserSettingsUiState())
     val uiState: StateFlow<UserSettingsUiState> = _uiState.asStateFlow()
 
+    private var cachedChannels: List<LogicalChannel> = emptyList()
+    private var cachedNodeChannels: List<NodeChannelSlot> = emptyList()
+    private var connectionStatus: MeshConnectionStatus = MeshConnectionStatus.Disconnected
+
     init {
         observeAppUser(NoParams)
             .onEach { user ->
                 _uiState.update { state ->
-                    if (!state.hasUnsavedUserChanges) {
-                        state.copy(displayName = user.displayName)
-                    } else state
+                    if (!state.hasUnsavedUserChanges) state.copy(displayName = user.displayName)
+                    else state
                 }
             }
             .launchIn(viewModelScope)
 
-        observeLogicalChannels(NoParams)
-            .onEach { channels ->
-                _uiState.update { state ->
-                    state.copy(
-                        channels = channels.map { ch ->
-                            val mtBinding = ch.transports.filterIsInstance<MeshtasticBinding>().firstOrNull()
-                            ChannelItem(
-                                id = ch.id,
-                                name = ch.metadata.name,
-                                transportLabel = if (mtBinding != null) "MT · слот ${mtBinding.channelIndex}" else "",
-                            )
-                        }
-                    )
+        combine(
+            observeLogicalChannels(NoParams),
+            observeNodeChannels(NoParams),
+            observeConnectionStatus(NoParams),
+        ) { channels, nodeChannels, status ->
+            cachedChannels = channels
+            cachedNodeChannels = nodeChannels
+            connectionStatus = status
+
+            val items = channels.map { ch ->
+                ChannelItem(
+                    id = ch.id,
+                    name = ch.metadata.name,
+                    isAutoSync = ch.isAutoSync,
+                    syncStatus = computeSyncStatus(ch, nodeChannels, status),
+                )
+            }
+            _uiState.update { it.copy(channels = items) }
+
+            if (status is MeshConnectionStatus.Connected) {
+                channels.filter { it.isAutoSync }.forEach { ch ->
+                    val resolution = resolveSlot(ch, nodeChannels)
+                    if (resolution is SlotResolution.FreeSlot) {
+                        pushChannelToNode(ch, resolution.slot)
+                    }
                 }
             }
-            .launchIn(viewModelScope)
+        }.launchIn(viewModelScope)
+    }
+
+    private fun computeSyncStatus(
+        channel: LogicalChannel,
+        nodeChannels: List<NodeChannelSlot>,
+        status: MeshConnectionStatus,
+    ): ChannelSyncStatus {
+        if (status !is MeshConnectionStatus.Connected) return ChannelSyncStatus.NotConnected
+        val binding = channel.transports.filterIsInstance<MeshtasticBinding>().firstOrNull()
+            ?: return ChannelSyncStatus.NotOnNode
+        val matched = nodeChannels.find { slot ->
+            slot.index != 0 && slot.isEnabled &&
+                slot.name == channel.metadata.name && slot.psk.contentEquals(binding.psk)
+        }
+        if (matched != null) return ChannelSyncStatus.OnNode(matched.index)
+        val hasFreeSlot = nodeChannels.any { it.index != 0 && !it.isEnabled }
+        return if (hasFreeSlot) ChannelSyncStatus.NotOnNode else ChannelSyncStatus.NoFreeSlot
+    }
+
+    private fun pushChannelToNode(channel: LogicalChannel, slot: Int) {
+        val binding = channel.transports.filterIsInstance<MeshtasticBinding>().firstOrNull() ?: return
+        val pskBase64 = Base64.encodeToString(binding.psk, Base64.NO_WRAP)
+        writeChannel(slot, channel.metadata.name, pskBase64)
+        viewModelScope.launch {
+            saveLogicalChannel(
+                channel.copy(transports = listOf(binding.copy(resolvedSlot = slot)))
+            )
+        }
+    }
+
+    fun onPushToNode(id: LogicalChannelId) {
+        val channel = cachedChannels.find { it.id == id } ?: return
+        if (connectionStatus !is MeshConnectionStatus.Connected) {
+            _uiState.update { it.copy(nodeWriteEvent = NodeWriteEvent.NotConnected) }
+            return
+        }
+        when (val resolution = resolveSlot(channel, cachedNodeChannels)) {
+            is SlotResolution.AlreadySynced -> {
+                _uiState.update { it.copy(nodeWriteEvent = NodeWriteEvent.Sent(channel.metadata.name)) }
+            }
+            is SlotResolution.FreeSlot -> {
+                pushChannelToNode(channel, resolution.slot)
+                _uiState.update { it.copy(nodeWriteEvent = NodeWriteEvent.Sent(channel.metadata.name)) }
+            }
+            is SlotResolution.NoFreeSlot -> {
+                _uiState.update { it.copy(nodeWriteEvent = NodeWriteEvent.NoFreeSlot) }
+            }
+        }
+    }
+
+    fun onDeleteFromNode(id: LogicalChannelId) {
+        val channel = cachedChannels.find { it.id == id } ?: return
+        val binding = channel.transports.filterIsInstance<MeshtasticBinding>().firstOrNull() ?: return
+        val slot = binding.resolvedSlot ?: return
+        if (slot == 0) return  // slot 0 protection
+        writeChannel(slot, "", "")
+        viewModelScope.launch {
+            saveLogicalChannel(
+                channel.copy(transports = listOf(binding.copy(resolvedSlot = null)))
+            )
+        }
+    }
+
+    fun onToggleAutoSync(id: LogicalChannelId, enabled: Boolean) {
+        val channel = cachedChannels.find { it.id == id } ?: return
+        viewModelScope.launch {
+            saveLogicalChannel(channel.copy(isAutoSync = enabled))
+        }
+    }
+
+    fun onNodeWriteEventConsumed() {
+        _uiState.update { it.copy(nodeWriteEvent = null) }
     }
 
     fun onDisplayNameChange(value: String) {
@@ -78,22 +179,15 @@ class UserSettingsViewModel(
 
     fun onAddChannelClick() {
         _uiState.update {
-            it.copy(editorSheet = ChannelEditorState(id = null, name = "", slotIndex = 0, pskBase64 = ""))
+            it.copy(editorSheet = ChannelEditorState(id = null, name = "", pskBase64 = ""))
         }
     }
 
     fun onEditChannelClick(id: LogicalChannelId) {
         val item = _uiState.value.channels.find { it.id == id } ?: return
-        // Extract slot index from transportLabel if present
-        val slotIndex = Regex("слот (\\d+)").find(item.transportLabel)?.groupValues?.get(1)?.toIntOrNull() ?: 0
         _uiState.update {
             it.copy(
-                editorSheet = ChannelEditorState(
-                    id = id,
-                    name = item.name,
-                    slotIndex = slotIndex,
-                    pskBase64 = "",
-                )
+                editorSheet = ChannelEditorState(id = id, name = item.name, pskBase64 = "")
             )
         }
     }
@@ -105,9 +199,7 @@ class UserSettingsViewModel(
     fun onConfirmDelete() {
         val id = _uiState.value.deleteConfirmId ?: return
         _uiState.update { it.copy(deleteConfirmId = null) }
-        viewModelScope.launch {
-            deleteLogicalChannel(id)
-        }
+        viewModelScope.launch { deleteLogicalChannel(id) }
     }
 
     fun onDismissDelete() {
@@ -116,10 +208,6 @@ class UserSettingsViewModel(
 
     fun onEditorNameChange(value: String) {
         _uiState.update { it.copy(editorSheet = it.editorSheet?.copy(name = value)) }
-    }
-
-    fun onEditorSlotChange(slot: Int) {
-        _uiState.update { it.copy(editorSheet = it.editorSheet?.copy(slotIndex = slot)) }
     }
 
     fun onEditorPskChange(value: String) {
@@ -139,12 +227,12 @@ class UserSettingsViewModel(
         }.getOrNull() ?: return
 
         val id = editor.id ?: LogicalChannelId(UUID.randomUUID().toString())
+        val existing = cachedChannels.find { it.id == id }
         val channel = LogicalChannel(
             id = id,
             metadata = ChannelMetadata(name = editor.name),
-            transports = listOf(
-                MeshtasticBinding(channelIndex = editor.slotIndex, psk = pskBytes)
-            ),
+            transports = listOf(MeshtasticBinding(psk = pskBytes)),
+            isAutoSync = existing?.isAutoSync ?: false,
         )
         viewModelScope.launch {
             saveLogicalChannel(channel)
@@ -156,3 +244,8 @@ class UserSettingsViewModel(
         _uiState.update { it.copy(editorSheet = null) }
     }
 }
+
+// TODO(channels): write confirmation dialog before pushing to node
+// TODO(channels): loading + result indication requires ACK tracking in CommandSender
+// TODO(channels): "manage node slots" sheet for NoFreeSlot case
+// TODO(channels): user-to-user channel import/export

@@ -32,4 +32,5 @@ data class MainUiState(
     val geoMarks: ImmutableList<GeoMarkModel> = persistentListOf(),
     val markToolActive: Boolean = false,
     val pendingMarkPoints: ImmutableList<GeoPoint> = persistentListOf(),
+    val hasChannelOnNode: Boolean = true,
 )

@@ -2,6 +2,7 @@ package ru.tcynik.meshtactics.presentation.feature.settings
 
 import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelId
 import ru.tcynik.meshtactics.presentation.feature.settings.models.ChannelItem
+import ru.tcynik.meshtactics.presentation.feature.settings.models.NodeWriteEvent
 
 data class UserSettingsUiState(
     val displayName: String = "",
@@ -9,11 +10,11 @@ data class UserSettingsUiState(
     val channels: List<ChannelItem> = emptyList(),
     val editorSheet: ChannelEditorState? = null,
     val deleteConfirmId: LogicalChannelId? = null,
+    val nodeWriteEvent: NodeWriteEvent? = null,
 )
 
 data class ChannelEditorState(
     val id: LogicalChannelId?,
     val name: String,
-    val slotIndex: Int,
     val pskBase64: String,
 )

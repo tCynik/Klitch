@@ -54,6 +54,9 @@ import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
+import ru.tcynik.meshtactics.domain.channel.model.MeshtasticBinding
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveLogicalChannelsUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
@@ -94,6 +97,8 @@ class MainViewModel(
     ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase,
     private val deleteExpiredGeoMarks: DeleteExpiredGeoMarksUseCase,
     ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase,
+    observeLogicalChannels: ObserveLogicalChannelsUseCase,
+    observeNodeChannels: ObserveNodeChannelsUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -204,6 +209,23 @@ class MainViewModel(
                 deleteExpiredGeoMarks(NoParams)
             }
         }
+
+        combine(
+            observeLogicalChannels(NoParams),
+            observeNodeChannels(NoParams),
+        ) { channels, nodeSlots ->
+            if (channels.isEmpty()) return@combine true
+            channels.any { ch ->
+                val binding = ch.transports.filterIsInstance<MeshtasticBinding>().firstOrNull()
+                    ?: return@any false
+                nodeSlots.any { slot ->
+                    slot.index != 0 && slot.isEnabled &&
+                        slot.name == ch.metadata.name && slot.psk.contentEquals(binding.psk)
+                }
+            }
+        }
+            .onEach { hasChannel -> _uiState.update { it.copy(hasChannelOnNode = hasChannel) } }
+            .launchIn(viewModelScope)
 
         startAutoConnect()
     }
@@ -458,7 +480,9 @@ class MainViewModel(
         is MeshConnectionStatus.Connecting ->
             HudInfoSlot(content = "Сопряжение с ${status.deviceName}", color = Color.Yellow)
         is MeshConnectionStatus.Connected ->
-            if (state.showConnectionLabel)
+            if (!state.hasChannelOnNode)
+                HudInfoSlot(content = "Настройте канал", color = Color.Red)
+            else if (state.showConnectionLabel)
                 HudInfoSlot(content = "Сопряжено с ${status.shortName}", color = Color.Green)
             else
                 emptyInfoSlot()

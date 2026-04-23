@@ -23,6 +23,8 @@ import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCa
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveLogicalChannelsUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.presentation.feature.settings.SettingsViewModel
 import ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModel
@@ -51,6 +53,8 @@ val presentationModule = module {
             ingestReceivedGeoMarks = get<IngestReceivedGeoMarksUseCase>(),
             deleteExpiredGeoMarks = get<DeleteExpiredGeoMarksUseCase>(),
             ingestReceivedChatMessages = get<IngestReceivedChatMessagesUseCase>(),
+            observeLogicalChannels = get<ObserveLogicalChannelsUseCase>(),
+            observeNodeChannels = get<ObserveNodeChannelsUseCase>(),
         )
     }
 

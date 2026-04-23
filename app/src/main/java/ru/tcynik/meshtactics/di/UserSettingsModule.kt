@@ -13,6 +13,8 @@ import ru.tcynik.meshtactics.data.user.repository.AppUserRepositoryImpl
 import ru.tcynik.meshtactics.domain.channel.repository.LogicalChannelRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.DeleteLogicalChannelUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveLogicalChannelsUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SaveLogicalChannelUseCase
 import ru.tcynik.meshtactics.domain.user.repository.AppUserRepository
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
@@ -35,4 +37,6 @@ val userSettingsModule = module {
     single { ObserveLogicalChannelsUseCase(get()) }
     single { SaveLogicalChannelUseCase(get()) }
     single { DeleteLogicalChannelUseCase(get()) }
+    single { ObserveNodeChannelsUseCase(get()) }
+    single { ResolveChannelSlotUseCase() }
 }
