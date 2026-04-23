@@ -53,6 +53,7 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyInfoSlot
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
+import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
@@ -70,6 +71,7 @@ private const val DOUBLE_TAP_WINDOW_MS = 300L
 // TODO: replace with dp-based calculation using current camera zoom in Phase 3 refinement.
 private const val DRAFT_POINT_TOUCH_RADIUS_M = 30.0
 private const val METERS_PER_DEG_LAT_APPROX = 111_320.0
+private const val GEO_MARK_CLEANUP_INTERVAL_MS = 3_600_000L
 
 class MainViewModel(
     getTileUrl: GetTileUrlUseCase,
@@ -89,6 +91,7 @@ class MainViewModel(
     observeGeoMarks: ObserveGeoMarksUseCase,
     private val sendGeoMark: SendGeoMarkUseCase,
     ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase,
+    private val deleteExpiredGeoMarks: DeleteExpiredGeoMarksUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -188,6 +191,14 @@ class MainViewModel(
 
         ingestReceivedGeoMarks.observe()
             .launchIn(viewModelScope)
+
+        viewModelScope.launch {
+            deleteExpiredGeoMarks(NoParams)
+            while (true) {
+                delay(GEO_MARK_CLEANUP_INTERVAL_MS)
+                deleteExpiredGeoMarks(NoParams)
+            }
+        }
 
         startAutoConnect()
     }
