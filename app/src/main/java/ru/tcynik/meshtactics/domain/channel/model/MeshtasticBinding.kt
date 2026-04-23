@@ -2,7 +2,7 @@ package ru.tcynik.meshtactics.domain.channel.model
 
 data class MeshtasticBinding(
     val psk: ByteArray,
-    val resolvedSlot: Int? = null,
+    val channelHash: LogicalChannelHash,
 ) : TransportBinding {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
