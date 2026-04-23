@@ -1,0 +1,19 @@
+CREATE TABLE chat_message (
+    id                 TEXT    NOT NULL PRIMARY KEY,
+    logical_channel_id TEXT    NOT NULL,
+    sender_node_id     TEXT    NOT NULL,
+    sender_callsign    TEXT    NOT NULL DEFAULT '',
+    text               TEXT    NOT NULL,
+    sent_at            INTEGER NOT NULL,           -- Unix seconds
+    is_self            INTEGER NOT NULL DEFAULT 0
+);
+
+selectAll:
+SELECT * FROM chat_message ORDER BY sent_at ASC;
+
+insertIfAbsent:
+INSERT OR IGNORE INTO chat_message(id, logical_channel_id, sender_node_id, sender_callsign, text, sent_at, is_self)
+VALUES (:id, :logical_channel_id, :sender_node_id, :sender_callsign, :text, :sent_at, :is_self);
+
+deleteByChannelId:
+DELETE FROM chat_message WHERE logical_channel_id = :logicalChannelId;

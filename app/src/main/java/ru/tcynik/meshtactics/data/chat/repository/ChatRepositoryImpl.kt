@@ -6,10 +6,12 @@ import ru.tcynik.meshtactics.data.chat.adapter.MeshToChatAdapter
 import ru.tcynik.meshtactics.data.chat.dto.toDomain
 import ru.tcynik.meshtactics.domain.chat.model.ChatContact
 import ru.tcynik.meshtactics.domain.chat.model.ChatMessageModel
+import ru.tcynik.meshtactics.domain.chat.repository.ChatMessageRepository
 import ru.tcynik.meshtactics.domain.chat.repository.ChatRepository
 
 class ChatRepositoryImpl(
     private val adapter: MeshToChatAdapter,
+    private val chatMessageRepository: ChatMessageRepository,
 ) : ChatRepository {
 
     override fun observeContacts(): Flow<List<ChatContact>> =
@@ -18,7 +20,7 @@ class ChatRepositoryImpl(
     override fun observeTotalUnreadCount(): Flow<Int> = adapter.observeTotalUnreadCount()
 
     override fun observeMessages(contactIds: Set<String>, searchQuery: String): Flow<List<ChatMessageModel>> =
-        adapter.observeMessagesAsFlow(contactIds, searchQuery)
+        chatMessageRepository.observeMessages(contactIds, searchQuery)
 
     override suspend fun sendMessage(text: String, contactId: String, channel: Int) =
         adapter.sendMessage(text, contactId, channel)
@@ -32,8 +34,10 @@ class ChatRepositoryImpl(
     override suspend fun toggleArchived(contactId: String, isArchived: Boolean) =
         adapter.toggleArchived(contactId, isArchived)
 
-    override suspend fun clearHistory(contactId: String) =
+    override suspend fun clearHistory(contactId: String) {
         adapter.clearHistory(contactId)
+        chatMessageRepository.deleteByChannelId(contactId)
+    }
 
     override suspend fun markAsRead(contactId: String) =
         adapter.markAsRead(contactId)

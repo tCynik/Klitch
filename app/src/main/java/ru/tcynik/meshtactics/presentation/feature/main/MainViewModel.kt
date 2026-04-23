@@ -53,6 +53,7 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyInfoSlot
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
+import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
@@ -92,6 +93,7 @@ class MainViewModel(
     private val sendGeoMark: SendGeoMarkUseCase,
     ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase,
     private val deleteExpiredGeoMarks: DeleteExpiredGeoMarksUseCase,
+    ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -190,6 +192,9 @@ class MainViewModel(
             .launchIn(viewModelScope)
 
         ingestReceivedGeoMarks.observe()
+            .launchIn(viewModelScope)
+
+        ingestReceivedChatMessages.observe()
             .launchIn(viewModelScope)
 
         viewModelScope.launch {

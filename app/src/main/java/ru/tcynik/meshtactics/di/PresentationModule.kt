@@ -19,6 +19,7 @@ import ru.tcynik.meshtactics.domain.map.usecase.ObserveSelectedOverlaysUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ToggleImportedMapSelectionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
@@ -49,6 +50,7 @@ val presentationModule = module {
             sendGeoMark = get(),
             ingestReceivedGeoMarks = get<IngestReceivedGeoMarksUseCase>(),
             deleteExpiredGeoMarks = get<DeleteExpiredGeoMarksUseCase>(),
+            ingestReceivedChatMessages = get<IngestReceivedChatMessagesUseCase>(),
         )
     }
 
