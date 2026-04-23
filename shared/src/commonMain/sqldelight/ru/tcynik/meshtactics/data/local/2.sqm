@@ -1,0 +1,16 @@
+CREATE TABLE IF NOT EXISTS logical_channel (
+    id              TEXT NOT NULL PRIMARY KEY,
+    name            TEXT NOT NULL,
+    meshtastic_slot INTEGER,
+    meshtastic_psk  BLOB
+);
+
+CREATE TABLE IF NOT EXISTS chat_message (
+    id                 TEXT    NOT NULL PRIMARY KEY,
+    logical_channel_id TEXT    NOT NULL,
+    sender_node_id     TEXT    NOT NULL,
+    sender_callsign    TEXT    NOT NULL DEFAULT '',
+    text               TEXT    NOT NULL,
+    sent_at            INTEGER NOT NULL,
+    is_self            INTEGER NOT NULL DEFAULT 0
+);
