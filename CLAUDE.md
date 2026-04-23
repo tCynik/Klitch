@@ -110,5 +110,5 @@
 | Node Markers on Map | `.claude/plans/node-markers-on-map.md` | Approved |
 | Chat Feature | `.claude/plans/chat-feature-plan.md` | In Progress |
 | User & Channels Settings | `.claude/plans/user-and-channels-settings.md` | Done |
-| Node Provisioning | `.claude/plans/node-provisioning.md` | In Progress |
+| Node Provisioning | `.claude/plans/node-provisioning.md` | Done |
 | Implementation Roadmap | `.claude/plans/implementation-roadmap.md` | Active |
