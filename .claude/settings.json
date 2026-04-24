@@ -83,7 +83,10 @@
       "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.main.MainViewModelMarkToolTest.onMapLongClick far from pending point — emits no context menu event\")",
       "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.main.MainViewModelMarkToolTest\")",
       "Bash(./gradlew --stop)",
-      "Bash(taskkill /F /IM java.exe /T)"
+      "Bash(taskkill /F /IM java.exe /T)",
+      "PowerShell(Add-Type -Assembly System.IO.Compression.FileSystem; $zip = [System.IO.Compression.ZipFile]::OpenRead\\(\"C:\\\\Users\\\\LocAdmin\\\\.gradle\\\\caches\\\\modules-2\\\\files-2.1\\\\org.jetbrains.kotlinx\\\\kotlinx-coroutines-test\\\\1.9.0\\\\4008674842816efaaf87acc5a524dffd12974306\\\\kotlinx-coroutines-test-1.9.0-sources.jar\"\\); $zip.Entries | Select-Object FullName | Where-Object { $_.FullName -match \"TestScope|runTest\" })",
+      "PowerShell(Add-Type -Assembly System.IO.Compression.FileSystem; $zip = [System.IO.Compression.ZipFile]::OpenRead\\(\"C:\\\\Users\\\\LocAdmin\\\\.gradle\\\\caches\\\\modules-2\\\\files-2.1\\\\org.jetbrains.kotlinx\\\\kotlinx-coroutines-test\\\\1.9.0\\\\4008674842816efaaf87acc5a524dffd12974306\\\\kotlinx-coroutines-test-1.9.0-sources.jar\"\\); $zip.Entries | Select-Object FullName | head -40)",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.main.MainViewModelHudWarningTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelChannelsTest\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",

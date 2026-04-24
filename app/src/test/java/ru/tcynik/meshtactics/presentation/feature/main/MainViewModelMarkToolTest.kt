@@ -1,15 +1,17 @@
 package ru.tcynik.meshtactics.presentation.feature.main
 
 import app.cash.turbine.test
-import app.cash.turbine.testIn
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -89,7 +91,7 @@ class MainViewModelMarkToolTest {
         every { observeMarkerSizeLevel.invoke(any()) } returns flowOf(5)
         every { observeSelectedOverlays.invoke(any()) } returns flowOf(emptyList())
         every { observeTotalUnreadChatCount.invoke(any()) } returns flowOf(0)
-        every { scanDevices.invoke(any()) } returns flowOf(emptyList())
+        every { scanDevices.invoke(any()) } returns flow { kotlinx.coroutines.awaitCancellation() }
         every { getLastConnectedDevice.invoke() } returns null
         every { observeGeoMarks.invoke(any()) } returns flowOf(emptyList())
         every { ingestReceivedGeoMarks.observe() } returns flowOf(Unit)
@@ -251,12 +253,14 @@ class MainViewModelMarkToolTest {
             viewModel.onMapClick(55.750, 37.620)
             advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
 
-            // testIn(backgroundScope) avoids draining the test scheduler via coroutineScope{}
-            val turbine = viewModel.contextMenuEvent.testIn(backgroundScope)
-            // Long-tap ~1km away from the pending point
+            var received = false
+            val collectJob = backgroundScope.launch {
+                viewModel.contextMenuEvent.collect { received = true }
+            }
             viewModel.onMapLongClick(55.760, 37.630, 100f, 200f)
-            turbine.expectNoEvents()
-            turbine.cancelAndIgnoreRemainingEvents()
+            runCurrent()
+            assertFalse(received)
+            collectJob.cancel()
         }
 
     // ── sendPendingMark ───────────────────────────────────────────────────────

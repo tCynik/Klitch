@@ -1,7 +1,7 @@
 # Plan: Logical Channels Management & Node Import
 
 **Date**: 2026-04-23
-**Status**: Done (Phase 3 implemented 2026-04-23; Phase 4 tests pending)
+**Status**: Phase 4 done (2026-04-24) → Phase 5: architect review
 
 ## Summary
 
@@ -569,3 +569,11 @@ Phase 7: [stage by name] → [propose commit] → [confirm] → git commit
   add delete-from-node, slot 0 hard protection, open UX questions documented
 - 2026-04-23: revised (v3) — add HUD info slot "Настройте канал" warning; ObserveNodeChannelsUseCase
   shared between MainViewModel and UserSettingsViewModel
+- 2026-04-24: test infra fixed — two root causes found in MainViewModelMarkToolTest:
+  1. `viewModelScope.launch { while(true) { delay(GEO_MARK_CLEANUP_INTERVAL_MS) } }` registrered
+     cleanup loop in TestCoroutineScheduler → `runTest` finalizer `advanceUntilIdleOr { false }` hung
+     forever. Fix: `launch(Dispatchers.Default)` — delay uses DefaultDelay (real time), not scheduler.
+  2. `every { scanDevices.invoke(any()) } returns flowOf(emptyList())` — flow completed immediately,
+     `onCompletion { startAutoConnect() }` triggered infinite recursive restarts inside workRunner.
+     Fix: `flow { awaitCancellation() }` — scan never completes naturally, no restart loop.
+  Phase 4 tests needed: ✅ ResolveChannelSlotUseCase · ✅ MainViewModel HUD warning · ✅ UserSettingsViewModel channels

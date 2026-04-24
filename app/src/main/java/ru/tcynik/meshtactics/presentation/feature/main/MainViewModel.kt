@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -202,7 +203,7 @@ class MainViewModel(
         ingestReceivedChatMessages.observe()
             .launchIn(viewModelScope)
 
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.Default) {
             deleteExpiredGeoMarks(NoParams)
             while (true) {
                 delay(GEO_MARK_CLEANUP_INTERVAL_MS)
