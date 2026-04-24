@@ -67,6 +67,11 @@
     <!-- HUD -->
     <string name="hud_radio_setup_channel">Настройте канал</string>
 
+    <!-- Channel sync snackbar messages -->
+    <string name="channel_snackbar_sent">Канал «%s» записан в ноду</string>
+    <string name="channel_snackbar_not_connected">Нет подключения к ноде</string>
+    <string name="channel_snackbar_no_free_slot">Нет свободных слотов (1–7)</string>
+
     <!-- Channel Editor Sheet -->
     <string name="channel_editor_title_new">Новый канал</string>
     <string name="channel_editor_title_edit">Редактировать канал</string>

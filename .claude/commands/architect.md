@@ -39,6 +39,7 @@ shared/data            ← implements domain interfaces, not the other way aroun
 - `FlowUseCase` (reactive): see `shared/src/commonMain/.../usecase/node/GetNodesUseCase.kt:9`
 - `UseCase` (suspend, one-shot): see `app/src/main/.../mesh/usecase/ConnectToMeshDeviceUseCase.kt:8`
 - SyncUseCase — plain `operator fun invoke`, no base class: see `app/src/main/.../map/usecase/GetLastMapPositionUseCase.kt:6`
+- Pure domain use case (no repository dep) — plain `operator fun invoke`, zero constructor args, registered as `single`: see `domain/channel/usecase/ResolveChannelSlotUseCase.kt`
 
 > Do NOT use `FlowUseCase` or `UseCase` for synchronous operations — use plain `operator fun invoke`.
 
@@ -392,7 +393,7 @@ Show concrete code for each new file, following the canonical patterns above. Do
 - [ ] Repository implements the domain interface and nothing else
 
 **Use Cases**
-- [ ] Extend `FlowUseCase`, `UseCase`, or `ResultUseCase`
+- [ ] Extend `FlowUseCase`, `UseCase`, or `ResultUseCase` — OR plain `operator fun invoke` for pure synchronous logic with no dependencies
 - [ ] Accept no Android types
 - [ ] Contain only orchestration, not low-level business logic
 

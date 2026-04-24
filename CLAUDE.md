@@ -114,5 +114,5 @@
 | Chat Feature | `.claude/plans/chat-feature-plan.md` | Done |
 | User & Channels Settings | `.claude/plans/user-and-channels-settings.md` | Done |
 | Node Provisioning | `.claude/plans/node-provisioning.md` | Done |
-| Logical Channels Management | `.claude/plans/logical-channels-management.md` | Done |
+| Logical Channels Management | `.claude/archive/logical-channels-management.md` | Archived |
 | Implementation Roadmap | `.claude/plans/implementation-roadmap.md` | Active |

@@ -60,12 +60,15 @@ fun UserTabContent(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val event = state.nodeWriteEvent
+    val snackbarSentTemplate = stringResource(R.string.channel_snackbar_sent)
+    val snackbarNotConnected = stringResource(R.string.channel_snackbar_not_connected)
+    val snackbarNoFreeSlot = stringResource(R.string.channel_snackbar_no_free_slot)
     LaunchedEffect(event) {
         if (event != null) {
             val message = when (event) {
-                is NodeWriteEvent.Sent -> "Канал «${event.channelName}» записан в ноду"
-                NodeWriteEvent.NotConnected -> "Нет подключения к ноде"
-                NodeWriteEvent.NoFreeSlot -> "Нет свободных слотов (1–7)"
+                is NodeWriteEvent.Sent -> snackbarSentTemplate.format(event.channelName)
+                NodeWriteEvent.NotConnected -> snackbarNotConnected
+                NodeWriteEvent.NoFreeSlot -> snackbarNoFreeSlot
             }
             snackbarHostState.showSnackbar(message)
             viewModel.onNodeWriteEventConsumed()

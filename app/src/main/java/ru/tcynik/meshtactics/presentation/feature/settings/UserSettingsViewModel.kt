@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.collections.immutable.toImmutableList
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.ChannelMetadata
 import ru.tcynik.meshtactics.domain.channel.model.ChannelSyncStatus
@@ -84,7 +85,7 @@ class UserSettingsViewModel(
                     syncStatus = computeSyncStatus(ch, nodeChannels, status),
                 )
             }
-            _uiState.update { it.copy(channels = items) }
+            _uiState.update { it.copy(channels = items.toImmutableList()) }
 
             if (status is MeshConnectionStatus.Connected) {
                 channels.filter { it.isAutoSync }.forEach { ch ->
