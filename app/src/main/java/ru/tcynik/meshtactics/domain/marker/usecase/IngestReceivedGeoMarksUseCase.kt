@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapter
-import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelId
+import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticBinding
 import ru.tcynik.meshtactics.domain.channel.repository.LogicalChannelRepository
 import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkRepository
@@ -15,21 +15,24 @@ class IngestReceivedGeoMarksUseCase(
     private val channelRepository: LogicalChannelRepository,
     private val geoMarkRepository: GeoMarkRepository,
     private val adapter: GeoMarkWaypointAdapter,
+    private val channelSlotResolver: ChannelSlotResolver,
 ) {
     fun observe(): Flow<Unit> = combine(
         packetRepository.getWaypoints(),
         channelRepository.observeChannels(),
-    ) { packets, channels ->
-        val channelByIndex: Map<Int, LogicalChannelId> = channels
+        channelSlotResolver.mapsFlow,
+    ) { packets, channels, maps ->
+        val channelByHash = channels
             .flatMap { ch ->
                 ch.transports.filterIsInstance<MeshtasticBinding>()
-                    .mapNotNull { b -> b.resolvedSlot?.let { slot -> slot to ch.id } }
+                    .map { b -> b.channelHash to ch.id }
             }.toMap()
 
         val nowSeconds = System.currentTimeMillis() / 1_000
 
         packets.forEach { packet ->
-            val logicalChannelId = channelByIndex[packet.channel] ?: return@forEach
+            val hash = maps.slotToHash[packet.channel] ?: return@forEach
+            val logicalChannelId = channelByHash[hash] ?: return@forEach
             val model = adapter.decode(packet) ?: return@forEach
             val expiresAt = model.expiresAt
             if (expiresAt != null && expiresAt < nowSeconds) return@forEach

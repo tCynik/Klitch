@@ -1,7 +1,7 @@
 # Plan: Logical Channel Identity Refactor
 
 **Date**: 2026-04-23
-**Status**: Done (archived 2026-04-24)
+**Status**: Approved (Phase 1 complete)
 
 ## Summary
 

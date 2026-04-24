@@ -70,14 +70,14 @@ class GeoMarkWaypointAdapterTest {
     fun `encode point — type byte in icon is 0 (POINT typeCode)`() {
         val packet = adapter.encode(pointMark(), 0, "", 1000L)
         val icon = packet.waypoint!!.icon
-        assertEquals(GeoMarkType.POINT.typeCode, (icon ushr 16) and 0xFF)
+        assertEquals(0, (icon ushr 16) and 0xFF)
     }
 
     @Test
     fun `encode track — type byte in icon is 1 (TRACK typeCode)`() {
         val packet = adapter.encode(trackMark(2), 0, "", 1000L)
         val icon = packet.waypoint!!.icon
-        assertEquals(GeoMarkType.TRACK.typeCode, (icon ushr 16) and 0xFF)
+        assertEquals(1, (icon ushr 16) and 0xFF)
     }
 
     // ── encode: coordinates ───────────────────────────────────────────────────

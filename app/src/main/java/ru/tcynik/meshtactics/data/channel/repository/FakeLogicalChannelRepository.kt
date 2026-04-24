@@ -5,7 +5,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import ru.tcynik.meshtactics.domain.channel.model.LogicalChannel
+import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelHash
 import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelId
+import ru.tcynik.meshtactics.domain.channel.model.MeshtasticBinding
 import ru.tcynik.meshtactics.domain.channel.repository.LogicalChannelRepository
 
 class FakeLogicalChannelRepository : LogicalChannelRepository {
@@ -25,4 +27,10 @@ class FakeLogicalChannelRepository : LogicalChannelRepository {
     override suspend fun deleteChannel(id: LogicalChannelId) {
         _channels.update { current -> current.filter { it.id != id } }
     }
+
+    override suspend fun findByChannelHash(hash: LogicalChannelHash): LogicalChannel? =
+        _channels.value.firstOrNull { ch ->
+            ch.transports.filterIsInstance<MeshtasticBinding>()
+                .any { it.channelHash == hash }
+        }
 }

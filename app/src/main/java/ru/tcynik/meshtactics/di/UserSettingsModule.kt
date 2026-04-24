@@ -8,8 +8,10 @@ import kotlinx.coroutines.SupervisorJob
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
+import ru.tcynik.meshtactics.data.channel.ChannelSlotResolverImpl
 import ru.tcynik.meshtactics.data.channel.repository.LogicalChannelRepositoryImpl
 import ru.tcynik.meshtactics.data.user.repository.AppUserRepositoryImpl
+import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.repository.LogicalChannelRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.DeleteLogicalChannelUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveLogicalChannelsUseCase
@@ -39,4 +41,5 @@ val userSettingsModule = module {
     single { DeleteLogicalChannelUseCase(get()) }
     single { ObserveNodeChannelsUseCase(get()) }
     single { ResolveChannelSlotUseCase() }
+    single<ChannelSlotResolver> { ChannelSlotResolverImpl(get()) }
 }

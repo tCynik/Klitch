@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import ru.tcynik.meshtactics.data.chat.dto.ChatContactDto
-import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelId
+import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticBinding
 import ru.tcynik.meshtactics.domain.channel.repository.LogicalChannelRepository
 import ru.tcynik.meshtactics.domain.chat.model.ChatMessageModel
@@ -32,6 +32,7 @@ class MeshToChatAdapter(
     private val nodeRepository: NodeRepository,
     private val commandSender: CommandSender,
     private val channelRepository: LogicalChannelRepository,
+    private val channelSlotResolver: ChannelSlotResolver,
 ) {
 
     // ==================== CONTACTS ====================
@@ -46,10 +47,10 @@ class MeshToChatAdapter(
         ) { contacts, settings -> contacts to settings }
         .flatMapLatest { (contacts, settings) ->
             channelRepository.observeChannels().flatMapLatest { channels ->
-                val channelByIndex: Map<Int, LogicalChannelId> = channels
+                val channelByHash = channels
                     .flatMap { ch ->
                         ch.transports.filterIsInstance<MeshtasticBinding>()
-                            .mapNotNull { b -> b.resolvedSlot?.let { slot -> slot to ch.id } }
+                            .map { b -> b.channelHash to ch.id }
                     }.toMap()
                 val channelNameById: Map<String, String> =
                     channels.associate { it.id.value to it.metadata.name }
@@ -61,6 +62,7 @@ class MeshToChatAdapter(
                     packetRepository.getUnreadCountFlow(key)
                 }
                 combine(unreadFlows) { unreadCounts ->
+                    val slotMaps = channelSlotResolver.mapsFlow.value
                     entries.mapIndexed { index, (contactKey, lastPacket) ->
                         val nodeId = contactKey.dropWhile { it.isDigit() }
                         val channelIndex = contactKey.firstOrNull()?.digitToIntOrNull() ?: -1
@@ -68,7 +70,8 @@ class MeshToChatAdapter(
                         val setting = settings[contactKey]
 
                         if (isChannel) {
-                            val logicalChannelId = channelByIndex[channelIndex]
+                            val hash = slotMaps.slotToHash[channelIndex] ?: return@mapIndexed null
+                            val logicalChannelId = channelByHash[hash]
                                 ?: return@mapIndexed null
                             val channelName = channelNameById[logicalChannelId.value] ?: nodeId
                             ChatContactDto(
@@ -167,7 +170,7 @@ class MeshToChatAdapter(
             val logicalChannel = channels.find { it.id.value == contactId } ?: return
             val binding = logicalChannel.transports
                 .filterIsInstance<MeshtasticBinding>().firstOrNull() ?: return
-            val channelIndex = binding.resolvedSlot ?: return
+            val channelIndex = channelSlotResolver.hashToSlot[binding.channelHash] ?: return
             doSend(text, DataPacket.ID_BROADCAST, channelIndex, "$channelIndex${DataPacket.ID_BROADCAST}")
         }
     }
@@ -217,7 +220,7 @@ class MeshToChatAdapter(
         val channel = channels.find { it.id.value == contactId } ?: return null
         val binding = channel.transports.filterIsInstance<MeshtasticBinding>().firstOrNull()
             ?: return null
-        val slot = binding.resolvedSlot ?: return null
+        val slot = channelSlotResolver.hashToSlot[binding.channelHash] ?: return null
         return "${slot}${DataPacket.ID_BROADCAST}"
     }
 }

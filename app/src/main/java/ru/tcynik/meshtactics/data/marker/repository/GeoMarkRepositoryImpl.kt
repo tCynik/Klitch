@@ -8,8 +8,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import ru.tcynik.meshtactics.data.local.GeoMarkQueries
 import ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapter
+import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelId
-import ru.tcynik.meshtactics.domain.channel.model.MeshtasticBinding
 import ru.tcynik.meshtactics.domain.channel.repository.LogicalChannelRepository
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
@@ -21,6 +21,7 @@ class GeoMarkRepositoryImpl(
     private val commandSender: CommandSender,
     private val meshNetwork: MeshNetworkRepository,
     private val channelRepository: LogicalChannelRepository,
+    private val channelSlotResolver: ChannelSlotResolver,
     private val adapter: GeoMarkWaypointAdapter,
     private val geoMarkQueries: GeoMarkQueries,
 ) : GeoMarkRepository {
@@ -72,11 +73,8 @@ class GeoMarkRepositoryImpl(
     }
 
     private suspend fun resolveChannelId(channelIndex: Int): String {
-        return channelRepository.observeChannels().first()
-            .firstOrNull { ch ->
-                ch.transports.filterIsInstance<MeshtasticBinding>()
-                    .any { it.resolvedSlot == channelIndex }
-            }?.id?.value ?: ""
+        val hash = channelSlotResolver.slotToHash[channelIndex] ?: return ""
+        return channelRepository.findByChannelHash(hash)?.id?.value ?: ""
     }
 
     private fun ru.tcynik.meshtactics.data.local.Geo_mark.toModel() = GeoMarkModel(

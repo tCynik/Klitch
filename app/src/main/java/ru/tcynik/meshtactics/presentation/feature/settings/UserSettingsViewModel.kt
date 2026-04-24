@@ -11,9 +11,11 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.ChannelMetadata
 import ru.tcynik.meshtactics.domain.channel.model.ChannelSyncStatus
 import ru.tcynik.meshtactics.domain.channel.model.LogicalChannel
+import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelHash
 import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelId
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticBinding
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
@@ -45,6 +47,7 @@ class UserSettingsViewModel(
     private val writeChannel: WriteChannelUseCase,
     private val resolveSlot: ResolveChannelSlotUseCase,
     private val observeConnectionStatus: ObserveConnectionStatusUseCase,
+    private val channelSlotResolver: ChannelSlotResolver,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UserSettingsUiState())
@@ -115,11 +118,6 @@ class UserSettingsViewModel(
         val binding = channel.transports.filterIsInstance<MeshtasticBinding>().firstOrNull() ?: return
         val pskBase64 = Base64.encodeToString(binding.psk, Base64.NO_WRAP)
         writeChannel(slot, channel.metadata.name, pskBase64)
-        viewModelScope.launch {
-            saveLogicalChannel(
-                channel.copy(transports = listOf(binding.copy(resolvedSlot = slot)))
-            )
-        }
     }
 
     fun onPushToNode(id: LogicalChannelId) {
@@ -145,14 +143,9 @@ class UserSettingsViewModel(
     fun onDeleteFromNode(id: LogicalChannelId) {
         val channel = cachedChannels.find { it.id == id } ?: return
         val binding = channel.transports.filterIsInstance<MeshtasticBinding>().firstOrNull() ?: return
-        val slot = binding.resolvedSlot ?: return
-        if (slot == 0) return  // slot 0 protection
+        val slot = channelSlotResolver.hashToSlot[binding.channelHash] ?: return
+        if (slot == 0) return
         writeChannel(slot, "", "")
-        viewModelScope.launch {
-            saveLogicalChannel(
-                channel.copy(transports = listOf(binding.copy(resolvedSlot = null)))
-            )
-        }
     }
 
     fun onToggleAutoSync(id: LogicalChannelId, enabled: Boolean) {
@@ -231,7 +224,12 @@ class UserSettingsViewModel(
         val channel = LogicalChannel(
             id = id,
             metadata = ChannelMetadata(name = editor.name),
-            transports = listOf(MeshtasticBinding(psk = pskBytes)),
+            transports = listOf(
+                MeshtasticBinding(
+                    psk = pskBytes,
+                    channelHash = LogicalChannelHash.compute(editor.name, pskBytes),
+                )
+            ),
             isAutoSync = existing?.isAutoSync ?: false,
         )
         viewModelScope.launch {

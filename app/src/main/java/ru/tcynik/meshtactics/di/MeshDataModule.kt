@@ -121,5 +121,5 @@ val meshDataModule = module {
     single { WritePositionConfigUseCase(get()) }
     single { WriteChannelPositionPrecisionUseCase(get()) }
     single { RemoveFixedPositionUseCase(get()) }
-    single { NodeProvisioningUseCase(get(), get(), get(), get(), get()) }
+    single { NodeProvisioningUseCase(get(), get(), get(), get(), get(), get(), get()) }
 }

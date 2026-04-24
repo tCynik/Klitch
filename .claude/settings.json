@@ -71,11 +71,24 @@
       "Bash(git -C \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\" status)",
       "Bash(git -C \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\" log --oneline -5)",
       "Bash(git -C 'c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics' add .claude/plans/logical-channels-management.md .claude/docs/logical-channels-management.md CLAUDE.md app/src/main/java/ru/tcynik/meshtactics/data/channel/repository/LogicalChannelRepositoryImpl.kt app/src/main/java/ru/tcynik/meshtactics/data/chat/adapter/MeshToChatAdapter.kt app/src/main/java/ru/tcynik/meshtactics/data/marker/repository/GeoMarkRepositoryImpl.kt app/src/main/java/ru/tcynik/meshtactics/data/mesh/repository/MeshConfigRepositoryImpl.kt app/src/main/java/ru/tcynik/meshtactics/di/PresentationModule.kt app/src/main/java/ru/tcynik/meshtactics/di/UserSettingsModule.kt app/src/main/java/ru/tcynik/meshtactics/domain/channel/model/LogicalChannel.kt app/src/main/java/ru/tcynik/meshtactics/domain/channel/model/MeshtasticBinding.kt app/src/main/java/ru/tcynik/meshtactics/domain/channel/model/ChannelSyncStatus.kt app/src/main/java/ru/tcynik/meshtactics/domain/channel/model/NodeChannelSlot.kt app/src/main/java/ru/tcynik/meshtactics/domain/channel/usecase/ObserveNodeChannelsUseCase.kt app/src/main/java/ru/tcynik/meshtactics/domain/channel/usecase/ResolveChannelSlotUseCase.kt app/src/main/java/ru/tcynik/meshtactics/domain/chat/usecase/IngestReceivedChatMessagesUseCase.kt app/src/main/java/ru/tcynik/meshtactics/domain/marker/usecase/IngestReceivedGeoMarksUseCase.kt app/src/main/java/ru/tcynik/meshtactics/domain/mesh/repository/MeshConfigRepository.kt app/src/main/java/ru/tcynik/meshtactics/domain/mesh/usecase/NodeProvisioningUseCase.kt app/src/main/java/ru/tcynik/meshtactics/presentation/feature/main/MainUiState.kt app/src/main/java/ru/tcynik/meshtactics/presentation/feature/main/MainViewModel.kt app/src/main/java/ru/tcynik/meshtactics/presentation/feature/settings/UserSettingsUiState.kt app/src/main/java/ru/tcynik/meshtactics/presentation/feature/settings/UserSettingsViewModel.kt app/src/main/java/ru/tcynik/meshtactics/presentation/feature/settings/UserTabContent.kt app/src/main/java/ru/tcynik/meshtactics/presentation/feature/settings/models/ChannelItem.kt app/src/main/java/ru/tcynik/meshtactics/presentation/feature/settings/models/NodeWriteEvent.kt app/src/main/res/values/strings.xml shared/src/commonMain/sqldelight/ru/tcynik/meshtactics/data/local/LogicalChannel.sq shared/src/commonMain/sqldelight/ru/tcynik/meshtactics/data/local/3.sqm)",
-      "Bash(git -C 'c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics' commit -m ' *)"
+      "Bash(git -C 'c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics' commit -m ' *)",
+      "Bash(JAVA_HOME=\"C:/Program Files/Eclipse Adoptium/jdk-17.0.14.7-hotspot\" ./gradlew :app:compileDebugKotlin)",
+      "Bash(\"C:/Program Files/Android/Android Studio/jbr/bin/java.exe\" -version)",
+      "Bash(where java *)",
+      "Bash(JAVA_HOME=\"C:/Program Files/Microsoft/jdk-21.0.10.7-hotspot\" ./gradlew :app:compileDebugKotlin --no-daemon)",
+      "Bash(./gradlew :app:compileDebugKotlin -Dorg.gradle.java.home=\"C:/Program Files/Microsoft/jdk-21.0.10.7-hotspot\")",
+      "PowerShell(Select-String -Pattern \"java|jdk\" -CaseSensitive:$false)",
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\\\\Android\\\\Android Studio\" -ErrorAction SilentlyContinue | Select-Object Name; Get-ChildItem \"${env:LOCALAPPDATA}\\\\Programs\\\\Android Studio\" -ErrorAction SilentlyContinue | Select-Object Name)",
+      "PowerShell($env:JAVA_HOME)",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.main.MainViewModelMarkToolTest.onMapLongClick far from pending point — emits no context menu event\")",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.main.MainViewModelMarkToolTest\")",
+      "Bash(./gradlew --stop)",
+      "Bash(taskkill /F /IM java.exe /T)"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",
-      "c:\\Users\\LocAdmin\\AndroidStudioProjects\\MeshTactics\\.claude"
+      "c:\\Users\\LocAdmin\\AndroidStudioProjects\\MeshTactics\\.claude",
+      "c:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude\\plans"
     ]
   }
 }

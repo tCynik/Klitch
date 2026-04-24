@@ -44,10 +44,11 @@ val chatDataModule = module {
     // Adapter (только он импортирует mesh.model.*)
     single {
         MeshToChatAdapter(
-            packetRepository = get(),
-            nodeRepository = get(),
-            commandSender = get(),
-            channelRepository = get(),
+            packetRepository    = get(),
+            nodeRepository      = get(),
+            commandSender       = get(),
+            channelRepository   = get(),
+            channelSlotResolver = get(),
         )
     }
 
@@ -77,6 +78,7 @@ val chatDataModule = module {
             adapter = get(),
             channelRepository = get(),
             chatMessageRepository = get(),
+            channelSlotResolver = get(),
         )
     }
 }

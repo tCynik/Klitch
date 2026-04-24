@@ -1,6 +1,7 @@
 package ru.tcynik.meshtactics.presentation.feature.main
 
 import app.cash.turbine.test
+import app.cash.turbine.testIn
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -17,7 +18,11 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveLogicalChannelsUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.ObserveTotalUnreadChatCountUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.location.model.GpsSignalLevel
 import ru.tcynik.meshtactics.domain.location.model.GpsStatusModel
 import ru.tcynik.meshtactics.domain.location.usecase.ObserveGpsStatusUseCase
@@ -64,6 +69,10 @@ class MainViewModelMarkToolTest {
     private val observeGeoMarks: ObserveGeoMarksUseCase = mockk()
     private val sendGeoMark: SendGeoMarkUseCase = mockk(relaxed = true)
     private val ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase = mockk()
+    private val deleteExpiredGeoMarks: DeleteExpiredGeoMarksUseCase = mockk(relaxed = true)
+    private val ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase = mockk()
+    private val observeLogicalChannels: ObserveLogicalChannelsUseCase = mockk()
+    private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var viewModel: MainViewModel
@@ -84,6 +93,9 @@ class MainViewModelMarkToolTest {
         every { getLastConnectedDevice.invoke() } returns null
         every { observeGeoMarks.invoke(any()) } returns flowOf(emptyList())
         every { ingestReceivedGeoMarks.observe() } returns flowOf(Unit)
+        every { ingestReceivedChatMessages.observe() } returns flowOf(Unit)
+        every { observeLogicalChannels.invoke(any()) } returns flowOf(emptyList())
+        every { observeNodeChannels.invoke(any()) } returns flowOf(emptyList())
         viewModel = MainViewModel(
             getTileUrl = getTileUrl,
             getLastPosition = getLastPosition,
@@ -102,6 +114,10 @@ class MainViewModelMarkToolTest {
             observeGeoMarks = observeGeoMarks,
             sendGeoMark = sendGeoMark,
             ingestReceivedGeoMarks = ingestReceivedGeoMarks,
+            deleteExpiredGeoMarks = deleteExpiredGeoMarks,
+            ingestReceivedChatMessages = ingestReceivedChatMessages,
+            observeLogicalChannels = observeLogicalChannels,
+            observeNodeChannels = observeNodeChannels,
         )
     }
 
@@ -235,12 +251,12 @@ class MainViewModelMarkToolTest {
             viewModel.onMapClick(55.750, 37.620)
             advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
 
-            viewModel.contextMenuEvent.test {
-                // Long-tap ~1km away from the pending point
-                viewModel.onMapLongClick(55.760, 37.630, 100f, 200f)
-                expectNoEvents()
-                cancel()
-            }
+            // testIn(backgroundScope) avoids draining the test scheduler via coroutineScope{}
+            val turbine = viewModel.contextMenuEvent.testIn(backgroundScope)
+            // Long-tap ~1km away from the pending point
+            viewModel.onMapLongClick(55.760, 37.630, 100f, 200f)
+            turbine.expectNoEvents()
+            turbine.cancelAndIgnoreRemainingEvents()
         }
 
     // ── sendPendingMark ───────────────────────────────────────────────────────

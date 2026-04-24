@@ -17,8 +17,11 @@ import org.junit.Before
 import org.junit.Test
 import ru.tcynik.meshtactics.data.local.AppDatabase
 import ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapter
+import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
+import ru.tcynik.meshtactics.domain.channel.model.ChannelSlotMaps
 import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelId
 import ru.tcynik.meshtactics.domain.channel.repository.LogicalChannelRepository
+import kotlinx.coroutines.flow.MutableStateFlow
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
@@ -34,6 +37,11 @@ class GeoMarkRepositoryImplTest {
     private val commandSender: CommandSender = mockk(relaxed = true)
     private val meshNetwork: MeshNetworkRepository = mockk()
     private val channelRepository: LogicalChannelRepository = mockk()
+    private val channelSlotResolver: ChannelSlotResolver = mockk {
+        every { slotToHash } returns emptyMap()
+        every { hashToSlot } returns emptyMap()
+        every { mapsFlow } returns MutableStateFlow(ChannelSlotMaps())
+    }
     private val adapter = GeoMarkWaypointAdapter()
 
     private val ourNode = MeshNodeModel(
@@ -62,11 +70,12 @@ class GeoMarkRepositoryImplTest {
         every { channelRepository.observeChannels() } returns flowOf(emptyList())
 
         repo = GeoMarkRepositoryImpl(
-            commandSender     = commandSender,
-            meshNetwork       = meshNetwork,
-            channelRepository = channelRepository,
-            adapter           = adapter,
-            geoMarkQueries    = db.geoMarkQueries,
+            commandSender      = commandSender,
+            meshNetwork        = meshNetwork,
+            channelRepository  = channelRepository,
+            channelSlotResolver = channelSlotResolver,
+            adapter            = adapter,
+            geoMarkQueries     = db.geoMarkQueries,
         )
     }
 

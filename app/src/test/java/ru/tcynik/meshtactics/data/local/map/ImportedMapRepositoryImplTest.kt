@@ -2,12 +2,15 @@ package ru.tcynik.meshtactics.data.local.map
 
 import android.content.ContentResolver
 import android.content.Context
+import android.net.Uri
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -21,6 +24,9 @@ class ImportedMapRepositoryImplTest {
 
     @Before
     fun setUp() {
+        mockkStatic(Uri::class)
+        every { Uri.parse(any()) } returns mockk(relaxed = true)
+
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         AppDatabase.Schema.create(driver)
         db = AppDatabase(driver)
@@ -31,6 +37,11 @@ class ImportedMapRepositoryImplTest {
         }
 
         repo = ImportedMapRepositoryImpl(context = context, queries = db.importedMapOverlayQueries, parser = mockk(relaxed = true))
+    }
+
+    @After
+    fun tearDown() {
+        unmockkStatic(Uri::class)
     }
 
     // ── setSelected ──────────────────────────────────────────────────────────

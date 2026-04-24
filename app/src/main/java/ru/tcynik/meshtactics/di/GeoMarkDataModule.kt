@@ -13,11 +13,12 @@ val geoMarkDataModule = module {
     single { GeoMarkWaypointAdapter() }
     single<GeoMarkRepository> {
         GeoMarkRepositoryImpl(
-            commandSender     = get(),
-            meshNetwork       = get(),
-            channelRepository = get(),
-            adapter           = get(),
-            geoMarkQueries    = get(),
+            commandSender       = get(),
+            meshNetwork         = get(),
+            channelRepository   = get(),
+            channelSlotResolver = get(),
+            adapter             = get(),
+            geoMarkQueries      = get(),
         )
     }
     single { ObserveGeoMarksUseCase(get()) }
@@ -25,10 +26,11 @@ val geoMarkDataModule = module {
     single { DeleteExpiredGeoMarksUseCase(get()) }
     single {
         IngestReceivedGeoMarksUseCase(
-            packetRepository  = get(),
-            channelRepository = get(),
-            geoMarkRepository = get(),
-            adapter           = get(),
+            packetRepository    = get(),
+            channelRepository   = get(),
+            geoMarkRepository   = get(),
+            adapter             = get(),
+            channelSlotResolver = get(),
         )
     }
 }
