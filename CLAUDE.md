@@ -98,7 +98,7 @@
 | Universal Orientation | `.claude/docs/universal-orientation.md` |
 | Auto-connect on Start | `.claude/docs/auto-connect-on-start.md` |
 | Chat | `.claude/docs/chat.md` |
-| Logical Channels Management | `.claude/docs/logical-channels-management.md` |
+| Logical Channels / Contour Management | `.claude/docs/logical-channels-management.md` |
 
 ---
 
@@ -112,6 +112,7 @@
 | Geo Nodes Tab | `.claude/plans/geo-nodes-tab.md` | Approved |
 | Node Markers on Map | `.claude/plans/node-markers-on-map.md` | Approved |
 | Chat Feature | `.claude/plans/chat-feature-plan.md` | Done |
+| Contour Concept | `.claude/plans/contour-concept.md` | Approved |
 | User & Channels Settings | `.claude/plans/user-and-channels-settings.md` | Done |
 | Node Provisioning | `.claude/plans/node-provisioning.md` | Done |
 | Logical Channels Management | `.claude/archive/logical-channels-management.md` | Archived |
