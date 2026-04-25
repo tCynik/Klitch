@@ -99,6 +99,7 @@
 | Auto-connect on Start | `.claude/docs/auto-connect-on-start.md` |
 | Chat | `.claude/docs/chat.md` |
 | Logical Channels / Contour Management | `.claude/docs/logical-channels-management.md` |
+| Contour Design Concepts | `.claude/docs/contour-design.md` |
 
 ---
 
