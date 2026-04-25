@@ -5,26 +5,21 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import ru.tcynik.meshtactics.data.chat.adapter.MeshToChatAdapter
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
-import ru.tcynik.meshtactics.domain.channel.model.MeshtasticBinding
-import ru.tcynik.meshtactics.domain.channel.repository.LogicalChannelRepository
+import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.chat.repository.ChatMessageRepository
 
 class IngestReceivedChatMessagesUseCase(
     private val adapter: MeshToChatAdapter,
-    private val channelRepository: LogicalChannelRepository,
+    private val channelRepository: ContourRepository,
     private val chatMessageRepository: ChatMessageRepository,
     private val channelSlotResolver: ChannelSlotResolver,
 ) {
     fun observe(): Flow<Unit> = combine(
         adapter.observeMessagesAsFlow(emptySet(), ""),
-        channelRepository.observeChannels(),
+        channelRepository.observeContours(),
         channelSlotResolver.mapsFlow,
-    ) { messages, channels, maps ->
-        val channelByHash = channels
-            .flatMap { ch ->
-                ch.transports.filterIsInstance<MeshtasticBinding>()
-                    .map { b -> b.channelHash to ch.id }
-            }.toMap()
+    ) { messages, contours, maps ->
+        val contourByHash = contours.associate { it.transport.meshtastic.channelHash to it.id }
 
         messages.forEach { msg ->
             val contactKey = msg.channelId
@@ -34,7 +29,7 @@ class IngestReceivedChatMessagesUseCase(
 
             val logicalChannelId = if (isChannel) {
                 val hash = maps.slotToHash[channelIndex] ?: return@forEach
-                channelByHash[hash]?.value ?: return@forEach
+                contourByHash[hash]?.value ?: return@forEach
             } else {
                 contactKey
             }

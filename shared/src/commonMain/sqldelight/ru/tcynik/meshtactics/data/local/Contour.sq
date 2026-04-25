@@ -1,0 +1,28 @@
+CREATE TABLE contour (
+    id               TEXT    NOT NULL PRIMARY KEY,
+    name             TEXT    NOT NULL,
+    meshtastic_slot  INTEGER,
+    meshtastic_psk   BLOB,
+    is_auto_sync     INTEGER NOT NULL DEFAULT 0,
+    channel_hash     TEXT,
+    is_active        INTEGER NOT NULL DEFAULT 1,
+    description      TEXT,
+    expiration       INTEGER,
+    exclusivity_time INTEGER
+);
+
+selectAll:
+SELECT * FROM contour ORDER BY rowid ASC;
+
+selectByChannelHash:
+SELECT * FROM contour WHERE channel_hash = :channelHash LIMIT 1;
+
+upsert:
+INSERT OR REPLACE INTO contour(id, name, meshtastic_slot, meshtastic_psk, is_auto_sync, channel_hash, is_active, description, expiration, exclusivity_time)
+VALUES (:id, :name, :meshtasticSlot, :meshtasticPsk, 0, :channelHash, :isActive, :description, :expiration, :exclusivityTime);
+
+updateChannelHash:
+UPDATE contour SET channel_hash = :channelHash WHERE id = :id;
+
+deleteById:
+DELETE FROM contour WHERE id = :id;

@@ -1,6 +1,6 @@
 package ru.tcynik.meshtactics.domain.channel.model
 
 data class ChannelSlotMaps(
-    val slotToHash: Map<Int, LogicalChannelHash> = emptyMap(),
-    val hashToSlot: Map<LogicalChannelHash, Int> = emptyMap(),
+    val slotToHash: Map<Int, ContourHash> = emptyMap(),
+    val hashToSlot: Map<ContourHash, Int> = emptyMap(),
 )

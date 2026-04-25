@@ -1,15 +1,19 @@
 package ru.tcynik.meshtactics.domain.channel.model
 
 import java.security.MessageDigest
+import java.util.Base64
 
 @JvmInline
-value class LogicalChannelHash(val value: String) {
+value class ContourHash(val value: String) {
     companion object {
-        fun compute(name: String, psk: ByteArray): LogicalChannelHash {
+        fun compute(name: String, psk: ByteArray): ContourHash {
             val input = name.lowercase().toByteArray() + ":".toByteArray() + psk
             val digest = MessageDigest.getInstance("SHA-256").digest(input)
             val hex = digest.take(8).joinToString("") { "%02x".format(it) }
-            return LogicalChannelHash(hex)
+            return ContourHash(hex)
         }
+
+        fun compute(name: String, pskBase64: String): ContourHash =
+            compute(name, Base64.getDecoder().decode(pskBase64))
     }
 }

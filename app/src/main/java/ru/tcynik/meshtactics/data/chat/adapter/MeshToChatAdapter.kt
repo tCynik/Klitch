@@ -11,8 +11,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import ru.tcynik.meshtactics.data.chat.dto.ChatContactDto
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
-import ru.tcynik.meshtactics.domain.channel.model.MeshtasticBinding
-import ru.tcynik.meshtactics.domain.channel.repository.LogicalChannelRepository
+import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.chat.model.ChatMessageModel
 import ru.tcynik.meshtactics.domain.chat.model.ContactType
 import ru.tcynik.meshtactics.mesh.common.util.nowMillis
@@ -31,7 +30,7 @@ class MeshToChatAdapter(
     private val packetRepository: PacketRepository,
     private val nodeRepository: NodeRepository,
     private val commandSender: CommandSender,
-    private val channelRepository: LogicalChannelRepository,
+    private val channelRepository: ContourRepository,
     private val channelSlotResolver: ChannelSlotResolver,
 ) {
 
@@ -46,14 +45,9 @@ class MeshToChatAdapter(
             packetRepository.getContactSettings(),
         ) { contacts, settings -> contacts to settings }
         .flatMapLatest { (contacts, settings) ->
-            channelRepository.observeChannels().flatMapLatest { channels ->
-                val channelByHash = channels
-                    .flatMap { ch ->
-                        ch.transports.filterIsInstance<MeshtasticBinding>()
-                            .map { b -> b.channelHash to ch.id }
-                    }.toMap()
-                val channelNameById: Map<String, String> =
-                    channels.associate { it.id.value to it.metadata.name }
+            channelRepository.observeContours().flatMapLatest { contours ->
+                val contourByHash = contours.associate { it.transport.meshtastic.channelHash to it.id }
+                val contourNameById = contours.associate { it.id.value to it.name }
 
                 val entries = contacts.entries.toList()
                 if (entries.isEmpty()) return@flatMapLatest flowOf(emptyList())
@@ -71,11 +65,10 @@ class MeshToChatAdapter(
 
                         if (isChannel) {
                             val hash = slotMaps.slotToHash[channelIndex] ?: return@mapIndexed null
-                            val logicalChannelId = channelByHash[hash]
-                                ?: return@mapIndexed null
-                            val channelName = channelNameById[logicalChannelId.value] ?: nodeId
+                            val contourId = contourByHash[hash] ?: return@mapIndexed null
+                            val channelName = contourNameById[contourId.value] ?: nodeId
                             ChatContactDto(
-                                id = logicalChannelId.value,
+                                id = contourId.value,
                                 shortName = channelName,
                                 longName = channelName,
                                 type = ContactType.CHANNEL,
@@ -107,7 +100,7 @@ class MeshToChatAdapter(
             }
         }
 
-    // ==================== MESSAGES (Room, used by ingest use case) ====================
+    // ==================== MESSAGES ====================
 
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observeMessagesAsFlow(contactIds: Set<String>, searchQuery: String): Flow<List<ChatMessageModel>> {
@@ -166,11 +159,10 @@ class MeshToChatAdapter(
             val dbContactKey = if (parsedChannel != null) contactId else "$resolvedChannel$contactId"
             doSend(text, dest, resolvedChannel, dbContactKey)
         } else {
-            val channels = channelRepository.observeChannels().first()
-            val logicalChannel = channels.find { it.id.value == contactId } ?: return
-            val binding = logicalChannel.transports
-                .filterIsInstance<MeshtasticBinding>().firstOrNull() ?: return
-            val channelIndex = channelSlotResolver.hashToSlot[binding.channelHash] ?: return
+            val contours = channelRepository.observeContours().first()
+            val contour = contours.find { it.id.value == contactId } ?: return
+            val hash = contour.transport.meshtastic.channelHash
+            val channelIndex = channelSlotResolver.hashToSlot[hash] ?: return
             doSend(text, DataPacket.ID_BROADCAST, channelIndex, "$channelIndex${DataPacket.ID_BROADCAST}")
         }
     }
@@ -216,11 +208,10 @@ class MeshToChatAdapter(
 
     private suspend fun resolveContactKey(contactId: String): String? {
         if (contactId.contains('!') || contactId.contains('^')) return contactId
-        val channels = channelRepository.observeChannels().first()
-        val channel = channels.find { it.id.value == contactId } ?: return null
-        val binding = channel.transports.filterIsInstance<MeshtasticBinding>().firstOrNull()
-            ?: return null
-        val slot = channelSlotResolver.hashToSlot[binding.channelHash] ?: return null
+        val contours = channelRepository.observeContours().first()
+        val contour = contours.find { it.id.value == contactId } ?: return null
+        val hash = contour.transport.meshtastic.channelHash
+        val slot = channelSlotResolver.hashToSlot[hash] ?: return null
         return "${slot}${DataPacket.ID_BROADCAST}"
     }
 }

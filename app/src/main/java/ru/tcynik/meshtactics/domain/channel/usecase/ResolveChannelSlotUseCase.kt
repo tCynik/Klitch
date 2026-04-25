@@ -1,7 +1,7 @@
 package ru.tcynik.meshtactics.domain.channel.usecase
 
-import ru.tcynik.meshtactics.domain.channel.model.LogicalChannel
-import ru.tcynik.meshtactics.domain.channel.model.MeshtasticBinding
+import ru.tcynik.meshtactics.domain.channel.model.Contour
+import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
 
 sealed interface SlotResolution {
@@ -11,15 +11,12 @@ sealed interface SlotResolution {
 }
 
 class ResolveChannelSlotUseCase {
-    operator fun invoke(channel: LogicalChannel, nodeChannels: List<NodeChannelSlot>): SlotResolution {
-        val binding = channel.transports.filterIsInstance<MeshtasticBinding>().firstOrNull()
-            ?: return SlotResolution.NoFreeSlot
+    operator fun invoke(contour: Contour, nodeChannels: List<NodeChannelSlot>): SlotResolution {
+        val contourHash = contour.transport.meshtastic.channelHash
 
         val matched = nodeChannels.find { slot ->
-            slot.index != 0 &&
-                slot.isEnabled &&
-                slot.name == channel.metadata.name &&
-                slot.psk.contentEquals(binding.psk)
+            slot.index != 0 && slot.isEnabled &&
+                ContourHash.compute(slot.name, slot.psk) == contourHash
         }
         if (matched != null) return SlotResolution.AlreadySynced(matched.index)
 

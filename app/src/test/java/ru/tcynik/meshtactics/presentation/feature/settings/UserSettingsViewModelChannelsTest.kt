@@ -20,17 +20,17 @@ import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
-import ru.tcynik.meshtactics.domain.channel.model.ChannelMetadata
-import ru.tcynik.meshtactics.domain.channel.model.LogicalChannel
-import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelHash
-import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelId
-import ru.tcynik.meshtactics.domain.channel.model.MeshtasticBinding
+import ru.tcynik.meshtactics.domain.channel.model.Contour
+import ru.tcynik.meshtactics.domain.channel.model.ContourHash
+import ru.tcynik.meshtactics.domain.channel.model.ContourId
+import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
+import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
-import ru.tcynik.meshtactics.domain.channel.usecase.DeleteLogicalChannelUseCase
-import ru.tcynik.meshtactics.domain.channel.usecase.ObserveLogicalChannelsUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.DeleteContourUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
-import ru.tcynik.meshtactics.domain.channel.usecase.SaveLogicalChannelUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.SaveContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SlotResolution
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
@@ -39,22 +39,23 @@ import ru.tcynik.meshtactics.domain.user.model.AppUser
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
 import ru.tcynik.meshtactics.presentation.feature.settings.models.NodeWriteEvent
+import java.util.Base64
 import java.util.UUID
 
 class UserSettingsViewModelChannelsTest {
 
     private val observeAppUser: ObserveAppUserUseCase = mockk()
     private val saveAppUser: SaveAppUserUseCase = mockk(relaxed = true)
-    private val observeLogicalChannels: ObserveLogicalChannelsUseCase = mockk()
-    private val saveLogicalChannel: SaveLogicalChannelUseCase = mockk(relaxed = true)
-    private val deleteLogicalChannel: DeleteLogicalChannelUseCase = mockk(relaxed = true)
+    private val observeContours: ObserveContoursUseCase = mockk()
+    private val saveContour: SaveContourUseCase = mockk(relaxed = true)
+    private val deleteContour: DeleteContourUseCase = mockk(relaxed = true)
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
     private val writeChannel: WriteChannelUseCase = mockk(relaxed = true)
     private val resolveSlot: ResolveChannelSlotUseCase = mockk()
     private val observeConnectionStatus: ObserveConnectionStatusUseCase = mockk()
     private val channelSlotResolver: ChannelSlotResolver = mockk()
 
-    private val channelsFlow = MutableStateFlow<List<LogicalChannel>>(emptyList())
+    private val contoursFlow = MutableStateFlow<List<Contour>>(emptyList())
     private val nodeChannelsFlow = MutableStateFlow<List<NodeChannelSlot>>(emptyList())
     private val connectionStatusFlow = MutableStateFlow<MeshConnectionStatus>(MeshConnectionStatus.Disconnected)
 
@@ -67,7 +68,7 @@ class UserSettingsViewModelChannelsTest {
         mockkStatic(android.util.Base64::class)
         every { android.util.Base64.encodeToString(any(), any()) } returns "AAEC"
         every { observeAppUser.invoke(any()) } returns flowOf(AppUser(""))
-        every { observeLogicalChannels.invoke(any()) } returns channelsFlow
+        every { observeContours.invoke(any()) } returns contoursFlow
         every { observeNodeChannels.invoke(any()) } returns nodeChannelsFlow
         every { observeConnectionStatus.invoke(any()) } returns connectionStatusFlow
         every { channelSlotResolver.hashToSlot } returns emptyMap()
@@ -75,9 +76,9 @@ class UserSettingsViewModelChannelsTest {
         viewModel = UserSettingsViewModel(
             observeAppUser = observeAppUser,
             saveAppUser = saveAppUser,
-            observeLogicalChannels = observeLogicalChannels,
-            saveLogicalChannel = saveLogicalChannel,
-            deleteLogicalChannel = deleteLogicalChannel,
+            observeContours = observeContours,
+            saveContour = saveContour,
+            deleteContour = deleteContour,
             observeNodeChannels = observeNodeChannels,
             writeChannel = writeChannel,
             resolveSlot = resolveSlot,
@@ -92,18 +93,24 @@ class UserSettingsViewModelChannelsTest {
         unmockkStatic(android.util.Base64::class)
     }
 
-    private fun makeChannel(
+    private fun makeContour(
         name: String,
         psk: ByteArray,
         id: String = UUID.randomUUID().toString(),
-        isAutoSync: Boolean = false,
-    ): LogicalChannel {
-        val hash = LogicalChannelHash.compute(name, psk)
-        return LogicalChannel(
-            id = LogicalChannelId(id),
-            metadata = ChannelMetadata(name = name),
-            transports = listOf(MeshtasticBinding(psk = psk, channelHash = hash)),
-            isAutoSync = isAutoSync,
+        isActive: Boolean = true,
+    ): Contour {
+        val pskBase64 = Base64.getEncoder().encodeToString(psk)
+        val hash = ContourHash.compute(name, psk)
+        return Contour(
+            id = ContourId(id),
+            name = name,
+            description = null,
+            expiration = null,
+            exclusivityTime = null,
+            isActive = isActive,
+            transport = ContourTransport(
+                meshtastic = MeshtasticChannel(psk = pskBase64, channelHash = hash),
+            ),
         )
     }
 
@@ -115,11 +122,11 @@ class UserSettingsViewModelChannelsTest {
     )
 
     private fun populateCache(
-        channels: List<LogicalChannel>,
+        contours: List<Contour>,
         nodeSlots: List<NodeChannelSlot> = emptyList(),
         status: MeshConnectionStatus = MeshConnectionStatus.Disconnected,
     ) {
-        channelsFlow.value = channels
+        contoursFlow.value = contours
         nodeChannelsFlow.value = nodeSlots
         connectionStatusFlow.value = status
     }
@@ -128,21 +135,21 @@ class UserSettingsViewModelChannelsTest {
 
     @Test
     fun `onPushToNode not connected — emits NotConnected event`() = runTest(testDispatcher) {
-        val channel = makeChannel("Alpha", byteArrayOf(0x01))
-        populateCache(listOf(channel), status = MeshConnectionStatus.Disconnected)
+        val contour = makeContour("Alpha", byteArrayOf(0x01))
+        populateCache(listOf(contour), status = MeshConnectionStatus.Disconnected)
 
-        viewModel.onPushToNode(channel.id)
+        viewModel.onPushToNode(contour.id)
 
         assertEquals(NodeWriteEvent.NotConnected, viewModel.uiState.value.nodeWriteEvent)
     }
 
     @Test
     fun `onPushToNode connected AlreadySynced — no writeChannel call Sent event`() = runTest(testDispatcher) {
-        val channel = makeChannel("Alpha", byteArrayOf(0x01))
+        val contour = makeContour("Alpha", byteArrayOf(0x01))
         every { resolveSlot.invoke(any(), any()) } returns SlotResolution.AlreadySynced(2)
-        populateCache(listOf(channel), status = connectedStatus)
+        populateCache(listOf(contour), status = connectedStatus)
 
-        viewModel.onPushToNode(channel.id)
+        viewModel.onPushToNode(contour.id)
 
         verify(exactly = 0) { writeChannel.invoke(any(), any(), any()) }
         assertEquals(NodeWriteEvent.Sent("Alpha"), viewModel.uiState.value.nodeWriteEvent)
@@ -150,11 +157,13 @@ class UserSettingsViewModelChannelsTest {
 
     @Test
     fun `onPushToNode connected FreeSlot — calls writeChannel with correct slot and emits Sent`() = runTest(testDispatcher) {
-        val channel = makeChannel("Alpha", byteArrayOf(0x01))
+        val contour = makeContour("Alpha", byteArrayOf(0x01))
+        // Populate with default NoFreeSlot so auto-sync does not write
+        populateCache(listOf(contour), status = connectedStatus)
+        // Now configure FreeSlot for the manual push
         every { resolveSlot.invoke(any(), any()) } returns SlotResolution.FreeSlot(3)
-        populateCache(listOf(channel), status = connectedStatus)
 
-        viewModel.onPushToNode(channel.id)
+        viewModel.onPushToNode(contour.id)
 
         verify(exactly = 1) { writeChannel.invoke(eq(3), eq("Alpha"), any()) }
         assertEquals(NodeWriteEvent.Sent("Alpha"), viewModel.uiState.value.nodeWriteEvent)
@@ -162,11 +171,11 @@ class UserSettingsViewModelChannelsTest {
 
     @Test
     fun `onPushToNode connected NoFreeSlot — emits NoFreeSlot event`() = runTest(testDispatcher) {
-        val channel = makeChannel("Alpha", byteArrayOf(0x01))
+        val contour = makeContour("Alpha", byteArrayOf(0x01))
         every { resolveSlot.invoke(any(), any()) } returns SlotResolution.NoFreeSlot
-        populateCache(listOf(channel), status = connectedStatus)
+        populateCache(listOf(contour), status = connectedStatus)
 
-        viewModel.onPushToNode(channel.id)
+        viewModel.onPushToNode(contour.id)
 
         assertEquals(NodeWriteEvent.NoFreeSlot, viewModel.uiState.value.nodeWriteEvent)
     }
@@ -176,12 +185,12 @@ class UserSettingsViewModelChannelsTest {
     @Test
     fun `onDeleteFromNode slot 0 — writeChannel not called`() = runTest(testDispatcher) {
         val psk = byteArrayOf(0x02)
-        val channel = makeChannel("Primary", psk)
-        val hash = LogicalChannelHash.compute("Primary", psk)
+        val contour = makeContour("Primary", psk)
+        val hash = ContourHash.compute("Primary", psk)
         every { channelSlotResolver.hashToSlot } returns mapOf(hash to 0)
-        populateCache(listOf(channel))
+        populateCache(listOf(contour))
 
-        viewModel.onDeleteFromNode(channel.id)
+        viewModel.onDeleteFromNode(contour.id)
 
         verify(exactly = 0) { writeChannel.invoke(any(), any(), any()) }
     }
@@ -189,41 +198,41 @@ class UserSettingsViewModelChannelsTest {
     @Test
     fun `onDeleteFromNode slot 3 — calls writeChannel with empty name and psk`() = runTest(testDispatcher) {
         val psk = byteArrayOf(0x03)
-        val channel = makeChannel("Bravo", psk)
-        val hash = LogicalChannelHash.compute("Bravo", psk)
+        val contour = makeContour("Bravo", psk)
+        val hash = ContourHash.compute("Bravo", psk)
         every { channelSlotResolver.hashToSlot } returns mapOf(hash to 3)
-        populateCache(listOf(channel))
+        populateCache(listOf(contour))
 
-        viewModel.onDeleteFromNode(channel.id)
+        viewModel.onDeleteFromNode(contour.id)
 
         verify(exactly = 1) { writeChannel.invoke(eq(3), eq(""), eq("")) }
     }
 
-    // ── onToggleAutoSync ──────────────────────────────────────────────────────
+    // ── onToggleActive ────────────────────────────────────────────────────────
 
     @Test
-    fun `onToggleAutoSync enables — saveLogicalChannel called with isAutoSync true`() = runTest(testDispatcher) {
-        val channel = makeChannel("Gamma", byteArrayOf(0x04), isAutoSync = false)
-        populateCache(listOf(channel))
+    fun `onToggleActive enables — saveContour called with isActive true`() = runTest(testDispatcher) {
+        val contour = makeContour("Gamma", byteArrayOf(0x04), isActive = false)
+        populateCache(listOf(contour))
 
-        viewModel.onToggleAutoSync(channel.id, true)
+        viewModel.onToggleActive(contour.id, true)
         runCurrent()
 
         coVerify(exactly = 1) {
-            saveLogicalChannel.invoke(match { it.isAutoSync && it.id == channel.id })
+            saveContour.invoke(match { it.isActive && it.id == contour.id })
         }
     }
 
     @Test
-    fun `onToggleAutoSync disables — saveLogicalChannel called with isAutoSync false`() = runTest(testDispatcher) {
-        val channel = makeChannel("Gamma", byteArrayOf(0x04), isAutoSync = true)
-        populateCache(listOf(channel))
+    fun `onToggleActive disables — saveContour called with isActive false`() = runTest(testDispatcher) {
+        val contour = makeContour("Gamma", byteArrayOf(0x04), isActive = true)
+        populateCache(listOf(contour))
 
-        viewModel.onToggleAutoSync(channel.id, false)
+        viewModel.onToggleActive(contour.id, false)
         runCurrent()
 
         coVerify(exactly = 1) {
-            saveLogicalChannel.invoke(match { !it.isAutoSync && it.id == channel.id })
+            saveContour.invoke(match { !it.isActive && it.id == contour.id })
         }
     }
 
@@ -231,9 +240,9 @@ class UserSettingsViewModelChannelsTest {
 
     @Test
     fun `onNodeWriteEventConsumed — clears nodeWriteEvent`() = runTest(testDispatcher) {
-        val channel = makeChannel("Alpha", byteArrayOf(0x01))
-        populateCache(listOf(channel), status = MeshConnectionStatus.Disconnected)
-        viewModel.onPushToNode(channel.id)
+        val contour = makeContour("Alpha", byteArrayOf(0x01))
+        populateCache(listOf(contour), status = MeshConnectionStatus.Disconnected)
+        viewModel.onPushToNode(contour.id)
         assertEquals(NodeWriteEvent.NotConnected, viewModel.uiState.value.nodeWriteEvent)
 
         viewModel.onNodeWriteEventConsumed()

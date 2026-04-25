@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.ChannelSlotMaps
-import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelHash
+import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 
@@ -23,15 +23,15 @@ class ChannelSlotResolverImpl(
     private val _mapsFlow = MutableStateFlow(ChannelSlotMaps())
     override val mapsFlow: StateFlow<ChannelSlotMaps> = _mapsFlow.asStateFlow()
 
-    override val slotToHash: Map<Int, LogicalChannelHash> get() = _mapsFlow.value.slotToHash
-    override val hashToSlot: Map<LogicalChannelHash, Int> get() = _mapsFlow.value.hashToSlot
+    override val slotToHash: Map<Int, ContourHash> get() = _mapsFlow.value.slotToHash
+    override val hashToSlot: Map<ContourHash, Int> get() = _mapsFlow.value.hashToSlot
 
     init {
         observeNodeChannels(NoParams)
             .onEach { slots ->
                 val slotToHash = slots
                     .filter { it.isEnabled }
-                    .associate { slot -> slot.index to LogicalChannelHash.compute(slot.name, slot.psk) }
+                    .associate { slot -> slot.index to ContourHash.compute(slot.name, slot.psk) }
                 _mapsFlow.value = ChannelSlotMaps(
                     slotToHash = slotToHash,
                     hashToSlot = slotToHash.entries.associate { (k, v) -> v to k },

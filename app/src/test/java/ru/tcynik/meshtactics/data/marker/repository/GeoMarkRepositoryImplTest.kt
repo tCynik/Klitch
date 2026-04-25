@@ -19,8 +19,8 @@ import ru.tcynik.meshtactics.data.local.AppDatabase
 import ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapter
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.ChannelSlotMaps
-import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelId
-import ru.tcynik.meshtactics.domain.channel.repository.LogicalChannelRepository
+import ru.tcynik.meshtactics.domain.channel.model.ContourId
+import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
@@ -36,7 +36,7 @@ class GeoMarkRepositoryImplTest {
 
     private val commandSender: CommandSender = mockk(relaxed = true)
     private val meshNetwork: MeshNetworkRepository = mockk()
-    private val channelRepository: LogicalChannelRepository = mockk()
+    private val channelRepository: ContourRepository = mockk()
     private val channelSlotResolver: ChannelSlotResolver = mockk {
         every { slotToHash } returns emptyMap()
         every { hashToSlot } returns emptyMap()
@@ -67,7 +67,7 @@ class GeoMarkRepositoryImplTest {
         db = AppDatabase(driver)
 
         every { meshNetwork.observeOurNode() } returns flowOf(ourNode)
-        every { channelRepository.observeChannels() } returns flowOf(emptyList())
+        every { channelRepository.observeContours() } returns flowOf(emptyList())
 
         repo = GeoMarkRepositoryImpl(
             commandSender      = commandSender,
@@ -108,7 +108,7 @@ class GeoMarkRepositoryImplTest {
         repo.observeGeoMarks().test {
             awaitItem() // initial empty
 
-            repo.persistReceived(makePointMark("rcv-1"), LogicalChannelId("ch-1"))
+            repo.persistReceived(makePointMark("rcv-1"), ContourId("ch-1"))
 
             val marks = awaitItem()
             assertEquals(1, marks.size)
@@ -120,7 +120,7 @@ class GeoMarkRepositoryImplTest {
 
     @Test
     fun `observeGeoMarks — isSelf=false for persistReceived`() = runTest {
-        repo.persistReceived(makePointMark("rcv-self"), LogicalChannelId("ch-1"))
+        repo.persistReceived(makePointMark("rcv-self"), ContourId("ch-1"))
 
         repo.observeGeoMarks().test {
             val marks = awaitItem()
@@ -134,8 +134,8 @@ class GeoMarkRepositoryImplTest {
     @Test
     fun `persistReceived — INSERT OR IGNORE does not overwrite existing mark`() = runTest {
         val mark = makePointMark("dup-mark")
-        repo.persistReceived(mark, LogicalChannelId("ch-1"))
-        repo.persistReceived(mark.copy(authorNodeId = "other"), LogicalChannelId("ch-2"))
+        repo.persistReceived(mark, ContourId("ch-1"))
+        repo.persistReceived(mark.copy(authorNodeId = "other"), ContourId("ch-2"))
 
         val rows = db.geoMarkQueries.selectAll().executeAsList()
         assertEquals(1, rows.size)

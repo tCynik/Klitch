@@ -12,7 +12,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelHash
+import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
@@ -44,8 +44,8 @@ class ChannelSlotResolverImplTest {
 
         val maps = r.mapsFlow.filter { it.slotToHash.isNotEmpty() }.first()
 
-        assertEquals(LogicalChannelHash.compute("LongFast", psk0), maps.slotToHash[0])
-        assertEquals(LogicalChannelHash.compute("MediumSlow", psk1), maps.slotToHash[1])
+        assertEquals(ContourHash.compute("LongFast", psk0), maps.slotToHash[0])
+        assertEquals(ContourHash.compute("MediumSlow", psk1), maps.slotToHash[1])
     }
 
     @Test
@@ -78,8 +78,6 @@ class ChannelSlotResolverImplTest {
 
     @Test
     fun `empty slot list — maps stay empty`() {
-        // flowOf(emptyList) emits, but produces the same emptyMap as the initial value.
-        // StateFlow doesn't re-emit identical values, so we just assert the invariant.
         every { useCase(NoParams) } returns flowOf(emptyList())
         val r = ChannelSlotResolverImpl(useCase)
 
@@ -98,7 +96,7 @@ class ChannelSlotResolverImplTest {
         slotsFlow.value = listOf(slot(0, "LongFast", psk))
 
         val maps = r.mapsFlow.filter { it.slotToHash.isNotEmpty() }.first()
-        assertEquals(LogicalChannelHash.compute("LongFast", psk), maps.slotToHash[0])
+        assertEquals(ContourHash.compute("LongFast", psk), maps.slotToHash[0])
     }
 
     @Test
@@ -108,7 +106,7 @@ class ChannelSlotResolverImplTest {
 
         r.mapsFlow.filter { it.slotToHash.isNotEmpty() }.first()
 
-        val expectedHash = LogicalChannelHash.compute("LongFast", psk)
+        val expectedHash = ContourHash.compute("LongFast", psk)
         assertEquals(expectedHash, r.slotToHash[0])
         assertEquals(0, r.hashToSlot[expectedHash])
     }

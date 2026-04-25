@@ -55,8 +55,8 @@ import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
-import ru.tcynik.meshtactics.domain.channel.model.MeshtasticBinding
-import ru.tcynik.meshtactics.domain.channel.usecase.ObserveLogicalChannelsUseCase
+import ru.tcynik.meshtactics.domain.channel.model.ContourHash
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
@@ -98,7 +98,7 @@ class MainViewModel(
     ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase,
     private val deleteExpiredGeoMarks: DeleteExpiredGeoMarksUseCase,
     ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase,
-    observeLogicalChannels: ObserveLogicalChannelsUseCase,
+    observeLogicalChannels: ObserveContoursUseCase,
     observeNodeChannels: ObserveNodeChannelsUseCase,
 ) : ViewModel() {
 
@@ -214,14 +214,13 @@ class MainViewModel(
         combine(
             observeLogicalChannels(NoParams),
             observeNodeChannels(NoParams),
-        ) { channels, nodeSlots ->
-            if (channels.isEmpty()) return@combine true
-            channels.any { ch ->
-                val binding = ch.transports.filterIsInstance<MeshtasticBinding>().firstOrNull()
-                    ?: return@any false
+        ) { contours, nodeSlots ->
+            if (contours.isEmpty()) return@combine true
+            contours.any { contour ->
+                val hash = contour.transport.meshtastic.channelHash
                 nodeSlots.any { slot ->
                     slot.index != 0 && slot.isEnabled &&
-                        slot.name == ch.metadata.name && slot.psk.contentEquals(binding.psk)
+                        ContourHash.compute(slot.name, slot.psk) == hash
                 }
             }
         }

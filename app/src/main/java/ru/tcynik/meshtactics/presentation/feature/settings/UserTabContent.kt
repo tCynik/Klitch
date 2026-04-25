@@ -18,7 +18,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,6 +30,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -48,7 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.domain.channel.model.ChannelSyncStatus
-import ru.tcynik.meshtactics.presentation.feature.settings.models.ChannelItem
+import ru.tcynik.meshtactics.presentation.feature.settings.models.ContourItem
 import ru.tcynik.meshtactics.presentation.feature.settings.models.NodeWriteEvent
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,7 +99,7 @@ fun UserTabContent(
             onDismissRequest = viewModel::onEditorDismiss,
             sheetState = sheetState,
         ) {
-            ChannelEditorSheet(
+            ContourEditorSheet(
                 state = editor,
                 onNameChange = viewModel::onEditorNameChange,
                 onPskChange = viewModel::onEditorPskChange,
@@ -147,20 +147,20 @@ fun UserTabContent(
             item {
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = stringResource(R.string.user_section_channels),
+                    text = stringResource(R.string.user_section_contours),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(vertical = 4.dp),
                 )
             }
-            items(state.channels, key = { it.id.value }) { channel ->
-                ChannelCard(
-                    item = channel,
-                    onEdit = { viewModel.onEditChannelClick(channel.id) },
-                    onDelete = { viewModel.onDeleteChannelRequest(channel.id) },
-                    onPushToNode = { viewModel.onPushToNode(channel.id) },
-                    onDeleteFromNode = { viewModel.onDeleteFromNode(channel.id) },
-                    onToggleAutoSync = { enabled -> viewModel.onToggleAutoSync(channel.id, enabled) },
+            items(state.contours, key = { it.id.value }) { contour ->
+                ContourCard(
+                    item = contour,
+                    onEdit = { viewModel.onEditContourClick(contour.id) },
+                    onDelete = { viewModel.onDeleteContourRequest(contour.id) },
+                    onPushToNode = { viewModel.onPushToNode(contour.id) },
+                    onDeleteFromNode = { viewModel.onDeleteFromNode(contour.id) },
+                    onToggleActive = { enabled -> viewModel.onToggleActive(contour.id, enabled) },
                 )
             }
         }
@@ -171,24 +171,25 @@ fun UserTabContent(
         ) { data -> Snackbar(snackbarData = data) }
 
         Button(
-            onClick = viewModel::onAddChannelClick,
+            onClick = viewModel::onAddContourClick,
+            enabled = false, // TODO(contour): разблокировать после реализации шаринга контуров (QR/import)
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
         ) {
-            Text(stringResource(R.string.user_add_channel_button))
+            Text(stringResource(R.string.user_section_contours))
         }
     }
 }
 
 @Composable
-private fun ChannelCard(
-    item: ChannelItem,
+private fun ContourCard(
+    item: ContourItem,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onPushToNode: () -> Unit,
     onDeleteFromNode: () -> Unit,
-    onToggleAutoSync: (Boolean) -> Unit,
+    onToggleActive: (Boolean) -> Unit,
 ) {
     var showDropdown by remember { mutableStateOf(false) }
 
@@ -199,9 +200,10 @@ private fun ChannelCard(
                 .padding(start = 4.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Checkbox(
-                checked = item.isAutoSync,
-                onCheckedChange = onToggleAutoSync,
+            Switch(
+                checked = item.isActive,
+                onCheckedChange = onToggleActive,
+                modifier = Modifier.padding(start = 4.dp, end = 8.dp),
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -228,14 +230,16 @@ private fun ChannelCard(
                         onClick = { showDropdown = false; onDeleteFromNode() },
                     )
                 }
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.user_channel_edit)) },
-                    onClick = { showDropdown = false; onEdit() },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.user_channel_delete)) },
-                    onClick = { showDropdown = false; onDelete() },
-                )
+                if (!item.isEmergency) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.user_channel_edit)) },
+                        onClick = { showDropdown = false; onEdit() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.user_channel_delete)) },
+                        onClick = { showDropdown = false; onDelete() },
+                    )
+                }
             }
         }
     }
@@ -276,8 +280,8 @@ private fun SyncStatusBadge(status: ChannelSyncStatus) {
 }
 
 @Composable
-private fun ChannelEditorSheet(
-    state: ChannelEditorState,
+private fun ContourEditorSheet(
+    state: ContourEditorState,
     onNameChange: (String) -> Unit,
     onPskChange: (String) -> Unit,
     onGeneratePsk: () -> Unit,

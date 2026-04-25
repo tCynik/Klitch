@@ -14,13 +14,13 @@ import org.junit.Before
 import org.junit.Test
 import ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapter
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
-import ru.tcynik.meshtactics.domain.channel.model.ChannelMetadata
 import ru.tcynik.meshtactics.domain.channel.model.ChannelSlotMaps
-import ru.tcynik.meshtactics.domain.channel.model.LogicalChannel
-import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelHash
-import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelId
-import ru.tcynik.meshtactics.domain.channel.model.MeshtasticBinding
-import ru.tcynik.meshtactics.domain.channel.repository.LogicalChannelRepository
+import ru.tcynik.meshtactics.domain.channel.model.Contour
+import ru.tcynik.meshtactics.domain.channel.model.ContourHash
+import ru.tcynik.meshtactics.domain.channel.model.ContourId
+import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
+import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
+import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
@@ -31,7 +31,7 @@ import ru.tcynik.meshtactics.mesh.repository.PacketRepository
 class IngestReceivedGeoMarksUseCaseTest {
 
     private val packetRepository: PacketRepository = mockk()
-    private val channelRepository: LogicalChannelRepository = mockk()
+    private val channelRepository: ContourRepository = mockk()
     private val geoMarkRepository: GeoMarkRepository = mockk()
     private val adapter: GeoMarkWaypointAdapter = mockk()
     private val channelSlotResolver: ChannelSlotResolver = mockk()
@@ -41,12 +41,17 @@ class IngestReceivedGeoMarksUseCaseTest {
     // ── fixtures ──────────────────────────────────────────────────────────────
 
     private val psk = byteArrayOf(0x11, 0x22)
-    private val channelId = LogicalChannelId("geo-ch-uuid")
-    private val hash = LogicalChannelHash.compute("LongFast", psk)
-    private val channel = LogicalChannel(
-        id = channelId,
-        metadata = ChannelMetadata(name = "LongFast"),
-        transports = listOf(MeshtasticBinding(psk = psk, channelHash = hash)),
+    private val pskBase64 = java.util.Base64.getEncoder().encodeToString(psk)
+    private val contourId = ContourId("geo-ch-uuid")
+    private val hash = ContourHash.compute("LongFast", psk)
+    private val contour = Contour(
+        id = contourId,
+        name = "LongFast",
+        description = null,
+        expiration = null,
+        exclusivityTime = null,
+        isActive = true,
+        transport = ContourTransport(meshtastic = MeshtasticChannel(psk = pskBase64, channelHash = hash)),
     )
     private val resolvedMaps = ChannelSlotMaps(
         slotToHash = mapOf(0 to hash),
@@ -92,7 +97,7 @@ class IngestReceivedGeoMarksUseCaseTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify(exactly = 1) { geoMarkRepository.persistReceived(geoMark, channelId) }
+        coVerify(exactly = 1) { geoMarkRepository.persistReceived(geoMark, contourId) }
     }
 
     // ── unresolved slot ───────────────────────────────────────────────────────
@@ -125,16 +130,16 @@ class IngestReceivedGeoMarksUseCaseTest {
         coVerify(exactly = 0) { geoMarkRepository.persistReceived(any(), any()) }
     }
 
-    // ── slot resolved but no matching channel ─────────────────────────────────
+    // ── slot resolved but no matching contour ─────────────────────────────────
 
     @Test
-    fun `slot resolves to hash with no matching channel — dropped`() = runTest {
-        val orphanHash = LogicalChannelHash.compute("Orphan", byteArrayOf(0xFF.toByte()))
+    fun `slot resolves to hash with no matching contour — dropped`() = runTest {
+        val orphanHash = ContourHash.compute("Orphan", byteArrayOf(0xFF.toByte()))
         val orphanMaps = ChannelSlotMaps(
             slotToHash = mapOf(0 to orphanHash),
             hashToSlot = mapOf(orphanHash to 0),
         )
-        setupMocks(packets = listOf(packet), channels = emptyList(), maps = orphanMaps)
+        setupMocks(packets = listOf(packet), contours = emptyList(), maps = orphanMaps)
         every { adapter.decode(any(), any()) } returns geoMark
 
         useCase.observe().test {
@@ -164,7 +169,6 @@ class IngestReceivedGeoMarksUseCaseTest {
 
     @Test
     fun `expired model — dropped`() = runTest {
-        // expiresAt = 1 second (already expired in any reasonable test run)
         val expiredMark = geoMark.copy(expiresAt = 1L)
         setupMocks(packets = listOf(packet), maps = resolvedMaps)
         every { adapter.decode(packet, any()) } returns expiredMark
@@ -188,7 +192,7 @@ class IngestReceivedGeoMarksUseCaseTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        coVerify(exactly = 1) { geoMarkRepository.persistReceived(noExpiry, channelId) }
+        coVerify(exactly = 1) { geoMarkRepository.persistReceived(noExpiry, contourId) }
     }
 
     // ── empty packet list ─────────────────────────────────────────────────────
@@ -209,11 +213,11 @@ class IngestReceivedGeoMarksUseCaseTest {
 
     private fun setupMocks(
         packets: List<DataPacket>,
-        channels: List<LogicalChannel> = listOf(channel),
+        contours: List<Contour> = listOf(contour),
         maps: ChannelSlotMaps,
     ) {
         every { packetRepository.getWaypoints() } returns flowOf(packets)
-        every { channelRepository.observeChannels() } returns flowOf(channels)
+        every { channelRepository.observeContours() } returns flowOf(contours)
         every { channelSlotResolver.mapsFlow } returns MutableStateFlow(maps)
     }
 }

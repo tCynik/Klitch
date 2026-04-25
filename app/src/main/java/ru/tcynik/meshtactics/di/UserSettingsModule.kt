@@ -9,15 +9,16 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import ru.tcynik.meshtactics.data.channel.ChannelSlotResolverImpl
-import ru.tcynik.meshtactics.data.channel.repository.LogicalChannelRepositoryImpl
+import ru.tcynik.meshtactics.data.channel.repository.ContourRepositoryImpl
 import ru.tcynik.meshtactics.data.user.repository.AppUserRepositoryImpl
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
-import ru.tcynik.meshtactics.domain.channel.repository.LogicalChannelRepository
-import ru.tcynik.meshtactics.domain.channel.usecase.DeleteLogicalChannelUseCase
-import ru.tcynik.meshtactics.domain.channel.usecase.ObserveLogicalChannelsUseCase
+import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
+import ru.tcynik.meshtactics.domain.channel.usecase.DeleteContourUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
-import ru.tcynik.meshtactics.domain.channel.usecase.SaveLogicalChannelUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.SaveContourUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
 import ru.tcynik.meshtactics.domain.user.repository.AppUserRepository
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
@@ -32,13 +33,14 @@ val userSettingsModule = module {
     }
 
     single<AppUserRepository> { AppUserRepositoryImpl(get(named("UserDataStore"))) }
-    single<LogicalChannelRepository> { LogicalChannelRepositoryImpl(get()) }
+    single<ContourRepository> { ContourRepositoryImpl(get()) }
 
     single { ObserveAppUserUseCase(get()) }
     single { SaveAppUserUseCase(get()) }
-    single { ObserveLogicalChannelsUseCase(get()) }
-    single { SaveLogicalChannelUseCase(get()) }
-    single { DeleteLogicalChannelUseCase(get()) }
+    single { ObserveContoursUseCase(get()) }
+    single { SaveContourUseCase(get()) }
+    single { DeleteContourUseCase(get()) }
+    single { SetContourActiveUseCase(get()) }
     single { ObserveNodeChannelsUseCase(get()) }
     single { ResolveChannelSlotUseCase() }
     single<ChannelSlotResolver> { ChannelSlotResolverImpl(get()) }

@@ -13,18 +13,18 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.collections.immutable.toImmutableList
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
-import ru.tcynik.meshtactics.domain.channel.model.ChannelMetadata
 import ru.tcynik.meshtactics.domain.channel.model.ChannelSyncStatus
-import ru.tcynik.meshtactics.domain.channel.model.LogicalChannel
-import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelHash
-import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelId
-import ru.tcynik.meshtactics.domain.channel.model.MeshtasticBinding
+import ru.tcynik.meshtactics.domain.channel.model.Contour
+import ru.tcynik.meshtactics.domain.channel.model.ContourHash
+import ru.tcynik.meshtactics.domain.channel.model.ContourId
+import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
+import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
-import ru.tcynik.meshtactics.domain.channel.usecase.DeleteLogicalChannelUseCase
-import ru.tcynik.meshtactics.domain.channel.usecase.ObserveLogicalChannelsUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.DeleteContourUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
-import ru.tcynik.meshtactics.domain.channel.usecase.SaveLogicalChannelUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.SaveContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SlotResolution
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
@@ -33,17 +33,16 @@ import ru.tcynik.meshtactics.domain.user.model.AppUser
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
-import ru.tcynik.meshtactics.presentation.feature.settings.models.ChannelItem
+import ru.tcynik.meshtactics.presentation.feature.settings.models.ContourItem
 import ru.tcynik.meshtactics.presentation.feature.settings.models.NodeWriteEvent
-import java.security.SecureRandom
 import java.util.UUID
 
 class UserSettingsViewModel(
     private val observeAppUser: ObserveAppUserUseCase,
     private val saveAppUser: SaveAppUserUseCase,
-    private val observeLogicalChannels: ObserveLogicalChannelsUseCase,
-    private val saveLogicalChannel: SaveLogicalChannelUseCase,
-    private val deleteLogicalChannel: DeleteLogicalChannelUseCase,
+    private val observeContours: ObserveContoursUseCase,
+    private val saveContour: SaveContourUseCase,
+    private val deleteContour: DeleteContourUseCase,
     private val observeNodeChannels: ObserveNodeChannelsUseCase,
     private val writeChannel: WriteChannelUseCase,
     private val resolveSlot: ResolveChannelSlotUseCase,
@@ -54,7 +53,7 @@ class UserSettingsViewModel(
     private val _uiState = MutableStateFlow(UserSettingsUiState())
     val uiState: StateFlow<UserSettingsUiState> = _uiState.asStateFlow()
 
-    private var cachedChannels: List<LogicalChannel> = emptyList()
+    private var cachedContours: List<Contour> = emptyList()
     private var cachedNodeChannels: List<NodeChannelSlot> = emptyList()
     private var connectionStatus: MeshConnectionStatus = MeshConnectionStatus.Disconnected
 
@@ -69,29 +68,33 @@ class UserSettingsViewModel(
             .launchIn(viewModelScope)
 
         combine(
-            observeLogicalChannels(NoParams),
+            observeContours(NoParams),
             observeNodeChannels(NoParams),
             observeConnectionStatus(NoParams),
-        ) { channels, nodeChannels, status ->
-            cachedChannels = channels
+        ) { contours, nodeChannels, status ->
+            cachedContours = contours
             cachedNodeChannels = nodeChannels
             connectionStatus = status
 
-            val items = channels.map { ch ->
-                ChannelItem(
-                    id = ch.id,
-                    name = ch.metadata.name,
-                    isAutoSync = ch.isAutoSync,
-                    syncStatus = computeSyncStatus(ch, nodeChannels, status),
+            val items = contours.map { contour ->
+                ContourItem(
+                    id = contour.id,
+                    name = contour.name,
+                    description = contour.description,
+                    expiration = contour.expiration,
+                    exclusivityTime = contour.exclusivityTime,
+                    isActive = contour.isActive,
+                    isEmergency = false, // Phase 2: check DefaultContour.ID
+                    syncStatus = computeSyncStatus(contour, nodeChannels, status),
                 )
             }
-            _uiState.update { it.copy(channels = items.toImmutableList()) }
+            _uiState.update { it.copy(contours = items.toImmutableList()) }
 
             if (status is MeshConnectionStatus.Connected) {
-                channels.filter { it.isAutoSync }.forEach { ch ->
-                    val resolution = resolveSlot(ch, nodeChannels)
+                contours.filter { it.isActive }.forEach { contour ->
+                    val resolution = resolveSlot(contour, nodeChannels)
                     if (resolution is SlotResolution.FreeSlot) {
-                        pushChannelToNode(ch, resolution.slot)
+                        pushContourToNode(contour, resolution.slot)
                     }
                 }
             }
@@ -99,41 +102,38 @@ class UserSettingsViewModel(
     }
 
     private fun computeSyncStatus(
-        channel: LogicalChannel,
+        contour: Contour,
         nodeChannels: List<NodeChannelSlot>,
         status: MeshConnectionStatus,
     ): ChannelSyncStatus {
         if (status !is MeshConnectionStatus.Connected) return ChannelSyncStatus.NotConnected
-        val binding = channel.transports.filterIsInstance<MeshtasticBinding>().firstOrNull()
-            ?: return ChannelSyncStatus.NotOnNode
+        val hash = contour.transport.meshtastic.channelHash
         val matched = nodeChannels.find { slot ->
             slot.index != 0 && slot.isEnabled &&
-                slot.name == channel.metadata.name && slot.psk.contentEquals(binding.psk)
+                ContourHash.compute(slot.name, slot.psk) == hash
         }
         if (matched != null) return ChannelSyncStatus.OnNode(matched.index)
         val hasFreeSlot = nodeChannels.any { it.index != 0 && !it.isEnabled }
         return if (hasFreeSlot) ChannelSyncStatus.NotOnNode else ChannelSyncStatus.NoFreeSlot
     }
 
-    private fun pushChannelToNode(channel: LogicalChannel, slot: Int) {
-        val binding = channel.transports.filterIsInstance<MeshtasticBinding>().firstOrNull() ?: return
-        val pskBase64 = Base64.encodeToString(binding.psk, Base64.NO_WRAP)
-        writeChannel(slot, channel.metadata.name, pskBase64)
+    private fun pushContourToNode(contour: Contour, slot: Int) {
+        writeChannel(slot, contour.name, contour.transport.meshtastic.psk)
     }
 
-    fun onPushToNode(id: LogicalChannelId) {
-        val channel = cachedChannels.find { it.id == id } ?: return
+    fun onPushToNode(id: ContourId) {
+        val contour = cachedContours.find { it.id == id } ?: return
         if (connectionStatus !is MeshConnectionStatus.Connected) {
             _uiState.update { it.copy(nodeWriteEvent = NodeWriteEvent.NotConnected) }
             return
         }
-        when (val resolution = resolveSlot(channel, cachedNodeChannels)) {
+        when (val resolution = resolveSlot(contour, cachedNodeChannels)) {
             is SlotResolution.AlreadySynced -> {
-                _uiState.update { it.copy(nodeWriteEvent = NodeWriteEvent.Sent(channel.metadata.name)) }
+                _uiState.update { it.copy(nodeWriteEvent = NodeWriteEvent.Sent(contour.name)) }
             }
             is SlotResolution.FreeSlot -> {
-                pushChannelToNode(channel, resolution.slot)
-                _uiState.update { it.copy(nodeWriteEvent = NodeWriteEvent.Sent(channel.metadata.name)) }
+                pushContourToNode(contour, resolution.slot)
+                _uiState.update { it.copy(nodeWriteEvent = NodeWriteEvent.Sent(contour.name)) }
             }
             is SlotResolution.NoFreeSlot -> {
                 _uiState.update { it.copy(nodeWriteEvent = NodeWriteEvent.NoFreeSlot) }
@@ -141,18 +141,18 @@ class UserSettingsViewModel(
         }
     }
 
-    fun onDeleteFromNode(id: LogicalChannelId) {
-        val channel = cachedChannels.find { it.id == id } ?: return
-        val binding = channel.transports.filterIsInstance<MeshtasticBinding>().firstOrNull() ?: return
-        val slot = channelSlotResolver.hashToSlot[binding.channelHash] ?: return
+    fun onDeleteFromNode(id: ContourId) {
+        val contour = cachedContours.find { it.id == id } ?: return
+        val hash = contour.transport.meshtastic.channelHash
+        val slot = channelSlotResolver.hashToSlot[hash] ?: return
         if (slot == 0) return
         writeChannel(slot, "", "")
     }
 
-    fun onToggleAutoSync(id: LogicalChannelId, enabled: Boolean) {
-        val channel = cachedChannels.find { it.id == id } ?: return
+    fun onToggleActive(id: ContourId, isActive: Boolean) {
+        val contour = cachedContours.find { it.id == id } ?: return
         viewModelScope.launch {
-            saveLogicalChannel(channel.copy(isAutoSync = enabled))
+            saveContour(contour.copy(isActive = isActive))
         }
     }
 
@@ -171,29 +171,27 @@ class UserSettingsViewModel(
         }
     }
 
-    fun onAddChannelClick() {
+    fun onAddContourClick() {
         _uiState.update {
-            it.copy(editorSheet = ChannelEditorState(id = null, name = "", pskBase64 = ""))
+            it.copy(editorSheet = ContourEditorState(id = null, name = "", pskBase64 = ""))
         }
     }
 
-    fun onEditChannelClick(id: LogicalChannelId) {
-        val item = _uiState.value.channels.find { it.id == id } ?: return
+    fun onEditContourClick(id: ContourId) {
+        val item = _uiState.value.contours.find { it.id == id } ?: return
         _uiState.update {
-            it.copy(
-                editorSheet = ChannelEditorState(id = id, name = item.name, pskBase64 = "")
-            )
+            it.copy(editorSheet = ContourEditorState(id = id, name = item.name, pskBase64 = ""))
         }
     }
 
-    fun onDeleteChannelRequest(id: LogicalChannelId) {
+    fun onDeleteContourRequest(id: ContourId) {
         _uiState.update { it.copy(deleteConfirmId = id) }
     }
 
     fun onConfirmDelete() {
         val id = _uiState.value.deleteConfirmId ?: return
         _uiState.update { it.copy(deleteConfirmId = null) }
-        viewModelScope.launch { deleteLogicalChannel(id) }
+        viewModelScope.launch { deleteContour(id) }
     }
 
     fun onDismissDelete() {
@@ -209,7 +207,7 @@ class UserSettingsViewModel(
     }
 
     fun onEditorGeneratePsk() {
-        val bytes = ByteArray(32).also { SecureRandom().nextBytes(it) }
+        val bytes = ByteArray(32).also { java.security.SecureRandom().nextBytes(it) }
         val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
         _uiState.update { it.copy(editorSheet = it.editorSheet?.copy(pskBase64 = base64)) }
     }
@@ -220,21 +218,25 @@ class UserSettingsViewModel(
             Base64.decode(editor.pskBase64, Base64.DEFAULT)
         }.getOrNull() ?: return
 
-        val id = editor.id ?: LogicalChannelId(UUID.randomUUID().toString())
-        val existing = cachedChannels.find { it.id == id }
-        val channel = LogicalChannel(
+        val id = editor.id ?: ContourId(UUID.randomUUID().toString())
+        val existing = cachedContours.find { it.id == id }
+        val hash = ContourHash.compute(editor.name, pskBytes)
+        val contour = Contour(
             id = id,
-            metadata = ChannelMetadata(name = editor.name),
-            transports = listOf(
-                MeshtasticBinding(
-                    psk = pskBytes,
-                    channelHash = LogicalChannelHash.compute(editor.name, pskBytes),
-                )
+            name = editor.name,
+            description = null,
+            expiration = null,
+            exclusivityTime = null,
+            isActive = existing?.isActive ?: true,
+            transport = ContourTransport(
+                meshtastic = MeshtasticChannel(
+                    psk = editor.pskBase64,
+                    channelHash = hash,
+                ),
             ),
-            isAutoSync = existing?.isAutoSync ?: false,
         )
         viewModelScope.launch {
-            saveLogicalChannel(channel)
+            saveContour(contour)
             _uiState.update { it.copy(editorSheet = null) }
         }
     }
@@ -244,7 +246,7 @@ class UserSettingsViewModel(
     }
 }
 
-// TODO(channels): write confirmation dialog before pushing to node
-// TODO(channels): loading + result indication requires ACK tracking in CommandSender
-// TODO(channels): "manage node slots" sheet for NoFreeSlot case
-// TODO(channels): user-to-user channel import/export
+// TODO(contour): write confirmation dialog before pushing to node
+// TODO(contour): loading + result indication requires ACK tracking in CommandSender
+// TODO(contour): "manage node slots" sheet for NoFreeSlot case
+// TODO(contour): unblock Custom Контур creation after sharing is implemented

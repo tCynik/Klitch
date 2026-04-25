@@ -9,8 +9,8 @@ import kotlinx.coroutines.flow.map
 import ru.tcynik.meshtactics.data.local.GeoMarkQueries
 import ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapter
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
-import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelId
-import ru.tcynik.meshtactics.domain.channel.repository.LogicalChannelRepository
+import ru.tcynik.meshtactics.domain.channel.model.ContourId
+import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkRepository
@@ -20,7 +20,7 @@ import ru.tcynik.meshtactics.mesh.repository.CommandSender
 class GeoMarkRepositoryImpl(
     private val commandSender: CommandSender,
     private val meshNetwork: MeshNetworkRepository,
-    private val channelRepository: LogicalChannelRepository,
+    private val channelRepository: ContourRepository,
     private val channelSlotResolver: ChannelSlotResolver,
     private val adapter: GeoMarkWaypointAdapter,
     private val geoMarkQueries: GeoMarkQueries,
@@ -41,7 +41,7 @@ class GeoMarkRepositoryImpl(
         val packet = adapter.encode(mark, ourNodeNum, ourNodeId, nowSeconds)
         commandSender.sendData(packet)
 
-        val logicalChannelId = resolveChannelId(channelIndex = packet.channel)
+        val contourId = resolveContourId(channelIndex = packet.channel)
         geoMarkQueries.insert(
             id = mark.id,
             waypointId = mark.waypointId.toLong(),
@@ -51,11 +51,11 @@ class GeoMarkRepositoryImpl(
             createdAt = nowSeconds,
             expiresAt = nowSeconds + GeoMarkWaypointAdapter.EXPIRE_TTL_SECONDS,
             isSelf = 1L,
-            logicalChannelId = logicalChannelId,
+            logicalChannelId = contourId,
         )
     }
 
-    override suspend fun persistReceived(mark: GeoMarkModel, logicalChannelId: LogicalChannelId) {
+    override suspend fun persistReceived(mark: GeoMarkModel, contourId: ContourId) {
         geoMarkQueries.insertReceived(
             id = mark.id,
             waypointId = mark.waypointId.toLong(),
@@ -64,7 +64,7 @@ class GeoMarkRepositoryImpl(
             authorNodeId = mark.authorNodeId,
             createdAt = mark.createdAt,
             expiresAt = mark.expiresAt,
-            logicalChannelId = logicalChannelId.value,
+            logicalChannelId = contourId.value,
         )
     }
 
@@ -72,7 +72,7 @@ class GeoMarkRepositoryImpl(
         geoMarkQueries.deleteExpired(nowSeconds)
     }
 
-    private suspend fun resolveChannelId(channelIndex: Int): String {
+    private suspend fun resolveContourId(channelIndex: Int): String {
         val hash = channelSlotResolver.slotToHash[channelIndex] ?: return ""
         return channelRepository.findByChannelHash(hash)?.id?.value ?: ""
     }

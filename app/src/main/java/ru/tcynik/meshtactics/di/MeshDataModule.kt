@@ -39,6 +39,9 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveOurNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGeoNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveLocationConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObservePacketLogUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RemoveFixedPositionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
@@ -121,5 +124,15 @@ val meshDataModule = module {
     single { WritePositionConfigUseCase(get()) }
     single { WriteChannelPositionPrecisionUseCase(get()) }
     single { RemoveFixedPositionUseCase(get()) }
-    single { NodeProvisioningUseCase(get(), get(), get(), get(), get(), get(), get()) }
+    single {
+        NodeProvisioningUseCase(
+            observeContours = get<ObserveContoursUseCase>(),
+            observeAppUser = get(),
+            observeDeviceConfig = get(),
+            writeChannel = get(),
+            writeOwner = get(),
+            observeNodeChannels = get<ObserveNodeChannelsUseCase>(),
+            resolveSlot = get<ResolveChannelSlotUseCase>(),
+        )
+    }
 }

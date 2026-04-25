@@ -19,13 +19,13 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import ru.tcynik.meshtactics.domain.channel.model.ChannelMetadata
-import ru.tcynik.meshtactics.domain.channel.model.LogicalChannel
-import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelHash
-import ru.tcynik.meshtactics.domain.channel.model.LogicalChannelId
-import ru.tcynik.meshtactics.domain.channel.model.MeshtasticBinding
+import ru.tcynik.meshtactics.domain.channel.model.Contour
+import ru.tcynik.meshtactics.domain.channel.model.ContourHash
+import ru.tcynik.meshtactics.domain.channel.model.ContourId
+import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
+import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
-import ru.tcynik.meshtactics.domain.channel.usecase.ObserveLogicalChannelsUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.ObserveTotalUnreadChatCountUseCase
@@ -71,10 +71,10 @@ class MainViewModelHudWarningTest {
     private val ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase = mockk()
     private val deleteExpiredGeoMarks: DeleteExpiredGeoMarksUseCase = mockk(relaxed = true)
     private val ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase = mockk()
-    private val observeLogicalChannels: ObserveLogicalChannelsUseCase = mockk()
+    private val observeLogicalChannels: ObserveContoursUseCase = mockk()
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
 
-    private val channelsFlow = MutableStateFlow<List<LogicalChannel>>(emptyList())
+    private val channelsFlow = MutableStateFlow<List<Contour>>(emptyList())
     private val nodeChannelsFlow = MutableStateFlow<List<NodeChannelSlot>>(emptyList())
     private val connectionStatusFlow = MutableStateFlow<MeshConnectionStatus>(MeshConnectionStatus.Disconnected)
 
@@ -130,13 +130,17 @@ class MainViewModelHudWarningTest {
         Dispatchers.resetMain()
     }
 
-    private fun makeChannel(name: String, psk: ByteArray): LogicalChannel {
-        val hash = LogicalChannelHash.compute(name, psk)
-        return LogicalChannel(
-            id = LogicalChannelId(UUID.randomUUID().toString()),
-            metadata = ChannelMetadata(name = name),
-            transports = listOf(MeshtasticBinding(psk = psk, channelHash = hash)),
-            isAutoSync = false,
+    private fun makeContour(name: String, psk: ByteArray): Contour {
+        val pskBase64 = java.util.Base64.getEncoder().encodeToString(psk)
+        val hash = ContourHash.compute(name, psk)
+        return Contour(
+            id = ContourId(UUID.randomUUID().toString()),
+            name = name,
+            description = null,
+            expiration = null,
+            exclusivityTime = null,
+            isActive = true,
+            transport = ContourTransport(meshtastic = MeshtasticChannel(psk = pskBase64, channelHash = hash)),
         )
     }
 
@@ -157,7 +161,7 @@ class MainViewModelHudWarningTest {
     @Test
     fun `channels exist no matching node slot — hasChannelOnNode is false`() = runTest(testDispatcher) {
         val psk = byteArrayOf(0x01)
-        channelsFlow.value = listOf(makeChannel("Alpha", psk))
+        channelsFlow.value = listOf(makeContour("Alpha", psk))
         nodeChannelsFlow.value = emptyList()
         runCurrent()
         assertFalse(viewModel.uiState.value.hasChannelOnNode)
@@ -166,7 +170,7 @@ class MainViewModelHudWarningTest {
     @Test
     fun `channels exist and match non-zero slot — hasChannelOnNode is true`() = runTest(testDispatcher) {
         val psk = byteArrayOf(0x01)
-        channelsFlow.value = listOf(makeChannel("Alpha", psk))
+        channelsFlow.value = listOf(makeContour("Alpha", psk))
         nodeChannelsFlow.value = listOf(NodeChannelSlot(index = 1, name = "Alpha", psk = psk, isEnabled = true))
         runCurrent()
         assertTrue(viewModel.uiState.value.hasChannelOnNode)
@@ -175,7 +179,7 @@ class MainViewModelHudWarningTest {
     @Test
     fun `slot 0 match only — hasChannelOnNode is false`() = runTest(testDispatcher) {
         val psk = byteArrayOf(0x01)
-        channelsFlow.value = listOf(makeChannel("Alpha", psk))
+        channelsFlow.value = listOf(makeContour("Alpha", psk))
         nodeChannelsFlow.value = listOf(NodeChannelSlot(index = 0, name = "Alpha", psk = psk, isEnabled = true))
         runCurrent()
         assertFalse(viewModel.uiState.value.hasChannelOnNode)
@@ -186,7 +190,7 @@ class MainViewModelHudWarningTest {
     @Test
     fun `connected and hasChannelOnNode false — HUD info slot shows warning`() = runTest(testDispatcher) {
         val psk = byteArrayOf(0x01)
-        channelsFlow.value = listOf(makeChannel("Alpha", psk))
+        channelsFlow.value = listOf(makeContour("Alpha", psk))
         nodeChannelsFlow.value = emptyList()
         connectionStatusFlow.value = connectedStatus
         runCurrent()
@@ -198,7 +202,7 @@ class MainViewModelHudWarningTest {
     @Test
     fun `not connected and hasChannelOnNode false — HUD info slot is empty`() = runTest(testDispatcher) {
         val psk = byteArrayOf(0x01)
-        channelsFlow.value = listOf(makeChannel("Alpha", psk))
+        channelsFlow.value = listOf(makeContour("Alpha", psk))
         nodeChannelsFlow.value = emptyList()
         connectionStatusFlow.value = MeshConnectionStatus.Disconnected
         runCurrent()
@@ -210,7 +214,7 @@ class MainViewModelHudWarningTest {
     @Test
     fun `connected and channel matches node slot — HUD does not show warning`() = runTest(testDispatcher) {
         val psk = byteArrayOf(0x01)
-        channelsFlow.value = listOf(makeChannel("Alpha", psk))
+        channelsFlow.value = listOf(makeContour("Alpha", psk))
         nodeChannelsFlow.value = listOf(NodeChannelSlot(index = 1, name = "Alpha", psk = psk, isEnabled = true))
         connectionStatusFlow.value = connectedStatus
         runCurrent()

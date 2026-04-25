@@ -86,7 +86,14 @@
       "Bash(taskkill /F /IM java.exe /T)",
       "PowerShell(Add-Type -Assembly System.IO.Compression.FileSystem; $zip = [System.IO.Compression.ZipFile]::OpenRead\\(\"C:\\\\Users\\\\LocAdmin\\\\.gradle\\\\caches\\\\modules-2\\\\files-2.1\\\\org.jetbrains.kotlinx\\\\kotlinx-coroutines-test\\\\1.9.0\\\\4008674842816efaaf87acc5a524dffd12974306\\\\kotlinx-coroutines-test-1.9.0-sources.jar\"\\); $zip.Entries | Select-Object FullName | Where-Object { $_.FullName -match \"TestScope|runTest\" })",
       "PowerShell(Add-Type -Assembly System.IO.Compression.FileSystem; $zip = [System.IO.Compression.ZipFile]::OpenRead\\(\"C:\\\\Users\\\\LocAdmin\\\\.gradle\\\\caches\\\\modules-2\\\\files-2.1\\\\org.jetbrains.kotlinx\\\\kotlinx-coroutines-test\\\\1.9.0\\\\4008674842816efaaf87acc5a524dffd12974306\\\\kotlinx-coroutines-test-1.9.0-sources.jar\"\\); $zip.Entries | Select-Object FullName | head -40)",
-      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.main.MainViewModelHudWarningTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelChannelsTest\")"
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.main.MainViewModelHudWarningTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelChannelsTest\")",
+      "Bash(./gradlew :app:compileDebugKotlin --no-daemon)",
+      "Bash(JAVA_HOME=\"C:\\\\Program Files\\\\Microsoft\\\\jdk-21.0.7.6-hotspot\" ./gradlew :shared:generateCommonMainAppDatabaseInterface --no-daemon)",
+      "Bash(JAVA_HOME=\"C:/Program Files/Microsoft/jdk-21.0.10.7-hotspot\" ./gradlew :shared:generateCommonMainAppDatabaseInterface --no-daemon)",
+      "Bash(./gradlew :shared:generateCommonMainAppDatabaseInterface --no-daemon)",
+      "Bash(./gradlew :app:testDebugUnitTest --no-daemon --tests \"ru.tcynik.meshtactics.domain.channel.model.ContourHashTest\" --tests \"ru.tcynik.meshtactics.data.channel.ChannelSlotResolverImplTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelChannelsTest\")",
+      "Bash(./gradlew :app:compileDebugUnitTestKotlin --no-daemon)",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"*.UserSettingsViewModelChannelsTest.onPushToNode*\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",
