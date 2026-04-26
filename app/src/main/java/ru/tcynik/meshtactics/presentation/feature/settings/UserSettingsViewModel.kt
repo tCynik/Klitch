@@ -20,13 +20,19 @@ import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
+import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
+import ru.tcynik.meshtactics.domain.channel.model.isEmergency
 import ru.tcynik.meshtactics.domain.channel.usecase.DeleteContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SaveContourUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SlotResolution
+import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
+import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.meshtactics.domain.user.model.AppUser
@@ -43,11 +49,15 @@ class UserSettingsViewModel(
     private val observeContours: ObserveContoursUseCase,
     private val saveContour: SaveContourUseCase,
     private val deleteContour: DeleteContourUseCase,
+    private val setContourActive: SetContourActiveUseCase,
     private val observeNodeChannels: ObserveNodeChannelsUseCase,
     private val writeChannel: WriteChannelUseCase,
     private val resolveSlot: ResolveChannelSlotUseCase,
     private val observeConnectionStatus: ObserveConnectionStatusUseCase,
     private val channelSlotResolver: ChannelSlotResolver,
+    private val syncContoursOnConnect: SyncContoursOnConnectUseCase,
+    private val enableNodePositionBroadcastReady: EnableNodePositionBroadcastReadyUseCase,
+    private val disableNodePositionBroadcast: DisableNodePositionBroadcastUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UserSettingsUiState())
@@ -74,6 +84,7 @@ class UserSettingsViewModel(
         ) { contours, nodeChannels, status ->
             cachedContours = contours
             cachedNodeChannels = nodeChannels
+            val wasConnected = connectionStatus is MeshConnectionStatus.Connected
             connectionStatus = status
 
             val items = contours.map { contour ->
@@ -84,21 +95,29 @@ class UserSettingsViewModel(
                     expiration = contour.expiration,
                     exclusivityTime = contour.exclusivityTime,
                     isActive = contour.isActive,
-                    isEmergency = false, // Phase 2: check DefaultContour.ID
+                    isEmergency = contour.isEmergency,
                     syncStatus = computeSyncStatus(contour, nodeChannels, status),
                 )
             }
             _uiState.update { it.copy(contours = items.toImmutableList()) }
 
-            if (status is MeshConnectionStatus.Connected) {
-                contours.filter { it.isActive }.forEach { contour ->
-                    val resolution = resolveSlot(contour, nodeChannels)
-                    if (resolution is SlotResolution.FreeSlot) {
-                        pushContourToNode(contour, resolution.slot)
-                    }
-                }
+            val justConnected = !wasConnected && status is MeshConnectionStatus.Connected
+            if (justConnected) {
+                onConnected(contours)
             }
         }.launchIn(viewModelScope)
+    }
+
+    private fun onConnected(contours: List<Contour>) {
+        viewModelScope.launch {
+            syncContoursOnConnect()
+            val emergencyActive = contours.find { it.isEmergency }?.isActive ?: false
+            if (emergencyActive) {
+                disableNodePositionBroadcast()
+            } else {
+                enableNodePositionBroadcastReady()
+            }
+        }
     }
 
     private fun computeSyncStatus(
@@ -106,6 +125,7 @@ class UserSettingsViewModel(
         nodeChannels: List<NodeChannelSlot>,
         status: MeshConnectionStatus,
     ): ChannelSyncStatus {
+        if (contour.id == DefaultContour.ID) return ChannelSyncStatus.OnNode(0)
         if (status !is MeshConnectionStatus.Connected) return ChannelSyncStatus.NotConnected
         val hash = contour.transport.meshtastic.channelHash
         val matched = nodeChannels.find { slot ->
@@ -150,9 +170,8 @@ class UserSettingsViewModel(
     }
 
     fun onToggleActive(id: ContourId, isActive: Boolean) {
-        val contour = cachedContours.find { it.id == id } ?: return
         viewModelScope.launch {
-            saveContour(contour.copy(isActive = isActive))
+            setContourActive(id, isActive)
         }
     }
 
@@ -185,6 +204,8 @@ class UserSettingsViewModel(
     }
 
     fun onDeleteContourRequest(id: ContourId) {
+        val contour = cachedContours.find { it.id == id } ?: return
+        if (contour.isEmergency) return
         _uiState.update { it.copy(deleteConfirmId = id) }
     }
 

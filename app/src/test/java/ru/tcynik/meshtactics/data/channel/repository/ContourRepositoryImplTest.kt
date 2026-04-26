@@ -1,28 +1,42 @@
 package ru.tcynik.meshtactics.data.channel.repository
 
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import app.cash.turbine.test
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import ru.tcynik.meshtactics.data.local.AppDatabase
 import ru.tcynik.meshtactics.domain.channel.model.Contour
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
+import ru.tcynik.meshtactics.domain.channel.model.DefaultActiveContour
+import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
+import java.io.File
 import java.util.Base64
 import java.util.UUID
 
 class ContourRepositoryImplTest {
 
+    @get:Rule
+    val tempFolder = TemporaryFolder()
+
     private lateinit var driver: JdbcSqliteDriver
     private lateinit var db: AppDatabase
     private lateinit var repo: ContourRepositoryImpl
+    private lateinit var dataStoreScope: CoroutineScope
 
     private val psk = byteArrayOf(0xDE.toByte(), 0xAD.toByte(), 0xBE.toByte(), 0xEF.toByte())
     private val pskBase64 = Base64.getEncoder().encodeToString(psk)
@@ -34,12 +48,19 @@ class ContourRepositoryImplTest {
         driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         AppDatabase.Schema.create(driver)
         db = AppDatabase(driver)
-        repo = ContourRepositoryImpl(db.contourQueries)
+        dataStoreScope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
+        val dataStoreFile = File(tempFolder.root, "${UUID.randomUUID()}.preferences_pb")
+        val dataStore = PreferenceDataStoreFactory.create(
+            scope = dataStoreScope,
+            produceFile = { dataStoreFile },
+        )
+        repo = ContourRepositoryImpl(db.contourQueries, dataStore)
     }
 
     @After
     fun tearDown() {
         driver.close()
+        dataStoreScope.cancel()
     }
 
     // ── backfill ──────────────────────────────────────────────────────────────
@@ -60,7 +81,9 @@ class ContourRepositoryImplTest {
 
         repo.observeContours().test {
             val contours = awaitItem()
-            assertEquals(1, contours.size)
+            // Emergency prepended + 1 DB row
+            assertEquals(2, contours.size)
+            assertEquals(DefaultContour.ID, contours[0].id)
             cancelAndIgnoreRemainingEvents()
         }
 
@@ -86,7 +109,9 @@ class ContourRepositoryImplTest {
 
         repo.observeContours().test {
             val contours = awaitItem()
-            assertEquals(1, contours.size)
+            // Emergency prepended + 1 DB row
+            assertEquals(2, contours.size)
+            assertEquals(DefaultContour.ID, contours[0].id)
             cancelAndIgnoreRemainingEvents()
         }
 
@@ -141,10 +166,11 @@ class ContourRepositoryImplTest {
     // ── observeContours ───────────────────────────────────────────────────────
 
     @Test
-    fun `observeContours — emits empty list when table is empty`() = runTest {
+    fun `observeContours — emits Emergency only when table is empty`() = runTest {
         repo.observeContours().test {
             val list = awaitItem()
-            assertEquals(0, list.size)
+            assertEquals(1, list.size)
+            assertEquals(DefaultContour.ID, list[0].id)
             cancel()
         }
     }
@@ -156,8 +182,9 @@ class ContourRepositoryImplTest {
 
         repo.observeContours().test {
             val contours = awaitItem()
-            assertEquals(1, contours.size)
-            assertEquals(expectedHash, contours[0].transport.meshtastic.channelHash)
+            // Emergency at index 0, DB contour at index 1
+            assertEquals(2, contours.size)
+            assertEquals(expectedHash, contours[1].transport.meshtastic.channelHash)
             cancel()
         }
     }
@@ -174,6 +201,69 @@ class ContourRepositoryImplTest {
 
         val rows = db.contourQueries.selectAll().executeAsList()
         assertEquals(0, rows.size)
+    }
+
+    // ── seedDefaultsIfAbsent ──────────────────────────────────────────────────
+
+    @Test
+    fun `seedDefaultsIfAbsent — empty DB — creates DefaultActive row`() = runTest {
+        repo.seedDefaultsIfAbsent()
+
+        val rows = db.contourQueries.selectAll().executeAsList()
+        assertEquals(1, rows.size)
+        assertEquals(DefaultActiveContour.ID.value, rows[0].id)
+        assertEquals(DefaultActiveContour.DISPLAY_NAME, rows[0].name)
+        assertEquals(1L, rows[0].is_active)
+    }
+
+    @Test
+    fun `seedDefaultsIfAbsent — DefaultActive already present — no duplicate`() = runTest {
+        repo.seedDefaultsIfAbsent()
+        repo.seedDefaultsIfAbsent()
+
+        val rows = db.contourQueries.selectAll().executeAsList()
+            .filter { it.id == DefaultActiveContour.ID.value }
+        assertEquals(1, rows.size)
+    }
+
+    @Test
+    fun `seedDefaultsIfAbsent — does not create Emergency row`() = runTest {
+        repo.seedDefaultsIfAbsent()
+
+        val rows = db.contourQueries.selectAll().executeAsList()
+        assertEquals(0, rows.count { it.id == DefaultContour.ID.value })
+    }
+
+    // ── Emergency isActive ────────────────────────────────────────────────────
+
+    @Test
+    fun `setEmergencyActive true — observeEmergencyIsActive emits true`() = runTest {
+        repo.setEmergencyActive(true)
+
+        repo.observeEmergencyIsActive().test {
+            assertEquals(true, awaitItem())
+            cancel()
+        }
+    }
+
+    @Test
+    fun `observeEmergencyIsActive — emits false by default without any write`() = runTest {
+        repo.observeEmergencyIsActive().test {
+            assertEquals(false, awaitItem())
+            cancel()
+        }
+    }
+
+    @Test
+    fun `observeContours — Emergency isActive reflects DataStore after setEmergencyActive true`() = runTest {
+        repo.setEmergencyActive(true)
+
+        repo.observeContours().test {
+            val list = awaitItem()
+            assertEquals(DefaultContour.ID, list[0].id)
+            assertEquals(true, list[0].isActive)
+            cancel()
+        }
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

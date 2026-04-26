@@ -145,6 +145,32 @@ class MeshConfigRepositoryImpl(
         commandSender.setFixedPosition(destNum, Position(0.0, 0.0, 0))
     }
 
+    override fun enableNodePositionBroadcastReady() {
+        val destNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
+        val current = meshRouter.configHandler.localConfig.value.position ?: Config.PositionConfig()
+        val updated = current.copy(
+            position_broadcast_secs = GEO_BROADCAST_READY_SECS,
+            position_broadcast_smart_enabled = false,
+        )
+        val payload = Config.ADAPTER.encode(Config(position = updated))
+        meshRouter.actionHandler.handleSetConfig(payload, destNum)
+        writeChannelPositionPrecision(destNum, channelIndex = 0, precision = GEO_CHANNEL_PRECISION)
+    }
+
+    override fun disableNodePositionBroadcast() {
+        val destNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
+        val current = meshRouter.configHandler.localConfig.value.position ?: Config.PositionConfig()
+        val updated = current.copy(position_broadcast_secs = GEO_BROADCAST_DISABLED_SECS)
+        val payload = Config.ADAPTER.encode(Config(position = updated))
+        meshRouter.actionHandler.handleSetConfig(payload, destNum)
+    }
+
+    companion object {
+        private const val GEO_BROADCAST_READY_SECS = 60
+        private const val GEO_BROADCAST_DISABLED_SECS = Int.MAX_VALUE
+        private const val GEO_CHANNEL_PRECISION = 13
+    }
+
     private fun hasLocationPermission(): Boolean =
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED

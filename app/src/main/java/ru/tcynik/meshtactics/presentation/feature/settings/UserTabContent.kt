@@ -177,7 +177,7 @@ fun UserTabContent(
                 .fillMaxWidth()
                 .padding(16.dp),
         ) {
-            Text(stringResource(R.string.user_section_contours))
+            Text(stringResource(R.string.user_add_contour_button))
         }
     }
 }

@@ -11,3 +11,5 @@ data class Contour(
     val isActive: Boolean,
     val transport: ContourTransport,
 )
+
+val Contour.isEmergency: Boolean get() = id == DefaultContour.ID

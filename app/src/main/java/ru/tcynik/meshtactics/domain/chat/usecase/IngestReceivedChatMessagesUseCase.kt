@@ -1,10 +1,12 @@
 package ru.tcynik.meshtactics.domain.chat.usecase
 
+import android.util.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import ru.tcynik.meshtactics.data.chat.adapter.MeshToChatAdapter
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
+import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.chat.repository.ChatMessageRepository
 
@@ -19,7 +21,7 @@ class IngestReceivedChatMessagesUseCase(
         channelRepository.observeContours(),
         channelSlotResolver.mapsFlow,
     ) { messages, contours, maps ->
-        val contourByHash = contours.associate { it.transport.meshtastic.channelHash to it.id }
+        val contourByHash = contours.associate { it.transport.meshtastic.channelHash to it }
 
         messages.forEach { msg ->
             val contactKey = msg.channelId
@@ -28,8 +30,32 @@ class IngestReceivedChatMessagesUseCase(
             val isChannel = nodeId.startsWith("^")
 
             val logicalChannelId = if (isChannel) {
-                val hash = maps.slotToHash[channelIndex] ?: return@forEach
-                contourByHash[hash]?.value ?: return@forEach
+                val contour = when (channelIndex) {
+                    0 -> {
+                        val emergency = contours.find { it.id == DefaultContour.ID }
+                        if (emergency == null) {
+                            Log.w(TAG, "emergency contour not found, drop")
+                            return@forEach
+                        }
+                        if (!emergency.isActive) return@forEach
+                        emergency
+                    }
+                    else -> {
+                        val hash = maps.slotToHash[channelIndex]
+                        if (hash == null) {
+                            Log.w(TAG, "unknown slot $channelIndex, drop")
+                            return@forEach
+                        }
+                        val found = contourByHash[hash]
+                        if (found == null) {
+                            Log.w(TAG, "no contour for hash $hash, drop")
+                            return@forEach
+                        }
+                        if (!found.isActive) return@forEach
+                        found
+                    }
+                }
+                contour.id.value
             } else {
                 contactKey
             }
@@ -45,4 +71,8 @@ class IngestReceivedChatMessagesUseCase(
             )
         }
     }.map { }
+
+    companion object {
+        private const val TAG = "IngestChatMessages"
+    }
 }

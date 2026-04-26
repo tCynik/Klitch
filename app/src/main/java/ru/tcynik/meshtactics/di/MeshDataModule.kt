@@ -49,6 +49,10 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.SendMeshMessageUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SetProvideLocationUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelPositionPrecisionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WritePositionConfigUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
+import ru.tcynik.meshtactics.data.mesh.GeoSendPolicyImpl
+import ru.tcynik.meshtactics.mesh.repository.GeoSendPolicy
 
 val meshDataModule = module {
 
@@ -100,6 +104,8 @@ val meshDataModule = module {
         )
     }
 
+    single<GeoSendPolicy> { GeoSendPolicyImpl(get()) }
+
     single<LastConnectedDeviceRepository> { LastConnectedDeviceRepositoryImpl(get()) }
     single { GetLastConnectedDeviceUseCase(get()) }
     single { SaveLastConnectedDeviceUseCase(get()) }
@@ -124,6 +130,8 @@ val meshDataModule = module {
     single { WritePositionConfigUseCase(get()) }
     single { WriteChannelPositionPrecisionUseCase(get()) }
     single { RemoveFixedPositionUseCase(get()) }
+    single { EnableNodePositionBroadcastReadyUseCase(get()) }
+    single { DisableNodePositionBroadcastUseCase(get()) }
     single {
         NodeProvisioningUseCase(
             observeContours = get<ObserveContoursUseCase>(),

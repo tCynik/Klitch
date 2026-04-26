@@ -1,29 +1,57 @@
-# Logical Channels Management
+# Contour Management
 
-**Date**: 2026-04-23
-**Status**: Done (refactored to hash-based identity 2026-04-24)
+**Date**: 2026-04-26
+**Status**: Done (renamed LogicalChannel → Contour 2026-04-25; isActive + geo protection 2026-04-26)
 
 ## Summary
 
-User defines `LogicalChannel` (name + PSK) in settings. App finds the matching slot on
-the connected radio automatically — no manual slot selection. Slot 0 (PRIMARY) is never
-written or deleted.
+User defines **Contours** (name + PSK) in settings. Each Contour has an `isActive` flag that
+controls participation in send/receive. Two special system contours exist:
 
-Channel identity is based on `channelHash = SHA-256(name + ":" + psk)[0..7]` — stable
-across node reconnects, slot reassignments, and offline usage. Slot↔hash mapping is
-resolved at runtime by `ChannelSlotResolver`, not stored in the database.
+- **Emergency** (`DefaultContour`) — hardcoded, not in DB. `isActive = false` by default.
+  Slot 0 (standard Meshtastic primary). Cannot be deleted or edited. `isActive` stored in
+  DataStore (not DB). When active: geo send/receive blocked at app and node level.
+- **Default contour** (`DefaultActiveContour`) — seeded into DB on first run. `isActive = true`
+  by default. Deletable. Regular DB row.
+
+App finds the matching slot on the connected radio automatically — no manual slot selection.
+Slot identity is based on `channelHash = SHA-256(name.lower() + ":" + psk)[0..7]` — stable
+across reconnects and slot reassignments.
+
+## isActive semantics
+
+| isActive | Incoming msgs | Outgoing msgs | Geo (recv) | Geo (send) |
+|---|---|---|---|---|
+| `true` | delivered to UI | sent | processed | sent |
+| `false` | dropped | blocked | dropped | blocked |
+
+Filtering at app level before/after network layer. Node is unaware of `isActive`.
 
 ## Key behaviors
 
-- `isAutoSync` checkbox per channel — on connect, channels with `isAutoSync=true` that
-  are not yet on the node are written to the first free slot (1–7)
-- Manual "Записать в ноду" always available from channel dropdown
-- "Удалить из ноды" — only shown when `syncStatus is OnNode && slot != 0`
-- HUD info slot shows "Настройте канал" (red) when: Connected + user has ≥1 channel +
-  none are on the node
-- `ChannelSyncStatus` badge on each card: `OnNode(slot)`, `NotOnNode`, `NoFreeSlot`, or
-  nothing when disconnected
-- Incoming packets on slots absent from the resolver → dropped with `Log.w`, no UI
+- **Sync on connect**: on `Connected`, app writes Emergency to slot 0 + all `isActive`
+  non-emergency contours to free slots (1–7); `Log.w` if no slots available
+- **Manual "Записать в ноду"**: always available from contour dropdown
+- **"Удалить из ноды"**: shown only when `syncStatus is OnNode && slot != 0`
+- **isActive toggle**: per-contour switch; for Emergency → writes DataStore pref; for regular
+  contours → updates DB row via `saveContour`
+- **Emergency UI guard**: delete and edit hidden for emergency contour (`isEmergency = true`)
+- **"+ Добавить контур"**: disabled in MVP (enabled after QR/import sharing is implemented)
+- Incoming packets on unknown slots → dropped with `Log.w`, no UI error
+
+## Geo protection
+
+Two-layer protection when Emergency is active:
+
+**App-level** (`GeoSendPolicyImpl`):
+- `observeEmergencyIsActive().map { !it }` → `GeoSendPolicy.observeAllowed()`
+- POSITION_APP DataPackets blocked by the consumer checking `observeAllowed()`
+
+**Node-level** (triggered on connect):
+- Emergency `isActive = false` → `enableNodePositionBroadcastReady()` (sets
+  `position_broadcast_secs = 60`, `position_precision = 13` on channel 0)
+- Emergency `isActive = true` → `disableNodePositionBroadcast()` (sets
+  `position_broadcast_secs = UInt.MAX_VALUE`)
 
 ## Architecture
 
@@ -31,88 +59,110 @@ resolved at runtime by `ChannelSlotResolver`, not stored in the database.
 
 | File | Purpose |
 |---|---|
-| `domain/channel/model/LogicalChannelHash.kt` | `@JvmInline value class` wrapping 8-hex-char SHA-256 prefix; `compute(name, psk)` factory |
-| `domain/channel/model/ChannelSlotMaps.kt` | `slotToHash: Map<Int, LogicalChannelHash>`, `hashToSlot: Map<LogicalChannelHash, Int>` |
-| `domain/channel/model/MeshtasticBinding.kt` | `psk: ByteArray`, `channelHash: LogicalChannelHash`; equals/hashCode on PSK only |
-| `domain/channel/model/LogicalChannel.kt` | `+isAutoSync: Boolean` |
+| `domain/channel/model/ContourHash.kt` | `@JvmInline value class` wrapping 8-hex-char SHA-256 prefix; `compute(name, psk)` factory (ByteArray and String overloads) |
+| `domain/channel/model/ContourId.kt` | `@JvmInline value class` wrapping String UUID |
+| `domain/channel/model/Contour.kt` | `id, name, description?, expiration?, exclusivityTime?, isActive, transport: ContourTransport` + `val Contour.isEmergency` extension |
+| `domain/channel/model/ContourTransport.kt` | `meshtastic: MeshtasticChannel` (future: satellite transport) |
+| `domain/channel/model/MeshtasticChannel.kt` | `psk: String (base64), channelHash: ContourHash` |
+| `domain/channel/model/DefaultContour.kt` | Hardcoded Emergency singleton; `asContour()`, `TRANSPORT`, `CHANNEL_HASH` |
+| `domain/channel/model/DefaultActiveContour.kt` | Seed constants for DB row (ID, DISPLAY_NAME, CHANNEL_NAME) |
+| `domain/channel/model/ChannelSlotMaps.kt` | `slotToHash: Map<Int, ContourHash>`, `hashToSlot: Map<ContourHash, Int>` |
 | `domain/channel/model/NodeChannelSlot.kt` | One slot on the physical radio (index, name, psk, isEnabled) |
 | `domain/channel/model/ChannelSyncStatus.kt` | `NotConnected / OnNode(slot) / NotOnNode / NoFreeSlot` |
-| `domain/channel/ChannelSlotResolver.kt` | Interface: `slotToHash`, `hashToSlot`, `mapsFlow` — runtime slot↔hash mapping |
-| `domain/channel/usecase/ResolveChannelSlotUseCase.kt` | Pure logic: AlreadySynced / FreeSlot / NoFreeSlot |
+| `domain/channel/ChannelSlotResolver.kt` | Interface: `slotToHash`, `hashToSlot`, `mapsFlow` |
+| `domain/channel/usecase/ResolveChannelSlotUseCase.kt` | Pure sync logic: `AlreadySynced / FreeSlot / NoFreeSlot` |
+| `domain/channel/usecase/SetContourActiveUseCase.kt` | Emergency ID → `setEmergencyActive()`; regular → `saveContour(copy(isActive=...))` |
+| `domain/channel/usecase/SyncContoursOnConnectUseCase.kt` | Writes Emergency to slot 0 + active non-emergency to free slots |
+| `domain/channel/usecase/ObserveContoursUseCase.kt` | Wraps `ContourRepository.observeContours()` |
 | `domain/channel/usecase/ObserveNodeChannelsUseCase.kt` | Wraps `MeshConfigRepository.observeNodeChannels()` |
+| `domain/channel/usecase/SaveContourUseCase.kt` | Wraps `ContourRepository.saveContour()` |
+| `domain/channel/usecase/DeleteContourUseCase.kt` | Wraps `ContourRepository.deleteContour()` |
+
+### Repository interface
+
+```kotlin
+interface ContourRepository {
+    fun observeContours(): Flow<List<Contour>>      // Emergency always prepended
+    fun observeEmergencyIsActive(): Flow<Boolean>   // reads DataStore pref
+    suspend fun setEmergencyActive(isActive: Boolean)
+    suspend fun seedDefaultsIfAbsent()              // seeds DefaultActiveContour on first run
+    suspend fun saveContour(contour: Contour)
+    suspend fun deleteContour(id: ContourId)
+    suspend fun findByChannelHash(hash: ContourHash): Contour?
+}
+```
 
 ### Data layer
 
-- `ChannelSlotResolverImpl` — singleton, subscribes to `ObserveNodeChannelsUseCase` in `init`,
-  maintains live `ChannelSlotMaps`; no DB access
+- `ContourRepositoryImpl`:
+  - `observeContours()` = `combine(DB flow, DataStore pref)` → prepend Emergency with live `isActive`
+  - `seedDefaultsIfAbsent()` = upsert DefaultActiveContour row if absent (called on app start)
+  - Emergency `isActive` in `DataStore<Preferences>` key `emergency_is_active`
+  - DB mapper: `meshtastic_psk NOT NULL` → `ContourTransport(MeshtasticChannel(...))`; backfills
+    `channel_hash IS NULL` rows on first read
+- `ChannelSlotResolverImpl` — singleton, subscribes to `ObserveNodeChannelsUseCase`, maintains
+  live `ChannelSlotMaps`; no DB access
+- `GeoSendPolicyImpl` — `observeAllowed() = observeEmergencyIsActive().map { !it }`
 - `MeshConfigRepository.observeNodeChannels()` maps `commandSender.channelSetFlow` →
   `List<NodeChannelSlot>`; `isEnabled = index == 0 || psk.size > 0`
-- DB migration `3.sqm`: `ALTER TABLE logical_channel ADD COLUMN is_auto_sync INTEGER NOT NULL DEFAULT 0`
-- DB migration `4.sqm`: `ALTER TABLE logical_channel ADD COLUMN channel_hash TEXT`
-- `LogicalChannelRepositoryImpl`: computes and persists `channelHash` on write; backfills
-  rows with `channel_hash IS NULL` on first read; `meshtastic_slot` column kept but no
-  longer written (deprecated, DROP COLUMN deferred to minSdk ≥ 35)
-- `LogicalChannelRepository.findByChannelHash(hash)` — used by `GeoMarkRepositoryImpl`
+- DB migrations:
+  - `3.sqm`: ADD COLUMN `is_auto_sync` (legacy, no longer read)
+  - `4.sqm`: ADD COLUMN `channel_hash TEXT`
+  - `5.sqm`: RENAME TABLE `logical_channel → contour`; ADD COLUMNS `is_active`, `description`,
+    `expiration`, `exclusivity_time`
 
-### Routing (hash-based, replaces resolvedSlot)
+### Routing (incoming packets)
 
 ```
 incoming packet.channel (Int)
-  → ChannelSlotResolver.slotToHash[slot]   → LogicalChannelHash (or drop)
-  → channelByHash[hash]                    → LogicalChannelId (UUID)
-  → stored in chat_message / geo_mark
+  slot == 0  → DefaultContour.asContour() with isActive from DataStore
+  slot N     → ChannelSlotResolver.slotToHash[N]  → ContourHash (or drop + Log.w)
+             → contours.find { it.transport.meshtastic.channelHash == hash }  (or drop + Log.w)
+  takeIf { it.isActive }  →  deliver  (or drop if inactive)
 ```
 
-`channelByHash` is built in-memory inside the combine block from `observeChannels()` — no
-extra DB query per packet. UUID remains DB primary key; `channelHash` is a secondary unique
-index used only for runtime routing.
+Used in: `IngestReceivedGeoMarksUseCase`, `MeshToChatAdapter`.
 
-**Why UUID stays as PK (not channelHash):** UUID was the PK before hash existed; changing
-the PK would require a full table migration cascading to `chat_message` and `geo_mark`
-foreign keys. No benefit in MVP — hash is only needed for the routing lookup path.
+### Sync on Connect (`SyncContoursOnConnectUseCase`)
+
+```
+on Connected:
+  writeChannel(0, "", "AQ==")             // Emergency always on slot 0
+  for each isActive non-emergency contour:
+    AlreadySynced → skip
+    FreeSlot(N)   → writeChannel(N, name, pskBase64)
+    NoFreeSlot    → Log.w, return
+```
 
 ### Presentation
 
-- `ChannelItem`: `isAutoSync: Boolean`, `syncStatus: ChannelSyncStatus` (replaces `transportLabel`)
+- `ContourItem`: `id, name, description?, expiration?, exclusivityTime?, isActive, isEmergency, syncStatus`
 - `NodeWriteEvent`: `Sent(channelName) / NotConnected / NoFreeSlot`
-- `UserSettingsViewModel`: single `combine(channels, nodeChannels, connectionStatus)` observer;
-  auto-sync fires on connect; `onPushToNode / onDeleteFromNode / onToggleAutoSync`;
-  slot resolved via `ChannelSlotResolver.hashToSlot` — no stored slot read
-- `MainViewModel`: combine observer computing `hasChannelOnNode`; HUD branch added to
-  `buildConnectionInfoSlot`
+- `UserSettingsViewModel`:
+  - `combine(contours, nodeChannels, connectionStatus)` observer
+  - On `justConnected`: `syncContoursOnConnect()` + geo config (enable/disable)
+  - `onToggleActive(id, isActive)` → `SetContourActiveUseCase`
+  - `onPushToNode / onDeleteFromNode` — slot resolution via `ChannelSlotResolver`
+  - Emergency guard: delete/edit blocked in ViewModel and UI
 
 ### DI registration
 
 ```kotlin
 // userSettingsModule
 single<ChannelSlotResolver> { ChannelSlotResolverImpl(get()) }
-
-// chatDataModule — resolver injected into MeshToChatAdapter + IngestReceivedChatMessagesUseCase
-// geoMarkDataModule — resolver injected into GeoMarkRepositoryImpl + IngestReceivedGeoMarksUseCase
-// meshDataModule — NodeProvisioningUseCase gets ObserveNodeChannelsUseCase + ResolveChannelSlotUseCase
+single { SyncContoursOnConnectUseCase(get(), get(), get(), get()) }
+single { EnableNodePositionBroadcastReadyUseCase(get()) }
+single { DisableNodePositionBroadcastUseCase(get()) }
 ```
 
 ## TODO (deferred)
 
+```kotlin
+// TODO(contour): replace hardcoded DefaultContour seed with contour sharing (QR/import)
+// TODO(contour): unblock Custom Контур creation after sharing is implemented
+// TODO(contour): SOS mode — activate Emergency automatically on alarm trigger
+// TODO(contour): unblock ContourEditorSheet for Emergency when SOS config UI is designed
+// TODO(contour): geo mode when both slot-0 contours are active — currently DefaultActive wins
+// TODO(contour): обработать отсутствие свободных слотов (UI уведомление)
+// TODO(contour): DROP COLUMN meshtastic_slot when minSdk ≥ 35
 ```
-// TODO(channels): write confirmation dialog before pushing to node
-// TODO(channels): loading + result indication requires ACK tracking in CommandSender
-// TODO(channels): "manage node slots" sheet for NoFreeSlot case
-// TODO(channels): user-to-user channel import/export (QR / deep link)
-// TODO(channels): DROP COLUMN meshtastic_slot when minSdk ≥ 35
-```
-
-## Tests pending (Phase 4)
-
-From original plan:
-- `ResolveChannelSlotUseCase`: AlreadySynced / FreeSlot / NoFreeSlot / slot-0-never-free
-- `MainViewModel` HUD warning: connected+no channels / connected+channels+none on node /
-  connected+match / disconnected
-- `UserSettingsViewModel`: push/delete/toggle + not-connected / no-free-slot guards
-
-From identity refactor:
-- `LogicalChannelHash.compute`: deterministic, stable, different outputs for different inputs
-- `ChannelSlotResolverImpl`: maps built correctly; empty list → empty maps
-- `IngestReceivedChatMessagesUseCase`: routed to correct channel by slot; unresolved → dropped
-- `IngestReceivedGeoMarksUseCase`: same
-- DB backfill: row with `channel_hash = null` → hash computed and persisted on first load

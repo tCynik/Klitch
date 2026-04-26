@@ -93,7 +93,14 @@
       "Bash(./gradlew :shared:generateCommonMainAppDatabaseInterface --no-daemon)",
       "Bash(./gradlew :app:testDebugUnitTest --no-daemon --tests \"ru.tcynik.meshtactics.domain.channel.model.ContourHashTest\" --tests \"ru.tcynik.meshtactics.data.channel.ChannelSlotResolverImplTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelChannelsTest\")",
       "Bash(./gradlew :app:compileDebugUnitTestKotlin --no-daemon)",
-      "Bash(./gradlew :app:testDebugUnitTest --tests \"*.UserSettingsViewModelChannelsTest.onPushToNode*\")"
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"*.UserSettingsViewModelChannelsTest.onPushToNode*\")",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCaseTest\")",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.data.channel.repository.ContourRepositoryImplTest\" --tests \"ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCaseTest\" --tests \"ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCaseTest\" --tests \"ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCaseTest\" --tests \"ru.tcynik.meshtactics.data.mesh.GeoSendPolicyImplTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelChannelsTest\")",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.data.channel.repository.ContourRepositoryImplTest.setEmergencyActive true*\")",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.data.channel.repository.ContourRepositoryImplTest\")",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCaseTest\")",
+      "Bash(cp \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/contour-concept.md\" \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/archive/contour-concept.md\")",
+      "Bash(rm \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/contour-concept.md\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",

@@ -22,6 +22,7 @@ import org.junit.Test
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.Contour
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
+import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
@@ -31,8 +32,12 @@ import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SaveContourUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SlotResolution
+import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
+import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.meshtactics.domain.user.model.AppUser
@@ -49,11 +54,15 @@ class UserSettingsViewModelChannelsTest {
     private val observeContours: ObserveContoursUseCase = mockk()
     private val saveContour: SaveContourUseCase = mockk(relaxed = true)
     private val deleteContour: DeleteContourUseCase = mockk(relaxed = true)
+    private val setContourActive: SetContourActiveUseCase = mockk(relaxed = true)
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
     private val writeChannel: WriteChannelUseCase = mockk(relaxed = true)
     private val resolveSlot: ResolveChannelSlotUseCase = mockk()
     private val observeConnectionStatus: ObserveConnectionStatusUseCase = mockk()
     private val channelSlotResolver: ChannelSlotResolver = mockk()
+    private val syncContoursOnConnect: SyncContoursOnConnectUseCase = mockk(relaxed = true)
+    private val enableNodePositionBroadcastReady: EnableNodePositionBroadcastReadyUseCase = mockk(relaxed = true)
+    private val disableNodePositionBroadcast: DisableNodePositionBroadcastUseCase = mockk(relaxed = true)
 
     private val contoursFlow = MutableStateFlow<List<Contour>>(emptyList())
     private val nodeChannelsFlow = MutableStateFlow<List<NodeChannelSlot>>(emptyList())
@@ -79,11 +88,15 @@ class UserSettingsViewModelChannelsTest {
             observeContours = observeContours,
             saveContour = saveContour,
             deleteContour = deleteContour,
+            setContourActive = setContourActive,
             observeNodeChannels = observeNodeChannels,
             writeChannel = writeChannel,
             resolveSlot = resolveSlot,
             observeConnectionStatus = observeConnectionStatus,
             channelSlotResolver = channelSlotResolver,
+            syncContoursOnConnect = syncContoursOnConnect,
+            enableNodePositionBroadcastReady = enableNodePositionBroadcastReady,
+            disableNodePositionBroadcast = disableNodePositionBroadcast,
         )
     }
 
@@ -211,29 +224,68 @@ class UserSettingsViewModelChannelsTest {
     // ── onToggleActive ────────────────────────────────────────────────────────
 
     @Test
-    fun `onToggleActive enables — saveContour called with isActive true`() = runTest(testDispatcher) {
+    fun `onToggleActive enables — setContourActive called with isActive true`() = runTest(testDispatcher) {
         val contour = makeContour("Gamma", byteArrayOf(0x04), isActive = false)
         populateCache(listOf(contour))
 
         viewModel.onToggleActive(contour.id, true)
         runCurrent()
 
-        coVerify(exactly = 1) {
-            saveContour.invoke(match { it.isActive && it.id == contour.id })
-        }
+        coVerify(exactly = 1) { setContourActive.invoke(contour.id, true) }
     }
 
     @Test
-    fun `onToggleActive disables — saveContour called with isActive false`() = runTest(testDispatcher) {
+    fun `onToggleActive disables — setContourActive called with isActive false`() = runTest(testDispatcher) {
         val contour = makeContour("Gamma", byteArrayOf(0x04), isActive = true)
         populateCache(listOf(contour))
 
         viewModel.onToggleActive(contour.id, false)
         runCurrent()
 
-        coVerify(exactly = 1) {
-            saveContour.invoke(match { !it.isActive && it.id == contour.id })
-        }
+        coVerify(exactly = 1) { setContourActive.invoke(contour.id, false) }
+    }
+
+    // ── onConnected geo config ────────────────────────────────────────────────
+
+    private fun makeEmergencyContour(isActive: Boolean) = Contour(
+        id = DefaultContour.ID,
+        name = DefaultContour.DISPLAY_NAME,
+        description = null,
+        expiration = null,
+        exclusivityTime = null,
+        isActive = isActive,
+        transport = ContourTransport(
+            meshtastic = MeshtasticChannel(psk = DefaultContour.OPEN_PSK, channelHash = DefaultContour.CHANNEL_HASH),
+        ),
+    )
+
+    @Test
+    fun `Connected with Emergency isActive=false — enableNodePositionBroadcastReady called`() = runTest(testDispatcher) {
+        contoursFlow.value = listOf(makeEmergencyContour(isActive = false))
+        connectionStatusFlow.value = connectedStatus
+        runCurrent()
+
+        verify(exactly = 1) { enableNodePositionBroadcastReady.invoke() }
+        verify(exactly = 0) { disableNodePositionBroadcast.invoke() }
+    }
+
+    @Test
+    fun `Connected with Emergency isActive=true — disableNodePositionBroadcast called`() = runTest(testDispatcher) {
+        contoursFlow.value = listOf(makeEmergencyContour(isActive = true))
+        connectionStatusFlow.value = connectedStatus
+        runCurrent()
+
+        verify(exactly = 1) { disableNodePositionBroadcast.invoke() }
+        verify(exactly = 0) { enableNodePositionBroadcastReady.invoke() }
+    }
+
+    @Test
+    fun `Connected with no Emergency contour — enableNodePositionBroadcastReady called (default false)`() = runTest(testDispatcher) {
+        contoursFlow.value = emptyList()
+        connectionStatusFlow.value = connectedStatus
+        runCurrent()
+
+        verify(exactly = 1) { enableNodePositionBroadcastReady.invoke() }
     }
 
     // ── onNodeWriteEventConsumed ──────────────────────────────────────────────

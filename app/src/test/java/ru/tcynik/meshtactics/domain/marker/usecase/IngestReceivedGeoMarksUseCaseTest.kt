@@ -6,10 +6,13 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import io.mockk.Runs
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapter
@@ -17,6 +20,7 @@ import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.ChannelSlotMaps
 import ru.tcynik.meshtactics.domain.channel.model.Contour
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
+import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
@@ -54,12 +58,12 @@ class IngestReceivedGeoMarksUseCaseTest {
         transport = ContourTransport(meshtastic = MeshtasticChannel(psk = pskBase64, channelHash = hash)),
     )
     private val resolvedMaps = ChannelSlotMaps(
-        slotToHash = mapOf(0 to hash),
-        hashToSlot = mapOf(hash to 0),
+        slotToHash = mapOf(1 to hash),
+        hashToSlot = mapOf(hash to 1),
     )
 
-    // DataPacket with no waypoint data — adapter decides how to decode
-    private val packet = DataPacket(bytes = null, dataType = 0, channel = 0)
+    // DataPacket on slot 1 (slot 0 is reserved for Emergency)
+    private val packet = DataPacket(bytes = null, dataType = 0, channel = 1)
 
     private val geoMark = GeoMarkModel(
         id = "mark-1",
@@ -74,6 +78,8 @@ class IngestReceivedGeoMarksUseCaseTest {
 
     @Before
     fun setUp() {
+        mockkStatic(android.util.Log::class)
+        every { android.util.Log.w(any(), any<String>()) } returns 0
         coEvery { geoMarkRepository.persistReceived(any(), any()) } just Runs
 
         useCase = IngestReceivedGeoMarksUseCase(
@@ -85,12 +91,17 @@ class IngestReceivedGeoMarksUseCaseTest {
         )
     }
 
+    @After
+    fun tearDown() {
+        unmockkStatic(android.util.Log::class)
+    }
+
     // ── happy path ────────────────────────────────────────────────────────────
 
     @Test
     fun `packet on resolved slot with valid model — persistReceived called`() = runTest {
         setupMocks(packets = listOf(packet), maps = resolvedMaps)
-        every { adapter.decode(packet, any()) } returns geoMark
+        every { adapter.decode(packet) } returns geoMark
 
         useCase.observe().test {
             awaitItem()
@@ -107,7 +118,7 @@ class IngestReceivedGeoMarksUseCaseTest {
         val packetOnSlot3 = DataPacket(bytes = null, dataType = 0, channel = 3)
         // slot 3 not in maps
         setupMocks(packets = listOf(packetOnSlot3), maps = resolvedMaps)
-        every { adapter.decode(any(), any()) } returns geoMark
+        every { adapter.decode(any()) } returns geoMark
 
         useCase.observe().test {
             awaitItem()
@@ -120,7 +131,7 @@ class IngestReceivedGeoMarksUseCaseTest {
     @Test
     fun `packet when slotToHash is empty — dropped`() = runTest {
         setupMocks(packets = listOf(packet), maps = ChannelSlotMaps())
-        every { adapter.decode(any(), any()) } returns geoMark
+        every { adapter.decode(any()) } returns geoMark
 
         useCase.observe().test {
             awaitItem()
@@ -140,7 +151,7 @@ class IngestReceivedGeoMarksUseCaseTest {
             hashToSlot = mapOf(orphanHash to 0),
         )
         setupMocks(packets = listOf(packet), contours = emptyList(), maps = orphanMaps)
-        every { adapter.decode(any(), any()) } returns geoMark
+        every { adapter.decode(any()) } returns geoMark
 
         useCase.observe().test {
             awaitItem()
@@ -155,7 +166,7 @@ class IngestReceivedGeoMarksUseCaseTest {
     @Test
     fun `adapter decode returns null — dropped`() = runTest {
         setupMocks(packets = listOf(packet), maps = resolvedMaps)
-        every { adapter.decode(packet, any()) } returns null
+        every { adapter.decode(packet) } returns null
 
         useCase.observe().test {
             awaitItem()
@@ -171,7 +182,7 @@ class IngestReceivedGeoMarksUseCaseTest {
     fun `expired model — dropped`() = runTest {
         val expiredMark = geoMark.copy(expiresAt = 1L)
         setupMocks(packets = listOf(packet), maps = resolvedMaps)
-        every { adapter.decode(packet, any()) } returns expiredMark
+        every { adapter.decode(packet) } returns expiredMark
 
         useCase.observe().test {
             awaitItem()
@@ -185,7 +196,7 @@ class IngestReceivedGeoMarksUseCaseTest {
     fun `model with null expiresAt — not filtered by expiry check`() = runTest {
         val noExpiry = geoMark.copy(expiresAt = null)
         setupMocks(packets = listOf(packet), maps = resolvedMaps)
-        every { adapter.decode(packet, any()) } returns noExpiry
+        every { adapter.decode(packet) } returns noExpiry
 
         useCase.observe().test {
             awaitItem()
@@ -209,7 +220,65 @@ class IngestReceivedGeoMarksUseCaseTest {
         coVerify(exactly = 0) { geoMarkRepository.persistReceived(any(), any()) }
     }
 
+    // ── slot 0 routing (Emergency) ────────────────────────────────────────────
+
+    @Test
+    fun `slot 0 Emergency isActive=true — persistReceived called`() = runTest {
+        val slot0Packet = DataPacket(bytes = null, dataType = 0, channel = 0)
+        val activeEmergency = makeEmergencyContour(isActive = true)
+        setupMocks(packets = listOf(slot0Packet), contours = listOf(activeEmergency), maps = resolvedMaps)
+        every { adapter.decode(slot0Packet) } returns geoMark
+
+        useCase.observe().test {
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 1) { geoMarkRepository.persistReceived(geoMark, DefaultContour.ID) }
+    }
+
+    @Test
+    fun `slot 0 Emergency isActive=false — packet dropped`() = runTest {
+        val slot0Packet = DataPacket(bytes = null, dataType = 0, channel = 0)
+        val inactiveEmergency = makeEmergencyContour(isActive = false)
+        setupMocks(packets = listOf(slot0Packet), contours = listOf(inactiveEmergency), maps = resolvedMaps)
+        every { adapter.decode(any()) } returns geoMark
+
+        useCase.observe().test {
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 0) { geoMarkRepository.persistReceived(any(), any()) }
+    }
+
+    // ── isActive filter ───────────────────────────────────────────────────────
+
+    @Test
+    fun `slot N contour isActive=false — packet dropped`() = runTest {
+        val inactiveContour = contour.copy(isActive = false)
+        setupMocks(packets = listOf(packet), contours = listOf(inactiveContour), maps = resolvedMaps)
+        every { adapter.decode(any()) } returns geoMark
+
+        useCase.observe().test {
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 0) { geoMarkRepository.persistReceived(any(), any()) }
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
+
+    private fun makeEmergencyContour(isActive: Boolean) = Contour(
+        id = DefaultContour.ID,
+        name = DefaultContour.DISPLAY_NAME,
+        description = null,
+        expiration = null,
+        exclusivityTime = null,
+        isActive = isActive,
+        transport = DefaultContour.TRANSPORT,
+    )
 
     private fun setupMocks(
         packets: List<DataPacket>,

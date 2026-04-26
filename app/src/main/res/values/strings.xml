@@ -45,9 +45,8 @@
     <string name="user_display_name_label">Позывной</string>
     <string name="user_short_name_label">Короткое имя</string>
     <string name="user_save_button">Сохранить</string>
-    <string name="user_section_channels">Каналы</string>
     <string name="user_section_contours">Контуры</string>
-    <string name="user_add_channel_button">+ Добавить канал</string>
+    <string name="user_add_contour_button">+ Добавить контур</string>
     <string name="user_channel_edit">Редактировать</string>
     <string name="user_channel_delete">Удалить</string>
     <string name="user_channel_more_actions">Действия с каналом</string>

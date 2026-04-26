@@ -19,6 +19,7 @@ import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SaveContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
 import ru.tcynik.meshtactics.domain.user.repository.AppUserRepository
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
@@ -32,8 +33,15 @@ val userSettingsModule = module {
         )
     }
 
+    single(named("ContourDataStore")) {
+        PreferenceDataStoreFactory.create(
+            scope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
+            produceFile = { androidContext().preferencesDataStoreFile("contour_ds") },
+        )
+    }
+
     single<AppUserRepository> { AppUserRepositoryImpl(get(named("UserDataStore"))) }
-    single<ContourRepository> { ContourRepositoryImpl(get()) }
+    single<ContourRepository> { ContourRepositoryImpl(get(), get(named("ContourDataStore"))) }
 
     single { ObserveAppUserUseCase(get()) }
     single { SaveAppUserUseCase(get()) }
@@ -43,5 +51,6 @@ val userSettingsModule = module {
     single { SetContourActiveUseCase(get()) }
     single { ObserveNodeChannelsUseCase(get()) }
     single { ResolveChannelSlotUseCase() }
+    single { SyncContoursOnConnectUseCase(get(), get(), get(), get()) }
     single<ChannelSlotResolver> { ChannelSlotResolverImpl(get()) }
 }
