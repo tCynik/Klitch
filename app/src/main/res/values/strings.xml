@@ -82,4 +82,12 @@
     <string name="channel_editor_psk_error">Невалидный PSK: требуется 16 или 32 байта в base64</string>
     <string name="channel_editor_cancel">Отмена</string>
     <string name="channel_editor_save">Сохранить</string>
+
+    <string name="emergency_trigger_dialog_title">Позвать на помощь?</string>
+    <string name="emergency_trigger_dialog_confirm">ДА</string>
+    <string name="emergency_trigger_dialog_dismiss">Отмена</string>
+    <string name="emergency_cancel_dialog_title">Всё хорошо? Отменить тревогу?</string>
+    <string name="emergency_cancel_dialog_confirm">Да</string>
+    <string name="emergency_cancel_dialog_dismiss">Нет</string>
+    <string name="emergency_toast_triggered">Запрос о помощи отправлен. Трансляция геопозиции начата.</string>
 </resources>

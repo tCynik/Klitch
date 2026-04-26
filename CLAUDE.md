@@ -32,6 +32,7 @@
 | Чат | ✅ Done |
 | Маркеры / заметки | ✅ Done |
 | Контуры (CRUD + isActive + Geo Protection) | ✅ Done |
+| Emergency SOS (кнопка SOS, трансляция геопозиции) | ✅ Done |
 | Настройки ноды | ⬜ Planned |
 
 ---
@@ -100,6 +101,7 @@
 | Chat | `.claude/docs/chat.md` |
 | Contour Management | `.claude/docs/logical-channels-management.md` |
 | Contour Design Concepts | `.claude/docs/contour-design.md` |
+| Emergency SOS | `.claude/docs/emergency-sos.md` |
 
 ---
 
@@ -117,4 +119,5 @@
 | User & Channels Settings | `.claude/plans/user-and-channels-settings.md` | Done |
 | Node Provisioning | `.claude/plans/node-provisioning.md` | Done |
 | Logical Channels Management | `.claude/archive/logical-channels-management.md` | Archived |
+| Emergency SOS | `.claude/archive/emergency-sos.md` | Archived |
 | Implementation Roadmap | `.claude/plans/implementation-roadmap.md` | Active |

@@ -36,6 +36,9 @@ import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SlotResolution
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
+import ru.tcynik.meshtactics.domain.emergency.usecase.CancelEmergencyUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
@@ -63,6 +66,9 @@ class UserSettingsViewModelChannelsTest {
     private val syncContoursOnConnect: SyncContoursOnConnectUseCase = mockk(relaxed = true)
     private val enableNodePositionBroadcastReady: EnableNodePositionBroadcastReadyUseCase = mockk(relaxed = true)
     private val disableNodePositionBroadcast: DisableNodePositionBroadcastUseCase = mockk(relaxed = true)
+    private val observeEmergencyMode: ObserveEmergencyModeUseCase = mockk()
+    private val triggerEmergency: TriggerEmergencyUseCase = mockk(relaxed = true)
+    private val cancelEmergency: CancelEmergencyUseCase = mockk(relaxed = true)
 
     private val contoursFlow = MutableStateFlow<List<Contour>>(emptyList())
     private val nodeChannelsFlow = MutableStateFlow<List<NodeChannelSlot>>(emptyList())
@@ -82,6 +88,7 @@ class UserSettingsViewModelChannelsTest {
         every { observeConnectionStatus.invoke(any()) } returns connectionStatusFlow
         every { channelSlotResolver.hashToSlot } returns emptyMap()
         every { resolveSlot.invoke(any(), any()) } returns SlotResolution.NoFreeSlot
+        every { observeEmergencyMode.invoke() } returns flowOf(false)
         viewModel = UserSettingsViewModel(
             observeAppUser = observeAppUser,
             saveAppUser = saveAppUser,
@@ -97,6 +104,9 @@ class UserSettingsViewModelChannelsTest {
             syncContoursOnConnect = syncContoursOnConnect,
             enableNodePositionBroadcastReady = enableNodePositionBroadcastReady,
             disableNodePositionBroadcast = disableNodePositionBroadcast,
+            observeEmergencyMode = observeEmergencyMode,
+            triggerEmergency = triggerEmergency,
+            cancelEmergency = cancelEmergency,
         )
     }
 

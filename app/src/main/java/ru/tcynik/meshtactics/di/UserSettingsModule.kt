@@ -10,6 +10,7 @@ import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import ru.tcynik.meshtactics.data.channel.ChannelSlotResolverImpl
 import ru.tcynik.meshtactics.data.channel.repository.ContourRepositoryImpl
+import ru.tcynik.meshtactics.data.emergency.EmergencyPositionBroadcastRepositoryImpl
 import ru.tcynik.meshtactics.data.user.repository.AppUserRepositoryImpl
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
@@ -20,6 +21,10 @@ import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SaveContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
+import ru.tcynik.meshtactics.domain.emergency.repository.EmergencyPositionBroadcastRepository
+import ru.tcynik.meshtactics.domain.emergency.usecase.CancelEmergencyUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.domain.user.repository.AppUserRepository
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
@@ -53,4 +58,11 @@ val userSettingsModule = module {
     single { ResolveChannelSlotUseCase() }
     single { SyncContoursOnConnectUseCase(get(), get(), get(), get()) }
     single<ChannelSlotResolver> { ChannelSlotResolverImpl(get()) }
+
+    single<EmergencyPositionBroadcastRepository>(createdAtStart = true) {
+        EmergencyPositionBroadcastRepositoryImpl(get(), get(), get())
+    }
+    single { ObserveEmergencyModeUseCase(get()) }
+    single { TriggerEmergencyUseCase(get(), get(), get(), get(), get()) }
+    single { CancelEmergencyUseCase(get(), get(), get(), get()) }
 }

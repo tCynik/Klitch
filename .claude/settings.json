@@ -100,13 +100,16 @@
       "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.data.channel.repository.ContourRepositoryImplTest\")",
       "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCaseTest\")",
       "Bash(cp \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/contour-concept.md\" \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/archive/contour-concept.md\")",
-      "Bash(rm \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/contour-concept.md\")"
+      "Bash(rm \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/contour-concept.md\")",
+      "Bash(grep -E \"Module\\\\.kt$\")",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.domain.emergency.*\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelSosTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelChannelsTest\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",
       "c:\\Users\\LocAdmin\\AndroidStudioProjects\\MeshTactics\\.claude",
       "c:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude\\plans",
-      "c:\\Users\\LocAdmin\\AndroidStudioProjects\\MeshTactics\\.claude\\plans"
+      "c:\\Users\\LocAdmin\\AndroidStudioProjects\\MeshTactics\\.claude\\plans",
+      "c:\\Users\\tcynik\\.claude\\projects\\c--Users-tcynik-StudioProjects-MeshTactics\\memory"
     ]
   }
 }

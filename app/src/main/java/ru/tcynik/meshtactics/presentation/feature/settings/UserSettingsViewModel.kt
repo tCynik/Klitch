@@ -30,6 +30,9 @@ import ru.tcynik.meshtactics.domain.channel.usecase.SaveContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SlotResolution
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.CancelEmergencyUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
@@ -58,6 +61,9 @@ class UserSettingsViewModel(
     private val syncContoursOnConnect: SyncContoursOnConnectUseCase,
     private val enableNodePositionBroadcastReady: EnableNodePositionBroadcastReadyUseCase,
     private val disableNodePositionBroadcast: DisableNodePositionBroadcastUseCase,
+    private val observeEmergencyMode: ObserveEmergencyModeUseCase,
+    private val triggerEmergency: TriggerEmergencyUseCase,
+    private val cancelEmergency: CancelEmergencyUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UserSettingsUiState())
@@ -75,6 +81,10 @@ class UserSettingsViewModel(
                     else state
                 }
             }
+            .launchIn(viewModelScope)
+
+        observeEmergencyMode()
+            .onEach { isActive -> _uiState.update { it.copy(emergencyMode = isActive) } }
             .launchIn(viewModelScope)
 
         combine(
@@ -99,7 +109,12 @@ class UserSettingsViewModel(
                     syncStatus = computeSyncStatus(contour, nodeChannels, status),
                 )
             }
-            _uiState.update { it.copy(contours = items.toImmutableList()) }
+            _uiState.update {
+                it.copy(
+                    contours = items.toImmutableList(),
+                    isNodeConnected = status is MeshConnectionStatus.Connected,
+                )
+            }
 
             val justConnected = !wasConnected && status is MeshConnectionStatus.Connected
             if (justConnected) {
@@ -264,6 +279,39 @@ class UserSettingsViewModel(
 
     fun onEditorDismiss() {
         _uiState.update { it.copy(editorSheet = null) }
+    }
+
+    fun onSosClick() {
+        if (_uiState.value.emergencyMode) {
+            _uiState.update { it.copy(showCancelDialog = true) }
+        } else {
+            _uiState.update { it.copy(showTriggerDialog = true) }
+        }
+    }
+
+    fun onTriggerEmergencyConfirm() {
+        _uiState.update { it.copy(showTriggerDialog = false) }
+        viewModelScope.launch {
+            triggerEmergency()
+            _uiState.update { it.copy(emergencyEvent = EmergencyEvent.Triggered) }
+        }
+    }
+
+    fun onCancelEmergencyConfirm() {
+        _uiState.update { it.copy(showCancelDialog = false) }
+        viewModelScope.launch { cancelEmergency() }
+    }
+
+    fun onDismissTriggerDialog() {
+        _uiState.update { it.copy(showTriggerDialog = false) }
+    }
+
+    fun onDismissCancelDialog() {
+        _uiState.update { it.copy(showCancelDialog = false) }
+    }
+
+    fun onEmergencyEventConsumed() {
+        _uiState.update { it.copy(emergencyEvent = null) }
     }
 }
 

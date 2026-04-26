@@ -102,6 +102,21 @@ Always respond in Russian.
 
 ---
 
+### Established Token Usage (Alert / Error States)
+
+These token decisions were established during the Emergency SOS feature and apply to any future alert-state UI:
+
+| Context | Token | Role |
+|---|---|---|
+| Active-alert card background | `errorContainer` | Card `containerColor` when an alarm is active |
+| Active-alert card content color | `onErrorContainer` | Text/icon on an active-alert card |
+| Destructive action button | `error` / `onError` | Confirm buttons for irreversible / danger actions (e.g. "Send SOS") |
+| Cancelled / disabled-state icon button | `surfaceVariant` / `onSurfaceVariant` | FilledIconButton when the action is suppressed by an active state |
+
+**Rule**: never use hardcoded red; always route through `error` / `errorContainer` so both light and dark themes are correct.
+
+---
+
 ### Component Library
 
 *Documented as components are designed. Each entry: name, file path, variants, usage rules.*
@@ -109,6 +124,7 @@ Always respond in Russian.
 | Component | File | Status | Notes |
 |---|---|---|---|
 | MeshIconButton | `app/.../MeshIconButton.kt` | Defined | See `/icon-designer` |
+| EmergencyContourCard | `app/.../feature/settings/UserTabContent.kt` | Defined | SOS button + alert card; see Emergency SOS token decisions above |
 
 ---
 

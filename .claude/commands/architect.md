@@ -233,6 +233,69 @@ See: `app/src/main/.../service/GpsService.kt`, `app/src/main/.../domain/gps/repo
 
 ---
 
+### Controllable Background Repository Pattern
+
+Use this pattern when a repository must run a long-lived background job that can be explicitly started and stopped by domain use cases — and must survive screen changes.
+
+**Structure:**
+
+```kotlin
+// domain — interface only
+interface EmergencyPositionBroadcastRepository {
+    val isActive: StateFlow<Boolean>
+    fun start()
+    fun stop()
+}
+
+// data — owns its own coroutine scope
+class EmergencyPositionBroadcastRepositoryImpl(
+    private val gpsRepository: GpsRepository,
+    // ... other deps
+) : EmergencyPositionBroadcastRepository {
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var broadcastJob: Job? = null
+
+    private val _isActive = MutableStateFlow(false)
+    override val isActive: StateFlow<Boolean> = _isActive.asStateFlow()
+
+    init {
+        // Restore persisted state on startup
+        scope.launch {
+            val wasActive = contourRepository.observeEmergencyIsActive().first()
+            if (wasActive) start()
+        }
+    }
+
+    override fun start() {
+        if (broadcastJob?.isActive == true) return
+        _isActive.value = true
+        broadcastJob = scope.launch { /* loop */ }
+    }
+
+    override fun stop() {
+        broadcastJob?.cancel()
+        broadcastJob = null
+        _isActive.value = false
+    }
+}
+```
+
+**DI:** `single<EmergencyPositionBroadcastRepository> { EmergencyPositionBroadcastRepositoryImpl(get(), get(), get()) }` with `createdAtStart = true` to restore persisted state at app start.
+
+**Lifecycle:** `start()` / `stop()` are called only from domain use cases (`TriggerEmergencyUseCase` / `CancelEmergencyUseCase`), never from ViewModel or Composable.
+
+**Distinction from related patterns:**
+- `ChannelSlotResolverImpl` — always-on, no external lifecycle control; subscribes in `init`, never paused
+- `GpsLifecycleController` — lifecycle control extracted to a *separate domain interface* so an Android Service can inject it without knowing the concrete class; use that split-interface approach when a Service needs the controller
+- `EmergencyPositionBroadcastRepository` — lifecycle control is on the *same interface* because only use cases control it (no service involved); simpler when no Android Service lifecycle is required
+
+**When to use:** Long-running background work (polling, periodic broadcast) where start/stop is triggered by user action via use cases, and the job must persist across screen changes. If an Android Service needs to control the lifecycle, use the **Foreground Service Lifecycle Pattern** (split interface) instead.
+
+See: `data/emergency/EmergencyPositionBroadcastRepositoryImpl.kt`, `domain/emergency/repository/EmergencyPositionBroadcastRepository.kt`
+
+---
+
 ### Runtime Resolver Pattern (ChannelSlotResolver)
 
 Use this pattern when live node state must be resolved into a domain lookup at runtime — not stored in DB and not derived from a use case call.

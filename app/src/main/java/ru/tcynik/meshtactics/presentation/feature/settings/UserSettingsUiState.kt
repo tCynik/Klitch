@@ -6,6 +6,10 @@ import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.presentation.feature.settings.models.ContourItem
 import ru.tcynik.meshtactics.presentation.feature.settings.models.NodeWriteEvent
 
+sealed interface EmergencyEvent {
+    data object Triggered : EmergencyEvent
+}
+
 data class UserSettingsUiState(
     val displayName: String = "",
     val hasUnsavedUserChanges: Boolean = false,
@@ -13,6 +17,11 @@ data class UserSettingsUiState(
     val editorSheet: ContourEditorState? = null,
     val deleteConfirmId: ContourId? = null,
     val nodeWriteEvent: NodeWriteEvent? = null,
+    val emergencyMode: Boolean = false,
+    val isNodeConnected: Boolean = false,
+    val showTriggerDialog: Boolean = false,
+    val showCancelDialog: Boolean = false,
+    val emergencyEvent: EmergencyEvent? = null,
 )
 
 data class ContourEditorState(
