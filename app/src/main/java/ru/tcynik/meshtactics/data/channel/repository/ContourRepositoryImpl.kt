@@ -58,7 +58,7 @@ class ContourRepositoryImpl(
                 meshtasticPsk = pskBytes,
                 channelHash = hash.value,
                 isActive = 1L,
-                description = null,
+                description = DefaultActiveContour.DESCRIPTION,
                 expiration = null,
                 exclusivityTime = null,
             )

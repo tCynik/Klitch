@@ -13,10 +13,12 @@ object DefaultContour {
         meshtastic = MeshtasticChannel(psk = OPEN_PSK, channelHash = CHANNEL_HASH)
     )
 
+    const val DESCRIPTION = "Аварийный контур. Здесь можно попросить помощь."
+
     fun asContour() = Contour(
         id = ID,
         name = DISPLAY_NAME,
-        description = null,
+        description = DESCRIPTION,
         expiration = null,
         exclusivityTime = null,
         isActive = IS_ACTIVE_DEFAULT,
