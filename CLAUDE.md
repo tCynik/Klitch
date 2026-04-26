@@ -121,3 +121,4 @@
 | Logical Channels Management | `.claude/archive/logical-channels-management.md` | Archived |
 | Emergency SOS | `.claude/archive/emergency-sos.md` | Archived |
 | Implementation Roadmap | `.claude/plans/implementation-roadmap.md` | Active |
+| Channel Sync Validation | `.claude/plans/channel-sync-validation.md` | Approved |
