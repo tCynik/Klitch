@@ -1,11 +1,16 @@
 package ru.tcynik.meshtactics
 
 import android.app.Application
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import org.koin.core.logger.Level
+import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.di.androidModule
 import ru.tcynik.meshtactics.di.chatDataModule
 import ru.tcynik.meshtactics.di.commonModule
@@ -50,5 +55,8 @@ class MyMeshApplication : Application() {
             )
         }
         GlobalContext.get().get<MeshServiceOrchestrator>().start()
+        CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+            GlobalContext.get().get<ContourRepository>().seedDefaultsIfAbsent()
+        }
     }
 }
