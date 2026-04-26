@@ -13,16 +13,19 @@ import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import ru.tcynik.meshtactics.data.chat.adapter.MeshToChatAdapter
 import ru.tcynik.meshtactics.data.chat.prefs.ChatPrefsRepository
+import ru.tcynik.meshtactics.data.chat.repository.ChatMessageRepositoryImpl
 import ru.tcynik.meshtactics.data.chat.repository.ChatRepositoryImpl
+import ru.tcynik.meshtactics.domain.chat.repository.ChatMessageRepository
 import ru.tcynik.meshtactics.domain.chat.repository.ChatRepository
 import ru.tcynik.meshtactics.domain.chat.usecase.ClearChatHistoryUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.MarkChatAsReadUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.ObserveChatContactsUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.ObserveChatMessagesUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.ObserveTotalUnreadChatCountUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.SendChatMessageUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.ToggleChatArchivedUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.ToggleChatFavoriteUseCase
-import ru.tcynik.meshtactics.domain.chat.usecase.ObserveTotalUnreadChatCountUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.ToggleChatPinnedUseCase
 
 val chatDataModule = module {
@@ -41,14 +44,24 @@ val chatDataModule = module {
     // Adapter (только он импортирует mesh.model.*)
     single {
         MeshToChatAdapter(
-            packetRepository = get(),
-            nodeRepository = get(),
-            commandSender = get(),
+            packetRepository    = get(),
+            nodeRepository      = get(),
+            commandSender       = get(),
+            channelRepository   = get(),
+            channelSlotResolver = get(),
         )
     }
 
-    // Repository
-    single<ChatRepository> { ChatRepositoryImpl(adapter = get()) }
+    // Message repository (SQLDelight)
+    single<ChatMessageRepository> { ChatMessageRepositoryImpl(queries = get()) }
+
+    // Chat repository
+    single<ChatRepository> {
+        ChatRepositoryImpl(
+            adapter = get(),
+            chatMessageRepository = get(),
+        )
+    }
 
     // Use Cases
     single { ObserveChatContactsUseCase(get()) }
@@ -60,4 +73,12 @@ val chatDataModule = module {
     single { ClearChatHistoryUseCase(get()) }
     single { MarkChatAsReadUseCase(get()) }
     single { ObserveTotalUnreadChatCountUseCase(get()) }
+    single {
+        IngestReceivedChatMessagesUseCase(
+            adapter = get(),
+            channelRepository = get(),
+            chatMessageRepository = get(),
+            channelSlotResolver = get(),
+        )
+    }
 }

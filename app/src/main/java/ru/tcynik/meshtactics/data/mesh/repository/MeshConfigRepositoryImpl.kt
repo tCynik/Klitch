@@ -8,12 +8,14 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import okio.ByteString.Companion.toByteString
 import org.meshtastic.proto.Channel
 import org.meshtastic.proto.ChannelSettings
 import org.meshtastic.proto.Config
 import org.meshtastic.proto.HardwareModel
 import org.meshtastic.proto.ModuleSettings
+import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
 import ru.tcynik.meshtactics.domain.mesh.model.GpsMode
 import ru.tcynik.meshtactics.domain.mesh.model.LocationConfigModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshChannelModel
@@ -33,6 +35,18 @@ class MeshConfigRepositoryImpl(
     private val uiPrefs: UiPrefs,
     private val context: Context,
 ) : MeshConfigRepository {
+
+    override fun observeNodeChannels(): Flow<List<NodeChannelSlot>> =
+        commandSender.channelSetFlow.map { channelSet ->
+            channelSet.settings.mapIndexed { index, settings ->
+                NodeChannelSlot(
+                    index = index,
+                    name = settings.name,
+                    psk = settings.psk.toByteArray(),
+                    isEnabled = index == 0 || settings.psk.size > 0,
+                )
+            }
+        }
 
     override fun requestDeviceConfig() {
         meshRouter.configFlowManager.triggerWantConfig()
@@ -129,6 +143,32 @@ class MeshConfigRepositoryImpl(
 
     override fun removeFixedPosition(destNum: Int) {
         commandSender.setFixedPosition(destNum, Position(0.0, 0.0, 0))
+    }
+
+    override fun enableNodePositionBroadcastReady() {
+        val destNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
+        val current = meshRouter.configHandler.localConfig.value.position ?: Config.PositionConfig()
+        val updated = current.copy(
+            position_broadcast_secs = GEO_BROADCAST_READY_SECS,
+            position_broadcast_smart_enabled = false,
+        )
+        val payload = Config.ADAPTER.encode(Config(position = updated))
+        meshRouter.actionHandler.handleSetConfig(payload, destNum)
+        writeChannelPositionPrecision(destNum, channelIndex = 0, precision = GEO_CHANNEL_PRECISION)
+    }
+
+    override fun disableNodePositionBroadcast() {
+        val destNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
+        val current = meshRouter.configHandler.localConfig.value.position ?: Config.PositionConfig()
+        val updated = current.copy(position_broadcast_secs = GEO_BROADCAST_DISABLED_SECS)
+        val payload = Config.ADAPTER.encode(Config(position = updated))
+        meshRouter.actionHandler.handleSetConfig(payload, destNum)
+    }
+
+    companion object {
+        private const val GEO_BROADCAST_READY_SECS = 60
+        private const val GEO_BROADCAST_DISABLED_SECS = Int.MAX_VALUE
+        private const val GEO_CHANNEL_PRECISION = 13
     }
 
     private fun hasLocationPermission(): Boolean =

@@ -39,12 +39,20 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveOurNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGeoNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveLocationConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObservePacketLogUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RemoveFixedPositionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SendMeshMessageUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SetProvideLocationUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelPositionPrecisionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WritePositionConfigUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
+import ru.tcynik.meshtactics.data.mesh.GeoSendPolicyImpl
+import ru.tcynik.meshtactics.mesh.repository.GeoSendPolicy
 
 val meshDataModule = module {
 
@@ -96,6 +104,8 @@ val meshDataModule = module {
         )
     }
 
+    single<GeoSendPolicy> { GeoSendPolicyImpl(get()) }
+
     single<LastConnectedDeviceRepository> { LastConnectedDeviceRepositoryImpl(get()) }
     single { GetLastConnectedDeviceUseCase(get()) }
     single { SaveLastConnectedDeviceUseCase(get()) }
@@ -120,4 +130,17 @@ val meshDataModule = module {
     single { WritePositionConfigUseCase(get()) }
     single { WriteChannelPositionPrecisionUseCase(get()) }
     single { RemoveFixedPositionUseCase(get()) }
+    single { EnableNodePositionBroadcastReadyUseCase(get()) }
+    single { DisableNodePositionBroadcastUseCase(get()) }
+    single {
+        NodeProvisioningUseCase(
+            observeContours = get<ObserveContoursUseCase>(),
+            observeAppUser = get(),
+            observeDeviceConfig = get(),
+            writeChannel = get(),
+            writeOwner = get(),
+            observeNodeChannels = get<ObserveNodeChannelsUseCase>(),
+            resolveSlot = get<ResolveChannelSlotUseCase>(),
+        )
+    }
 }

@@ -19,8 +19,15 @@ import ru.tcynik.meshtactics.domain.map.usecase.ObserveSelectedOverlaysUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ToggleImportedMapSelectionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.presentation.feature.settings.SettingsViewModel
+import ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModel
 
 val presentationModule = module {
 
@@ -40,8 +47,14 @@ val presentationModule = module {
             scanDevices = get<ScanMeshDevicesUseCase>(),
             connectToDevice = get<ConnectToMeshDeviceUseCase>(),
             getLastConnectedDevice = get<GetLastConnectedDeviceUseCase>(),
+            nodeProvisioning = get<NodeProvisioningUseCase>(),
             observeGeoMarks = get(),
             sendGeoMark = get(),
+            ingestReceivedGeoMarks = get<IngestReceivedGeoMarksUseCase>(),
+            deleteExpiredGeoMarks = get<DeleteExpiredGeoMarksUseCase>(),
+            ingestReceivedChatMessages = get<IngestReceivedChatMessagesUseCase>(),
+            observeLogicalChannels = get<ObserveContoursUseCase>(), // parameter kept for compat
+            observeNodeChannels = get<ObserveNodeChannelsUseCase>(),
         )
     }
 
@@ -57,6 +70,7 @@ val presentationModule = module {
             toggleImportedMapSelection = get<ToggleImportedMapSelectionUseCase>(),
         )
     }
+    viewModelOf(::UserSettingsViewModel)
     viewModelOf(::NodeSettingsViewModel)
     viewModelOf(::NodeStatusViewModel)
     viewModelOf(::MarkersViewModel)

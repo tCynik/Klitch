@@ -29,8 +29,9 @@
 | Автоподключение к последнему узлу при старте | ✅ Done |
 | Визуальный язык (цвет, типографика, HUD) | ⏳ Deferred (после отработки userFlow) |
 | BLE-узлы на карте (telemetry) | ⬜ Planned |
-| Чат | ⏳ In Progress |
+| Чат | ✅ Done |
 | Маркеры / заметки | ✅ Done |
+| Контуры (CRUD + isActive + Geo Protection) | ✅ Done |
 | Настройки ноды | ⬜ Planned |
 
 ---
@@ -96,6 +97,9 @@
 | GPS Background Service | `.claude/docs/gps-background-service.md` |
 | Universal Orientation | `.claude/docs/universal-orientation.md` |
 | Auto-connect on Start | `.claude/docs/auto-connect-on-start.md` |
+| Chat | `.claude/docs/chat.md` |
+| Contour Management | `.claude/docs/logical-channels-management.md` |
+| Contour Design Concepts | `.claude/docs/contour-design.md` |
 
 ---
 
@@ -108,4 +112,9 @@
 | Settings Refactor | `.claude/plans/settings-refactor.md` | Approved |
 | Geo Nodes Tab | `.claude/plans/geo-nodes-tab.md` | Approved |
 | Node Markers on Map | `.claude/plans/node-markers-on-map.md` | Approved |
-| Chat Feature | `.claude/plans/chat-feature-plan.md` | In Progress |
+| Chat Feature | `.claude/plans/chat-feature-plan.md` | Done |
+| Contour Concept | `.claude/archive/contour-concept.md` | Archived |
+| User & Channels Settings | `.claude/plans/user-and-channels-settings.md` | Done |
+| Node Provisioning | `.claude/plans/node-provisioning.md` | Done |
+| Logical Channels Management | `.claude/archive/logical-channels-management.md` | Archived |
+| Implementation Roadmap | `.claude/plans/implementation-roadmap.md` | Active |

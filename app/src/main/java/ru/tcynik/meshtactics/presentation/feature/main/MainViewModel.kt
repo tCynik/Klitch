@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -38,6 +39,7 @@ import ru.tcynik.meshtactics.domain.chat.usecase.ObserveTotalUnreadChatCountUseC
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceParams
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
@@ -52,6 +54,12 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyInfoSlot
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
+import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
+import ru.tcynik.meshtactics.domain.channel.model.ContourHash
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkContextMenuEvent
@@ -68,6 +76,7 @@ private const val DOUBLE_TAP_WINDOW_MS = 300L
 // TODO: replace with dp-based calculation using current camera zoom in Phase 3 refinement.
 private const val DRAFT_POINT_TOUCH_RADIUS_M = 30.0
 private const val METERS_PER_DEG_LAT_APPROX = 111_320.0
+private const val GEO_MARK_CLEANUP_INTERVAL_MS = 3_600_000L
 
 class MainViewModel(
     getTileUrl: GetTileUrlUseCase,
@@ -83,8 +92,14 @@ class MainViewModel(
     private val scanDevices: ScanMeshDevicesUseCase,
     private val connectToDevice: ConnectToMeshDeviceUseCase,
     private val getLastConnectedDevice: GetLastConnectedDeviceUseCase,
+    private val nodeProvisioning: NodeProvisioningUseCase,
     observeGeoMarks: ObserveGeoMarksUseCase,
     private val sendGeoMark: SendGeoMarkUseCase,
+    ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase,
+    private val deleteExpiredGeoMarks: DeleteExpiredGeoMarksUseCase,
+    ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase,
+    observeLogicalChannels: ObserveContoursUseCase,
+    observeNodeChannels: ObserveNodeChannelsUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -136,6 +151,7 @@ class MainViewModel(
                     val wasConnected = _uiState.value.connectionStatus is MeshConnectionStatus.Connected
                     _uiState.update { it.copy(connectionStatus = status) }
                     if (!wasConnected) {
+                        viewModelScope.launch { nodeProvisioning.provision() }
                         _uiState.update { it.copy(showConnectionLabel = true) }
                         connectedLabelJob?.cancel()
                         connectedLabelJob = viewModelScope.launch {
@@ -179,6 +195,36 @@ class MainViewModel(
             .onEach { marks ->
                 _uiState.update { it.copy(geoMarks = marks.toImmutableList()) }
             }
+            .launchIn(viewModelScope)
+
+        ingestReceivedGeoMarks.observe()
+            .launchIn(viewModelScope)
+
+        ingestReceivedChatMessages.observe()
+            .launchIn(viewModelScope)
+
+        viewModelScope.launch(Dispatchers.Default) {
+            deleteExpiredGeoMarks(NoParams)
+            while (true) {
+                delay(GEO_MARK_CLEANUP_INTERVAL_MS)
+                deleteExpiredGeoMarks(NoParams)
+            }
+        }
+
+        combine(
+            observeLogicalChannels(NoParams),
+            observeNodeChannels(NoParams),
+        ) { contours, nodeSlots ->
+            if (contours.isEmpty()) return@combine true
+            contours.any { contour ->
+                val hash = contour.transport.meshtastic.channelHash
+                nodeSlots.any { slot ->
+                    slot.index != 0 && slot.isEnabled &&
+                        ContourHash.compute(slot.name, slot.psk) == hash
+                }
+            }
+        }
+            .onEach { hasChannel -> _uiState.update { it.copy(hasChannelOnNode = hasChannel) } }
             .launchIn(viewModelScope)
 
         startAutoConnect()
@@ -434,7 +480,9 @@ class MainViewModel(
         is MeshConnectionStatus.Connecting ->
             HudInfoSlot(content = "Сопряжение с ${status.deviceName}", color = Color.Yellow)
         is MeshConnectionStatus.Connected ->
-            if (state.showConnectionLabel)
+            if (!state.hasChannelOnNode)
+                HudInfoSlot(content = "Настройте канал", color = Color.Red)
+            else if (state.showConnectionLabel)
                 HudInfoSlot(content = "Сопряжено с ${status.shortName}", color = Color.Green)
             else
                 emptyInfoSlot()

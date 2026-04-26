@@ -39,4 +39,47 @@
     <string name="chat_clear_confirm">Очистить чат?</string>
     <string name="chat_clear_confirm_button">Очистить</string>
     <string name="chat_cancel">Отмена</string>
+
+    <!-- User Settings Tab -->
+    <string name="user_section_profile">Профиль</string>
+    <string name="user_display_name_label">Позывной</string>
+    <string name="user_short_name_label">Короткое имя</string>
+    <string name="user_save_button">Сохранить</string>
+    <string name="user_section_contours">Контуры</string>
+    <string name="user_add_contour_button">+ Добавить контур</string>
+    <string name="user_channel_edit">Редактировать</string>
+    <string name="user_channel_delete">Удалить</string>
+    <string name="user_channel_more_actions">Действия с каналом</string>
+    <string name="user_channel_delete_title">Удалить канал?</string>
+    <string name="user_channel_delete_message">Канал будет удалён. Это действие необратимо.</string>
+    <string name="user_channel_delete_confirm">Удалить</string>
+    <string name="user_channel_delete_cancel">Отмена</string>
+
+    <string name="user_channel_push_to_node">Записать в ноду</string>
+    <string name="user_channel_delete_from_node">Удалить из ноды</string>
+
+    <!-- Channel sync status badges -->
+    <string name="channel_sync_on_node">На ноде · слот %d</string>
+    <string name="channel_sync_not_on_node">Не на ноде</string>
+    <string name="channel_sync_no_free_slot">Нет слотов</string>
+    <string name="channel_auto_sync_label">Авто-синхронизация</string>
+
+    <!-- HUD -->
+    <string name="hud_radio_setup_channel">Настройте канал</string>
+
+    <!-- Channel sync snackbar messages -->
+    <string name="channel_snackbar_sent">Канал «%s» записан в ноду</string>
+    <string name="channel_snackbar_not_connected">Нет подключения к ноде</string>
+    <string name="channel_snackbar_no_free_slot">Нет свободных слотов (1–7)</string>
+
+    <!-- Channel Editor Sheet -->
+    <string name="channel_editor_title_new">Новый канал</string>
+    <string name="channel_editor_title_edit">Редактировать канал</string>
+    <string name="channel_editor_name_label">Название</string>
+    <string name="channel_editor_meshtastic_section">Meshtastic</string>
+    <string name="channel_editor_psk_label">PSK (base64)</string>
+    <string name="channel_editor_psk_generate">Сгенерировать</string>
+    <string name="channel_editor_psk_error">Невалидный PSK: требуется 16 или 32 байта в base64</string>
+    <string name="channel_editor_cancel">Отмена</string>
+    <string name="channel_editor_save">Сохранить</string>
 </resources>

@@ -45,6 +45,8 @@ val commonModule: Module = module {
     single { get<AppDatabase>().nodeQueries }
     single { get<AppDatabase>().importedMapOverlayQueries }
     single { get<AppDatabase>().geoMarkQueries }
+    single { get<AppDatabase>().contourQueries }
+    single { get<AppDatabase>().chatMessageQueries }
 
     // Data — settings (Settings предоставляется платформенным модулем)
     single { AppSettings(get()) }

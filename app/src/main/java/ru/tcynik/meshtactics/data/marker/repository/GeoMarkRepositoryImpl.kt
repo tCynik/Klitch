@@ -4,45 +4,33 @@ import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import ru.tcynik.meshtactics.data.local.GeoMarkQueries
 import ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapter
+import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
+import ru.tcynik.meshtactics.domain.channel.model.ContourId
+import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkRepository
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshNetworkRepository
 import ru.tcynik.meshtactics.mesh.repository.CommandSender
-import ru.tcynik.meshtactics.mesh.repository.PacketRepository
 
 class GeoMarkRepositoryImpl(
-    private val packetRepository: PacketRepository,
     private val commandSender: CommandSender,
     private val meshNetwork: MeshNetworkRepository,
+    private val channelRepository: ContourRepository,
+    private val channelSlotResolver: ChannelSlotResolver,
     private val adapter: GeoMarkWaypointAdapter,
     private val geoMarkQueries: GeoMarkQueries,
 ) : GeoMarkRepository {
 
-    /**
-     * Combines received waypoints from the mesh layer (Room DB via PacketRepository)
-     * with self-sent mark IDs from SQLDelight to tag [GeoMarkModel.isSelf] correctly.
-     *
-     * PacketRepository.getWaypoints() is the source-of-truth for all received marks —
-     * it survives app restarts via the mesh layer's Room DB.
-     */
-    override fun observeGeoMarks(): Flow<List<GeoMarkModel>> {
-        val selfIdsFlow: Flow<Set<String>> = geoMarkQueries.selectSelfIds()
+    override fun observeGeoMarks(): Flow<List<GeoMarkModel>> =
+        geoMarkQueries.selectAll()
             .asFlow()
             .mapToList(Dispatchers.Default)
-            .map { it.toSet() }
-
-        return combine(
-            packetRepository.getWaypoints(),
-            selfIdsFlow,
-        ) { packets, selfIds ->
-            packets.mapNotNull { adapter.decode(it, selfIds) }
-        }
-    }
+            .map { rows -> rows.map { row -> row.toModel() } }
 
     override suspend fun sendGeoMark(mark: GeoMarkModel) {
         val ourNode = meshNetwork.observeOurNode().first()
@@ -53,24 +41,50 @@ class GeoMarkRepositoryImpl(
         val packet = adapter.encode(mark, ourNodeNum, ourNodeId, nowSeconds)
         commandSender.sendData(packet)
 
-        val pointsJson = buildPointsJson(mark)
+        val contourId = resolveContourId(channelIndex = packet.channel)
         geoMarkQueries.insert(
             id = mark.id,
             waypointId = mark.waypointId.toLong(),
             type = mark.type.name,
-            pointsJson = pointsJson,
+            pointsJson = adapter.encodePointsJson(mark.points),
             authorNodeId = ourNodeId,
             createdAt = nowSeconds,
             expiresAt = nowSeconds + GeoMarkWaypointAdapter.EXPIRE_TTL_SECONDS,
             isSelf = 1L,
+            logicalChannelId = contourId,
         )
     }
 
-    /** Serialises points to a minimal JSON array without adding a kotlinx.serialization dependency. */
-    private fun buildPointsJson(mark: GeoMarkModel): String {
-        val items = mark.points.joinToString(",") { pt ->
-            """{"lat":${pt.latitude},"lon":${pt.longitude}}"""
-        }
-        return "[$items]"
+    override suspend fun persistReceived(mark: GeoMarkModel, contourId: ContourId) {
+        geoMarkQueries.insertReceived(
+            id = mark.id,
+            waypointId = mark.waypointId.toLong(),
+            type = mark.type.name,
+            pointsJson = adapter.encodePointsJson(mark.points),
+            authorNodeId = mark.authorNodeId,
+            createdAt = mark.createdAt,
+            expiresAt = mark.expiresAt,
+            logicalChannelId = contourId.value,
+        )
     }
+
+    override suspend fun deleteExpired(nowSeconds: Long) {
+        geoMarkQueries.deleteExpired(nowSeconds)
+    }
+
+    private suspend fun resolveContourId(channelIndex: Int): String {
+        val hash = channelSlotResolver.slotToHash[channelIndex] ?: return ""
+        return channelRepository.findByChannelHash(hash)?.id?.value ?: ""
+    }
+
+    private fun ru.tcynik.meshtactics.data.local.Geo_mark.toModel() = GeoMarkModel(
+        id = id,
+        waypointId = waypoint_id.toInt(),
+        type = GeoMarkType.valueOf(type),
+        points = adapter.decodePointsJson(points_json),
+        authorNodeId = author_node_id,
+        createdAt = created_at,
+        expiresAt = expires_at,
+        isSelf = is_self == 1L,
+    )
 }

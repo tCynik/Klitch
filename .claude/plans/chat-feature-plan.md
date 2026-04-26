@@ -1,7 +1,7 @@
 # Chat Feature Plan (revised against actual implementation)
 
-> **Last updated**: 2026-04-15
-> **Source of truth**: implemented code (presentation layer); plan updated to match it
+> **Last updated**: 2026-04-23
+> **Status**: ✅ Done — все 6 фаз реализованы; живая документация в `.claude/docs/chat.md`
 
 ---
 
@@ -150,7 +150,7 @@ When a user opens a chat (`selectChat(chatId)`), all messages of that contact ar
 | # | Problem | Location | Priority |
 |---|---|---|---|
 | 1 | ~~Unread count reactive — `unreadCount = 0` hardcoded in `MeshToChatAdapter`~~ | ✅ Fixed — `getUnreadCountFlow` подключён через `flatMapLatest` + `combine` | ✅ Done |
-| 2 | DataStore state not restored on ViewModel `init` (tab, selectedChatId) | `ChatViewModel.kt` | 🟡 Medium — persistence saves but doesn't reload |
+| 2 | ~~DataStore state not restored on ViewModel `init`~~ | ✅ Fixed — `init` восстанавливает tab, selectedChatId, checkedIds из DataStore | ✅ Done |
 | 3 | `collectUnreadAll` duplicated in `ChatScreen` and `ChatViewModel` | — | 🟢 Low |
 
 ---

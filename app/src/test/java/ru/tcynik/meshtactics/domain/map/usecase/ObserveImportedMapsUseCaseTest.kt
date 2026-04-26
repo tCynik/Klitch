@@ -19,7 +19,7 @@ class ObserveImportedMapsUseCaseTest {
     @Test
     fun `invoke delegates to repository observeAll`() = runTest {
         val maps = listOf(
-            ImportedMapOverlay(id = "1", name = "test.kmz", uri = "content://test", createdAt = 1000L, isSelected = false),
+            ImportedMapOverlay(id = "1", name = "test.kmz", uri = "content://test", createdAt = 1000L, isSelected = false, geoJsonPath = null, groundOverlayPath = null),
         )
         every { repository.observeAll() } returns flowOf(maps)
 
@@ -41,10 +41,10 @@ class ObserveImportedMapsUseCaseTest {
 
     @Test
     fun `multiple emissions are forwarded in order`() = runTest {
-        val first = listOf(ImportedMapOverlay("1", "a.kmz", "uri://1", 1000L, false))
+        val first = listOf(ImportedMapOverlay("1", "a.kmz", "uri://1", 1000L, false, null, null))
         val second = listOf(
-            ImportedMapOverlay("1", "a.kmz", "uri://1", 1000L, true),
-            ImportedMapOverlay("2", "b.kml", "uri://2", 2000L, false),
+            ImportedMapOverlay("1", "a.kmz", "uri://1", 1000L, true, null, null),
+            ImportedMapOverlay("2", "b.kml", "uri://2", 2000L, false, null, null),
         )
         every { repository.observeAll() } returns kotlinx.coroutines.flow.flow {
             emit(first)

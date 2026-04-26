@@ -39,6 +39,7 @@ shared/data            ← implements domain interfaces, not the other way aroun
 - `FlowUseCase` (reactive): see `shared/src/commonMain/.../usecase/node/GetNodesUseCase.kt:9`
 - `UseCase` (suspend, one-shot): see `app/src/main/.../mesh/usecase/ConnectToMeshDeviceUseCase.kt:8`
 - SyncUseCase — plain `operator fun invoke`, no base class: see `app/src/main/.../map/usecase/GetLastMapPositionUseCase.kt:6`
+- Pure domain use case (no repository dep) — plain `operator fun invoke`, zero constructor args, registered as `single`: see `domain/channel/usecase/ResolveChannelSlotUseCase.kt`
 
 > Do NOT use `FlowUseCase` or `UseCase` for synchronous operations — use plain `operator fun invoke`.
 
@@ -232,6 +233,52 @@ See: `app/src/main/.../service/GpsService.kt`, `app/src/main/.../domain/gps/repo
 
 ---
 
+### Runtime Resolver Pattern (ChannelSlotResolver)
+
+Use this pattern when live node state must be resolved into a domain lookup at runtime — not stored in DB and not derived from a use case call.
+
+**Structure:**
+
+```kotlin
+// domain — interface only, no data imports
+interface ChannelSlotResolver {
+    val slotToHash: Map<Int, LogicalChannelHash>      // ingestion: slot → hash
+    val hashToSlot: Map<LogicalChannelHash, Int>      // send: hash → slot
+    val mapsFlow: StateFlow<ChannelSlotMaps>          // reactive for combine blocks
+}
+
+// data — subscribes to live node state in init block
+class ChannelSlotResolverImpl(
+    observeNodeChannels: ObserveNodeChannelsUseCase,
+) : ChannelSlotResolver {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val _mapsFlow = MutableStateFlow(ChannelSlotMaps())
+    override val mapsFlow = _mapsFlow.asStateFlow()
+    override val slotToHash get() = _mapsFlow.value.slotToHash
+    override val hashToSlot get() = _mapsFlow.value.hashToSlot
+
+    init {
+        observeNodeChannels(NoParams)
+            .onEach { slots -> _mapsFlow.value = buildMaps(slots) }
+            .launchIn(scope)
+    }
+}
+```
+
+**Rules:**
+- Domain interface lives in `domain/` — no data imports
+- Implementation lives in `data/`, subscribes to a use case (not repository) in `init`
+- Registered as `single<ChannelSlotResolver> { ChannelSlotResolverImpl(get()) }` — one instance for the app lifetime
+- Use cases and adapters inject the interface, never the impl
+- Sync properties (`slotToHash`, `hashToSlot`) give non-blocking snapshot access; `mapsFlow` is for reactive `combine` blocks
+- Unresolved lookups → drop silently (`Log.w(...)`) — no "unknown" UI state
+
+**When to use:** Any "live node state → domain lookup" need (e.g., slot index → channel hash, node id → display name). Prefer over: storing ephemeral node state in DB, or calling `observeX().first()` on each packet.
+
+See: `data/channel/ChannelSlotResolverImpl.kt`, `domain/channel/ChannelSlotResolver.kt`
+
+---
+
 ### Transport Repository Abstraction Contract
 
 All transports (Meshtastic, MQTT, WiFi) implement the same domain interfaces. Define in `domain/`; implementations in `data/`:
@@ -346,7 +393,7 @@ Show concrete code for each new file, following the canonical patterns above. Do
 - [ ] Repository implements the domain interface and nothing else
 
 **Use Cases**
-- [ ] Extend `FlowUseCase`, `UseCase`, or `ResultUseCase`
+- [ ] Extend `FlowUseCase`, `UseCase`, or `ResultUseCase` — OR plain `operator fun invoke` for pure synchronous logic with no dependencies
 - [ ] Accept no Android types
 - [ ] Contain only orchestration, not low-level business logic
 
