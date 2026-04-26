@@ -43,7 +43,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import java.time.Instant
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.meshtactics.R
@@ -206,12 +209,21 @@ private fun ContourCard(
                 modifier = Modifier.padding(start = 4.dp, end = 8.dp),
             )
             Column(modifier = Modifier.weight(1f)) {
+                val isExpired = item.expiration != null && item.expiration.isBefore(Instant.now())
                 Text(
                     text = item.name,
                     style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    textDecoration = if (isExpired) TextDecoration.LineThrough else TextDecoration.None,
                 )
-                Spacer(Modifier.height(4.dp))
-                SyncStatusBadge(item.syncStatus)
+                if (!item.description.isNullOrBlank()) {
+                    Text(
+                        text = item.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Light,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             IconButton(onClick = { showDropdown = true }) {
                 Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.user_channel_more_actions))
