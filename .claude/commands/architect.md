@@ -342,6 +342,44 @@ See: `data/channel/ChannelSlotResolverImpl.kt`, `domain/channel/ChannelSlotResol
 
 ---
 
+### In-memory Domain State Bus Pattern (ContourSyncStateRepository)
+
+Use this pattern when a transient boolean/status flag must be shared between multiple ViewModels and survive across screen changes — but does NOT need persistence to DataStore.
+
+**Structure:**
+
+```kotlin
+// domain — interface only, no data imports
+interface ContourSyncStateRepository {
+    val syncRequired: StateFlow<Boolean>
+    fun setSyncRequired(value: Boolean)
+    fun clear()
+}
+
+// data — thin MutableStateFlow wrapper
+class ContourSyncStateRepositoryImpl : ContourSyncStateRepository {
+    private val _syncRequired = MutableStateFlow(false)
+    override val syncRequired: StateFlow<Boolean> = _syncRequired.asStateFlow()
+    override fun setSyncRequired(value: Boolean) { _syncRequired.value = value }
+    override fun clear() { _syncRequired.value = false }
+}
+```
+
+**DI:** `single<ContourSyncStateRepository> { ContourSyncStateRepositoryImpl() }` — one instance shared across all ViewModels.
+
+**Lifecycle:** flag is in-memory only; cleared on app restart. Each new connect triggers a fresh check. If stronger persistence is needed, add DataStore — but for MVP in-memory is sufficient.
+
+**Distinction from related patterns:**
+- `Controllable Background Repository` — owns a long-running coroutine job, has `start()`/`stop()`; this pattern has no background work
+- `ChannelSlotResolver` (Runtime Resolver) — always-on, derived from live node state; this pattern holds user-driven transient flags
+- `GpsLifecycleController` (Foreground Service split interface) — service lifecycle control; this pattern is purely ViewModel-to-ViewModel state sharing
+
+**When to use:** A transient boolean flag that must be set in one ViewModel (e.g. `MainViewModel` on connect), observed in another (HUD slot), and cleared on user action — without persisting between app sessions.
+
+See: `domain/channel/repository/ContourSyncStateRepository.kt`, `data/channel/repository/ContourSyncStateRepositoryImpl.kt`
+
+---
+
 ### Transport Repository Abstraction Contract
 
 All transports (Meshtastic, MQTT, WiFi) implement the same domain interfaces. Define in `domain/`; implementations in `data/`:

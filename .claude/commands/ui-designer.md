@@ -125,6 +125,7 @@ These token decisions were established during the Emergency SOS feature and appl
 |---|---|---|---|
 | MeshIconButton | `app/.../MeshIconButton.kt` | Defined | See `/icon-designer` |
 | EmergencyContourCard | `app/.../feature/settings/UserTabContent.kt` | Defined | SOS button + alert card; see Emergency SOS token decisions above |
+| SyncRequiredDialog | `app/.../ui/components/SyncRequiredDialog.kt` | Defined | AlertDialog; stateless; used in MainScreen + UserTabContent when `showSyncDialog = true` |
 
 ---
 

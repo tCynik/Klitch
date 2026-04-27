@@ -102,6 +102,7 @@
 | Contour Management | `.claude/docs/logical-channels-management.md` |
 | Contour Design Concepts | `.claude/docs/contour-design.md` |
 | Emergency SOS | `.claude/docs/emergency-sos.md` |
+| Channel Sync Validation | `.claude/docs/channel-sync-validation.md` |
 
 ---
 
@@ -121,4 +122,4 @@
 | Logical Channels Management | `.claude/archive/logical-channels-management.md` | Archived |
 | Emergency SOS | `.claude/archive/emergency-sos.md` | Archived |
 | Implementation Roadmap | `.claude/plans/implementation-roadmap.md` | Active |
-| Channel Sync Validation | `.claude/plans/channel-sync-validation.md` | Approved |
+| Channel Sync Validation | `.claude/archive/channel-sync-validation.md` | Done |
