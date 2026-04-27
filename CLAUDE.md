@@ -123,3 +123,4 @@
 | Emergency SOS | `.claude/archive/emergency-sos.md` | Archived |
 | Implementation Roadmap | `.claude/plans/implementation-roadmap.md` | Active |
 | Channel Sync Validation | `.claude/archive/channel-sync-validation.md` | Done |
+| User Settings Write Mechanics | `.claude/plans/user-settings-write-mechanics.md` | Approved |
