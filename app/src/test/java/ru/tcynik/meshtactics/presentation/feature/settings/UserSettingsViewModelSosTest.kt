@@ -35,9 +35,12 @@ import ru.tcynik.meshtactics.domain.emergency.usecase.CancelEmergencyUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
+import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
+import ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.meshtactics.domain.user.model.AppUser
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
@@ -62,6 +65,9 @@ class UserSettingsViewModelSosTest {
     private val observeEmergencyMode: ObserveEmergencyModeUseCase = mockk()
     private val triggerEmergency: TriggerEmergencyUseCase = mockk(relaxed = true)
     private val cancelEmergency: CancelEmergencyUseCase = mockk(relaxed = true)
+    private val checkContourSync: CheckContourSyncUseCase = mockk(relaxed = true)
+    private val syncStateRepository: ContourSyncStateRepository = mockk(relaxed = true)
+    private val rebootNode: RebootNodeUseCase = mockk(relaxed = true)
 
     private val emergencyModeFlow = MutableStateFlow(false)
     private val connectionStatusFlow = MutableStateFlow<MeshConnectionStatus>(MeshConnectionStatus.Disconnected)
@@ -81,6 +87,7 @@ class UserSettingsViewModelSosTest {
         every { channelSlotResolver.hashToSlot } returns emptyMap()
         every { resolveSlot.invoke(any(), any()) } returns SlotResolution.NoFreeSlot
         every { observeEmergencyMode.invoke() } returns emergencyModeFlow
+        every { syncStateRepository.syncRequired } returns MutableStateFlow(false)
         viewModel = UserSettingsViewModel(
             observeAppUser = observeAppUser,
             saveAppUser = saveAppUser,
@@ -99,6 +106,9 @@ class UserSettingsViewModelSosTest {
             observeEmergencyMode = observeEmergencyMode,
             triggerEmergency = triggerEmergency,
             cancelEmergency = cancelEmergency,
+            checkContourSync = checkContourSync,
+            syncStateRepository = syncStateRepository,
+            rebootNode = rebootNode,
         )
     }
 

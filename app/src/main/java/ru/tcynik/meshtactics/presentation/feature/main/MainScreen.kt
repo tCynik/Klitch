@@ -44,6 +44,7 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.HudControlsLayer
 import ru.tcynik.meshtactics.presentation.feature.main.osd.HudPortraitControlsLayer
 import ru.tcynik.meshtactics.presentation.feature.main.osd.MapLibreLayer
+import ru.tcynik.meshtactics.presentation.ui.components.SyncRequiredDialog
 
 @Composable
 fun MainScreen(
@@ -57,10 +58,19 @@ fun MainScreen(
     onSendPendingMark: () -> Unit = {},
     contextMenuEvents: Flow<GeoMarkContextMenuEvent> = emptyFlow(),
     onDeletePendingPoint: (Int) -> Unit = {},
+    onConfirmChannelSync: () -> Unit = {},
+    onDismissChannelSync: () -> Unit = {},
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var lastKnownPosition by remember { mutableStateOf(uiState.initialCameraPosition) }
     var contextMenu by remember { mutableStateOf<GeoMarkContextMenuEvent?>(null) }
+
+    if (uiState.showSyncDialog) {
+        SyncRequiredDialog(
+            onConfirm = onConfirmChannelSync,
+            onDismiss = onDismissChannelSync,
+        )
+    }
 
     LaunchedEffect(contextMenuEvents) {
         contextMenuEvents.collect { event -> contextMenu = event }

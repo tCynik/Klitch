@@ -1,0 +1,9 @@
+package ru.tcynik.meshtactics.domain.channel.repository
+
+import kotlinx.coroutines.flow.StateFlow
+
+interface ContourSyncStateRepository {
+    val syncRequired: StateFlow<Boolean>
+    fun setSyncRequired(value: Boolean)
+    fun clear()
+}

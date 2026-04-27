@@ -22,6 +22,7 @@ data class UserSettingsUiState(
     val showTriggerDialog: Boolean = false,
     val showCancelDialog: Boolean = false,
     val emergencyEvent: EmergencyEvent? = null,
+    val showSyncDialog: Boolean = false,
 )
 
 data class ContourEditorState(

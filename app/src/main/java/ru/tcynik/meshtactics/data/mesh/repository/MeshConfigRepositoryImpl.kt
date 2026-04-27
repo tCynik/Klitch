@@ -165,6 +165,11 @@ class MeshConfigRepositoryImpl(
         meshRouter.actionHandler.handleSetConfig(payload, destNum)
     }
 
+    override fun rebootNode() {
+        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
+        meshRouter.actionHandler.handleRequestReboot(commandSender.generatePacketId(), myNodeNum)
+    }
+
     companion object {
         private const val GEO_BROADCAST_READY_SECS = 60
         private const val GEO_BROADCAST_DISABLED_SECS = Int.MAX_VALUE

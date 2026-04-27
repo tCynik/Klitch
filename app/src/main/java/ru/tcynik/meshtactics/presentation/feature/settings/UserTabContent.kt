@@ -59,6 +59,7 @@ import ru.tcynik.meshtactics.domain.channel.model.ChannelSyncStatus
 import ru.tcynik.meshtactics.presentation.feature.settings.EmergencyEvent
 import ru.tcynik.meshtactics.presentation.feature.settings.models.ContourItem
 import ru.tcynik.meshtactics.presentation.feature.settings.models.NodeWriteEvent
+import ru.tcynik.meshtactics.presentation.ui.components.SyncRequiredDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,6 +92,13 @@ fun UserTabContent(
             snackbarHostState.showSnackbar(emergencyTriggeredText)
             viewModel.onEmergencyEventConsumed()
         }
+    }
+
+    if (state.showSyncDialog) {
+        SyncRequiredDialog(
+            onConfirm = viewModel::onConfirmChannelSync,
+            onDismiss = viewModel::onDismissChannelSync,
+        )
     }
 
     if (state.showTriggerDialog) {

@@ -23,8 +23,12 @@ import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCa
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
+import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
+import ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.presentation.feature.settings.SettingsViewModel
 import ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModel
@@ -55,6 +59,10 @@ val presentationModule = module {
             ingestReceivedChatMessages = get<IngestReceivedChatMessagesUseCase>(),
             observeLogicalChannels = get<ObserveContoursUseCase>(), // parameter kept for compat
             observeNodeChannels = get<ObserveNodeChannelsUseCase>(),
+            checkContourSync = get<CheckContourSyncUseCase>(),
+            syncContoursOnConnect = get<SyncContoursOnConnectUseCase>(),
+            rebootNode = get<RebootNodeUseCase>(),
+            syncStateRepository = get<ContourSyncStateRepository>(),
         )
     }
 

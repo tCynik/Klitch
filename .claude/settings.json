@@ -103,7 +103,9 @@
       "Bash(rm \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/contour-concept.md\")",
       "Bash(grep -E \"Module\\\\.kt$\")",
       "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.domain.emergency.*\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelSosTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelChannelsTest\")",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCaseTest\" --tests \"ru.tcynik.meshtactics.data.channel.repository.ContourSyncStateRepositoryImplTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelSyncDialogTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelChannelsTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelSosTest\")",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCaseTest\" --tests \"ru.tcynik.meshtactics.data.channel.repository.ContourSyncStateRepositoryImplTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelSyncDialogTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelChannelsTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelSosTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.main.MainViewModelHudWarningTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.main.MainViewModelMarkToolTest\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",

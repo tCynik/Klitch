@@ -31,4 +31,6 @@ interface MeshConfigRepository {
 
     /** Disables position broadcast on the connected node (position_broadcast_secs=MAX). */
     fun disableNodePositionBroadcast()
+
+    fun rebootNode()
 }

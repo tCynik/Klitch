@@ -56,8 +56,13 @@ import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
+import ru.tcynik.meshtactics.domain.channel.model.ContourSyncResult
+import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
+import ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
@@ -100,6 +105,10 @@ class MainViewModel(
     ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase,
     observeLogicalChannels: ObserveContoursUseCase,
     observeNodeChannels: ObserveNodeChannelsUseCase,
+    private val checkContourSync: CheckContourSyncUseCase,
+    private val syncContoursOnConnect: SyncContoursOnConnectUseCase,
+    private val rebootNode: RebootNodeUseCase,
+    private val syncStateRepository: ContourSyncStateRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -152,6 +161,11 @@ class MainViewModel(
                     _uiState.update { it.copy(connectionStatus = status) }
                     if (!wasConnected) {
                         viewModelScope.launch { nodeProvisioning.provision() }
+                        viewModelScope.launch {
+                            if (checkContourSync() is ContourSyncResult.NeedsSync) {
+                                _uiState.update { it.copy(showSyncDialog = true) }
+                            }
+                        }
                         _uiState.update { it.copy(showConnectionLabel = true) }
                         connectedLabelJob?.cancel()
                         connectedLabelJob = viewModelScope.launch {
@@ -227,7 +241,25 @@ class MainViewModel(
             .onEach { hasChannel -> _uiState.update { it.copy(hasChannelOnNode = hasChannel) } }
             .launchIn(viewModelScope)
 
+        syncStateRepository.syncRequired
+            .onEach { required -> _uiState.update { it.copy(syncRequired = required) } }
+            .launchIn(viewModelScope)
+
         startAutoConnect()
+    }
+
+    fun onConfirmChannelSync() {
+        _uiState.update { it.copy(showSyncDialog = false) }
+        viewModelScope.launch {
+            syncContoursOnConnect()
+            rebootNode()
+            syncStateRepository.clear()
+        }
+    }
+
+    fun onDismissChannelSync() {
+        _uiState.update { it.copy(showSyncDialog = false) }
+        syncStateRepository.setSyncRequired(true)
     }
 
     fun onCameraPositionChanged(position: MapCameraPosition) {
@@ -480,7 +512,9 @@ class MainViewModel(
         is MeshConnectionStatus.Connecting ->
             HudInfoSlot(content = "Сопряжение с ${status.deviceName}", color = Color.Yellow)
         is MeshConnectionStatus.Connected ->
-            if (!state.hasChannelOnNode)
+            if (state.syncRequired)
+                HudInfoSlot(content = "требуется синхронизация", color = Color.Red)
+            else if (!state.hasChannelOnNode)
                 HudInfoSlot(content = "Настройте канал", color = Color.Red)
             else if (state.showConnectionLabel)
                 HudInfoSlot(content = "Сопряжено с ${status.shortName}", color = Color.Green)
