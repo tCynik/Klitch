@@ -152,9 +152,11 @@ After the fix or extension is complete:
 3. **Present to user**: staged files + commit message
 4. **Wait for explicit confirmation** before committing
 5. **After commit**: confirm clean `git status`
+6. **Plan archiving** — if a plan file exists at `.claude/plans/<feature-slug>.md` and the feature is now fully done: move it to `.claude/archive/<feature-slug>.md` and delete the original; update the plan status table in **CLAUDE.md** to `Done`
 
 **Rule**: never commit without explicit user confirmation.
 **Rule**: commit messages in Russian, no `Co-Authored-By` line.
+**Rule**: plan archiving is not optional — if the plan exists and the feature is done, always execute step 6.
 
 ---
 

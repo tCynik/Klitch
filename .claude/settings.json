@@ -105,14 +105,20 @@
       "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.domain.emergency.*\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelSosTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelChannelsTest\")",
       "Bash(git rm *)",
       "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCaseTest\" --tests \"ru.tcynik.meshtactics.data.channel.repository.ContourSyncStateRepositoryImplTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelSyncDialogTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelChannelsTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelSosTest\")",
-      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCaseTest\" --tests \"ru.tcynik.meshtactics.data.channel.repository.ContourSyncStateRepositoryImplTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelSyncDialogTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelChannelsTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelSosTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.main.MainViewModelHudWarningTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.main.MainViewModelMarkToolTest\")"
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCaseTest\" --tests \"ru.tcynik.meshtactics.data.channel.repository.ContourSyncStateRepositoryImplTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelSyncDialogTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelChannelsTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelSosTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.main.MainViewModelHudWarningTest\" --tests \"ru.tcynik.meshtactics.presentation.feature.main.MainViewModelMarkToolTest\")",
+      "Bash(./gradlew :app:compileDebugKotlin --quiet)",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.settings.*\" --quiet)",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.settings.*\")",
+      "Bash(cp \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/user-settings-write-mechanics.md\" \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/archive/user-settings-write-mechanics.md\")",
+      "Bash(rm \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/user-settings-write-mechanics.md\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",
       "c:\\Users\\LocAdmin\\AndroidStudioProjects\\MeshTactics\\.claude",
       "c:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude\\plans",
       "c:\\Users\\LocAdmin\\AndroidStudioProjects\\MeshTactics\\.claude\\plans",
-      "c:\\Users\\tcynik\\.claude\\projects\\c--Users-tcynik-StudioProjects-MeshTactics\\memory"
+      "c:\\Users\\tcynik\\.claude\\projects\\c--Users-tcynik-StudioProjects-MeshTactics\\memory",
+      "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\app\\.claude\\docs"
     ]
   }
 }
