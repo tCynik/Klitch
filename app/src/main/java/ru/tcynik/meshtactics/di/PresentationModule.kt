@@ -28,8 +28,12 @@ import ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.SetGpsBroadcastEnabledUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
 import ru.tcynik.meshtactics.presentation.feature.settings.SettingsViewModel
 import ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModel
 
@@ -78,7 +82,34 @@ val presentationModule = module {
             toggleImportedMapSelection = get<ToggleImportedMapSelectionUseCase>(),
         )
     }
-    viewModelOf(::UserSettingsViewModel)
+    viewModel {
+        UserSettingsViewModel(
+            observeAppUser = get(),
+            saveAppUser = get(),
+            observeContours = get(),
+            saveContour = get(),
+            deleteContour = get(),
+            setContourActive = get(),
+            observeNodeChannels = get(),
+            writeChannel = get(),
+            resolveSlot = get(),
+            observeConnectionStatus = get(),
+            channelSlotResolver = get(),
+            syncContoursOnConnect = get(),
+            enableNodePositionBroadcastReady = get(),
+            disableNodePositionBroadcast = get(),
+            observeEmergencyMode = get(),
+            triggerEmergency = get(),
+            cancelEmergency = get(),
+            checkContourSync = get<CheckContourSyncUseCase>(),
+            syncStateRepository = get<ContourSyncStateRepository>(),
+            rebootNode = get<RebootNodeUseCase>(),
+            observeGpsBroadcastEnabled = get<ObserveGpsBroadcastEnabledUseCase>(),
+            setGpsBroadcastEnabled = get<SetGpsBroadcastEnabledUseCase>(),
+            observeDeviceConfig = get<ObserveDeviceConfigUseCase>(),
+            writeOwner = get<WriteOwnerUseCase>(),
+        )
+    }
     viewModelOf(::NodeSettingsViewModel)
     viewModelOf(::NodeStatusViewModel)
     viewModelOf(::MarkersViewModel)

@@ -3,14 +3,19 @@ package ru.tcynik.meshtactics.presentation.feature.settings
 import android.util.Base64
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.collections.immutable.toImmutableList
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.ChannelSyncStatus
@@ -40,8 +45,12 @@ import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.SetGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
 import ru.tcynik.meshtactics.domain.user.model.AppUser
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
@@ -71,10 +80,17 @@ class UserSettingsViewModel(
     private val checkContourSync: CheckContourSyncUseCase,
     private val syncStateRepository: ContourSyncStateRepository,
     private val rebootNode: RebootNodeUseCase,
+    private val observeGpsBroadcastEnabled: ObserveGpsBroadcastEnabledUseCase,
+    private val setGpsBroadcastEnabled: SetGpsBroadcastEnabledUseCase,
+    private val observeDeviceConfig: ObserveDeviceConfigUseCase,
+    private val writeOwner: WriteOwnerUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UserSettingsUiState())
     val uiState: StateFlow<UserSettingsUiState> = _uiState.asStateFlow()
+
+    private val _navigateBack = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val navigateBack: SharedFlow<Unit> = _navigateBack.asSharedFlow()
 
     private var cachedContours: List<Contour> = emptyList()
     private var cachedNodeChannels: List<NodeChannelSlot> = emptyList()
@@ -92,6 +108,10 @@ class UserSettingsViewModel(
 
         observeEmergencyMode()
             .onEach { isActive -> _uiState.update { it.copy(emergencyMode = isActive) } }
+            .launchIn(viewModelScope)
+
+        observeGpsBroadcastEnabled()
+            .onEach { enabled -> _uiState.update { it.copy(isGpsBroadcastEnabled = enabled) } }
             .launchIn(viewModelScope)
 
         combine(
@@ -133,7 +153,8 @@ class UserSettingsViewModel(
     private fun onConnected(contours: List<Contour>) {
         viewModelScope.launch {
             val emergencyActive = contours.find { it.isEmergency }?.isActive ?: false
-            if (emergencyActive) disableNodePositionBroadcast()
+            val broadcastEnabled = observeGpsBroadcastEnabled().first()
+            if (emergencyActive || !broadcastEnabled) disableNodePositionBroadcast()
             else enableNodePositionBroadcastReady()
         }
     }
@@ -220,11 +241,52 @@ class UserSettingsViewModel(
         _uiState.update { it.copy(displayName = value, hasUnsavedUserChanges = true) }
     }
 
-    fun onSaveUser() {
+    fun onGpsBroadcastToggle(enabled: Boolean) {
         viewModelScope.launch {
+            setGpsBroadcastEnabled(enabled)
+            if (connectionStatus is MeshConnectionStatus.Connected) {
+                if (enabled) enableNodePositionBroadcastReady()
+                else disableNodePositionBroadcast()
+            }
+        }
+    }
+
+    fun onNavigateBackRequested() {
+        if (_uiState.value.hasUnsavedUserChanges && _uiState.value.isNodeConnected) {
+            _uiState.update { it.copy(showLeaveDialog = true) }
+        } else {
+            if (_uiState.value.hasUnsavedUserChanges) {
+                viewModelScope.launch { saveAppUser(AppUser(displayName = _uiState.value.displayName)) }
+            }
+            _navigateBack.tryEmit(Unit)
+        }
+    }
+
+    fun onSaveAndReboot() {
+        _uiState.update { it.copy(showLeaveDialog = false) }
+        viewModelScope.launch {
+            val shortName = withTimeoutOrNull(5_000) {
+                observeDeviceConfig(NoParams).first { it != null }
+            }?.shortName ?: ""
+            writeOwner(_uiState.value.displayName, shortName)
             saveAppUser(AppUser(displayName = _uiState.value.displayName))
             _uiState.update { it.copy(hasUnsavedUserChanges = false) }
+            rebootNode()
+            _navigateBack.tryEmit(Unit)
         }
+    }
+
+    fun onDiscardAndLeave() {
+        _uiState.update { it.copy(showLeaveDialog = false, hasUnsavedUserChanges = false) }
+        viewModelScope.launch {
+            val saved = observeAppUser(NoParams).first()
+            _uiState.update { it.copy(displayName = saved.displayName) }
+            _navigateBack.tryEmit(Unit)
+        }
+    }
+
+    fun onDismissLeaveDialog() {
+        _uiState.update { it.copy(showLeaveDialog = false) }
     }
 
     fun onAddContourClick() {

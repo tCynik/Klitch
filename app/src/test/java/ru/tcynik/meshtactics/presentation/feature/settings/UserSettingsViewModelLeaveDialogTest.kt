@@ -1,10 +1,12 @@
 package ru.tcynik.meshtactics.presentation.feature.settings
 
+import app.cash.turbine.test
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -16,13 +18,13 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
+import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
+import ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.DeleteContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
@@ -35,8 +37,7 @@ import ru.tcynik.meshtactics.domain.emergency.usecase.CancelEmergencyUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
-import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
-import ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCase
+import ru.tcynik.meshtactics.domain.mesh.model.MeshDeviceConfigModel
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
@@ -50,7 +51,7 @@ import ru.tcynik.meshtactics.domain.user.model.AppUser
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
 
-class UserSettingsViewModelSosTest {
+class UserSettingsViewModelLeaveDialogTest {
 
     private val observeAppUser: ObserveAppUserUseCase = mockk()
     private val saveAppUser: SaveAppUserUseCase = mockk(relaxed = true)
@@ -77,26 +78,42 @@ class UserSettingsViewModelSosTest {
     private val observeDeviceConfig: ObserveDeviceConfigUseCase = mockk()
     private val writeOwner: WriteOwnerUseCase = mockk(relaxed = true)
 
-    private val emergencyModeFlow = MutableStateFlow(false)
     private val connectionStatusFlow = MutableStateFlow<MeshConnectionStatus>(MeshConnectionStatus.Disconnected)
+    private val gpsBroadcastFlow = MutableStateFlow(true)
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var viewModel: UserSettingsViewModel
+
+    private val connectedStatus = MeshConnectionStatus.Connected(
+        nodeId = "!aabbccdd",
+        shortName = "ТЕ",
+        rssi = -70,
+        batteryLevel = 80,
+    )
+
+    private val fakeDeviceConfig = MeshDeviceConfigModel(
+        longName = "Test",
+        shortName = "TS",
+        loraPreset = "",
+        txPowerDbm = "",
+        region = "",
+        channels = emptyList(),
+    )
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         mockkStatic(android.util.Base64::class)
         every { android.util.Base64.encodeToString(any(), any()) } returns "AAEC"
-        every { observeAppUser.invoke(any()) } returns flowOf(AppUser(""))
+        every { observeAppUser.invoke(any()) } returns flowOf(AppUser("Иван"))
         every { observeContours.invoke(any()) } returns MutableStateFlow(emptyList())
         every { observeNodeChannels.invoke(any()) } returns MutableStateFlow<List<NodeChannelSlot>>(emptyList())
         every { observeConnectionStatus.invoke(any()) } returns connectionStatusFlow
         every { channelSlotResolver.hashToSlot } returns emptyMap()
         every { resolveSlot.invoke(any(), any()) } returns SlotResolution.NoFreeSlot
-        every { observeEmergencyMode.invoke() } returns emergencyModeFlow
-        every { observeGpsBroadcastEnabled.invoke() } returns flowOf(true)
-        every { observeDeviceConfig.invoke(any()) } returns flowOf(null)
+        every { observeEmergencyMode.invoke() } returns flowOf(false)
+        every { observeGpsBroadcastEnabled.invoke() } returns gpsBroadcastFlow
+        every { observeDeviceConfig.invoke(any()) } returns flowOf(fakeDeviceConfig)
         every { syncStateRepository.syncRequired } returns MutableStateFlow(false)
         viewModel = UserSettingsViewModel(
             observeAppUser = observeAppUser,
@@ -132,132 +149,113 @@ class UserSettingsViewModelSosTest {
         unmockkStatic(android.util.Base64::class)
     }
 
-    // ── emergencyMode state ───────────────────────────────────────────────────
+    // ── onNavigateBackRequested ───────────────────────────────────────────────
 
     @Test
-    fun `emergencyMode false по умолчанию`() = runTest(testDispatcher) {
-        assertFalse(viewModel.uiState.value.emergencyMode)
-    }
-
-    @Test
-    fun `emergencyMode обновляется при эмите из ObserveEmergencyModeUseCase`() = runTest(testDispatcher) {
-        emergencyModeFlow.value = true
-
-        assertTrue(viewModel.uiState.value.emergencyMode)
-    }
-
-    @Test
-    fun `emergencyMode сбрасывается при повторном эмите false`() = runTest(testDispatcher) {
-        emergencyModeFlow.value = true
-        emergencyModeFlow.value = false
-
-        assertFalse(viewModel.uiState.value.emergencyMode)
-    }
-
-    // ── onSosClick ────────────────────────────────────────────────────────────
-
-    @Test
-    fun `onSosClick при неактивном режиме открывает диалог подтверждения тревоги`() = runTest(testDispatcher) {
-        emergencyModeFlow.value = false
-
-        viewModel.onSosClick()
-
-        assertTrue(viewModel.uiState.value.showTriggerDialog)
-        assertFalse(viewModel.uiState.value.showCancelDialog)
-    }
-
-    @Test
-    fun `onSosClick при активном режиме открывает диалог отмены тревоги`() = runTest(testDispatcher) {
-        emergencyModeFlow.value = true
-
-        viewModel.onSosClick()
-
-        assertTrue(viewModel.uiState.value.showCancelDialog)
-        assertFalse(viewModel.uiState.value.showTriggerDialog)
-    }
-
-    // ── dismiss dialogs ───────────────────────────────────────────────────────
-
-    @Test
-    fun `onDismissTriggerDialog скрывает диалог`() = runTest(testDispatcher) {
-        viewModel.onSosClick()
-        assertTrue(viewModel.uiState.value.showTriggerDialog)
-
-        viewModel.onDismissTriggerDialog()
-
-        assertFalse(viewModel.uiState.value.showTriggerDialog)
-    }
-
-    @Test
-    fun `onDismissCancelDialog скрывает диалог`() = runTest(testDispatcher) {
-        emergencyModeFlow.value = true
-        viewModel.onSosClick()
-        assertTrue(viewModel.uiState.value.showCancelDialog)
-
-        viewModel.onDismissCancelDialog()
-
-        assertFalse(viewModel.uiState.value.showCancelDialog)
-    }
-
-    // ── onTriggerEmergencyConfirm ─────────────────────────────────────────────
-
-    @Test
-    fun `onTriggerEmergencyConfirm закрывает диалог`() = runTest(testDispatcher) {
-        viewModel.onSosClick()
-
-        viewModel.onTriggerEmergencyConfirm()
+    fun `onNavigateBackRequested connected и unsaved показывает LeaveDialog`() = runTest(testDispatcher) {
+        connectionStatusFlow.value = connectedStatus
+        runCurrent()
+        viewModel.onDisplayNameChange("Новый")
         runCurrent()
 
-        assertFalse(viewModel.uiState.value.showTriggerDialog)
+        viewModel.onNavigateBackRequested()
+        runCurrent()
+
+        assertTrue(viewModel.uiState.value.showLeaveDialog)
     }
 
     @Test
-    fun `onTriggerEmergencyConfirm вызывает TriggerEmergencyUseCase`() = runTest(testDispatcher) {
-        viewModel.onTriggerEmergencyConfirm()
+    fun `onNavigateBackRequested disconnected и unsaved сохраняет локально и эмитит navigateBack`() = runTest(testDispatcher) {
+        viewModel.onDisplayNameChange("Новый")
         runCurrent()
 
-        coVerify(exactly = 1) { triggerEmergency.invoke() }
+        viewModel.navigateBack.test {
+            viewModel.onNavigateBackRequested()
+            runCurrent()
+            awaitItem()
+            assertFalse(viewModel.uiState.value.showLeaveDialog)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
-    fun `onTriggerEmergencyConfirm устанавливает emergencyEvent Triggered`() = runTest(testDispatcher) {
-        viewModel.onTriggerEmergencyConfirm()
-        runCurrent()
-
-        assertEquals(EmergencyEvent.Triggered, viewModel.uiState.value.emergencyEvent)
+    fun `onNavigateBackRequested без изменений эмитит navigateBack без диалога`() = runTest(testDispatcher) {
+        viewModel.navigateBack.test {
+            viewModel.onNavigateBackRequested()
+            runCurrent()
+            awaitItem()
+            assertFalse(viewModel.uiState.value.showLeaveDialog)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
-    // ── onCancelEmergencyConfirm ──────────────────────────────────────────────
+    // ── onSaveAndReboot ───────────────────────────────────────────────────────
 
     @Test
-    fun `onCancelEmergencyConfirm закрывает диалог`() = runTest(testDispatcher) {
-        emergencyModeFlow.value = true
-        viewModel.onSosClick()
-
-        viewModel.onCancelEmergencyConfirm()
+    fun `onSaveAndReboot вызывает writeOwner и rebootNode и эмитит navigateBack`() = runTest(testDispatcher) {
+        viewModel.onDisplayNameChange("Новый позывной")
         runCurrent()
 
-        assertFalse(viewModel.uiState.value.showCancelDialog)
+        viewModel.navigateBack.test {
+            viewModel.onSaveAndReboot()
+            runCurrent()
+            awaitItem()
+            verify { writeOwner.invoke("Новый позывной", "TS") }
+            verify { rebootNode.invoke() }
+            assertFalse(viewModel.uiState.value.showLeaveDialog)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── onDiscardAndLeave ─────────────────────────────────────────────────────
+
+    @Test
+    fun `onDiscardAndLeave сбрасывает displayName и эмитит navigateBack`() = runTest(testDispatcher) {
+        viewModel.onDisplayNameChange("Изменено")
+        runCurrent()
+
+        viewModel.navigateBack.test {
+            viewModel.onDiscardAndLeave()
+            runCurrent()
+            awaitItem()
+            assertEquals("Иван", viewModel.uiState.value.displayName)
+            assertFalse(viewModel.uiState.value.hasUnsavedUserChanges)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── onGpsBroadcastToggle ──────────────────────────────────────────────────
+
+    @Test
+    fun `onGpsBroadcastToggle false при подключённой ноде вызывает disableNodePositionBroadcast`() = runTest(testDispatcher) {
+        connectionStatusFlow.value = connectedStatus
+        runCurrent()
+
+        viewModel.onGpsBroadcastToggle(false)
+        runCurrent()
+
+        coVerify { setGpsBroadcastEnabled.invoke(false) }
+        verify { disableNodePositionBroadcast.invoke() }
     }
 
     @Test
-    fun `onCancelEmergencyConfirm вызывает CancelEmergencyUseCase`() = runTest(testDispatcher) {
-        viewModel.onCancelEmergencyConfirm()
+    fun `onGpsBroadcastToggle true при подключённой ноде вызывает enableNodePositionBroadcastReady`() = runTest(testDispatcher) {
+        connectionStatusFlow.value = connectedStatus
         runCurrent()
 
-        coVerify(exactly = 1) { cancelEmergency.invoke() }
+        viewModel.onGpsBroadcastToggle(true)
+        runCurrent()
+
+        coVerify { setGpsBroadcastEnabled.invoke(true) }
+        verify { enableNodePositionBroadcastReady.invoke() }
     }
 
-    // ── onEmergencyEventConsumed ──────────────────────────────────────────────
-
     @Test
-    fun `onEmergencyEventConsumed очищает emergencyEvent`() = runTest(testDispatcher) {
-        viewModel.onTriggerEmergencyConfirm()
+    fun `onGpsBroadcastToggle false без подключения не вызывает disableNodePositionBroadcast`() = runTest(testDispatcher) {
+        viewModel.onGpsBroadcastToggle(false)
         runCurrent()
-        assertNotNull(viewModel.uiState.value.emergencyEvent)
 
-        viewModel.onEmergencyEventConsumed()
-
-        assertNull(viewModel.uiState.value.emergencyEvent)
+        coVerify { setGpsBroadcastEnabled.invoke(false) }
+        verify(exactly = 0) { disableNodePositionBroadcast.invoke() }
     }
 }

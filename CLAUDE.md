@@ -103,6 +103,7 @@
 | Contour Design Concepts | `.claude/docs/contour-design.md` |
 | Emergency SOS | `.claude/docs/emergency-sos.md` |
 | Channel Sync Validation | `.claude/docs/channel-sync-validation.md` |
+| User Settings Write Mechanics | `.claude/docs/user-settings-write-mechanics.md` |
 
 ---
 
@@ -123,4 +124,4 @@
 | Emergency SOS | `.claude/archive/emergency-sos.md` | Archived |
 | Implementation Roadmap | `.claude/plans/implementation-roadmap.md` | Active |
 | Channel Sync Validation | `.claude/archive/channel-sync-validation.md` | Done |
-| User Settings Write Mechanics | `.claude/plans/user-settings-write-mechanics.md` | Approved |
+| User Settings Write Mechanics | `.claude/plans/user-settings-write-mechanics.md` | Done |

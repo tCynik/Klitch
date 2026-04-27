@@ -10,6 +10,7 @@ import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import ru.tcynik.meshtactics.data.channel.ChannelSlotResolverImpl
 import ru.tcynik.meshtactics.data.channel.repository.ContourRepositoryImpl
+import ru.tcynik.meshtactics.data.mesh.repository.GpsBroadcastSettingsRepositoryImpl
 import ru.tcynik.meshtactics.data.channel.repository.ContourSyncStateRepositoryImpl
 import ru.tcynik.meshtactics.data.emergency.EmergencyPositionBroadcastRepositoryImpl
 import ru.tcynik.meshtactics.data.user.repository.AppUserRepositoryImpl
@@ -25,6 +26,9 @@ import ru.tcynik.meshtactics.domain.channel.usecase.SaveContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
 import ru.tcynik.meshtactics.domain.emergency.repository.EmergencyPositionBroadcastRepository
+import ru.tcynik.meshtactics.domain.mesh.repository.GpsBroadcastSettingsRepository
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.SetGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.CancelEmergencyUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
@@ -49,10 +53,13 @@ val userSettingsModule = module {
     }
 
     single<AppUserRepository> { AppUserRepositoryImpl(get(named("UserDataStore"))) }
+    single<GpsBroadcastSettingsRepository> { GpsBroadcastSettingsRepositoryImpl(get(named("UserDataStore"))) }
     single<ContourRepository> { ContourRepositoryImpl(get(), get(named("ContourDataStore"))) }
 
     single { ObserveAppUserUseCase(get()) }
     single { SaveAppUserUseCase(get()) }
+    single { ObserveGpsBroadcastEnabledUseCase(get()) }
+    single { SetGpsBroadcastEnabledUseCase(get()) }
     single { ObserveContoursUseCase(get()) }
     single { SaveContourUseCase(get()) }
     single { DeleteContourUseCase(get()) }

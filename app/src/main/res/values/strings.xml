@@ -45,6 +45,8 @@
     <string name="user_display_name_label">Позывной</string>
     <string name="user_short_name_label">Короткое имя</string>
     <string name="user_save_button">Сохранить</string>
+    <string name="user_section_radio">Радио</string>
+    <string name="user_gps_broadcast_label">Транслировать геопозицию</string>
     <string name="user_section_contours">Контуры</string>
     <string name="user_add_contour_button">+ Добавить контур</string>
     <string name="user_channel_edit">Редактировать</string>
@@ -94,4 +96,10 @@
     <string name="sync_required_dialog_message">Для работы требуется синхронизация настроек ноды. После синхронизации нода будет перезагружена.</string>
     <string name="sync_required_dialog_confirm">Да</string>
     <string name="sync_required_dialog_dismiss">Нет</string>
+
+    <!-- Leave Settings Dialog -->
+    <string name="leave_settings_dialog_title">Сохранить изменения?</string>
+    <string name="leave_settings_dialog_message">Нода будет перезагружена.</string>
+    <string name="leave_settings_dialog_save">Сохранить</string>
+    <string name="leave_settings_dialog_discard">Сбросить</string>
 </resources>

@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -176,12 +177,27 @@ fun UserTabContent(
                 )
             }
             item {
-                Button(
-                    onClick = viewModel::onSaveUser,
-                    enabled = state.hasUnsavedUserChanges,
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.user_section_radio),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(vertical = 4.dp),
+                )
+            }
+            item {
+                Row(
                     modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(stringResource(R.string.user_save_button))
+                    Text(
+                        text = stringResource(R.string.user_gps_broadcast_label),
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(
+                        checked = state.isGpsBroadcastEnabled,
+                        onCheckedChange = viewModel::onGpsBroadcastToggle,
+                    )
                 }
             }
             item {

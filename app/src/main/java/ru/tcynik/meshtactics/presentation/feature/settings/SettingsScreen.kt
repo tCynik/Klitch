@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PowerSettingsNew
@@ -37,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,6 +55,7 @@ import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MarkerSizeConfig
+import ru.tcynik.meshtactics.presentation.ui.components.LeaveSettingsDialog
 import ru.tcynik.meshtactics.presentation.feature.settings.models.MapItem
 import ru.tcynik.meshtactics.presentation.feature.settings.models.formatDate
 import ru.tcynik.meshtactics.service.GpsService
@@ -62,6 +65,7 @@ import ru.tcynik.meshtactics.service.GpsService
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     viewModel: SettingsViewModel = koinViewModel(),
+    userViewModel: UserSettingsViewModel = koinViewModel(),
 ) {
     val context = LocalContext.current
     val exitApp = remember {
@@ -73,9 +77,26 @@ fun SettingsScreen(
         }
     }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val userState by userViewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val savedMessage = stringResource(R.string.settings_saved)
+
+    LaunchedEffect(Unit) {
+        userViewModel.navigateBack.collect { onNavigateBack() }
+    }
+
+    BackHandler(enabled = userState.hasUnsavedUserChanges) {
+        userViewModel.onNavigateBackRequested()
+    }
+
+    if (userState.showLeaveDialog) {
+        LeaveSettingsDialog(
+            onConfirm = userViewModel::onSaveAndReboot,
+            onDiscard = userViewModel::onDiscardAndLeave,
+            onDismiss = userViewModel::onDismissLeaveDialog,
+        )
+    }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
@@ -111,7 +132,7 @@ fun SettingsScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = { userViewModel.onNavigateBackRequested() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.settings_back_description))
                     }
                 },
