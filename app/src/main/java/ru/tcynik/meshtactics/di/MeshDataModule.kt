@@ -51,6 +51,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelPositionPrecisionUs
 import ru.tcynik.meshtactics.domain.mesh.usecase.WritePositionConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
 import ru.tcynik.meshtactics.data.mesh.GeoSendPolicyImpl
 import ru.tcynik.meshtactics.mesh.repository.GeoSendPolicy
 
@@ -132,6 +133,7 @@ val meshDataModule = module {
     single { RemoveFixedPositionUseCase(get()) }
     single { EnableNodePositionBroadcastReadyUseCase(get()) }
     single { DisableNodePositionBroadcastUseCase(get()) }
+    single { RebootNodeUseCase(get()) }
     single {
         NodeProvisioningUseCase(
             observeContours = get<ObserveContoursUseCase>(),

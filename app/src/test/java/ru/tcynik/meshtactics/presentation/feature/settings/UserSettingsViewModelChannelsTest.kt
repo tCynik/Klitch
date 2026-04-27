@@ -35,11 +35,21 @@ import ru.tcynik.meshtactics.domain.channel.usecase.SaveContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SlotResolution
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
+import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
+import ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
+import ru.tcynik.meshtactics.domain.emergency.usecase.CancelEmergencyUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.SetGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
 import ru.tcynik.meshtactics.domain.user.model.AppUser
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
@@ -63,6 +73,16 @@ class UserSettingsViewModelChannelsTest {
     private val syncContoursOnConnect: SyncContoursOnConnectUseCase = mockk(relaxed = true)
     private val enableNodePositionBroadcastReady: EnableNodePositionBroadcastReadyUseCase = mockk(relaxed = true)
     private val disableNodePositionBroadcast: DisableNodePositionBroadcastUseCase = mockk(relaxed = true)
+    private val observeEmergencyMode: ObserveEmergencyModeUseCase = mockk()
+    private val triggerEmergency: TriggerEmergencyUseCase = mockk(relaxed = true)
+    private val cancelEmergency: CancelEmergencyUseCase = mockk(relaxed = true)
+    private val checkContourSync: CheckContourSyncUseCase = mockk(relaxed = true)
+    private val syncStateRepository: ContourSyncStateRepository = mockk(relaxed = true)
+    private val rebootNode: RebootNodeUseCase = mockk(relaxed = true)
+    private val observeGpsBroadcastEnabled: ObserveGpsBroadcastEnabledUseCase = mockk()
+    private val setGpsBroadcastEnabled: SetGpsBroadcastEnabledUseCase = mockk(relaxed = true)
+    private val observeDeviceConfig: ObserveDeviceConfigUseCase = mockk()
+    private val writeOwner: WriteOwnerUseCase = mockk(relaxed = true)
 
     private val contoursFlow = MutableStateFlow<List<Contour>>(emptyList())
     private val nodeChannelsFlow = MutableStateFlow<List<NodeChannelSlot>>(emptyList())
@@ -82,6 +102,10 @@ class UserSettingsViewModelChannelsTest {
         every { observeConnectionStatus.invoke(any()) } returns connectionStatusFlow
         every { channelSlotResolver.hashToSlot } returns emptyMap()
         every { resolveSlot.invoke(any(), any()) } returns SlotResolution.NoFreeSlot
+        every { observeEmergencyMode.invoke() } returns flowOf(false)
+        every { observeGpsBroadcastEnabled.invoke() } returns flowOf(true)
+        every { observeDeviceConfig.invoke(any()) } returns flowOf(null)
+        every { syncStateRepository.syncRequired } returns MutableStateFlow(false)
         viewModel = UserSettingsViewModel(
             observeAppUser = observeAppUser,
             saveAppUser = saveAppUser,
@@ -97,6 +121,16 @@ class UserSettingsViewModelChannelsTest {
             syncContoursOnConnect = syncContoursOnConnect,
             enableNodePositionBroadcastReady = enableNodePositionBroadcastReady,
             disableNodePositionBroadcast = disableNodePositionBroadcast,
+            observeEmergencyMode = observeEmergencyMode,
+            triggerEmergency = triggerEmergency,
+            cancelEmergency = cancelEmergency,
+            checkContourSync = checkContourSync,
+            syncStateRepository = syncStateRepository,
+            rebootNode = rebootNode,
+            observeGpsBroadcastEnabled = observeGpsBroadcastEnabled,
+            setGpsBroadcastEnabled = setGpsBroadcastEnabled,
+            observeDeviceConfig = observeDeviceConfig,
+            writeOwner = writeOwner,
         )
     }
 

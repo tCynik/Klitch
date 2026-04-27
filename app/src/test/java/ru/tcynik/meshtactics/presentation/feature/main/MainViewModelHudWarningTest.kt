@@ -25,8 +25,11 @@ import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
+import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
+import ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.ObserveTotalUnreadChatCountUseCase
 import ru.tcynik.meshtactics.domain.location.model.GpsStatusModel
@@ -45,6 +48,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetMarkerSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveMarkerSizeLevelUseCase
@@ -73,6 +77,10 @@ class MainViewModelHudWarningTest {
     private val ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase = mockk()
     private val observeLogicalChannels: ObserveContoursUseCase = mockk()
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
+    private val checkContourSync: CheckContourSyncUseCase = mockk(relaxed = true)
+    private val syncContoursOnConnect: SyncContoursOnConnectUseCase = mockk(relaxed = true)
+    private val rebootNode: RebootNodeUseCase = mockk(relaxed = true)
+    private val syncStateRepository: ContourSyncStateRepository = mockk(relaxed = true)
 
     private val channelsFlow = MutableStateFlow<List<Contour>>(emptyList())
     private val nodeChannelsFlow = MutableStateFlow<List<NodeChannelSlot>>(emptyList())
@@ -100,6 +108,7 @@ class MainViewModelHudWarningTest {
         every { ingestReceivedChatMessages.observe() } returns flowOf(Unit)
         every { observeLogicalChannels.invoke(any()) } returns channelsFlow
         every { observeNodeChannels.invoke(any()) } returns nodeChannelsFlow
+        every { syncStateRepository.syncRequired } returns MutableStateFlow(false)
         viewModel = MainViewModel(
             getTileUrl = getTileUrl,
             getLastPosition = getLastPosition,
@@ -122,6 +131,10 @@ class MainViewModelHudWarningTest {
             ingestReceivedChatMessages = ingestReceivedChatMessages,
             observeLogicalChannels = observeLogicalChannels,
             observeNodeChannels = observeNodeChannels,
+            checkContourSync = checkContourSync,
+            syncContoursOnConnect = syncContoursOnConnect,
+            rebootNode = rebootNode,
+            syncStateRepository = syncStateRepository,
         )
     }
 

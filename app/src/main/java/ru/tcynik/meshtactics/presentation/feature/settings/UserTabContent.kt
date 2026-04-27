@@ -16,13 +16,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -34,6 +39,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.res.painterResource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,8 +57,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.domain.channel.model.ChannelSyncStatus
+import ru.tcynik.meshtactics.presentation.feature.settings.EmergencyEvent
 import ru.tcynik.meshtactics.presentation.feature.settings.models.ContourItem
 import ru.tcynik.meshtactics.presentation.feature.settings.models.NodeWriteEvent
+import ru.tcynik.meshtactics.presentation.ui.components.SyncRequiredDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,6 +84,36 @@ fun UserTabContent(
             snackbarHostState.showSnackbar(message)
             viewModel.onNodeWriteEventConsumed()
         }
+    }
+
+    val emergencyEvent = state.emergencyEvent
+    val emergencyTriggeredText = stringResource(R.string.emergency_toast_triggered)
+    LaunchedEffect(emergencyEvent) {
+        if (emergencyEvent is EmergencyEvent.Triggered) {
+            snackbarHostState.showSnackbar(emergencyTriggeredText)
+            viewModel.onEmergencyEventConsumed()
+        }
+    }
+
+    if (state.showSyncDialog) {
+        SyncRequiredDialog(
+            onConfirm = viewModel::onConfirmChannelSync,
+            onDismiss = viewModel::onDismissChannelSync,
+        )
+    }
+
+    if (state.showTriggerDialog) {
+        TriggerEmergencyDialog(
+            onConfirm = viewModel::onTriggerEmergencyConfirm,
+            onDismiss = viewModel::onDismissTriggerDialog,
+        )
+    }
+
+    if (state.showCancelDialog) {
+        CancelEmergencyDialog(
+            onConfirm = viewModel::onCancelEmergencyConfirm,
+            onDismiss = viewModel::onDismissCancelDialog,
+        )
     }
 
     if (state.deleteConfirmId != null) {
@@ -139,12 +177,27 @@ fun UserTabContent(
                 )
             }
             item {
-                Button(
-                    onClick = viewModel::onSaveUser,
-                    enabled = state.hasUnsavedUserChanges,
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.user_section_radio),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(vertical = 4.dp),
+                )
+            }
+            item {
+                Row(
                     modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(stringResource(R.string.user_save_button))
+                    Text(
+                        text = stringResource(R.string.user_gps_broadcast_label),
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(
+                        checked = state.isGpsBroadcastEnabled,
+                        onCheckedChange = viewModel::onGpsBroadcastToggle,
+                    )
                 }
             }
             item {
@@ -157,14 +210,25 @@ fun UserTabContent(
                 )
             }
             items(state.contours, key = { it.id.value }) { contour ->
-                ContourCard(
-                    item = contour,
-                    onEdit = { viewModel.onEditContourClick(contour.id) },
-                    onDelete = { viewModel.onDeleteContourRequest(contour.id) },
-                    onPushToNode = { viewModel.onPushToNode(contour.id) },
-                    onDeleteFromNode = { viewModel.onDeleteFromNode(contour.id) },
-                    onToggleActive = { enabled -> viewModel.onToggleActive(contour.id, enabled) },
-                )
+                if (contour.isEmergency) {
+                    EmergencyContourCard(
+                        item = contour,
+                        emergencyMode = state.emergencyMode,
+                        isNodeConnected = state.isNodeConnected,
+                        onSosClick = viewModel::onSosClick,
+                        onPushToNode = { viewModel.onPushToNode(contour.id) },
+                        onDeleteFromNode = { viewModel.onDeleteFromNode(contour.id) },
+                    )
+                } else {
+                    ContourCard(
+                        item = contour,
+                        onEdit = { viewModel.onEditContourClick(contour.id) },
+                        onDelete = { viewModel.onDeleteContourRequest(contour.id) },
+                        onPushToNode = { viewModel.onPushToNode(contour.id) },
+                        onDeleteFromNode = { viewModel.onDeleteFromNode(contour.id) },
+                        onToggleActive = { enabled -> viewModel.onToggleActive(contour.id, enabled) },
+                    )
+                }
             }
         }
 
@@ -368,4 +432,140 @@ private fun ContourEditorSheet(
 
         Spacer(Modifier.height(16.dp))
     }
+}
+
+@Composable
+private fun EmergencyContourCard(
+    item: ContourItem,
+    emergencyMode: Boolean,
+    isNodeConnected: Boolean,
+    onSosClick: () -> Unit,
+    onPushToNode: () -> Unit,
+    onDeleteFromNode: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var showDropdown by remember { mutableStateOf(false) }
+
+    val cardColors = if (emergencyMode) {
+        CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+    } else {
+        CardDefaults.cardColors()
+    }
+
+    val sosButtonColors = if (emergencyMode) {
+        IconButtonDefaults.filledIconButtonColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    } else {
+        IconButtonDefaults.filledIconButtonColors(
+            containerColor = MaterialTheme.colorScheme.error,
+            contentColor = MaterialTheme.colorScheme.onError,
+        )
+    }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = cardColors,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 4.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            FilledIconButton(
+                onClick = onSosClick,
+                enabled = isNodeConnected || emergencyMode,
+                colors = sosButtonColors,
+                modifier = Modifier.padding(start = 4.dp, end = 8.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_sos),
+                    contentDescription = null,
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                if (!item.description.isNullOrBlank()) {
+                    Text(
+                        text = item.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Light,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            IconButton(onClick = { showDropdown = true }) {
+                Icon(Icons.Default.MoreVert, contentDescription = null)
+            }
+            DropdownMenu(
+                expanded = showDropdown,
+                onDismissRequest = { showDropdown = false },
+            ) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.user_channel_push_to_node)) },
+                    onClick = { showDropdown = false; onPushToNode() },
+                )
+                if (item.syncStatus is ChannelSyncStatus.OnNode && item.syncStatus.slot != 0) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.user_channel_delete_from_node)) },
+                        onClick = { showDropdown = false; onDeleteFromNode() },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TriggerEmergencyDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.emergency_trigger_dialog_title)) },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError,
+                ),
+            ) {
+                Text(stringResource(R.string.emergency_trigger_dialog_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.emergency_trigger_dialog_dismiss))
+            }
+        },
+    )
+}
+
+@Composable
+private fun CancelEmergencyDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.emergency_cancel_dialog_title)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.emergency_cancel_dialog_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.emergency_cancel_dialog_dismiss))
+            }
+        },
+    )
 }

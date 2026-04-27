@@ -3,14 +3,19 @@ package ru.tcynik.meshtactics.presentation.feature.settings
 import android.util.Base64
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.collections.immutable.toImmutableList
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.ChannelSyncStatus
@@ -27,14 +32,25 @@ import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SaveContourUseCase
+import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
+import ru.tcynik.meshtactics.domain.channel.model.ContourSyncResult
+import ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SlotResolution
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.CancelEmergencyUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.SetGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
 import ru.tcynik.meshtactics.domain.user.model.AppUser
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
@@ -58,10 +74,23 @@ class UserSettingsViewModel(
     private val syncContoursOnConnect: SyncContoursOnConnectUseCase,
     private val enableNodePositionBroadcastReady: EnableNodePositionBroadcastReadyUseCase,
     private val disableNodePositionBroadcast: DisableNodePositionBroadcastUseCase,
+    private val observeEmergencyMode: ObserveEmergencyModeUseCase,
+    private val triggerEmergency: TriggerEmergencyUseCase,
+    private val cancelEmergency: CancelEmergencyUseCase,
+    private val checkContourSync: CheckContourSyncUseCase,
+    private val syncStateRepository: ContourSyncStateRepository,
+    private val rebootNode: RebootNodeUseCase,
+    private val observeGpsBroadcastEnabled: ObserveGpsBroadcastEnabledUseCase,
+    private val setGpsBroadcastEnabled: SetGpsBroadcastEnabledUseCase,
+    private val observeDeviceConfig: ObserveDeviceConfigUseCase,
+    private val writeOwner: WriteOwnerUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UserSettingsUiState())
     val uiState: StateFlow<UserSettingsUiState> = _uiState.asStateFlow()
+
+    private val _navigateBack = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val navigateBack: SharedFlow<Unit> = _navigateBack.asSharedFlow()
 
     private var cachedContours: List<Contour> = emptyList()
     private var cachedNodeChannels: List<NodeChannelSlot> = emptyList()
@@ -75,6 +104,14 @@ class UserSettingsViewModel(
                     else state
                 }
             }
+            .launchIn(viewModelScope)
+
+        observeEmergencyMode()
+            .onEach { isActive -> _uiState.update { it.copy(emergencyMode = isActive) } }
+            .launchIn(viewModelScope)
+
+        observeGpsBroadcastEnabled()
+            .onEach { enabled -> _uiState.update { it.copy(isGpsBroadcastEnabled = enabled) } }
             .launchIn(viewModelScope)
 
         combine(
@@ -99,7 +136,12 @@ class UserSettingsViewModel(
                     syncStatus = computeSyncStatus(contour, nodeChannels, status),
                 )
             }
-            _uiState.update { it.copy(contours = items.toImmutableList()) }
+            _uiState.update {
+                it.copy(
+                    contours = items.toImmutableList(),
+                    isNodeConnected = status is MeshConnectionStatus.Connected,
+                )
+            }
 
             val justConnected = !wasConnected && status is MeshConnectionStatus.Connected
             if (justConnected) {
@@ -110,13 +152,10 @@ class UserSettingsViewModel(
 
     private fun onConnected(contours: List<Contour>) {
         viewModelScope.launch {
-            syncContoursOnConnect()
             val emergencyActive = contours.find { it.isEmergency }?.isActive ?: false
-            if (emergencyActive) {
-                disableNodePositionBroadcast()
-            } else {
-                enableNodePositionBroadcastReady()
-            }
+            val broadcastEnabled = observeGpsBroadcastEnabled().first()
+            if (emergencyActive || !broadcastEnabled) disableNodePositionBroadcast()
+            else enableNodePositionBroadcastReady()
         }
     }
 
@@ -172,7 +211,26 @@ class UserSettingsViewModel(
     fun onToggleActive(id: ContourId, isActive: Boolean) {
         viewModelScope.launch {
             setContourActive(id, isActive)
+            if (isActive && connectionStatus is MeshConnectionStatus.Connected) {
+                if (checkContourSync() is ContourSyncResult.NeedsSync) {
+                    _uiState.update { it.copy(showSyncDialog = true) }
+                }
+            }
         }
+    }
+
+    fun onConfirmChannelSync() {
+        _uiState.update { it.copy(showSyncDialog = false) }
+        viewModelScope.launch {
+            syncContoursOnConnect()
+            rebootNode()
+            syncStateRepository.clear()
+        }
+    }
+
+    fun onDismissChannelSync() {
+        _uiState.update { it.copy(showSyncDialog = false) }
+        syncStateRepository.setSyncRequired(true)
     }
 
     fun onNodeWriteEventConsumed() {
@@ -183,11 +241,52 @@ class UserSettingsViewModel(
         _uiState.update { it.copy(displayName = value, hasUnsavedUserChanges = true) }
     }
 
-    fun onSaveUser() {
+    fun onGpsBroadcastToggle(enabled: Boolean) {
         viewModelScope.launch {
+            setGpsBroadcastEnabled(enabled)
+            if (connectionStatus is MeshConnectionStatus.Connected) {
+                if (enabled) enableNodePositionBroadcastReady()
+                else disableNodePositionBroadcast()
+            }
+        }
+    }
+
+    fun onNavigateBackRequested() {
+        if (_uiState.value.hasUnsavedUserChanges && _uiState.value.isNodeConnected) {
+            _uiState.update { it.copy(showLeaveDialog = true) }
+        } else {
+            if (_uiState.value.hasUnsavedUserChanges) {
+                viewModelScope.launch { saveAppUser(AppUser(displayName = _uiState.value.displayName)) }
+            }
+            _navigateBack.tryEmit(Unit)
+        }
+    }
+
+    fun onSaveAndReboot() {
+        _uiState.update { it.copy(showLeaveDialog = false) }
+        viewModelScope.launch {
+            val shortName = withTimeoutOrNull(5_000) {
+                observeDeviceConfig(NoParams).first { it != null }
+            }?.shortName ?: ""
+            writeOwner(_uiState.value.displayName, shortName)
             saveAppUser(AppUser(displayName = _uiState.value.displayName))
             _uiState.update { it.copy(hasUnsavedUserChanges = false) }
+            rebootNode()
+            _navigateBack.tryEmit(Unit)
         }
+    }
+
+    fun onDiscardAndLeave() {
+        _uiState.update { it.copy(showLeaveDialog = false, hasUnsavedUserChanges = false) }
+        viewModelScope.launch {
+            val saved = observeAppUser(NoParams).first()
+            _uiState.update { it.copy(displayName = saved.displayName) }
+            _navigateBack.tryEmit(Unit)
+        }
+    }
+
+    fun onDismissLeaveDialog() {
+        _uiState.update { it.copy(showLeaveDialog = false) }
     }
 
     fun onAddContourClick() {
@@ -264,6 +363,39 @@ class UserSettingsViewModel(
 
     fun onEditorDismiss() {
         _uiState.update { it.copy(editorSheet = null) }
+    }
+
+    fun onSosClick() {
+        if (_uiState.value.emergencyMode) {
+            _uiState.update { it.copy(showCancelDialog = true) }
+        } else {
+            _uiState.update { it.copy(showTriggerDialog = true) }
+        }
+    }
+
+    fun onTriggerEmergencyConfirm() {
+        _uiState.update { it.copy(showTriggerDialog = false) }
+        viewModelScope.launch {
+            triggerEmergency()
+            _uiState.update { it.copy(emergencyEvent = EmergencyEvent.Triggered) }
+        }
+    }
+
+    fun onCancelEmergencyConfirm() {
+        _uiState.update { it.copy(showCancelDialog = false) }
+        viewModelScope.launch { cancelEmergency() }
+    }
+
+    fun onDismissTriggerDialog() {
+        _uiState.update { it.copy(showTriggerDialog = false) }
+    }
+
+    fun onDismissCancelDialog() {
+        _uiState.update { it.copy(showCancelDialog = false) }
+    }
+
+    fun onEmergencyEventConsumed() {
+        _uiState.update { it.copy(emergencyEvent = null) }
     }
 }
 

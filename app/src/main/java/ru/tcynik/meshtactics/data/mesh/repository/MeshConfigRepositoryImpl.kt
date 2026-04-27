@@ -160,9 +160,17 @@ class MeshConfigRepositoryImpl(
     override fun disableNodePositionBroadcast() {
         val destNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
         val current = meshRouter.configHandler.localConfig.value.position ?: Config.PositionConfig()
-        val updated = current.copy(position_broadcast_secs = GEO_BROADCAST_DISABLED_SECS)
+        val updated = current.copy(
+            position_broadcast_secs = GEO_BROADCAST_DISABLED_SECS,
+            position_broadcast_smart_enabled = false,
+        )
         val payload = Config.ADAPTER.encode(Config(position = updated))
         meshRouter.actionHandler.handleSetConfig(payload, destNum)
+    }
+
+    override fun rebootNode() {
+        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
+        meshRouter.actionHandler.handleRequestReboot(commandSender.generatePacketId(), myNodeNum)
     }
 
     companion object {
