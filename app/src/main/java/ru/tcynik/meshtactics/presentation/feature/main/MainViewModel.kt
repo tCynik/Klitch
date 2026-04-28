@@ -151,12 +151,10 @@ class MainViewModel(
 
         observeConnectionStatus(NoParams)
             .onEach { status ->
-                if (status is MeshConnectionStatus.Connecting || status is MeshConnectionStatus.Connected) {
+                if (status is MeshConnectionStatus.Connected) {
                     scanJob?.cancel()
                     scanJob = null
                     _uiState.update { it.copy(foundDevices = persistentListOf()) }
-                }
-                if (status is MeshConnectionStatus.Connected) {
                     val wasConnected = _uiState.value.connectionStatus is MeshConnectionStatus.Connected
                     _uiState.update { it.copy(connectionStatus = status) }
                     if (!wasConnected) {
@@ -360,34 +358,37 @@ class MainViewModel(
     private fun startAutoConnect() {
         val lastDevice = getLastConnectedDevice()
         scanJob?.cancel()
-        var autoConnectAttempted = false
+
+        val currentStatus = _uiState.value.connectionStatus
+        if (lastDevice != null &&
+            currentStatus !is MeshConnectionStatus.Connecting &&
+            currentStatus !is MeshConnectionStatus.Connected
+        ) {
+            // Direct connect by address — works even when device is bonded but not advertising
+            // (connected to Android OS). Scan runs in parallel so user can switch to another
+            // device if lastDevice is unavailable.
+            viewModelScope.launch {
+                connectToDevice(ConnectToMeshDeviceParams(lastDevice.address, lastDevice.name))
+            }
+        }
 
         scanJob = scanDevices(NoParams)
             .onEach { devices ->
-                if (autoConnectAttempted) return@onEach
-                val target = lastDevice?.let { last -> devices.find { it.address == last.address } }
-                if (target != null) {
-                    autoConnectAttempted = true
-                    _uiState.update { it.copy(foundDevices = persistentListOf()) }
-                    viewModelScope.launch {
-                        connectToDevice(ConnectToMeshDeviceParams(target.address, target.name))
-                    }
-                    scanJob?.cancel()
-                } else {
-                    // Accumulate discovered devices across scan restarts (deduplicate by address).
-                    _uiState.update { current ->
-                        val merged = (current.foundDevices + devices)
-                            .distinctBy { it.address }
-                            .toImmutableList()
-                        current.copy(foundDevices = merged)
-                    }
+                val status = _uiState.value.connectionStatus
+                if (status is MeshConnectionStatus.Connected) return@onEach
+                _uiState.update { current ->
+                    val merged = (current.foundDevices + devices)
+                        .distinctBy { it.address }
+                        .toImmutableList()
+                    current.copy(foundDevices = merged)
                 }
             }
             .onCompletion { cause ->
-                // cause != null means cancelled (Connecting/Connected path) — skip restart.
-                // Always restart if scan expired naturally and auto-connect didn't fire,
-                // so the device list stays fresh.
-                if (cause == null && !autoConnectAttempted) {
+                val status = _uiState.value.connectionStatus
+                if (cause == null &&
+                    status !is MeshConnectionStatus.Connected &&
+                    status !is MeshConnectionStatus.Connecting
+                ) {
                     startAutoConnect()
                 }
             }
