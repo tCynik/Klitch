@@ -94,8 +94,6 @@ No new interfaces, use cases, or repositories. Proceed directly to implementatio
 Filter Tab row (`ChatFilterItemRow` or equivalent):
 - Apply `Modifier.alpha(if (item.isActive) 1f else 0.45f)` to the row content, **except the
   unread badge** — it stays at full alpha so the user can see unread count even on inactive contacts
-- Show a small "неактивен" text label next to the name when `!item.isActive`
-  (use `MaterialTheme.colorScheme.outline` color, `labelSmall` style; no icon)
 
 Chat Tab:
 - Where `ChatInputBar` is rendered, wrap with:

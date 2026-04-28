@@ -67,6 +67,7 @@ class MeshToChatAdapter(
                             val hash = slotMaps.slotToHash[channelIndex] ?: return@mapIndexed null
                             val contourId = contourByHash[hash] ?: return@mapIndexed null
                             val channelName = contourNameById[contourId.value] ?: nodeId
+                            val isActive = contours.find { it.id == contourId }?.isActive ?: false
                             ChatContactDto(
                                 id = contourId.value,
                                 shortName = channelName,
@@ -75,6 +76,7 @@ class MeshToChatAdapter(
                                 isFavorite = setting?.isFavorite ?: false,
                                 isPinned = setting?.isPinned ?: false,
                                 isArchived = setting?.isArchived ?: false,
+                                isActive = isActive,
                                 unreadCount = unreadCounts[index],
                                 lastMessageTime = lastPacket.time.takeIf { it > 0 },
                                 lastMessagePreview = lastPacket.text,
@@ -90,6 +92,7 @@ class MeshToChatAdapter(
                                 isFavorite = setting?.isFavorite ?: false,
                                 isPinned = setting?.isPinned ?: false,
                                 isArchived = setting?.isArchived ?: false,
+                                isActive = true,
                                 unreadCount = unreadCounts[index],
                                 lastMessageTime = lastPacket.time.takeIf { it > 0 },
                                 lastMessagePreview = lastPacket.text,

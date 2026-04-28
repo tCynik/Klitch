@@ -22,6 +22,7 @@ data class ChatFilterItem(
     val isChecked: Boolean = false,
     val isFavorite: Boolean = false,
     val isPinned: Boolean = false,
+    val isActive: Boolean = true,
     val unreadCount: Int = 0,
     val lastMessageTime: Long = 0L,
     val lastMessagePreview: String = "",

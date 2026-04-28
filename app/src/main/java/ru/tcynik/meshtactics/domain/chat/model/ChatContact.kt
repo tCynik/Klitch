@@ -7,6 +7,7 @@ data class ChatContact(
     val isFavorite: Boolean = false,
     val isPinned: Boolean = false,
     val isArchived: Boolean = false,
+    val isActive: Boolean = true,
     val unreadCount: Int = 0,
     val lastMessageTime: Long? = null,
     val lastMessagePreview: String? = null,
