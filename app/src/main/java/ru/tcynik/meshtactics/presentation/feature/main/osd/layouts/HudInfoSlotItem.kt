@@ -27,7 +27,7 @@ fun HudInfoSlotItem(slot: HudInfoSlot, modifier: Modifier = Modifier) {
             // TODO: color token for slot.color — provisional direct Color use until design system
             //       defines signal-quality semantic tokens (see hud-structure.md open question 1)
             color = slot.color ?: MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.bodyMedium,
         )
     }
 }
