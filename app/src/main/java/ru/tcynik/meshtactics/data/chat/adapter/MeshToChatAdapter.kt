@@ -48,6 +48,7 @@ class MeshToChatAdapter(
             channelRepository.observeContours().flatMapLatest { contours ->
                 val contourByHash = contours.associate { it.transport.meshtastic.channelHash to it.id }
                 val contourNameById = contours.associate { it.id.value to it.name }
+                val contourById = contours.associateBy { it.id }
 
                 val entries = contacts.entries.toList()
                 if (entries.isEmpty()) return@flatMapLatest flowOf(emptyList())
@@ -67,7 +68,7 @@ class MeshToChatAdapter(
                             val hash = slotMaps.slotToHash[channelIndex] ?: return@mapIndexed null
                             val contourId = contourByHash[hash] ?: return@mapIndexed null
                             val channelName = contourNameById[contourId.value] ?: nodeId
-                            val isActive = contours.find { it.id == contourId }?.isActive ?: false
+                            val isActive = contourById[contourId]?.isActive ?: false
                             ChatContactDto(
                                 id = contourId.value,
                                 shortName = channelName,

@@ -110,7 +110,8 @@
       "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.settings.*\" --quiet)",
       "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.settings.*\")",
       "Bash(cp \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/user-settings-write-mechanics.md\" \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/archive/user-settings-write-mechanics.md\")",
-      "Bash(rm \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/user-settings-write-mechanics.md\")"
+      "Bash(rm \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/user-settings-write-mechanics.md\")",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.data.chat.adapter.MeshToChatAdapterTest\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",
