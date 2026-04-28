@@ -39,6 +39,7 @@
     <string name="chat_clear_confirm">Очистить чат?</string>
     <string name="chat_clear_confirm_button">Очистить</string>
     <string name="chat_cancel">Отмена</string>
+    <string name="chat_inactive_contour">Контур неактивен</string>
 
     <!-- User Settings Tab -->
     <string name="user_section_profile">Профиль</string>

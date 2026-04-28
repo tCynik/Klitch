@@ -97,6 +97,33 @@ Receive path: `MeshPacket TEXT_MESSAGE_APP` → `IngestReceivedChatMessagesUseCa
 
 ---
 
+## Inactive contour state
+
+Когда `Contour.isActive = false`, чат-экран переходит в режим только для чтения.
+
+### Поведение
+
+- Контакт остаётся в списке Filter Tab на своей позиции (сортировка не меняется)
+- Строка контакта визуально приглушена: `Modifier.alpha(0.45f)` применяется ко всему контенту строки **кроме unread-бейджа** — он всегда на полной альфе
+- На Chat Tab строка ввода заменяется баннером `InactiveContourBanner` ("Контур неактивен")
+- `sendMessage()` в ViewModel имеет guard: `if (!state.isSelectedChatActive) return`
+- `PRIVATE`-контакты всегда `isActive = true`
+
+### Цепочка propagation
+
+```
+Contour.isActive (domain/channel)
+  → MeshToChatAdapter.observeContactsAsFlow()  ← CHANNEL branch only
+  → ChatContactDto.isActive
+  → ChatContactDto.toDomain() → ChatContact.isActive
+  → toFilterItem() → ChatFilterItem.isActive
+  → observeContacts() → ChatUiState.isSelectedChatActive
+```
+
+`observeContacts()` в ViewModel пересчитывает `isSelectedChatActive` при каждом обновлении списка контуров — смена `isActive` отображается live, пока чат открыт.
+
+---
+
 ## Известный техдолг
 
 | # | Проблема | Приоритет |

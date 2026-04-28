@@ -846,7 +846,7 @@ private fun InactiveContourBanner(modifier: Modifier = Modifier) {
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "Контур неактивен",
+                text = stringResource(R.string.chat_inactive_contour),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

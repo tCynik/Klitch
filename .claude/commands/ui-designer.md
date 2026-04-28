@@ -102,6 +102,21 @@ Always respond in Russian.
 
 ---
 
+### Established Token Usage (Inactive / Disabled States)
+
+These token decisions were established during the Inactive Contour feature and apply to any future inactive/disabled-state UI:
+
+| Context | Token / Value | Role |
+|---|---|---|
+| Inactive contact row — dimmed content | `Modifier.alpha(0.45f)` | Applied to row content (checkbox, name, preview, pin/favorite indicators) |
+| Inactive contact row — unread badge | full alpha (no modifier) | Badge stays visible so user can see unread count on inactive contacts |
+| InactiveContourBanner background | `MaterialTheme.colorScheme.surfaceVariant` (via `Surface tonalElevation = 4.dp`) | Non-interactive banner replacing input bar |
+| InactiveContourBanner text | `MaterialTheme.colorScheme.onSurfaceVariant` | Neutral, not alarming — the state is expected |
+
+**Rule**: inactive state uses alpha dimming (0.45f) + surfaceVariant tones, never error/warning colors — the contour is intentionally deactivated, not broken.
+
+---
+
 ### Established Token Usage (Alert / Error States)
 
 These token decisions were established during the Emergency SOS feature and apply to any future alert-state UI:
@@ -126,6 +141,7 @@ These token decisions were established during the Emergency SOS feature and appl
 | MeshIconButton | `app/.../MeshIconButton.kt` | Defined | See `/icon-designer` |
 | EmergencyContourCard | `app/.../feature/settings/UserTabContent.kt` | Defined | SOS button + alert card; see Emergency SOS token decisions above |
 | SyncRequiredDialog | `app/.../ui/components/SyncRequiredDialog.kt` | Defined | AlertDialog; stateless; used in MainScreen + UserTabContent when `showSyncDialog = true` |
+| InactiveContourBanner | `app/.../feature/chat/ChatScreen.kt` | Defined | `Surface(tonalElevation=4dp)`, height=56dp, centered `bodyMedium` text `onSurfaceVariant`; replaces `ChatInputBar` when `isSelectedChatActive = false` |
 
 ---
 
