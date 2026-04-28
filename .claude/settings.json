@@ -110,7 +110,13 @@
       "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.settings.*\" --quiet)",
       "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.settings.*\")",
       "Bash(cp \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/user-settings-write-mechanics.md\" \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/archive/user-settings-write-mechanics.md\")",
-      "Bash(rm \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/user-settings-write-mechanics.md\")"
+      "Bash(rm \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/user-settings-write-mechanics.md\")",
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\\\\\" | Where-Object { $_.Name -match \"jdk|java|microsoft|eclipse|adopt\" -or $_.Name -match \"Java\" } | Select-Object Name)",
+      "PowerShell(Get-Command java -ErrorAction SilentlyContinue)",
+      "Read(//c//**)",
+      "Read(//mnt/**)",
+      "Read(//c/android//**)",
+      "Read(//c/Users/**)"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",

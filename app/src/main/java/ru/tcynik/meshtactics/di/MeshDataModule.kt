@@ -77,6 +77,7 @@ val meshDataModule = module {
     single<MeshConnectionRepository> {
         MeshConnectionRepositoryImpl(
             bleScanner = get(),
+            bluetoothRepository = get(),
             radioInterfaceService = get(),
             serviceRepository = get(),
             nodeRepository = get(),
