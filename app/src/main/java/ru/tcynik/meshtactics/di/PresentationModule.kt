@@ -61,11 +61,8 @@ val presentationModule = module {
             ingestReceivedGeoMarks = get<IngestReceivedGeoMarksUseCase>(),
             deleteExpiredGeoMarks = get<DeleteExpiredGeoMarksUseCase>(),
             ingestReceivedChatMessages = get<IngestReceivedChatMessagesUseCase>(),
-            observeLogicalChannels = get<ObserveContoursUseCase>(), // parameter kept for compat
+            observeLogicalChannels = get<ObserveContoursUseCase>(),
             observeNodeChannels = get<ObserveNodeChannelsUseCase>(),
-            checkContourSync = get<CheckContourSyncUseCase>(),
-            syncContoursOnConnect = get<SyncContoursOnConnectUseCase>(),
-            rebootNode = get<RebootNodeUseCase>(),
             syncStateRepository = get<ContourSyncStateRepository>(),
         )
     }
@@ -137,6 +134,10 @@ val presentationModule = module {
             writePositionConfig = get(),
             writeChannelPositionPrecision = get(),
             removeFixedPosition = get(),
+            checkContourSync = get<CheckContourSyncUseCase>(),
+            syncContoursOnConnect = get<SyncContoursOnConnectUseCase>(),
+            rebootNode = get<RebootNodeUseCase>(),
+            syncStateRepository = get<ContourSyncStateRepository>(),
         )
     }
 }

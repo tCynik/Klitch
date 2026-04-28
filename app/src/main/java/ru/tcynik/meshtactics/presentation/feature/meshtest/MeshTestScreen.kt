@@ -25,6 +25,7 @@ import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.GeoNo
 import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.MessagesTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.TelemetryTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MeshTestTab
+import ru.tcynik.meshtactics.presentation.ui.components.SyncRequiredDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +35,13 @@ fun MeshTestScreen(
     viewModel: MeshTestViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    if (state.showSyncDialog) {
+        SyncRequiredDialog(
+            onConfirm = viewModel::onConfirmChannelSync,
+            onDismiss = viewModel::onDismissChannelSync,
+        )
+    }
 
     Scaffold(
         topBar = {

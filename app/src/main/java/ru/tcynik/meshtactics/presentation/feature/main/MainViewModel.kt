@@ -56,13 +56,9 @@ import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
-import ru.tcynik.meshtactics.domain.channel.model.ContourSyncResult
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
-import ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
-import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
@@ -105,9 +101,6 @@ class MainViewModel(
     ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase,
     observeLogicalChannels: ObserveContoursUseCase,
     observeNodeChannels: ObserveNodeChannelsUseCase,
-    private val checkContourSync: CheckContourSyncUseCase,
-    private val syncContoursOnConnect: SyncContoursOnConnectUseCase,
-    private val rebootNode: RebootNodeUseCase,
     private val syncStateRepository: ContourSyncStateRepository,
 ) : ViewModel() {
 
@@ -159,11 +152,6 @@ class MainViewModel(
                     _uiState.update { it.copy(connectionStatus = status) }
                     if (!wasConnected) {
                         viewModelScope.launch { nodeProvisioning.provision() }
-                        viewModelScope.launch {
-                            if (checkContourSync() is ContourSyncResult.NeedsSync) {
-                                _uiState.update { it.copy(showSyncDialog = true) }
-                            }
-                        }
                         _uiState.update { it.copy(showConnectionLabel = true) }
                         connectedLabelJob?.cancel()
                         connectedLabelJob = viewModelScope.launch {
@@ -244,20 +232,6 @@ class MainViewModel(
             .launchIn(viewModelScope)
 
         startAutoConnect()
-    }
-
-    fun onConfirmChannelSync() {
-        _uiState.update { it.copy(showSyncDialog = false) }
-        viewModelScope.launch {
-            syncContoursOnConnect()
-            rebootNode()
-            syncStateRepository.clear()
-        }
-    }
-
-    fun onDismissChannelSync() {
-        _uiState.update { it.copy(showSyncDialog = false) }
-        syncStateRepository.setSyncRequired(true)
     }
 
     fun onCameraPositionChanged(position: MapCameraPosition) {

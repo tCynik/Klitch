@@ -22,10 +22,15 @@ import ru.tcynik.meshtactics.domain.mesh.model.LocationConfigModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.model.MeshMessageDelivery
 import ru.tcynik.meshtactics.domain.mesh.model.MeshNodeModel
+import ru.tcynik.meshtactics.domain.channel.model.ContourSyncResult
+import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
+import ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceParams
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGeoNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveLocationConfigUseCase
@@ -79,6 +84,10 @@ class MeshTestViewModel(
     private val writePositionConfig: WritePositionConfigUseCase,
     private val writeChannelPositionPrecision: WriteChannelPositionPrecisionUseCase,
     private val removeFixedPosition: RemoveFixedPositionUseCase,
+    private val checkContourSync: CheckContourSyncUseCase,
+    private val syncContoursOnConnect: SyncContoursOnConnectUseCase,
+    private val rebootNode: RebootNodeUseCase,
+    private val syncStateRepository: ContourSyncStateRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MeshTestUiState())
@@ -86,6 +95,7 @@ class MeshTestViewModel(
 
     private var scanJob: Job? = null
     private var messagesJob: Job? = null
+    private var wasConnected = false
 
     private val myNodeNumFlow = MutableStateFlow<Int?>(null)
 
@@ -104,6 +114,14 @@ class MeshTestViewModel(
                     ),
                 )
             }
+            if (status is MeshConnectionStatus.Connected && !wasConnected) {
+                viewModelScope.launch {
+                    if (checkContourSync() is ContourSyncResult.NeedsSync) {
+                        _uiState.update { it.copy(showSyncDialog = true) }
+                    }
+                }
+            }
+            wasConnected = status is MeshConnectionStatus.Connected
             // Auto-start scan when the app is already scanning (MainViewModel auto-scan)
             // but this VM hasn't started collecting devices yet.
             if (status is MeshConnectionStatus.Scanning && scanJob == null) {
@@ -212,6 +230,22 @@ class MeshTestViewModel(
             .launchIn(viewModelScope)
 
         startObservingMessages(activeContactKey)
+    }
+
+    // ── Sync Dialog ───────────────────────────────────────────────────────────
+
+    fun onConfirmChannelSync() {
+        _uiState.update { it.copy(showSyncDialog = false) }
+        viewModelScope.launch {
+            syncContoursOnConnect()
+            rebootNode()
+            syncStateRepository.clear()
+        }
+    }
+
+    fun onDismissChannelSync() {
+        _uiState.update { it.copy(showSyncDialog = false) }
+        syncStateRepository.setSyncRequired(true)
     }
 
     // ── Navigation ────────────────────────────────────────────────────────────
