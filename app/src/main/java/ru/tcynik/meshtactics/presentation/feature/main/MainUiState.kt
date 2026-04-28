@@ -34,4 +34,5 @@ data class MainUiState(
     val pendingMarkPoints: ImmutableList<GeoPoint> = persistentListOf(),
     val hasChannelOnNode: Boolean = true,
     val syncRequired: Boolean = false,
+    val isRebooting: Boolean = false,
 )

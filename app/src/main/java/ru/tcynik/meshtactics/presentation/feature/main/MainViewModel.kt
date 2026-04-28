@@ -59,6 +59,7 @@ import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
+import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
@@ -102,6 +103,7 @@ class MainViewModel(
     observeLogicalChannels: ObserveContoursUseCase,
     observeNodeChannels: ObserveNodeChannelsUseCase,
     private val syncStateRepository: ContourSyncStateRepository,
+    private val rebootStateRepository: RebootStateRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -142,6 +144,10 @@ class MainViewModel(
             }
             .launchIn(viewModelScope)
 
+        rebootStateRepository.isRebooting
+            .onEach { rebooting -> _uiState.update { it.copy(isRebooting = rebooting) } }
+            .launchIn(viewModelScope)
+
         observeConnectionStatus(NoParams)
             .onEach { status ->
                 if (status is MeshConnectionStatus.Connected) {
@@ -151,6 +157,7 @@ class MainViewModel(
                     val wasConnected = _uiState.value.connectionStatus is MeshConnectionStatus.Connected
                     _uiState.update { it.copy(connectionStatus = status) }
                     if (!wasConnected) {
+                        if (rebootStateRepository.isRebooting.value) rebootStateRepository.setRebooting(false)
                         viewModelScope.launch { nodeProvisioning.provision() }
                         _uiState.update { it.copy(showConnectionLabel = true) }
                         connectedLabelJob?.cancel()
@@ -160,9 +167,16 @@ class MainViewModel(
                         }
                     }
                 } else {
+                    val wasConnected = _uiState.value.connectionStatus is MeshConnectionStatus.Connected
                     connectedLabelJob?.cancel()
                     connectedLabelJob = null
                     _uiState.update { it.copy(connectionStatus = status, showConnectionLabel = false) }
+                    if (wasConnected && _uiState.value.isRebooting) {
+                        viewModelScope.launch {
+                            delay(3_000)
+                            startAutoConnect()
+                        }
+                    }
                 }
             }
             .launchIn(viewModelScope)
@@ -495,10 +509,15 @@ class MainViewModel(
                 HudInfoSlot(content = "Сопряжено с ${status.shortName}", color = Color.Green)
             else
                 emptyInfoSlot()
-        else -> emptyInfoSlot()
+        else ->
+            if (state.isRebooting)
+                HudInfoSlot(content = "Перезагрузка...", color = Color.Yellow)
+            else
+                emptyInfoSlot()
     }
 
     private fun buildNodeStatusColor(state: MainUiState): Color {
+        if (state.isRebooting) return Color.Yellow
         return when (val status = state.connectionStatus) {
             is MeshConnectionStatus.Connected ->
                 if (status.rssi < RSSI_LOW_THRESHOLD) Color.Yellow else Color.Green

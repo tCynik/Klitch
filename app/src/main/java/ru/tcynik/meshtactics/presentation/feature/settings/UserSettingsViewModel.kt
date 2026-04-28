@@ -45,6 +45,7 @@ import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
+import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
@@ -83,6 +84,7 @@ class UserSettingsViewModel(
     private val checkContourSync: CheckContourSyncUseCase,
     private val syncStateRepository: ContourSyncStateRepository,
     private val rebootNode: RebootNodeUseCase,
+    private val rebootStateRepository: RebootStateRepository,
     private val observeGpsBroadcastEnabled: ObserveGpsBroadcastEnabledUseCase,
     private val setGpsBroadcastEnabled: SetGpsBroadcastEnabledUseCase,
     private val observeDeviceConfig: ObserveDeviceConfigUseCase,
@@ -236,6 +238,7 @@ class UserSettingsViewModel(
         _uiState.update { it.copy(showSyncDialog = false) }
         viewModelScope.launch {
             syncContoursOnConnect()
+            rebootStateRepository.setRebooting(true)
             rebootNode()
             syncStateRepository.clear()
         }
@@ -284,6 +287,7 @@ class UserSettingsViewModel(
             writeOwner(_uiState.value.displayName, shortName)
             saveAppUser(AppUser(displayName = _uiState.value.displayName))
             _uiState.update { it.copy(hasUnsavedUserChanges = false) }
+            rebootStateRepository.setRebooting(true)
             rebootNode()
             _navigateBack.tryEmit(Unit)
         }

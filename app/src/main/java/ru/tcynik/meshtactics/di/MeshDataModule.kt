@@ -53,6 +53,8 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastRead
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
 import ru.tcynik.meshtactics.data.mesh.GeoSendPolicyImpl
+import ru.tcynik.meshtactics.data.mesh.repository.RebootStateRepositoryImpl
+import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.mesh.repository.GeoSendPolicy
 
 val meshDataModule = module {
@@ -105,6 +107,8 @@ val meshDataModule = module {
             context = androidContext(),
         )
     }
+
+    single<RebootStateRepository> { RebootStateRepositoryImpl() }
 
     single<GeoSendPolicy> { GeoSendPolicyImpl(get()) }
 

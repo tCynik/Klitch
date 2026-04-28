@@ -17,4 +17,5 @@ data class MeshTestUiState(
     val telemetryTab: TelemetryTabState = TelemetryTabState(),
     val geoNodesTab: GeoNodesTabState = GeoNodesTabState(),
     val showSyncDialog: Boolean = false,
+    val isRebooting: Boolean = false,
 )

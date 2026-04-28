@@ -25,6 +25,7 @@ import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCase
+import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
@@ -64,6 +65,7 @@ val presentationModule = module {
             observeLogicalChannels = get<ObserveContoursUseCase>(),
             observeNodeChannels = get<ObserveNodeChannelsUseCase>(),
             syncStateRepository = get<ContourSyncStateRepository>(),
+            rebootStateRepository = get<RebootStateRepository>(),
         )
     }
 
@@ -101,6 +103,7 @@ val presentationModule = module {
             checkContourSync = get<CheckContourSyncUseCase>(),
             syncStateRepository = get<ContourSyncStateRepository>(),
             rebootNode = get<RebootNodeUseCase>(),
+            rebootStateRepository = get<RebootStateRepository>(),
             observeGpsBroadcastEnabled = get<ObserveGpsBroadcastEnabledUseCase>(),
             setGpsBroadcastEnabled = get<SetGpsBroadcastEnabledUseCase>(),
             observeDeviceConfig = get<ObserveDeviceConfigUseCase>(),
@@ -138,6 +141,7 @@ val presentationModule = module {
             syncContoursOnConnect = get<SyncContoursOnConnectUseCase>(),
             rebootNode = get<RebootNodeUseCase>(),
             syncStateRepository = get<ContourSyncStateRepository>(),
+            rebootStateRepository = get<RebootStateRepository>(),
         )
     }
 }
