@@ -116,7 +116,12 @@
       "Read(//c//**)",
       "Read(//mnt/**)",
       "Read(//c/android//**)",
-      "Read(//c/Users/**)"
+      "Read(//c/Users/**)",
+      "Bash(mv \"c:/Users/LocAdmin/AndroidStudioProjects/MeshTactics/.claude/plans/geo-nodes-tab.md\" \"c:/Users/LocAdmin/AndroidStudioProjects/MeshTactics/.claude/archive/\")",
+      "Bash(mv \"c:/Users/LocAdmin/AndroidStudioProjects/MeshTactics/.claude/plans/implementation-roadmap.md\" \"c:/Users/LocAdmin/AndroidStudioProjects/MeshTactics/.claude/archive/\")",
+      "Bash(mv \"c:/Users/LocAdmin/AndroidStudioProjects/MeshTactics/.claude/plans/node-markers-on-map.md\" \"c:/Users/LocAdmin/AndroidStudioProjects/MeshTactics/.claude/archive/\")",
+      "Bash(mv \"c:/Users/LocAdmin/AndroidStudioProjects/MeshTactics/.claude/plans/settings-refactor.md\" \"c:/Users/LocAdmin/AndroidStudioProjects/MeshTactics/.claude/archive/\")",
+      "Bash(mv \"c:/Users/LocAdmin/AndroidStudioProjects/MeshTactics/.claude/plans/user-and-channels-settings.md\" \"c:/Users/LocAdmin/AndroidStudioProjects/MeshTactics/.claude/archive/\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",

@@ -113,15 +113,15 @@
 |---|---|---|
 | HUD Node Status Indicator | `.claude/plans/hud-node-status-indicator.md` | In Progress |
 | Connection Status HUD Info | `.claude/plans/connection-status-hud-info.md` | Approved |
-| Settings Refactor | `.claude/plans/settings-refactor.md` | Approved |
-| Geo Nodes Tab | `.claude/plans/geo-nodes-tab.md` | Approved |
-| Node Markers on Map | `.claude/plans/node-markers-on-map.md` | Approved |
 | Chat Feature | `.claude/plans/chat-feature-plan.md` | Done |
-| Contour Concept | `.claude/archive/contour-concept.md` | Archived |
-| User & Channels Settings | `.claude/plans/user-and-channels-settings.md` | Done |
 | Node Provisioning | `.claude/plans/node-provisioning.md` | Done |
+| Contour Concept | `.claude/archive/contour-concept.md` | Archived |
+| User & Channels Settings | `.claude/archive/user-and-channels-settings.md` | Archived |
 | Logical Channels Management | `.claude/archive/logical-channels-management.md` | Archived |
 | Emergency SOS | `.claude/archive/emergency-sos.md` | Archived |
-| Implementation Roadmap | `.claude/plans/implementation-roadmap.md` | Active |
-| Channel Sync Validation | `.claude/archive/channel-sync-validation.md` | Done |
-| User Settings Write Mechanics | `.claude/archive/user-settings-write-mechanics.md` | Done |
+| Implementation Roadmap | `.claude/archive/implementation-roadmap.md` | Archived |
+| Channel Sync Validation | `.claude/archive/channel-sync-validation.md` | Archived |
+| User Settings Write Mechanics | `.claude/archive/user-settings-write-mechanics.md` | Archived |
+| Geo Nodes Tab | `.claude/archive/geo-nodes-tab.md` | Archived |
+| Node Markers on Map | `.claude/archive/node-markers-on-map.md` | Archived |
+| Settings Refactor | `.claude/archive/settings-refactor.md` | Archived |
