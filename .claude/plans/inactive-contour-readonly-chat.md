@@ -92,9 +92,10 @@ No new interfaces, use cases, or repositories. Proceed directly to implementatio
 **3.6 Presentation — Screen**
 
 Filter Tab row (`ChatFilterItemRow` or equivalent):
-- Apply `Modifier.alpha(if (item.isActive) 1f else 0.45f)` to the row content
-- Show a small "неактивен" text label or lock icon next to the name when `!item.isActive`
-  (use `MaterialTheme.colorScheme.outline` color, `labelSmall` style)
+- Apply `Modifier.alpha(if (item.isActive) 1f else 0.45f)` to the row content, **except the
+  unread badge** — it stays at full alpha so the user can see unread count even on inactive contacts
+- Show a small "неактивен" text label next to the name when `!item.isActive`
+  (use `MaterialTheme.colorScheme.outline` color, `labelSmall` style; no icon)
 
 Chat Tab:
 - Where `ChatInputBar` is rendered, wrap with:
@@ -133,7 +134,7 @@ can be added in a follow-up. Not blocking for MVP.
 
 - `/architect`: no new patterns introduced — no update needed.
 - `/ui-designer`: if Phase 2 produces new tokens (dimmed alpha value, inactive banner spec) — add to Design System. Otherwise note "no changes".
-- `/icon-designer`: if a lock icon is used — verify it exists or create. Otherwise "no changes".
+- `/icon-designer`: no new icons — no changes needed.
 - `/planner`: no methodology gaps found — no update needed.
 
 ### Phase 6b — Project Docs & Memory Update
@@ -166,10 +167,9 @@ Phase 7: [stage by name] → [propose commit] → [wait confirmation] → git co
 
 ## Open Questions
 
-1. **Lock icon**: does an existing `ic_lock` asset exist in the project? — resolve in Phase 2
-   via `/icon-designer` if needed.
-2. **Unread badge on inactive contact**: plan says "show as-is". Confirm with user if badge
-   should be suppressed instead (e.g. you can't reply so why show unread count?).
+~~1. Lock icon~~ — **closed**: no lock icon, text label "неактивен" only.
+~~2. Unread badge on inactive contact~~ — **closed**: badge is always shown at full alpha
+   (inactive channel can have unread messages and user must see them).
 3. **`isActive` reactivity while chat is open**: if a user has the Chat Tab open and then
    someone toggles the contour `isActive` in Settings — the banner should appear/disappear
    live. This is covered by step 3.5 (`observeContacts()` update), but verify timing is correct.
