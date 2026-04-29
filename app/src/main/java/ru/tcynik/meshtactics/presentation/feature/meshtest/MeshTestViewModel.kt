@@ -126,7 +126,7 @@ class MeshTestViewModel(
             }
             if (status is MeshConnectionStatus.Connected) {
                 if (isRebooting) rebootStateRepository.setRebooting(false)
-                if (!wasConnected) {
+                if (!wasConnected && !isRebooting) {
                     viewModelScope.launch {
                         if (checkContourSync() is ContourSyncResult.NeedsSync) {
                             _uiState.update { it.copy(showSyncDialog = true) }

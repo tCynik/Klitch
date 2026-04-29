@@ -28,15 +28,13 @@ class NodeProvisioningUseCase(
         val user = observeAppUser(NoParams).first()
 
         contours.forEach { contour ->
-            val slot = when (val r = resolveSlot(contour, nodeChannels)) {
-                is SlotResolution.AlreadySynced -> r.slot
-                else -> {
-                    Log.d(TAG, "  skip '${contour.name}' — not AlreadySynced")
-                    return@forEach
+            when (val r = resolveSlot(contour, nodeChannels)) {
+                is SlotResolution.FreeSlot -> {
+                    Log.d(TAG, "  writeChannel slot=${r.slot} name='${contour.name}'")
+                    writeChannel(r.slot, contour.name, contour.transport.meshtastic.psk)
                 }
+                else -> Log.d(TAG, "  skip '${contour.name}' — already synced or no free slot")
             }
-            Log.d(TAG, "  writeChannel slot=$slot name='${contour.name}' ← WILL TRIGGER NODE REBOOT")
-            writeChannel(slot, contour.name, contour.transport.meshtastic.psk)
         }
 
         if (user.displayName.isNotBlank()) {
