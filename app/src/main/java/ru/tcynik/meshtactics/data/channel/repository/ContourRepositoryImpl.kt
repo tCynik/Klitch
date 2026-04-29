@@ -50,7 +50,7 @@ class ContourRepositoryImpl(
         val rows = queries.selectAll().executeAsList()
         if (rows.none { it.id == DefaultActiveContour.ID.value }) {
             val pskBytes = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
-            val hash = ContourHash.compute(DefaultActiveContour.CHANNEL_NAME, pskBytes)
+            val hash = ContourHash.compute(DefaultActiveContour.DISPLAY_NAME, pskBytes)
             queries.upsert(
                 id = DefaultActiveContour.ID.value,
                 name = DefaultActiveContour.DISPLAY_NAME,
@@ -105,10 +105,11 @@ class ContourRepositoryImpl(
 private fun Contour.toDomain(queries: ContourQueries): ContourDomain? {
     val pskBytes = meshtastic_psk ?: return null
     val pskBase64 = Base64.getEncoder().encodeToString(pskBytes)
-    val hash = channel_hash?.let { ContourHash(it) }
-        ?: ContourHash.compute(name, pskBytes).also { computed ->
+    val hash = ContourHash.compute(name, pskBytes).also { computed ->
+        if (channel_hash != computed.value) {
             queries.updateChannelHash(channelHash = computed.value, id = id)
         }
+    }
     return ContourDomain(
         id = ContourId(id),
         name = name,

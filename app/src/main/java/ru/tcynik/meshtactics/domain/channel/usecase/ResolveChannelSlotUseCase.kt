@@ -23,6 +23,10 @@ class ResolveChannelSlotUseCase {
         val freeSlot = nodeChannels.find { slot -> slot.index != 0 && !slot.isEnabled }
         if (freeSlot != null) return SlotResolution.FreeSlot(freeSlot.index)
 
+        val reportedIndices = nodeChannels.map { it.index }.toSet()
+        val unconfiguredIndex = (1..7).firstOrNull { it !in reportedIndices }
+        if (unconfiguredIndex != null) return SlotResolution.FreeSlot(unconfiguredIndex)
+
         return SlotResolution.NoFreeSlot
     }
 }

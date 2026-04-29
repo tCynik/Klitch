@@ -33,6 +33,6 @@ data class MainUiState(
     val markToolActive: Boolean = false,
     val pendingMarkPoints: ImmutableList<GeoPoint> = persistentListOf(),
     val hasChannelOnNode: Boolean = true,
-    val showSyncDialog: Boolean = false,
     val syncRequired: Boolean = false,
+    val isRebooting: Boolean = false,
 )

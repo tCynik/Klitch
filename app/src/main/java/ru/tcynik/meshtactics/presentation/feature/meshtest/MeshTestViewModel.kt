@@ -13,7 +13,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -22,10 +21,16 @@ import ru.tcynik.meshtactics.domain.mesh.model.LocationConfigModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.model.MeshMessageDelivery
 import ru.tcynik.meshtactics.domain.mesh.model.MeshNodeModel
+import ru.tcynik.meshtactics.domain.channel.model.ContourSyncResult
+import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
+import ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
+import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceParams
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGeoNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveLocationConfigUseCase
@@ -79,6 +84,11 @@ class MeshTestViewModel(
     private val writePositionConfig: WritePositionConfigUseCase,
     private val writeChannelPositionPrecision: WriteChannelPositionPrecisionUseCase,
     private val removeFixedPosition: RemoveFixedPositionUseCase,
+    private val checkContourSync: CheckContourSyncUseCase,
+    private val syncContoursOnConnect: SyncContoursOnConnectUseCase,
+    private val rebootNode: RebootNodeUseCase,
+    private val syncStateRepository: ContourSyncStateRepository,
+    private val rebootStateRepository: RebootStateRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MeshTestUiState())
@@ -86,6 +96,7 @@ class MeshTestViewModel(
 
     private var scanJob: Job? = null
     private var messagesJob: Job? = null
+    private var wasConnected = false
 
     private val myNodeNumFlow = MutableStateFlow<Int?>(null)
 
@@ -94,19 +105,40 @@ class MeshTestViewModel(
     private var activeContactKey: String = "0^all"
 
     init {
+        rebootStateRepository.isRebooting
+            .onEach { rebooting -> _uiState.update { it.copy(isRebooting = rebooting) } }
+            .launchIn(viewModelScope)
+
         observeConnectionStatus(NoParams).onEach { status ->
             Log.i("MeshTestVM", "DBG connectionStatus flow emitted: $status")
+            val isRebooting = rebootStateRepository.isRebooting.value
+            val uiStatus = if (isRebooting && status is MeshConnectionStatus.Disconnected)
+                MeshConnectionStatusUi.Rebooting
+            else
+                status.toUi()
             _uiState.update { state ->
                 state.copy(
-                    connectionStatus = status.toUi(),
+                    connectionStatus = uiStatus,
                     connectionTab = state.connectionTab.copy(
                         isScanning = status is MeshConnectionStatus.Scanning,
                     ),
                 )
             }
+            if (status is MeshConnectionStatus.Connected) {
+                if (isRebooting) rebootStateRepository.setRebooting(false)
+                if (!wasConnected && !isRebooting) {
+                    viewModelScope.launch {
+                        if (checkContourSync() is ContourSyncResult.NeedsSync) {
+                            _uiState.update { it.copy(showSyncDialog = true) }
+                        }
+                    }
+                }
+            }
+            wasConnected = status is MeshConnectionStatus.Connected
             // Auto-start scan when the app is already scanning (MainViewModel auto-scan)
             // but this VM hasn't started collecting devices yet.
-            if (status is MeshConnectionStatus.Scanning && scanJob == null) {
+            // Skip during reboot: extra scan competes with GATT auto-connect and breaks reconnect.
+            if (status is MeshConnectionStatus.Scanning && scanJob == null && !isRebooting) {
                 onScanClick()
             }
             // Stop scan when auto-connect from MainViewModel kicks in.
@@ -212,6 +244,23 @@ class MeshTestViewModel(
             .launchIn(viewModelScope)
 
         startObservingMessages(activeContactKey)
+    }
+
+    // ── Sync Dialog ───────────────────────────────────────────────────────────
+
+    fun onConfirmChannelSync() {
+        _uiState.update { it.copy(showSyncDialog = false) }
+        viewModelScope.launch {
+            syncContoursOnConnect()
+            rebootStateRepository.setRebooting(true)
+            rebootNode()
+            syncStateRepository.clear()
+        }
+    }
+
+    fun onDismissChannelSync() {
+        _uiState.update { it.copy(showSyncDialog = false) }
+        syncStateRepository.setSyncRequired(true)
     }
 
     // ── Navigation ────────────────────────────────────────────────────────────

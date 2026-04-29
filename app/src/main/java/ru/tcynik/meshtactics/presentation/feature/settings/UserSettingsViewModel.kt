@@ -1,6 +1,7 @@
 package ru.tcynik.meshtactics.presentation.feature.settings
 
 import android.util.Base64
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -44,6 +45,7 @@ import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
+import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
@@ -58,6 +60,8 @@ import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import ru.tcynik.meshtactics.presentation.feature.settings.models.ContourItem
 import ru.tcynik.meshtactics.presentation.feature.settings.models.NodeWriteEvent
 import java.util.UUID
+
+private const val TAG = "UserSettingsVM"
 
 class UserSettingsViewModel(
     private val observeAppUser: ObserveAppUserUseCase,
@@ -80,6 +84,7 @@ class UserSettingsViewModel(
     private val checkContourSync: CheckContourSyncUseCase,
     private val syncStateRepository: ContourSyncStateRepository,
     private val rebootNode: RebootNodeUseCase,
+    private val rebootStateRepository: RebootStateRepository,
     private val observeGpsBroadcastEnabled: ObserveGpsBroadcastEnabledUseCase,
     private val setGpsBroadcastEnabled: SetGpsBroadcastEnabledUseCase,
     private val observeDeviceConfig: ObserveDeviceConfigUseCase,
@@ -95,6 +100,7 @@ class UserSettingsViewModel(
     private var cachedContours: List<Contour> = emptyList()
     private var cachedNodeChannels: List<NodeChannelSlot> = emptyList()
     private var connectionStatus: MeshConnectionStatus = MeshConnectionStatus.Disconnected
+    private var initialized = false
 
     init {
         observeAppUser(NoParams)
@@ -143,8 +149,11 @@ class UserSettingsViewModel(
                 )
             }
 
-            val justConnected = !wasConnected && status is MeshConnectionStatus.Connected
+            val justConnected = initialized && !wasConnected && status is MeshConnectionStatus.Connected
+            Log.d(TAG, "combine emit: initialized=$initialized wasConnected=$wasConnected status=${status::class.simpleName} justConnected=$justConnected")
+            initialized = true
             if (justConnected) {
+                Log.d(TAG, "onConnected() triggered — real connection transition")
                 onConnected(contours)
             }
         }.launchIn(viewModelScope)
@@ -154,8 +163,14 @@ class UserSettingsViewModel(
         viewModelScope.launch {
             val emergencyActive = contours.find { it.isEmergency }?.isActive ?: false
             val broadcastEnabled = observeGpsBroadcastEnabled().first()
-            if (emergencyActive || !broadcastEnabled) disableNodePositionBroadcast()
-            else enableNodePositionBroadcastReady()
+            Log.d(TAG, "onConnected: emergencyActive=$emergencyActive broadcastEnabled=$broadcastEnabled")
+            if (emergencyActive || !broadcastEnabled) {
+                Log.d(TAG, "onConnected → disableNodePositionBroadcast()")
+                disableNodePositionBroadcast()
+            } else {
+                Log.d(TAG, "onConnected → enableNodePositionBroadcastReady()")
+                enableNodePositionBroadcastReady()
+            }
         }
     }
 
@@ -223,6 +238,7 @@ class UserSettingsViewModel(
         _uiState.update { it.copy(showSyncDialog = false) }
         viewModelScope.launch {
             syncContoursOnConnect()
+            rebootStateRepository.setRebooting(true)
             rebootNode()
             syncStateRepository.clear()
         }
@@ -271,6 +287,7 @@ class UserSettingsViewModel(
             writeOwner(_uiState.value.displayName, shortName)
             saveAppUser(AppUser(displayName = _uiState.value.displayName))
             _uiState.update { it.copy(hasUnsavedUserChanges = false) }
+            rebootStateRepository.setRebooting(true)
             rebootNode()
             _navigateBack.tryEmit(Unit)
         }

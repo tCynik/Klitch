@@ -56,13 +56,10 @@ import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
-import ru.tcynik.meshtactics.domain.channel.model.ContourSyncResult
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
-import ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
-import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
+import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
@@ -105,10 +102,8 @@ class MainViewModel(
     ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase,
     observeLogicalChannels: ObserveContoursUseCase,
     observeNodeChannels: ObserveNodeChannelsUseCase,
-    private val checkContourSync: CheckContourSyncUseCase,
-    private val syncContoursOnConnect: SyncContoursOnConnectUseCase,
-    private val rebootNode: RebootNodeUseCase,
     private val syncStateRepository: ContourSyncStateRepository,
+    private val rebootStateRepository: RebootStateRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -149,23 +144,21 @@ class MainViewModel(
             }
             .launchIn(viewModelScope)
 
+        rebootStateRepository.isRebooting
+            .onEach { rebooting -> _uiState.update { it.copy(isRebooting = rebooting) } }
+            .launchIn(viewModelScope)
+
         observeConnectionStatus(NoParams)
             .onEach { status ->
-                if (status is MeshConnectionStatus.Connecting || status is MeshConnectionStatus.Connected) {
+                if (status is MeshConnectionStatus.Connected) {
                     scanJob?.cancel()
                     scanJob = null
                     _uiState.update { it.copy(foundDevices = persistentListOf()) }
-                }
-                if (status is MeshConnectionStatus.Connected) {
                     val wasConnected = _uiState.value.connectionStatus is MeshConnectionStatus.Connected
                     _uiState.update { it.copy(connectionStatus = status) }
                     if (!wasConnected) {
+                        if (rebootStateRepository.isRebooting.value) rebootStateRepository.setRebooting(false)
                         viewModelScope.launch { nodeProvisioning.provision() }
-                        viewModelScope.launch {
-                            if (checkContourSync() is ContourSyncResult.NeedsSync) {
-                                _uiState.update { it.copy(showSyncDialog = true) }
-                            }
-                        }
                         _uiState.update { it.copy(showConnectionLabel = true) }
                         connectedLabelJob?.cancel()
                         connectedLabelJob = viewModelScope.launch {
@@ -174,9 +167,16 @@ class MainViewModel(
                         }
                     }
                 } else {
+                    val wasConnected = _uiState.value.connectionStatus is MeshConnectionStatus.Connected
                     connectedLabelJob?.cancel()
                     connectedLabelJob = null
                     _uiState.update { it.copy(connectionStatus = status, showConnectionLabel = false) }
+                    if (wasConnected && _uiState.value.isRebooting) {
+                        viewModelScope.launch {
+                            delay(3_000)
+                            startAutoConnect()
+                        }
+                    }
                 }
             }
             .launchIn(viewModelScope)
@@ -246,20 +246,6 @@ class MainViewModel(
             .launchIn(viewModelScope)
 
         startAutoConnect()
-    }
-
-    fun onConfirmChannelSync() {
-        _uiState.update { it.copy(showSyncDialog = false) }
-        viewModelScope.launch {
-            syncContoursOnConnect()
-            rebootNode()
-            syncStateRepository.clear()
-        }
-    }
-
-    fun onDismissChannelSync() {
-        _uiState.update { it.copy(showSyncDialog = false) }
-        syncStateRepository.setSyncRequired(true)
     }
 
     fun onCameraPositionChanged(position: MapCameraPosition) {
@@ -360,34 +346,37 @@ class MainViewModel(
     private fun startAutoConnect() {
         val lastDevice = getLastConnectedDevice()
         scanJob?.cancel()
-        var autoConnectAttempted = false
+
+        val currentStatus = _uiState.value.connectionStatus
+        if (lastDevice != null &&
+            currentStatus !is MeshConnectionStatus.Connecting &&
+            currentStatus !is MeshConnectionStatus.Connected
+        ) {
+            // Direct connect by address — works even when device is bonded but not advertising
+            // (connected to Android OS). Scan runs in parallel so user can switch to another
+            // device if lastDevice is unavailable.
+            viewModelScope.launch {
+                connectToDevice(ConnectToMeshDeviceParams(lastDevice.address, lastDevice.name))
+            }
+        }
 
         scanJob = scanDevices(NoParams)
             .onEach { devices ->
-                if (autoConnectAttempted) return@onEach
-                val target = lastDevice?.let { last -> devices.find { it.address == last.address } }
-                if (target != null) {
-                    autoConnectAttempted = true
-                    _uiState.update { it.copy(foundDevices = persistentListOf()) }
-                    viewModelScope.launch {
-                        connectToDevice(ConnectToMeshDeviceParams(target.address, target.name))
-                    }
-                    scanJob?.cancel()
-                } else {
-                    // Accumulate discovered devices across scan restarts (deduplicate by address).
-                    _uiState.update { current ->
-                        val merged = (current.foundDevices + devices)
-                            .distinctBy { it.address }
-                            .toImmutableList()
-                        current.copy(foundDevices = merged)
-                    }
+                val status = _uiState.value.connectionStatus
+                if (status is MeshConnectionStatus.Connected) return@onEach
+                _uiState.update { current ->
+                    val merged = (current.foundDevices + devices)
+                        .distinctBy { it.address }
+                        .toImmutableList()
+                    current.copy(foundDevices = merged)
                 }
             }
             .onCompletion { cause ->
-                // cause != null means cancelled (Connecting/Connected path) — skip restart.
-                // Always restart if scan expired naturally and auto-connect didn't fire,
-                // so the device list stays fresh.
-                if (cause == null && !autoConnectAttempted) {
+                val status = _uiState.value.connectionStatus
+                if (cause == null &&
+                    status !is MeshConnectionStatus.Connected &&
+                    status !is MeshConnectionStatus.Connecting
+                ) {
                     startAutoConnect()
                 }
             }
@@ -520,10 +509,15 @@ class MainViewModel(
                 HudInfoSlot(content = "Сопряжено с ${status.shortName}", color = Color.Green)
             else
                 emptyInfoSlot()
-        else -> emptyInfoSlot()
+        else ->
+            if (state.isRebooting)
+                HudInfoSlot(content = "Перезагрузка...", color = Color.Yellow)
+            else
+                emptyInfoSlot()
     }
 
     private fun buildNodeStatusColor(state: MainUiState): Color {
+        if (state.isRebooting) return Color.Yellow
         return when (val status = state.connectionStatus) {
             is MeshConnectionStatus.Connected ->
                 if (status.rssi < RSSI_LOW_THRESHOLD) Color.Yellow else Color.Green

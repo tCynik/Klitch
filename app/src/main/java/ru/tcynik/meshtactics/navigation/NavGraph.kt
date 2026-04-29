@@ -73,8 +73,6 @@ fun NavGraph() {
                     onSendPendingMark = viewModel::sendPendingMark,
                     contextMenuEvents = viewModel.contextMenuEvent,
                     onDeletePendingPoint = viewModel::deletePendingPoint,
-                    onConfirmChannelSync = viewModel::onConfirmChannelSync,
-                    onDismissChannelSync = viewModel::onDismissChannelSync,
                 )
             }
 
