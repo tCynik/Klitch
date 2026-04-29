@@ -38,17 +38,31 @@ enum class TileCacheMode {
 }
 ```
 
-### OkHttp wiring (call site to be confirmed in Phase 0)
+### OkHttp wiring (call site confirmed — Phase 0)
+
+**Package:** `org.maplibre.android.module.http.HttpRequestUtil` (plan originally said `org.maplibre.android.net` — verify exact import against transitive dependency before Phase 3 coding).
+
+**Call site:** `MyMeshApplication.onCreate()` — before any Activity/MapView starts. maplibre-compose exposes no Compose-side hook; injection must precede first `MapView` composition.
 
 ```kotlin
-// Expected call site — Application.onCreate or Koin startKoin block
+// MyMeshApplication.onCreate()
 HttpRequestUtil.setOkHttpClient(
     OkHttpClient.Builder()
         .cache(Cache(File(cacheDir, "map_tiles"), 100L * 1024 * 1024))
         .addNetworkInterceptor(TileCacheInterceptor(modeRef))
         .build()
 )
+// Raise ambient SQLite cache to match OkHttp cache size
+OfflineManager.getInstance(this).setMaximumAmbientCacheSize(
+    100L * 1024 * 1024, null
+)
 ```
+
+**Two-cache model:** MapLibre runs two independent caches simultaneously:
+- **OkHttp disk cache** — file-based, 100 MB, controlled by `Cache-Control` interceptor.
+- **MapLibre ambient cache** — internal SQLite, 50 MB default, LRU eviction. If ambient cache evicts tiles early, MONTH/MAXIMUM modes lose effectiveness.
+
+Mitigation: raise ambient cache to 100 MB via `OfflineManager.setMaximumAmbientCacheSize` in the same `Application.onCreate()` block.
 
 **Interceptor strategy — Variant B (approved):**
 `TileCacheInterceptor` holds an `AtomicReference<TileCacheMode>`. `TileCacheOkHttpConfigurator` is a stateful singleton that exposes `updateMode(mode)` — called by `SetTileCacheModeUseCase` on every user selection. Mode change takes effect immediately on the next tile request, without rebuilding the OkHttpClient or restarting the app.
@@ -202,12 +216,15 @@ Phase 7: [stage by name] → [propose commit message] → [confirm] → git comm
 
 ## Open Questions
 
-1. **OkHttp injection call site** — does `maplibre-compose 0.12.1` require `HttpRequestUtil.setOkHttpClient()` to be called before the first `MapView` composition, or is there a Compose-side lifecycle hook? *(Resolved in Phase 0.)*
+1. ~~OkHttp injection call site~~ **Resolved (Phase 0):** `Application.onCreate()`, before first MapView. No Compose-side hook exists.
 2. ~~Mode change — restart required?~~ **Resolved:** Variant B — `AtomicReference` in interceptor, immediate effect, no restart.
 3. ~~Cache size~~ **Resolved:** 100 MB, fixed.
 4. ~~Warning dialog trigger~~ **Resolved:** every time Maximum is selected.
+5. ~~Package name for HttpRequestUtil~~ **Noted (Phase 0):** research indicates `org.maplibre.android.module.http` — verify exact import in Phase 3 before coding.
+6. ~~Two-cache interaction~~ **Resolved (Phase 0):** raise ambient SQLite cache to 100 MB via `OfflineManager.setMaximumAmbientCacheSize` in `Application.onCreate()` alongside OkHttp wiring.
 
 ## Change Log
 
 - 2026-04-29: created
 - 2026-04-29: approved — interceptor strategy Variant B (AtomicReference), immediate effect, 100 MB cache, warning every time
+- 2026-04-29: Phase 0 complete — confirmed call site (Application.onCreate), corrected package name note, added two-cache model + OfflineManager mitigation

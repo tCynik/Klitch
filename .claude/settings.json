@@ -111,7 +111,14 @@
       "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.settings.*\")",
       "Bash(cp \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/user-settings-write-mechanics.md\" \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/archive/user-settings-write-mechanics.md\")",
       "Bash(rm \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/user-settings-write-mechanics.md\")",
-      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.data.chat.adapter.MeshToChatAdapterTest\")"
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.data.chat.adapter.MeshToChatAdapterTest\")",
+      "Bash(curl -s \"https://api.github.com/repos/maplibre/maplibre-compose/releases\")",
+      "Bash(curl -s \"https://api.github.com/repos/Rallista/maplibre-compose/releases\")",
+      "Bash(curl -s \"https://api.github.com/repos/maplibre/maplibre-compose/contents/\")",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); [print\\(x['name'], x['type']\\) for x in data]\")",
+      "Bash(curl -s \"https://api.github.com/search/code?q=HttpRequestUtil+repo:maplibre/maplibre-compose&per_page=10\" -H \"Accept: application/vnd.github.v3+json\")",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); items=data.get\\('items',[]\\); [print\\(x['path'], x['html_url']\\) for x in items]\")",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",
