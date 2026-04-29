@@ -83,6 +83,7 @@ private fun StatusDot(status: MeshConnectionStatusUi) {
     val color = when (status) {
         is MeshConnectionStatusUi.Connected -> Color(0xFF4CAF50)
         is MeshConnectionStatusUi.Connecting -> Color(0xFFFFC107)
+        is MeshConnectionStatusUi.Rebooting -> Color(0xFFFFC107)
         is MeshConnectionStatusUi.Scanning -> Color(0xFF2196F3)
         is MeshConnectionStatusUi.Error -> MaterialTheme.colorScheme.error
         is MeshConnectionStatusUi.Disconnected -> MaterialTheme.colorScheme.outline
@@ -95,6 +96,7 @@ private fun StatusDot(status: MeshConnectionStatusUi) {
 private fun statusLabel(status: MeshConnectionStatusUi): String = when (status) {
     is MeshConnectionStatusUi.Disconnected -> "Not connected"
     is MeshConnectionStatusUi.Scanning -> "Scanning..."
+    is MeshConnectionStatusUi.Rebooting -> "Перезагрузка..."
     is MeshConnectionStatusUi.Connecting -> "Connecting to ${status.deviceName}..."
     is MeshConnectionStatusUi.Connected -> status.nodeId
     is MeshConnectionStatusUi.Error -> "Error: ${status.message}"

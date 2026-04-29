@@ -25,6 +25,7 @@ import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCase
+import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
@@ -61,12 +62,10 @@ val presentationModule = module {
             ingestReceivedGeoMarks = get<IngestReceivedGeoMarksUseCase>(),
             deleteExpiredGeoMarks = get<DeleteExpiredGeoMarksUseCase>(),
             ingestReceivedChatMessages = get<IngestReceivedChatMessagesUseCase>(),
-            observeLogicalChannels = get<ObserveContoursUseCase>(), // parameter kept for compat
+            observeLogicalChannels = get<ObserveContoursUseCase>(),
             observeNodeChannels = get<ObserveNodeChannelsUseCase>(),
-            checkContourSync = get<CheckContourSyncUseCase>(),
-            syncContoursOnConnect = get<SyncContoursOnConnectUseCase>(),
-            rebootNode = get<RebootNodeUseCase>(),
             syncStateRepository = get<ContourSyncStateRepository>(),
+            rebootStateRepository = get<RebootStateRepository>(),
         )
     }
 
@@ -104,6 +103,7 @@ val presentationModule = module {
             checkContourSync = get<CheckContourSyncUseCase>(),
             syncStateRepository = get<ContourSyncStateRepository>(),
             rebootNode = get<RebootNodeUseCase>(),
+            rebootStateRepository = get<RebootStateRepository>(),
             observeGpsBroadcastEnabled = get<ObserveGpsBroadcastEnabledUseCase>(),
             setGpsBroadcastEnabled = get<SetGpsBroadcastEnabledUseCase>(),
             observeDeviceConfig = get<ObserveDeviceConfigUseCase>(),
@@ -137,6 +137,11 @@ val presentationModule = module {
             writePositionConfig = get(),
             writeChannelPositionPrecision = get(),
             removeFixedPosition = get(),
+            checkContourSync = get<CheckContourSyncUseCase>(),
+            syncContoursOnConnect = get<SyncContoursOnConnectUseCase>(),
+            rebootNode = get<RebootNodeUseCase>(),
+            syncStateRepository = get<ContourSyncStateRepository>(),
+            rebootStateRepository = get<RebootStateRepository>(),
         )
     }
 }

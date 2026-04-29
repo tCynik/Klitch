@@ -3,6 +3,7 @@ package ru.tcynik.meshtactics.presentation.feature.meshtest.state
 sealed interface MeshConnectionStatusUi {
     data object Disconnected : MeshConnectionStatusUi
     data object Scanning : MeshConnectionStatusUi
+    data object Rebooting : MeshConnectionStatusUi
     data class Connecting(val deviceName: String) : MeshConnectionStatusUi
     data class Connected(
         val nodeId: String,
