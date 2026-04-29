@@ -14,7 +14,12 @@ import ru.tcynik.meshtactics.domain.map.usecase.HideImportedMapUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ImportMapFileUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveImportedMapsUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ToggleImportedMapSelectionUseCase
+import ru.tcynik.meshtactics.domain.settings.model.TileCacheMode
 import ru.tcynik.meshtactics.domain.settings.repository.MarkerSettingsRepository
+import ru.tcynik.meshtactics.domain.settings.usecase.GetTileCacheModeUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.ObserveTileCacheModeUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.SetTileCacheModeUseCase
+import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import ru.tcynik.meshtactics.presentation.feature.settings.models.MapItem
 
 class SettingsViewModel(
@@ -24,12 +29,16 @@ class SettingsViewModel(
     private val hideImportedMap: HideImportedMapUseCase,
     private val deleteImportedMap: DeleteImportedMapUseCase,
     private val toggleImportedMapSelection: ToggleImportedMapSelectionUseCase,
+    private val getTileCacheMode: GetTileCacheModeUseCase,
+    private val observeTileCacheMode: ObserveTileCacheModeUseCase,
+    private val setTileCacheMode: SetTileCacheModeUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
         SettingsUiState(
             markerSizeLevel = repository.getMarkerSizeLevel(),
             markerSizeLevelPending = repository.getMarkerSizeLevel(),
+            tileCacheMode = getTileCacheMode(),
         )
     )
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -51,6 +60,10 @@ class SettingsViewModel(
                 }
             }
             .launchIn(viewModelScope)
+
+        observeTileCacheMode(NoParams)
+            .onEach { mode -> _uiState.update { it.copy(tileCacheMode = mode) } }
+            .launchIn(viewModelScope)
     }
 
     fun onTabSelected(tab: SettingsTab) {
@@ -65,6 +78,10 @@ class SettingsViewModel(
         val pending = _uiState.value.markerSizeLevelPending
         repository.setMarkerSizeLevel(pending)
         _uiState.update { it.copy(markerSizeLevel = pending) }
+    }
+
+    fun onTileCacheModeSelected(mode: TileCacheMode) {
+        setTileCacheMode(mode)
     }
 
     fun onAddMap(uri: String, name: String) {

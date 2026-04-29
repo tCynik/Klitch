@@ -4,12 +4,17 @@ import com.russhwolf.settings.Settings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import ru.tcynik.meshtactics.domain.settings.model.TileCacheMode
+import ru.tcynik.meshtactics.domain.settings.repository.MapCacheSettingsRepository
 import ru.tcynik.meshtactics.domain.settings.repository.MarkerSettingsRepository
 
-class AppSettings(private val settings: Settings) : MarkerSettingsRepository {
+class AppSettings(private val settings: Settings) : MarkerSettingsRepository, MapCacheSettingsRepository {
 
     private val _markerSizeLevel = MutableStateFlow(getMarkerSizeLevel())
     override val markerSizeLevelFlow: StateFlow<Int> = _markerSizeLevel.asStateFlow()
+
+    private val _tileCacheMode = MutableStateFlow(getTileCacheMode())
+    override val tileCacheModeFlow: StateFlow<TileCacheMode> = _tileCacheMode.asStateFlow()
 
     fun getDeviceId(): String? = settings.getStringOrNull(KEY_DEVICE_ID)
 
@@ -26,10 +31,21 @@ class AppSettings(private val settings: Settings) : MarkerSettingsRepository {
         _markerSizeLevel.value = level
     }
 
+    override fun getTileCacheMode(): TileCacheMode =
+        settings.getStringOrNull(KEY_TILE_CACHE_MODE)
+            ?.let { runCatching { TileCacheMode.valueOf(it) }.getOrNull() }
+            ?: TileCacheMode.DEFAULT
+
+    override fun setTileCacheMode(mode: TileCacheMode) {
+        settings.putString(KEY_TILE_CACHE_MODE, mode.name)
+        _tileCacheMode.value = mode
+    }
+
     companion object {
         private const val KEY_DEVICE_ID = "device_id"
-        private const val KEY_LAST_SYNC  = "last_sync"
+        private const val KEY_LAST_SYNC = "last_sync"
         private const val KEY_MARKER_SIZE_LEVEL = "marker_size_level"
+        private const val KEY_TILE_CACHE_MODE = "tile_cache_mode"
         private const val DEFAULT_MARKER_SIZE_LEVEL = 5
     }
 }

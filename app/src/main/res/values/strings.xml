@@ -103,4 +103,17 @@
     <string name="leave_settings_dialog_message">Нода будет перезагружена.</string>
     <string name="leave_settings_dialog_save">Сохранить</string>
     <string name="leave_settings_dialog_discard">Сбросить</string>
+
+    <!-- Tile Cache Settings -->
+    <string name="tile_cache_section_label">Кэш тайлов</string>
+    <string name="tile_cache_mode_default">По умолчанию</string>
+    <string name="tile_cache_mode_default_desc">Заголовки сервера (~7 дней)</string>
+    <string name="tile_cache_mode_month">Месяц</string>
+    <string name="tile_cache_mode_month_desc">Хранить тайлы 30 дней</string>
+    <string name="tile_cache_mode_maximum">Максимально</string>
+    <string name="tile_cache_mode_maximum_desc">Хранить тайлы 1 год</string>
+    <string name="tile_cache_maximum_warning_title">Большой объём хранилища</string>
+    <string name="tile_cache_maximum_warning_message">Режим «Максимально» накапливает до 100 МБ тайлов на диске. Кэш не очищается автоматически.</string>
+    <string name="tile_cache_maximum_warning_confirm">Продолжить</string>
+    <string name="tile_cache_maximum_warning_dismiss">Отмена</string>
 </resources>

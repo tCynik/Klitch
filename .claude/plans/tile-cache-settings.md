@@ -107,7 +107,7 @@ Mitigation: raise ambient cache to 100 MB via `OfflineManager.setMaximumAmbientC
 
 ---
 
-### Phase 2 — UI Design
+### Phase 2 — UI Design ✅
 
 **Goal**: approved component layout for cache mode selector in Map tab.
 
@@ -119,6 +119,30 @@ Mitigation: raise ambient cache to 100 MB via `OfflineManager.setMaximumAmbientC
 
 **Skill**: `/ui-designer component: TileCacheModeSelector for Settings Map tab`
 **Output**: composable design decision (inline); string resource list.
+
+**Decisions (2026-04-29)**:
+- `TileCacheModeSelector` — private fun в `SettingsScreen.kt`, stateless. Параметры: `selectedMode`, `onModeSelected`, `modifier`.
+- Каждая опция: `Row(selectable) { RadioButton(onClick=null) + Column { bodyLarge label + bodySmall desc } }`. `onClick=null` + `role=RadioButton` на Row — правильный a11y паттерн.
+- Заголовок секции: `labelMedium` + `onSurfaceVariant`.
+- Divider (`HorizontalDivider`, `padding(horizontal=16.dp)`) разделяет селектор и список KML/KMZ.
+- Диалог предупреждения — в `MapTabContent` (локальный `var pendingMaximumConfirm`). Селектор вызывает `onModeSelected(MAXIMUM)`, MapTabContent перехватывает и показывает диалог; подтверждение → передаёт в VM; отмена → откат автоматически (selectedMode от VM не меняется).
+- Хелперы `TileCacheMode.labelRes()` / `TileCacheMode.descRes()` — private extension fun в том же файле.
+- 11 новых строковых ресурсов (см. таблицу ниже).
+
+**Новые строковые ресурсы**:
+| Ключ | Значение |
+|---|---|
+| `tile_cache_section_label` | `Кэш тайлов` |
+| `tile_cache_mode_default` | `По умолчанию` |
+| `tile_cache_mode_default_desc` | `Заголовки сервера (~7 дней)` |
+| `tile_cache_mode_month` | `Месяц` |
+| `tile_cache_mode_month_desc` | `Хранить тайлы 30 дней` |
+| `tile_cache_mode_maximum` | `Максимально` |
+| `tile_cache_mode_maximum_desc` | `Хранить тайлы 1 год` |
+| `tile_cache_maximum_warning_title` | `Большой объём хранилища` |
+| `tile_cache_maximum_warning_message` | `Режим «Максимально» накапливает до 100 МБ тайлов на диске. Кэш не очищается автоматически.` |
+| `tile_cache_maximum_warning_confirm` | `Продолжить` |
+| `tile_cache_maximum_warning_dismiss` | `Отмена` |
 
 ---
 
@@ -228,3 +252,4 @@ Phase 7: [stage by name] → [propose commit message] → [confirm] → git comm
 - 2026-04-29: created
 - 2026-04-29: approved — interceptor strategy Variant B (AtomicReference), immediate effect, 100 MB cache, warning every time
 - 2026-04-29: Phase 0 complete — confirmed call site (Application.onCreate), corrected package name note, added two-cache model + OfflineManager mitigation
+- 2026-04-29: Phase 2 complete — TileCacheModeSelector design approved; dialog в MapTabContent; 11 строковых ресурсов зафиксированы
