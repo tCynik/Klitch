@@ -142,7 +142,7 @@ Output a structured plan with phases. Each phase must have:
 - Tasks:
   - Update feature status in **CLAUDE.md** status table (e.g. `In Progress` → `Done`)
   - **Create or update `.claude/docs/<feature-slug>.md`** — see *Feature Doc Format* below
-  - **Move the plan to archive**: copy `.claude/plans/<feature-slug>.md` → `.claude/archive/<feature-slug>.md`, then delete the original from `plans/`
+  - **Move the plan to archive**: copy `.claude/plans/<feature-slug>.md` → `.claude/archive/<feature-slug>.md`, then delete the original from `plans/`. **After deletion, verify with `ls .claude/plans/` that the file is gone — do not proceed to Phase 7 until confirmed.**
   - Review memory files in `~/.claude/projects/.../memory/` — update `project_state.md` and any other stale entries (completed features, new patterns, resolved decisions)
   - If the feature introduced a workflow insight worth preserving — add it to `workflow_feedback.md`
   - **Token log**: append to the archived plan file's Change Log: `- <date>: done | tokens: <value>`. Ask the user to check `/cost` or the status bar and provide the number. If not recorded — write `tokens: not recorded`.

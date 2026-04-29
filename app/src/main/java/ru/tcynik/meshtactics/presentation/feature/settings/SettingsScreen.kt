@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -25,9 +26,11 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
@@ -48,12 +51,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.meshtactics.R
+import ru.tcynik.meshtactics.domain.settings.model.TileCacheMode
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MarkerSizeConfig
 import ru.tcynik.meshtactics.presentation.ui.components.LeaveSettingsDialog
 import ru.tcynik.meshtactics.presentation.feature.settings.models.MapItem
@@ -162,6 +167,8 @@ fun SettingsScreen(
 
             when (state.selectedTab) {
                 SettingsTab.Map -> MapTabContent(
+                    tileCacheMode = state.tileCacheMode,
+                    onTileCacheModeSelected = viewModel::onTileCacheModeSelected,
                     mapItems = state.mapItems,
                     onAddMap = {
                         filePickerLauncher.launch(
@@ -233,15 +240,49 @@ private fun ScreenTabContent(
 
 @Composable
 private fun MapTabContent(
+    tileCacheMode: TileCacheMode,
+    onTileCacheModeSelected: (TileCacheMode) -> Unit,
     mapItems: List<MapItem>,
     onAddMap: () -> Unit,
     onHide: (String) -> Unit,
     onDelete: (String) -> Unit,
     onToggleSelection: (String, Boolean) -> Unit,
 ) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-    ) {
+    var pendingMaximumConfirm by remember { mutableStateOf(false) }
+
+    if (pendingMaximumConfirm) {
+        AlertDialog(
+            onDismissRequest = { pendingMaximumConfirm = false },
+            title = { Text(stringResource(R.string.tile_cache_maximum_warning_title)) },
+            text = { Text(stringResource(R.string.tile_cache_maximum_warning_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingMaximumConfirm = false
+                    onTileCacheModeSelected(TileCacheMode.MAXIMUM)
+                }) {
+                    Text(stringResource(R.string.tile_cache_maximum_warning_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingMaximumConfirm = false }) {
+                    Text(stringResource(R.string.tile_cache_maximum_warning_dismiss))
+                }
+            },
+        )
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        TileCacheModeSelector(
+            selectedMode = tileCacheMode,
+            onModeSelected = { mode ->
+                if (mode == TileCacheMode.MAXIMUM) {
+                    pendingMaximumConfirm = true
+                } else {
+                    onTileCacheModeSelected(mode)
+                }
+            },
+        )
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -269,6 +310,63 @@ private fun MapTabContent(
             Text(stringResource(R.string.map_add_button))
         }
     }
+}
+
+@Composable
+private fun TileCacheModeSelector(
+    selectedMode: TileCacheMode,
+    onModeSelected: (TileCacheMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = stringResource(R.string.tile_cache_section_label),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        TileCacheMode.entries.forEach { mode ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectable(
+                        selected = selectedMode == mode,
+                        onClick = { onModeSelected(mode) },
+                        role = Role.RadioButton,
+                    )
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RadioButton(
+                    selected = selectedMode == mode,
+                    onClick = null,
+                )
+                Column(modifier = Modifier.padding(start = 12.dp)) {
+                    Text(
+                        text = stringResource(mode.labelRes()),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    Text(
+                        text = stringResource(mode.descRes()),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun TileCacheMode.labelRes(): Int = when (this) {
+    TileCacheMode.DEFAULT -> R.string.tile_cache_mode_default
+    TileCacheMode.MONTH -> R.string.tile_cache_mode_month
+    TileCacheMode.MAXIMUM -> R.string.tile_cache_mode_maximum
+}
+
+private fun TileCacheMode.descRes(): Int = when (this) {
+    TileCacheMode.DEFAULT -> R.string.tile_cache_mode_default_desc
+    TileCacheMode.MONTH -> R.string.tile_cache_mode_month_desc
+    TileCacheMode.MAXIMUM -> R.string.tile_cache_mode_maximum_desc
 }
 
 @Composable

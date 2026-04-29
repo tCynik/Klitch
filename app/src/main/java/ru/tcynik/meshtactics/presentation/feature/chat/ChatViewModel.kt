@@ -121,7 +121,8 @@ class ChatViewModel(
                 selectedChatId = chatId,
                 currentTab = ChatTab.CHAT,
                 chatTabTitle = title,
-                isChatTabEnabled = true
+                isChatTabEnabled = true,
+                isSelectedChatActive = item?.isActive ?: true,
             )
         }
         markAsRead(chatId)
@@ -281,6 +282,7 @@ class ChatViewModel(
 
     fun sendMessage() {
         val state = _uiState.value
+        if (!state.isSelectedChatActive) return
         val text = state.inputText.trim()
         if (text.isEmpty()) return
         val contactId = state.selectedChatId ?: return
@@ -318,7 +320,14 @@ class ChatViewModel(
                         isExpanded = existingArchiveSection?.isExpanded ?: false,
                         children = archivedItems.toImmutableList()
                     )
-                    state.copy(filterItems = (mainItems + archiveSection).toImmutableList())
+                    val allItems = (mainItems + archiveSection).toImmutableList()
+                    val isSelectedChatActive = state.selectedChatId
+                        ?.let { id -> findItemById(id, allItems) }
+                        ?.isActive ?: true
+                    state.copy(
+                        filterItems = allItems,
+                        isSelectedChatActive = isSelectedChatActive,
+                    )
                 }
                 updateChatTabInfo()
                 updateFilteredMessages()
@@ -423,6 +432,7 @@ private fun ChatContact.toFilterItem(isChecked: Boolean): ChatFilterItem = ChatF
     isChecked = isChecked,
     isFavorite = isFavorite,
     isPinned = isPinned,
+    isActive = isActive,
     unreadCount = unreadCount,
     lastMessageTime = lastMessageTime ?: 0L,
     lastMessagePreview = lastMessagePreview ?: "",

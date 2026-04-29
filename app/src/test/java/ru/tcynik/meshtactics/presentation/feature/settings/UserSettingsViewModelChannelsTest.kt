@@ -46,6 +46,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastRead
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
+import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SetGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
@@ -79,6 +80,7 @@ class UserSettingsViewModelChannelsTest {
     private val checkContourSync: CheckContourSyncUseCase = mockk(relaxed = true)
     private val syncStateRepository: ContourSyncStateRepository = mockk(relaxed = true)
     private val rebootNode: RebootNodeUseCase = mockk(relaxed = true)
+    private val rebootStateRepository: RebootStateRepository = mockk(relaxed = true)
     private val observeGpsBroadcastEnabled: ObserveGpsBroadcastEnabledUseCase = mockk()
     private val setGpsBroadcastEnabled: SetGpsBroadcastEnabledUseCase = mockk(relaxed = true)
     private val observeDeviceConfig: ObserveDeviceConfigUseCase = mockk()
@@ -127,6 +129,7 @@ class UserSettingsViewModelChannelsTest {
             checkContourSync = checkContourSync,
             syncStateRepository = syncStateRepository,
             rebootNode = rebootNode,
+            rebootStateRepository = rebootStateRepository,
             observeGpsBroadcastEnabled = observeGpsBroadcastEnabled,
             setGpsBroadcastEnabled = setGpsBroadcastEnabled,
             observeDeviceConfig = observeDeviceConfig,

@@ -33,6 +33,7 @@
 | Маркеры / заметки | ✅ Done |
 | Контуры (CRUD + isActive + Geo Protection) | ✅ Done |
 | Emergency SOS (кнопка SOS, трансляция геопозиции) | ✅ Done |
+| Настройки кэша тайлов (OkHttp duration modes) | ✅ Done |
 | Настройки ноды | ⬜ Planned |
 
 ---
@@ -104,6 +105,7 @@
 | Emergency SOS | `.claude/docs/emergency-sos.md` |
 | Channel Sync Validation | `.claude/docs/channel-sync-validation.md` |
 | User Settings Write Mechanics | `.claude/docs/user-settings-write-mechanics.md` |
+| Tile Cache Settings | `.claude/docs/tile-cache-settings.md` |
 
 ---
 
@@ -125,3 +127,4 @@
 | Geo Nodes Tab | `.claude/archive/geo-nodes-tab.md` | Archived |
 | Node Markers on Map | `.claude/archive/node-markers-on-map.md` | Archived |
 | Settings Refactor | `.claude/archive/settings-refactor.md` | Archived |
+| Tile Cache Settings | `.claude/archive/tile-cache-settings.md` | Archived |

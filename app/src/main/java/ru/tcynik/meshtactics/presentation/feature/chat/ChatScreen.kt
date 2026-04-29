@@ -25,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -190,6 +191,7 @@ fun ChatScreen(
                         messages = uiState.messages,
                         searchQuery = uiState.searchQuery,
                         inputText = uiState.inputText,
+                        isSelectedChatActive = uiState.isSelectedChatActive,
                         onSearchChanged = { viewModel.updateSearchQuery(it) },
                         onInputChanged = { viewModel.updateInputText(it) },
                         onSend = { viewModel.sendMessage() }
@@ -495,6 +497,7 @@ private fun ChatFilterItemRow(
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showClearDialog by remember { mutableStateOf(false) }
+    val contentAlpha = if (item.isActive) 1f else 0.45f
 
     Row(
         modifier = Modifier
@@ -506,7 +509,8 @@ private fun ChatFilterItemRow(
         // Чекбокс
         Checkbox(
             checked = item.isChecked,
-            onCheckedChange = { onToggleCheck() }
+            onCheckedChange = { onToggleCheck() },
+            modifier = Modifier.alpha(contentAlpha)
         )
 
         // Жирная точка избранного
@@ -516,7 +520,7 @@ private fun ChatFilterItemRow(
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(end = 2.dp)
+                modifier = Modifier.padding(end = 2.dp).alpha(contentAlpha)
             )
         } else {
             Spacer(modifier = Modifier.width(16.dp))
@@ -524,7 +528,7 @@ private fun ChatFilterItemRow(
 
         // Индикатор типа
         if (item.isPinned) {
-            Text("📌 ", fontSize = 12.sp)
+            Text("📌 ", fontSize = 12.sp, modifier = Modifier.alpha(contentAlpha))
         }
 
         // Название и превью
@@ -532,6 +536,7 @@ private fun ChatFilterItemRow(
             modifier = Modifier
                 .weight(1f)
                 .padding(horizontal = 4.dp)
+                .alpha(contentAlpha)
         ) {
             Text(
                 text = item.name,
@@ -551,7 +556,7 @@ private fun ChatFilterItemRow(
             }
         }
 
-        // Непрочитанные
+        // Непрочитанные — всегда полная альфа
         if (item.unreadCount > 0) {
             Badge(
                 modifier = Modifier.padding(end = 4.dp)
@@ -649,6 +654,7 @@ private fun ChatTabContent(
     messages: List<ChatMessageModel>,
     searchQuery: String,
     inputText: String,
+    isSelectedChatActive: Boolean,
     onSearchChanged: (String) -> Unit,
     onInputChanged: (String) -> Unit,
     onSend: () -> Unit,
@@ -688,11 +694,15 @@ private fun ChatTabContent(
         }
 
         // Строка ввода (снизу)
-        ChatInputBar(
-            inputText = inputText,
-            onInputChanged = onInputChanged,
-            onSend = onSend
-        )
+        if (isSelectedChatActive) {
+            ChatInputBar(
+                inputText = inputText,
+                onInputChanged = onInputChanged,
+                onSend = onSend
+            )
+        } else {
+            InactiveContourBanner()
+        }
 
         // Прокрутка вниз при открытии чата (мгновенно)
         var isFirstScroll by remember { mutableStateOf(true) }
@@ -817,6 +827,29 @@ private fun ChatInputBar(
                     contentDescription = stringResource(R.string.chat_send)
                 )
             }
+        }
+    }
+}
+
+// ==================== БАННЕР НЕАКТИВНОГО КОНТУРА ====================
+
+@Composable
+private fun InactiveContourBanner(modifier: Modifier = Modifier) {
+    Surface(
+        tonalElevation = 4.dp,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = stringResource(R.string.chat_inactive_contour),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

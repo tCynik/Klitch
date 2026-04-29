@@ -20,4 +20,5 @@ data class ChatUiState(
     val contextMenuItemId: String? = null,
     val chatTabTitle: String = "Лента",
     val isChatTabEnabled: Boolean = false,
+    val isSelectedChatActive: Boolean = true,
 )

@@ -50,6 +50,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
+import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.settings.usecase.GetMarkerSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveMarkerSizeLevelUseCase
 import java.util.UUID
@@ -77,10 +78,8 @@ class MainViewModelHudWarningTest {
     private val ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase = mockk()
     private val observeLogicalChannels: ObserveContoursUseCase = mockk()
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
-    private val checkContourSync: CheckContourSyncUseCase = mockk(relaxed = true)
-    private val syncContoursOnConnect: SyncContoursOnConnectUseCase = mockk(relaxed = true)
-    private val rebootNode: RebootNodeUseCase = mockk(relaxed = true)
     private val syncStateRepository: ContourSyncStateRepository = mockk(relaxed = true)
+    private val rebootStateRepository: RebootStateRepository = mockk(relaxed = true)
 
     private val channelsFlow = MutableStateFlow<List<Contour>>(emptyList())
     private val nodeChannelsFlow = MutableStateFlow<List<NodeChannelSlot>>(emptyList())
@@ -131,10 +130,8 @@ class MainViewModelHudWarningTest {
             ingestReceivedChatMessages = ingestReceivedChatMessages,
             observeLogicalChannels = observeLogicalChannels,
             observeNodeChannels = observeNodeChannels,
-            checkContourSync = checkContourSync,
-            syncContoursOnConnect = syncContoursOnConnect,
-            rebootNode = rebootNode,
             syncStateRepository = syncStateRepository,
+            rebootStateRepository = rebootStateRepository,
         )
     }
 

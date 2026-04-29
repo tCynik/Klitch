@@ -10,7 +10,11 @@ import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import org.koin.core.logger.Level
+import org.maplibre.android.module.http.HttpRequestUtil
+import org.maplibre.android.offline.OfflineManager
+import ru.tcynik.meshtactics.data.map.TileCacheOkHttpConfigurator
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
+import ru.tcynik.meshtactics.domain.settings.repository.MapCacheSettingsRepository
 import ru.tcynik.meshtactics.di.androidModule
 import ru.tcynik.meshtactics.di.chatDataModule
 import ru.tcynik.meshtactics.di.commonModule
@@ -54,6 +58,16 @@ class MyMeshApplication : Application() {
                 presentationModule,
             )
         }
+
+        val configurator = GlobalContext.get().get<TileCacheOkHttpConfigurator>()
+        HttpRequestUtil.setOkHttpClient(configurator.client)
+        OfflineManager.getInstance(this).setMaximumAmbientCacheSize(100L * 1024 * 1024, null)
+        CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+            GlobalContext.get().get<MapCacheSettingsRepository>().tileCacheModeFlow.collect { mode ->
+                configurator.updateMode(mode)
+            }
+        }
+
         GlobalContext.get().get<MeshServiceOrchestrator>().start()
         CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
             GlobalContext.get().get<ContourRepository>().seedDefaultsIfAbsent()

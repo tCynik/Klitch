@@ -123,19 +123,17 @@ NavHost(startDestination = "main") {
 
 ### Map Feature Staging
 
-`data/map/` grows incrementally. In MVP: `MapTileRepository` interface + one `HardcodedXyzTileSource` only.
+`data/map/` grows incrementally.
 
 | Feature | Stage |
 |---|---|
-| Single hardcoded XYZ tile source | MVP |
-| Markers (`PointAnnotation`) | MVP |
+| Single hardcoded XYZ tile source | ✅ Done |
+| Markers (`PointAnnotation`) | ✅ Done |
+| Tile cache duration (OkHttp interceptor + OfflineManager) | ✅ Done |
+| KMZ/KML import + rendering | ✅ Done |
 | Tile source switcher | Beta 1.0 |
-| Tile caching / `OfflineManager` | Beta 1.0 |
 | MBTiles/PMTiles import | Beta 1.0 |
-| KMZ import | Beta 1.0 |
 | Soviet topo tile sources | Beta 1.0 |
-
-Do not add caching or import logic to MVP implementations.
 
 ### MeshTest Removal Policy
 
@@ -169,6 +167,41 @@ See canonical implementations:
 - `MapLibreLayer` (CircleLayer + GeoJsonData.JsonString): `app/src/main/.../feature/main/osd/MapLibreLayer.kt:77`
 
 **DI injection point:** `LocationProvider` is injected in `NavGraph.kt` via `koinInject()` and passed as a parameter to `MainScreen` — never injected inside the Screen composable itself.
+
+---
+
+### MapLibre OkHttp Injection Pattern
+
+Inject a custom `OkHttpClient` into MapLibre via `HttpRequestUtil.setOkHttpClient()` **before** the first `MapView` is composed.
+
+**Package:** `org.maplibre.android.module.http.HttpRequestUtil`
+
+**Call site:** `MyMeshApplication.onCreate()` — after `startKoin { }`, never inside a Composable or ViewModel.
+
+```kotlin
+// MyMeshApplication.onCreate()
+startKoin { ... }
+val configurator: TileCacheOkHttpConfigurator by inject()
+configurator.applyTo(this)   // calls HttpRequestUtil.setOkHttpClient() + OfflineManager
+```
+
+**Two-cache model:** MapLibre runs two independent caches simultaneously:
+- **OkHttp disk cache** — file-based (e.g. 100 MB), lifespan controlled by `Cache-Control` interceptor
+- **MapLibre ambient cache** — internal SQLite, default 50 MB LRU; raise to match OkHttp cache via `OfflineManager.setMaximumAmbientCacheSize` in the same `Application.onCreate()` block, otherwise MONTH/MAXIMUM modes lose effectiveness early
+
+**Dynamic mode without restart (AtomicReference interceptor):**
+`TileCacheInterceptor` holds an `AtomicReference<TileCacheMode>`. `TileCacheOkHttpConfigurator.updateMode(mode)` mutates it — OkHttpClient is built once at startup; mode change takes effect on the next tile request.
+
+**DI wiring (all in `MapDataModule`):**
+- `TileCacheOkHttpConfigurator` — `single` (stateful singleton, holds `AtomicReference`)
+- `MapCacheSettingsRepository` — `single<MapCacheSettingsRepository> { get<AppSettings>() }`
+- `GetTileCacheModeUseCase`, `SetTileCacheModeUseCase`, `ObserveTileCacheModeUseCase` — `single`
+
+**Anti-pattern:** calling `HttpRequestUtil.setOkHttpClient()` inside a Compose side-effect or ViewModel — must precede first `MapView` composition.
+
+See: `app/data/map/TileCacheOkHttpConfigurator.kt`, `app/data/map/TileCacheInterceptor.kt`, `MyMeshApplication.kt`
+
+---
 
 ### Android Foreground Service Lifecycle Pattern
 
@@ -426,7 +459,8 @@ In MVP only Meshtastic implementations are non-stub. MQTT and WiFi implementatio
 | Modal as a Compose overlay layer | Modal is a NavGraph destination (`composable()` or `dialog()`) |
 | More than 2 Compose layers in MainScreen | Spatial content goes into MapLibre layers, not Compose layers |
 | Direct `meshtest` access in non-debug builds | Gate route behind `BuildConfig.DEBUG` |
-| Caching or import logic in MVP `data/map/` | Staging: only `HardcodedXyzTileSource` in MVP |
+| `HttpRequestUtil.setOkHttpClient()` inside Composable or ViewModel | Must be called in `MyMeshApplication.onCreate()` after `startKoin` — see MapLibre OkHttp Injection Pattern |
+| Tile source switcher, MBTiles/PMTiles import, or Soviet topo sources in current phase | Still Beta 1.0 — not yet implemented |
 | Synchronous use case extends `UseCase<P,R>` (suspend) | Use plain `operator fun invoke` — `UseCase` is for suspend operations only |
 | New feature adds keys to `AppSettings` | Create a new repository in `data/local/` that injects `Settings` directly |
 | `LocationPuck` / `rememberUserLocationState` with maplibre-compose 0.12.1 | Use `CircleLayer + GeoJsonData.JsonString` — `spatialk:geojson:0.6.0` crashes on empty `FeatureCollection()` serialization (LocationPuck's initial null-location path) |

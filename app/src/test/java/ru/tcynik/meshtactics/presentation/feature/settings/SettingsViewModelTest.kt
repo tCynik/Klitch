@@ -21,7 +21,12 @@ import ru.tcynik.meshtactics.domain.map.usecase.HideImportedMapUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ImportMapFileUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveImportedMapsUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ToggleImportedMapSelectionUseCase
+import ru.tcynik.meshtactics.domain.settings.model.TileCacheMode
 import ru.tcynik.meshtactics.domain.settings.repository.MarkerSettingsRepository
+import ru.tcynik.meshtactics.domain.settings.usecase.GetTileCacheModeUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.ObserveTileCacheModeUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.SetTileCacheModeUseCase
+import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 
 class SettingsViewModelTest {
 
@@ -31,6 +36,9 @@ class SettingsViewModelTest {
     private val hideImportedMap: HideImportedMapUseCase = mockk(relaxed = true)
     private val deleteImportedMap: DeleteImportedMapUseCase = mockk(relaxed = true)
     private val toggleImportedMapSelection: ToggleImportedMapSelectionUseCase = mockk(relaxed = true)
+    private val getTileCacheMode: GetTileCacheModeUseCase = mockk()
+    private val observeTileCacheMode: ObserveTileCacheModeUseCase = mockk()
+    private val setTileCacheMode: SetTileCacheModeUseCase = mockk(relaxed = true)
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var viewModel: SettingsViewModel
@@ -40,6 +48,8 @@ class SettingsViewModelTest {
         Dispatchers.setMain(testDispatcher)
         every { repository.getMarkerSizeLevel() } returns 5
         every { observeImportedMaps() } returns flowOf(emptyList())
+        every { getTileCacheMode() } returns TileCacheMode.DEFAULT
+        every { observeTileCacheMode(NoParams) } returns flowOf(TileCacheMode.DEFAULT)
         viewModel = SettingsViewModel(
             repository = repository,
             observeImportedMaps = observeImportedMaps,
@@ -47,6 +57,9 @@ class SettingsViewModelTest {
             hideImportedMap = hideImportedMap,
             deleteImportedMap = deleteImportedMap,
             toggleImportedMapSelection = toggleImportedMapSelection,
+            getTileCacheMode = getTileCacheMode,
+            observeTileCacheMode = observeTileCacheMode,
+            setTileCacheMode = setTileCacheMode,
         )
     }
 
@@ -138,5 +151,50 @@ class SettingsViewModelTest {
     fun `onToggleSelection delegates to toggleImportedMapSelection use case`() = runTest {
         viewModel.onToggleSelection("map-5", true)
         coVerify(exactly = 1) { toggleImportedMapSelection("map-5", true) }
+    }
+
+    // ── Tile cache mode ──────────────────────────────────────────────────────
+
+    @Test
+    fun `initialisation reads tile cache mode via getTileCacheMode`() = runTest {
+        viewModel.uiState.test {
+            assertEquals(TileCacheMode.DEFAULT, awaitItem().tileCacheMode)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `observeTileCacheMode emission updates tileCacheMode in state`() = runTest {
+        every { observeTileCacheMode(NoParams) } returns flowOf(TileCacheMode.MONTH)
+        viewModel = SettingsViewModel(
+            repository = repository,
+            observeImportedMaps = observeImportedMaps,
+            importMapFile = importMapFile,
+            hideImportedMap = hideImportedMap,
+            deleteImportedMap = deleteImportedMap,
+            toggleImportedMapSelection = toggleImportedMapSelection,
+            getTileCacheMode = getTileCacheMode,
+            observeTileCacheMode = observeTileCacheMode,
+            setTileCacheMode = setTileCacheMode,
+        )
+
+        viewModel.uiState.test {
+            assertEquals(TileCacheMode.MONTH, awaitItem().tileCacheMode)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `onTileCacheModeSelected delegates to setTileCacheMode use case`() {
+        viewModel.onTileCacheModeSelected(TileCacheMode.MAXIMUM)
+        verify(exactly = 1) { setTileCacheMode(TileCacheMode.MAXIMUM) }
+    }
+
+    @Test
+    fun `onTileCacheModeSelected for each mode calls setTileCacheMode with correct argument`() {
+        TileCacheMode.entries.forEach { mode ->
+            viewModel.onTileCacheModeSelected(mode)
+            verify(exactly = 1) { setTileCacheMode(mode) }
+        }
     }
 }

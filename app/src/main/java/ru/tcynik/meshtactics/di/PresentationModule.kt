@@ -35,6 +35,9 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SetGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.GetTileCacheModeUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.ObserveTileCacheModeUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.SetTileCacheModeUseCase
 import ru.tcynik.meshtactics.presentation.feature.settings.SettingsViewModel
 import ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModel
 
@@ -79,6 +82,9 @@ val presentationModule = module {
             hideImportedMap = get<HideImportedMapUseCase>(),
             deleteImportedMap = get<DeleteImportedMapUseCase>(),
             toggleImportedMapSelection = get<ToggleImportedMapSelectionUseCase>(),
+            getTileCacheMode = get<GetTileCacheModeUseCase>(),
+            observeTileCacheMode = get<ObserveTileCacheModeUseCase>(),
+            setTileCacheMode = get<SetTileCacheModeUseCase>(),
         )
     }
     viewModel {
