@@ -142,6 +142,15 @@ These token decisions were established during the Emergency SOS feature and appl
 | EmergencyContourCard | `app/.../feature/settings/UserTabContent.kt` | Defined | SOS button + alert card; see Emergency SOS token decisions above |
 | SyncRequiredDialog | `app/.../ui/components/SyncRequiredDialog.kt` | Defined | AlertDialog; stateless; used in MainScreen + UserTabContent when `showSyncDialog = true` |
 | InactiveContourBanner | `app/.../feature/chat/ChatScreen.kt` | Defined | `Surface(tonalElevation=4dp)`, height=56dp, centered `bodyMedium` text `onSurfaceVariant`; replaces `ChatInputBar` when `isSelectedChatActive = false` |
+| TileCacheModeSelector | `app/.../feature/settings/SettingsScreen.kt` (private fun) | Defined | Labeled radio group pattern for settings tabs — see below |
+
+**TileCacheModeSelector pattern (labeled radio group in settings tab):**
+- Stateless: `(selectedMode, onModeSelected, modifier)` — no internal state
+- Section header: `labelMedium` + `onSurfaceVariant`
+- Each option: `Row(Modifier.selectable(..., role = Role.RadioButton)) { RadioButton(selected, onClick = null) + Column { bodyLarge label + bodySmall desc } }` — `onClick=null` on `RadioButton` is correct; click handled by outer Row
+- Divider: `HorizontalDivider(Modifier.padding(horizontal=16.dp))` separates selector from list content below
+- Warning dialog for destructive/costly selection (Maximum mode): state `var pendingConfirm` lives in the *tab composable* (`MapTabContent`), not in selector itself. Selector fires `onModeSelected(mode)`, tab intercepts MAXIMUM → shows dialog → confirms → passes to VM; cancel → no state change (VM value unchanged = automatic rollback)
+- Extension helpers `TileCacheMode.labelRes()` / `TileCacheMode.descRes()` — private funs in same file
 
 ---
 

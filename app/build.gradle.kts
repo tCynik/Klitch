@@ -100,6 +100,9 @@ dependencies {
     // Note: if field device OpenGL ES compatibility issues arise, investigate android-sdk-opengl variant
     implementation("org.maplibre.compose:maplibre-compose:0.12.1")
 
+    // OkHttp — explicit declaration required for TileCacheInterceptor / TileCacheOkHttpConfigurator
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
     // Тестирование
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

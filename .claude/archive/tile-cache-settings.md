@@ -1,7 +1,7 @@
 # Plan: Tile Cache Duration Settings
 
 **Date**: 2026-04-29
-**Status**: Approved
+**Status**: Done
 
 ## Summary
 
@@ -146,7 +146,7 @@ Mitigation: raise ambient cache to 100 MB via `OfflineManager.setMaximumAmbientC
 
 ---
 
-### Phase 3 — Implementation
+### Phase 3 — Implementation ✅
 
 **Goal**: working code across all layers.
 
@@ -253,3 +253,6 @@ Phase 7: [stage by name] → [propose commit message] → [confirm] → git comm
 - 2026-04-29: approved — interceptor strategy Variant B (AtomicReference), immediate effect, 100 MB cache, warning every time
 - 2026-04-29: Phase 0 complete — confirmed call site (Application.onCreate), corrected package name note, added two-cache model + OfflineManager mitigation
 - 2026-04-29: Phase 2 complete — TileCacheModeSelector design approved; dialog в MapTabContent; 11 строковых ресурсов зафиксированы
+- 2026-04-29: Phase 3 complete — 16 файлов создано/изменено; все слои реализованы
+- 2026-04-29: Phase 4 complete — TileCacheInterceptorTest (4 теста) + SettingsViewModelTest (3 новых теста); OkHttp добавлен явно; исправлены сломанные тесты в 6 файлах (rebootStateRepository)
+- 2026-04-29: Phase 6 + 6b complete — скиллы обновлены (architect: OkHttp injection pattern + staging table; ui-designer: TileCacheModeSelector); docs создан; CLAUDE.md обновлён; план архивирован
