@@ -137,7 +137,8 @@ class MeshTestViewModel(
             wasConnected = status is MeshConnectionStatus.Connected
             // Auto-start scan when the app is already scanning (MainViewModel auto-scan)
             // but this VM hasn't started collecting devices yet.
-            if (status is MeshConnectionStatus.Scanning && scanJob == null) {
+            // Skip during reboot: extra scan competes with GATT auto-connect and breaks reconnect.
+            if (status is MeshConnectionStatus.Scanning && scanJob == null && !isRebooting) {
                 onScanClick()
             }
             // Stop scan when auto-connect from MainViewModel kicks in.
