@@ -10,6 +10,7 @@ import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import org.koin.core.logger.Level
+import org.maplibre.android.MapLibre
 import org.maplibre.android.module.http.HttpRequestUtil
 import org.maplibre.android.offline.OfflineManager
 import ru.tcynik.meshtactics.data.map.TileCacheOkHttpConfigurator
@@ -59,6 +60,7 @@ class MyMeshApplication : Application() {
             )
         }
 
+        MapLibre.getInstance(this)
         val configurator = GlobalContext.get().get<TileCacheOkHttpConfigurator>()
         HttpRequestUtil.setOkHttpClient(configurator.client)
         OfflineManager.getInstance(this).setMaximumAmbientCacheSize(100L * 1024 * 1024, null)

@@ -3,6 +3,8 @@ package ru.tcynik.meshtactics.data.local.map
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.RectF
 import android.net.Uri
 import android.util.Log
 import org.osmdroid.bonuspack.kml.KmlDocument
@@ -125,35 +127,26 @@ class KmlOverlayParser(private val context: Context) {
                     .removePrefix("./")
                     .removePrefix("/")
 
-                val imageFile = File(outDir, cleanPath)
-                Log.d(TAG, "loadGroundOverlayIcons: trying to load icon from $imageFile (href=$href)")
+                // Try candidates in priority order: exact href → stripped path → recursive search
+                val candidates = listOf(
+                    File(outDir, href),
+                    File(outDir, cleanPath),
+                ).distinct().firstOrNull { it.exists() }
+                    ?: outDir.walkTopDown().firstOrNull { f ->
+                        !f.isDirectory && (f.name == File(href).name || f.name == File(cleanPath).name)
+                    }
 
-                if (imageFile.exists()) {
-                    val bitmap = BitmapFactory.decodeFile(imageFile.absolutePath)
+                Log.d(TAG, "loadGroundOverlayIcons: candidate=$candidates (href=$href)")
+                if (candidates != null) {
+                    val bitmap = BitmapFactory.decodeFile(candidates.absolutePath)
                     if (bitmap != null) {
                         feature.mIcon = bitmap
-                        Log.d(TAG, "loadGroundOverlayIcons: icon loaded successfully size=${bitmap.byteCount}")
+                        Log.d(TAG, "loadGroundOverlayIcons: icon loaded size=${bitmap.byteCount}")
                     } else {
-                        Log.w(TAG, "loadGroundOverlayIcons: BitmapFactory returned null")
+                        Log.w(TAG, "loadGroundOverlayIcons: BitmapFactory returned null for $candidates")
                     }
                 } else {
-                    Log.w(TAG, "loadGroundOverlayIcons: file not found, trying all images in outDir")
-                    // Fallback: ищем любой jpg/png в outDir
-                    val fallback = outDir.listFiles { _, name ->
-                        name.endsWith(".jpg", ignoreCase = true) ||
-                            name.endsWith(".jpeg", ignoreCase = true) ||
-                            name.endsWith(".png", ignoreCase = true)
-                    }?.firstOrNull()
-
-                    if (fallback != null) {
-                        val bitmap = BitmapFactory.decodeFile(fallback.absolutePath)
-                        if (bitmap != null) {
-                            feature.mIcon = bitmap
-                            Log.d(TAG, "loadGroundOverlayIcons: loaded fallback icon from ${fallback.name}")
-                        }
-                    } else {
-                        Log.w(TAG, "loadGroundOverlayIcons: no image files found in $outDir")
-                    }
+                    Log.w(TAG, "loadGroundOverlayIcons: no image found for href=$href in $outDir")
                 }
             }
         }
@@ -184,29 +177,76 @@ class KmlOverlayParser(private val context: Context) {
 
     private fun saveGroundOverlay(doc: KmlDocument, outDir: File): String? {
         Log.d(TAG, "saveGroundOverlay: start")
-        val overlay = findGroundOverlay(doc.mKmlRoot)
-        if (overlay == null) {
-            Log.d(TAG, "saveGroundOverlay: no GroundOverlay found in KML")
+        val overlays = findAllGroundOverlays(doc.mKmlRoot).filter { it.mIcon != null }
+        Log.d(TAG, "saveGroundOverlay: found ${overlays.size} overlay(s) with bitmaps")
+
+        if (overlays.isEmpty()) {
+            Log.d(TAG, "saveGroundOverlay: no GroundOverlay with bitmap found in KML")
             return null
         }
-        Log.d(TAG, "saveGroundOverlay: found GroundOverlay icon=${overlay.mIcon != null}")
-        val bitmap = overlay.mIcon ?: run {
-            Log.w(TAG, "saveGroundOverlay: GroundOverlay has no bitmap")
-            return null
-        }
+
         return try {
+            val bitmap: Bitmap
+            val north: Double
+            val south: Double
+            val east: Double
+            val west: Double
+
+            if (overlays.size == 1) {
+                val overlay = overlays[0]
+                bitmap = overlay.mIcon!!
+                val bounds = overlay.getBoundingBox()
+                north = bounds.latNorth
+                south = bounds.latSouth
+                east  = bounds.lonEast
+                west  = bounds.lonWest
+                Log.d(TAG, "saveGroundOverlay: single tile bounds N=$north S=$south E=$east W=$west")
+            } else {
+                // Multiple tiles — merge into one bitmap to cover the full geographic extent.
+                val allBounds = overlays.map { it.getBoundingBox() }
+                north = allBounds.maxOf { it.latNorth }
+                south = allBounds.minOf { it.latSouth }
+                east  = allBounds.maxOf { it.lonEast }
+                west  = allBounds.minOf { it.lonWest }
+                Log.d(TAG, "saveGroundOverlay: merging ${overlays.size} tiles into bounds N=$north S=$south E=$east W=$west")
+
+                val lonSpan = east - west
+                val latSpan = north - south
+
+                // Scale merged canvas so the longest side is at most MAX_TEXTURE_SIZE.
+                val MAX_TEXTURE_SIZE = 4096
+                val outWidth: Int
+                val outHeight: Int
+                if (lonSpan >= latSpan) {
+                    outWidth  = MAX_TEXTURE_SIZE
+                    outHeight = (MAX_TEXTURE_SIZE * latSpan / lonSpan).toInt().coerceAtLeast(1)
+                } else {
+                    outHeight = MAX_TEXTURE_SIZE
+                    outWidth  = (MAX_TEXTURE_SIZE * lonSpan / latSpan).toInt().coerceAtLeast(1)
+                }
+
+                val merged = Bitmap.createBitmap(outWidth, outHeight, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(merged)
+
+                for (overlay in overlays) {
+                    val b = overlay.getBoundingBox()
+                    val left   = ((b.lonWest  - west)  / lonSpan * outWidth).toFloat()
+                    val top    = ((north - b.latNorth)  / latSpan * outHeight).toFloat()
+                    val right  = ((b.lonEast  - west)  / lonSpan * outWidth).toFloat()
+                    val bottom = ((north - b.latSouth)  / latSpan * outHeight).toFloat()
+                    canvas.drawBitmap(overlay.mIcon!!, null, RectF(left, top, right, bottom), null)
+                }
+                bitmap = merged
+            }
+
             val file = File(outDir, "ground_overlay.png")
             FileOutputStream(file).use { out ->
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
             }
             Log.d(TAG, "saveGroundOverlay: saved bitmap size=${file.length()}")
-            val bounds = overlay.getBoundingBox()
-            Log.d(TAG, "saveGroundOverlay: bounds N=${bounds.latNorth} S=${bounds.latSouth} E=${bounds.lonEast} W=${bounds.lonWest}")
+
             val boundsJson = GroundOverlayBoundsJson(
-                north = bounds.latNorth,
-                south = bounds.latSouth,
-                east = bounds.lonEast,
-                west = bounds.lonWest,
+                north = north, south = south, east = east, west = west,
             )
             File(outDir, "ground_overlay_bounds.json").writeText(boundsJson.toJson())
             Log.d(TAG, "saveGroundOverlay: saved bounds json")
@@ -217,23 +257,16 @@ class KmlOverlayParser(private val context: Context) {
         }
     }
 
-    private fun findGroundOverlay(feature: KmlFeature?): KmlGroundOverlay? {
-        if (feature == null) return null
-        if (feature is KmlGroundOverlay) {
-            Log.d(TAG, "findGroundOverlay: found at ${feature.javaClass.simpleName}")
-            Log.d(TAG, "findGroundOverlay: mIcon=${feature.mIcon != null} mIconHref=${feature.mIconHref}")
-            Log.d(TAG, "findGroundOverlay: mCoordinates=${feature.mCoordinates}")
-            Log.d(TAG, "findGroundOverlay: mRotation=${feature.mRotation} mColor=0x${feature.mColor.toString(16)}")
-            return feature
-        }
-        if (feature is KmlFolder) {
-            Log.d(TAG, "findGroundOverlay: searching in KmlFolder children=${feature.mItems.size}")
-            for (child in feature.mItems) {
-                val result = findGroundOverlay(child)
-                if (result != null) return result
+    private fun findAllGroundOverlays(feature: KmlFeature?): List<KmlGroundOverlay> {
+        if (feature == null) return emptyList()
+        return when (feature) {
+            is KmlGroundOverlay -> {
+                Log.d(TAG, "findAllGroundOverlays: found overlay mIcon=${feature.mIcon != null} href=${feature.mIconHref} coords=${feature.mCoordinates?.size}")
+                listOf(feature)
             }
+            is KmlFolder -> feature.mItems.flatMap { findAllGroundOverlays(it) }
+            else -> emptyList()
         }
-        return null
     }
 
     private fun logKmlStructure(feature: KmlFeature?, indent: Int) {
