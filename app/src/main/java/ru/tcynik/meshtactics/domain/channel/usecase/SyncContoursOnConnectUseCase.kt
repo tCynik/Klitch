@@ -2,6 +2,7 @@ package ru.tcynik.meshtactics.domain.channel.usecase
 
 import android.util.Log
 import kotlinx.coroutines.flow.first
+import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.isEmergency
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
@@ -19,8 +20,12 @@ class SyncContoursOnConnectUseCase(
         val contours = observeContours(NoParams).first()
         val nodeChannels = observeNodeChannels(NoParams).first()
 
-        // Slot 0 always reserved for Emergency (standard primary channel, open PSK)
-        writeChannel(0, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK)
+        val slot0 = nodeChannels.find { it.index == 0 }
+        val emergencyAlreadySynced = slot0 != null &&
+            ContourHash.compute(slot0.name, slot0.psk) == DefaultContour.CHANNEL_HASH
+        if (!emergencyAlreadySynced) {
+            writeChannel(0, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK)
+        }
 
         val activeNonEmergency = contours.filter { it.isActive && !it.isEmergency }
         for (contour in activeNonEmergency) {

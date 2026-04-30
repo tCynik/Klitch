@@ -16,6 +16,7 @@ import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
+import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import java.util.Base64
@@ -36,6 +37,14 @@ class SyncContoursOnConnectUseCaseTest {
 
     private val psk = byteArrayOf(0x01, 0x02)
     private val pskBase64 = Base64.getEncoder().encodeToString(psk)
+
+    private val emergencyPsk = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
+    private val emergencySlot = NodeChannelSlot(
+        index = 0,
+        name = DefaultContour.CHANNEL_NAME,
+        psk = emergencyPsk,
+        isEnabled = true,
+    )
 
     @Before
     fun setUp() {
@@ -65,8 +74,29 @@ class SyncContoursOnConnectUseCaseTest {
     // ── slot 0 Emergency ──────────────────────────────────────────────────────
 
     @Test
-    fun `always writes Emergency to slot 0`() = runTest {
+    fun `writes Emergency to slot 0 when node channels empty`() = runTest {
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
+
+        useCase()
+
+        verify(exactly = 1) { writeChannel.invoke(0, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK) }
+    }
+
+    @Test
+    fun `skips Emergency write when slot 0 already matches`() = runTest {
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot))
+
+        useCase()
+
+        verify(exactly = 0) { writeChannel.invoke(0, any(), any()) }
+    }
+
+    @Test
+    fun `writes Emergency to slot 0 when slot 0 has different channel`() = runTest {
+        val wrongSlot0 = emergencySlot.copy(name = "SomethingElse")
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(wrongSlot0))
 
         useCase()
 
@@ -94,7 +124,7 @@ class SyncContoursOnConnectUseCaseTest {
 
         useCase()
 
-        // Only the slot 0 Emergency write should happen
+        // Only the slot 0 Emergency write (node channels empty → not synced)
         verify(exactly = 1) { writeChannel.invoke(any(), any(), any()) }
     }
 

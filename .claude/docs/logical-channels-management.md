@@ -9,9 +9,10 @@ User defines **Contours** (name + PSK) in settings. Each Contour has an `isActiv
 controls participation in send/receive. Two special system contours exist:
 
 - **Emergency** (`DefaultContour`) — hardcoded, not in DB. `isActive = false` by default.
-  Slot 0 (standard Meshtastic primary). Cannot be deleted or edited. `isActive` stored in
-  DataStore (not DB). When active: geo send/receive blocked at app and node level.
-- **Default contour** (`DefaultActiveContour`) — seeded into DB on first run. `isActive = true`
+  Slot 0 (standard Meshtastic primary, channel name "LongFast"). Cannot be deleted or edited.
+  `isActive` stored in DataStore (not DB). When active: geo send/receive blocked at app and
+  node level.
+- **Basic** (`DefaultActiveContour`) — seeded into DB on first run. `isActive = true`
   by default. Deletable. Regular DB row.
 
 App finds the matching slot on the connected radio automatically — no manual slot selection.
@@ -127,7 +128,8 @@ Used in: `IngestReceivedGeoMarksUseCase`, `MeshToChatAdapter`.
 
 ```
 on Connected:
-  writeChannel(0, "", "AQ==")             // Emergency always on slot 0
+  if slot 0 hash != DefaultContour.CHANNEL_HASH:
+    writeChannel(0, "LongFast", "AQ==")   // Emergency on slot 0 only when differs
   for each isActive non-emergency contour:
     AlreadySynced → skip
     FreeSlot(N)   → writeChannel(N, name, pskBase64)
