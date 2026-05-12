@@ -106,6 +106,7 @@
 | Channel Sync Validation | `.claude/docs/channel-sync-validation.md` |
 | User Settings Write Mechanics | `.claude/docs/user-settings-write-mechanics.md` |
 | Tile Cache Settings | `.claude/docs/tile-cache-settings.md` |
+| Autonomous Beacon (concept) | `.claude/docs/autonomous-beacon.md` |
 
 ---
 
