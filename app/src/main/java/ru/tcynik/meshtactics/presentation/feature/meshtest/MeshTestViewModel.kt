@@ -97,6 +97,7 @@ class MeshTestViewModel(
     private var scanJob: Job? = null
     private var messagesJob: Job? = null
     private var wasConnected = false
+    private var rebootDisconnectObserved = false
 
     private val myNodeNumFlow = MutableStateFlow<Int?>(null)
 
@@ -106,26 +107,44 @@ class MeshTestViewModel(
 
     init {
         rebootStateRepository.isRebooting
-            .onEach { rebooting -> _uiState.update { it.copy(isRebooting = rebooting) } }
+            .onEach { rebooting ->
+                _uiState.update { state ->
+                    state.copy(
+                        isRebooting = rebooting,
+                        connectionStatus = if (rebooting) {
+                            MeshConnectionStatusUi.Rebooting
+                        } else {
+                            state.connectionStatus
+                        },
+                    )
+                }
+            }
             .launchIn(viewModelScope)
 
         observeConnectionStatus(NoParams).onEach { status ->
             Log.i("MeshTestVM", "DBG connectionStatus flow emitted: $status")
             val isRebooting = rebootStateRepository.isRebooting.value
-            val uiStatus = if (isRebooting && status is MeshConnectionStatus.Disconnected)
-                MeshConnectionStatusUi.Rebooting
-            else
-                status.toUi()
+            if (isRebooting && status !is MeshConnectionStatus.Connected) {
+                rebootDisconnectObserved = true
+            }
+            if (isRebooting && rebootDisconnectObserved && status is MeshConnectionStatus.Connected) {
+                rebootStateRepository.setRebooting(false)
+                rebootDisconnectObserved = false
+            }
+            val uiStatus = if (isRebooting) MeshConnectionStatusUi.Rebooting else status.toUi()
             _uiState.update { state ->
                 state.copy(
                     connectionStatus = uiStatus,
+                    lastConnectedNodeName = when (status) {
+                        is MeshConnectionStatus.Connected -> status.nodeId
+                        else -> state.lastConnectedNodeName
+                    },
                     connectionTab = state.connectionTab.copy(
                         isScanning = status is MeshConnectionStatus.Scanning,
                     ),
                 )
             }
             if (status is MeshConnectionStatus.Connected) {
-                if (isRebooting) rebootStateRepository.setRebooting(false)
                 if (!wasConnected && !isRebooting) {
                     viewModelScope.launch {
                         if (checkContourSync() is NodeSyncResult.NeedsSync) {
@@ -251,8 +270,9 @@ class MeshTestViewModel(
     fun onConfirmChannelSync() {
         _uiState.update { it.copy(showSyncDialog = false) }
         viewModelScope.launch {
-            syncContoursOnConnect()
+            rebootDisconnectObserved = false
             rebootStateRepository.setRebooting(true)
+            syncContoursOnConnect()
             rebootNode()
             syncStateRepository.clear()
         }

@@ -18,4 +18,5 @@ data class MeshTestUiState(
     val geoNodesTab: GeoNodesTabState = GeoNodesTabState(),
     val showSyncDialog: Boolean = false,
     val isRebooting: Boolean = false,
+    val lastConnectedNodeName: String = "",
 )

@@ -34,7 +34,8 @@ On connect and on contour activation, the app compares the node's current config
 | `presentation/feature/main/MainViewModel.kt` | Runs `CheckNodeSyncUseCase` on connect; sets `syncRequired=true` on NeedsSync; HUD slot priority |
 | `presentation/feature/settings/UserSettingsUiState.kt` | `showSyncDialog` |
 | `presentation/feature/settings/UserSettingsViewModel.kt` | Checks sync on `onToggleActive(isActive=true)`; confirm/dismiss handlers |
-| `presentation/feature/meshtest/MeshTestViewModel.kt` | Checks sync on connect; confirm/dismiss handlers |
+| `presentation/feature/meshtest/MeshTestViewModel.kt` | Checks sync on connect; confirm/dismiss handlers; holds reboot UI state until disconnect+reconnect cycle completes |
+| `presentation/feature/meshtest/components/MeshStatusBar.kt` | Shows reboot label in MeshTest status bar |
 
 ## Sync Check Rules (`CheckNodeSyncUseCase`)
 
@@ -55,6 +56,16 @@ On user confirmation:
 ## NodeProvisioningUseCase (silent, no confirmation)
 
 Runs automatically on every connect from `MainViewModel`. Only writes channels — does NOT write owner name (that would trigger auto-reboot without user confirmation). Uses `checkPrecision = false` → skips precision-only rewrites.
+
+## MeshTest Reboot Status Contract
+
+On sync dialog confirmation in `MeshTestScreen`:
+1. `setRebooting(true)` is set immediately before sync write + reboot call
+2. Mesh status bar switches immediately to reboot UI state
+3. Reboot label format: `{nodeName} - Перезагрузка...` (fallback: `Перезагрузка...` if name unavailable)
+4. Reboot state is cleared only after reboot cycle is observed (`disconnect`/non-connected phase, then `connected` again)
+
+This avoids brief status flicker and prevents premature reboot-state reset that can break reconnect flow.
 
 ## HUD Radio Info Slot Priority (Connected state)
 

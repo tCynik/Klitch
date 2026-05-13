@@ -62,6 +62,7 @@ fun MeshTestScreen(
         ) {
             MeshStatusBar(
                 status = state.connectionStatus,
+                rebootingNodeName = state.lastConnectedNodeName,
                 onDisconnectClick = viewModel::onDisconnectClick,
             )
 

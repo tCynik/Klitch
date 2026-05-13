@@ -110,10 +110,21 @@ Sync dialog may appear outside settings (for example on connect or contour activ
 On confirm:
 - apply sync writes (channels + owner if needed)
 - reboot node
+- in MeshTest flow, set reboot UI state immediately before reboot call
 
 On dismiss:
 - set in-memory sync-required flag to true
 - do not auto-clear until successful sync flow or explicit clear path
+
+## MeshTest Status Bar Contract During Reboot
+
+When reboot is initiated from MeshTest sync confirmation:
+- status bar must switch immediately to reboot state (no transient return to connected label)
+- status text format: `{nodeName} - Перезагрузка...`
+- if node name is not available yet, fallback text is `Перезагрузка...`
+- reboot state remains active until reboot cycle completion is observed:
+  - first non-connected status (`Disconnected`/`Scanning`/`Connecting`/`Error`)
+  - then `Connected` again
 
 ## HUD Contract for Connected State
 
