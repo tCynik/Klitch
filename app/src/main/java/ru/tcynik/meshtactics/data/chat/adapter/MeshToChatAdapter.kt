@@ -18,6 +18,7 @@ import ru.tcynik.meshtactics.mesh.common.util.nowMillis
 import ru.tcynik.meshtactics.mesh.model.DataPacket
 import ru.tcynik.meshtactics.mesh.model.Message
 import ru.tcynik.meshtactics.mesh.model.MessageStatus
+import ru.tcynik.meshtactics.mesh.model.Node
 import ru.tcynik.meshtactics.mesh.repository.CommandSender
 import ru.tcynik.meshtactics.mesh.repository.NodeRepository
 import ru.tcynik.meshtactics.mesh.repository.PacketRepository
@@ -48,34 +49,72 @@ class MeshToChatAdapter(
         ) { contacts, settings, contours, slotMaps ->
             Quadruple(contacts, settings, contours, slotMaps)
         }.flatMapLatest { (contacts, settings, contours, slotMaps) ->
-            if (contours.isEmpty()) return@flatMapLatest flowOf(emptyList())
-
-            val unreadFlows = contours.map { contour ->
-                val slot = slotMaps.hashToSlot[contour.transport.meshtastic.channelHash]
-                val contactKey = slot?.let { "${it}${DataPacket.ID_BROADCAST}" }
-                contactKey?.let { packetRepository.getUnreadCountFlow(it) } ?: flowOf(0)
-            }
-            combine(unreadFlows) { unreadCounts ->
-                contours.mapIndexed { index, contour ->
+            combine(nodeRepository.nodeDBbyNum, nodeRepository.myId) { nodesByNum, myId ->
+                Pair(nodesByNum, myId)
+            }.flatMapLatest { (nodesByNum, myId) ->
+                val contourUnreadFlows = contours.map { contour ->
                     val slot = slotMaps.hashToSlot[contour.transport.meshtastic.channelHash]
                     val contactKey = slot?.let { "${it}${DataPacket.ID_BROADCAST}" }
-                    val lastPacket = contactKey?.let { contacts[it] }
-                    val setting = contactKey?.let { settings[it] }
+                    contactKey?.let { packetRepository.getUnreadCountFlow(it) } ?: flowOf(0)
+                }
+                val privateCandidates = buildPrivateCandidates(
+                    contacts = contacts,
+                    nodesByNum = nodesByNum,
+                    myId = myId,
+                )
+                val privateUnreadFlows = privateCandidates.map { candidate ->
+                    candidate.contactKey?.let { packetRepository.getUnreadCountFlow(it) } ?: flowOf(0)
+                }
+                val unreadFlows = contourUnreadFlows + privateUnreadFlows
+                if (unreadFlows.isEmpty()) return@flatMapLatest flowOf(emptyList())
 
-                    ChatContactDto(
-                        id = contour.id.value,
-                        shortName = contour.name,
-                        longName = contour.name,
-                        type = ContactType.CHANNEL,
-                        isFavorite = setting?.isFavorite ?: false,
-                        isPinned = setting?.isPinned ?: false,
-                        isArchived = setting?.isArchived ?: false,
-                        isActive = contour.isActive,
-                        unreadCount = unreadCounts[index],
-                        lastMessageTime = lastPacket?.time?.takeIf { it > 0 },
-                        lastMessagePreview = lastPacket?.text,
-                    )
-                }.sortedByDescending { it.lastMessageTime ?: 0L }
+                combine(unreadFlows) { unreadCounts ->
+                    val contourItems = contours.mapIndexed { index, contour ->
+                        val slot = slotMaps.hashToSlot[contour.transport.meshtastic.channelHash]
+                        val contactKey = slot?.let { "${it}${DataPacket.ID_BROADCAST}" }
+                        val lastPacket = contactKey?.let { contacts[it] }
+                        val setting = contactKey?.let { settings[it] }
+
+                        ChatContactDto(
+                            id = contour.id.value,
+                            shortName = contour.name,
+                            longName = contour.name,
+                            type = ContactType.CHANNEL,
+                            isFavorite = setting?.isFavorite ?: false,
+                            isPinned = setting?.isPinned ?: false,
+                            isArchived = setting?.isArchived ?: false,
+                            isActive = contour.isActive,
+                            unreadCount = unreadCounts[index],
+                            lastMessageTime = lastPacket?.time?.takeIf { it > 0 },
+                            lastMessagePreview = lastPacket?.text,
+                        )
+                    }.sortedByDescending { it.lastMessageTime ?: 0L }
+
+                    val privateBaseIndex = contourItems.size
+                    val privateItems = privateCandidates.mapIndexed { index, candidate ->
+                        val setting = candidate.contactKey?.let { settings[it] }
+                        val lastPacket = candidate.contactKey?.let { contacts[it] }
+                        candidate to ChatContactDto(
+                            id = candidate.id,
+                            shortName = candidate.shortName,
+                            longName = candidate.longName,
+                            type = ContactType.PRIVATE,
+                            isFavorite = setting?.isFavorite ?: false,
+                            isPinned = setting?.isPinned ?: false,
+                            isArchived = setting?.isArchived ?: false,
+                            isActive = true,
+                            unreadCount = unreadCounts[privateBaseIndex + index],
+                            lastMessageTime = lastPacket?.time?.takeIf { it > 0 },
+                            lastMessagePreview = lastPacket?.text,
+                        )
+                    }.sortedWith(
+                        compareByDescending<Pair<PrivateNodeCandidate, ChatContactDto>> { it.first.isOnline }
+                            .thenByDescending { it.second.lastMessageTime ?: 0L }
+                            .thenBy { it.second.longName.lowercase() }
+                    ).map { it.second }
+
+                    contourItems + privateItems
+                }
             }
         }
 
@@ -213,3 +252,55 @@ private data class Quadruple<A, B, C, D>(
     val third: C,
     val fourth: D,
 )
+
+private data class PrivateNodeCandidate(
+    val id: String,
+    val contactKey: String?,
+    val shortName: String,
+    val longName: String,
+    val isOnline: Boolean,
+)
+
+private fun buildPrivateCandidates(
+    contacts: Map<String, DataPacket>,
+    nodesByNum: Map<Int, Node>,
+    myId: String?,
+): List<PrivateNodeCandidate> {
+    val historyPrivateEntries = contacts.entries
+        .filter { (_, packet) -> packet.to != DataPacket.ID_BROADCAST }
+        .mapNotNull { (contactKey, _) ->
+            val nodeId = contactKey.dropWhile { it.isDigit() }
+            if (!nodeId.startsWith("!")) return@mapNotNull null
+            PrivateNodeCandidate(
+                id = contactKey,
+                contactKey = contactKey,
+                shortName = "",
+                longName = "",
+                isOnline = false,
+            )
+        }
+        .associateBy { it.id.dropWhile { it.isDigit() } }
+
+    val onlineNodes = nodesByNum.values
+        .filter { node ->
+            val nodeId = node.user.id
+            nodeId.startsWith("!") && nodeId != myId && node.isOnline
+        }
+        .associateBy { it.user.id }
+
+    val allNodeIds = (historyPrivateEntries.keys + onlineNodes.keys).toSet()
+    return allNodeIds.mapNotNull { nodeId ->
+        val history = historyPrivateEntries[nodeId]
+        val node = onlineNodes[nodeId] ?: nodesByNum.values.firstOrNull { it.user.id == nodeId }
+        val shortName = node?.user?.short_name?.ifBlank { nodeId } ?: nodeId
+        val longName = node?.user?.long_name?.ifBlank { shortName } ?: shortName
+        val id = history?.id ?: nodeId
+        PrivateNodeCandidate(
+            id = id,
+            contactKey = history?.contactKey,
+            shortName = shortName,
+            longName = longName,
+            isOnline = node?.isOnline ?: false,
+        )
+    }
+}

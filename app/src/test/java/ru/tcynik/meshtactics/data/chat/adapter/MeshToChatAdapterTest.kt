@@ -18,9 +18,11 @@ import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.mesh.model.DataPacket
+import ru.tcynik.meshtactics.mesh.model.Node
 import ru.tcynik.meshtactics.mesh.repository.CommandSender
 import ru.tcynik.meshtactics.mesh.repository.NodeRepository
 import ru.tcynik.meshtactics.mesh.repository.PacketRepository
+import org.meshtastic.proto.User
 
 class MeshToChatAdapterTest {
 
@@ -72,6 +74,8 @@ class MeshToChatAdapterTest {
         every { channelRepository.observeContours() } returns flowOf(contours)
         every { channelSlotResolver.mapsFlow } returns MutableStateFlow(maps)
         every { packetRepository.getUnreadCountFlow(channelContactKey) } returns flowOf(0)
+        every { nodeRepository.nodeDBbyNum } returns MutableStateFlow(emptyMap())
+        every { nodeRepository.myId } returns MutableStateFlow("!me")
     }
 
     // ── isActive propagation: CHANNEL ─────────────────────────────────────────
@@ -135,6 +139,42 @@ class MeshToChatAdapterTest {
         adapter.observeContactsAsFlow().test {
             val contacts = awaitItem()
             assertEquals("TestChannel", contacts.first().shortName)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `online node without history appears as private contact`() = runTest {
+        val onlineNode = Node(
+            num = 100,
+            user = User(id = "!abc123", short_name = "A1", long_name = "Alpha"),
+            lastHeard = Int.MAX_VALUE,
+        )
+        setupContours(contours = listOf(makeContour(isActive = true)))
+        every { nodeRepository.nodeDBbyNum } returns MutableStateFlow(mapOf(100 to onlineNode))
+
+        adapter.observeContactsAsFlow().test {
+            val contacts = awaitItem()
+            val privateContact = contacts.firstOrNull { it.type == ru.tcynik.meshtactics.domain.chat.model.ContactType.PRIVATE }
+            assertEquals("!abc123", privateContact?.id)
+            assertEquals("A1", privateContact?.shortName)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `offline node without history is not shown`() = runTest {
+        val offlineNode = Node(
+            num = 101,
+            user = User(id = "!off001", short_name = "OFF", long_name = "Offline"),
+            lastHeard = 0,
+        )
+        setupContours(contours = listOf(makeContour(isActive = true)))
+        every { nodeRepository.nodeDBbyNum } returns MutableStateFlow(mapOf(101 to offlineNode))
+
+        adapter.observeContactsAsFlow().test {
+            val contacts = awaitItem()
+            assertTrue(contacts.none { it.id == "!off001" })
             cancelAndIgnoreRemainingEvents()
         }
     }
