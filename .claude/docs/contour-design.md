@@ -64,7 +64,7 @@ Emergency контур (`"Emergency"`, slot 0, open PSK) полностью оп
 
 ## Default контур — обычный deletable контур
 
-`DefaultActiveContour` ("Default contour") — seeded при первом запуске, но ничем не
+`DefaultActiveContour` ("Basic") — seeded при первом запуске, но ничем не
 отличается от пользовательских контуров. Может быть удалён. После удаления не
 восстанавливается автоматически.
 

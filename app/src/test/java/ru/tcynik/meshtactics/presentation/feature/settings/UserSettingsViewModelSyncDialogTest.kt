@@ -24,12 +24,12 @@ import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.Contour
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.ContourId
-import ru.tcynik.meshtactics.domain.channel.model.ContourSyncResult
+import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
-import ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.DeleteContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
@@ -77,7 +77,7 @@ class UserSettingsViewModelSyncDialogTest {
     private val observeEmergencyMode: ObserveEmergencyModeUseCase = mockk()
     private val triggerEmergency: TriggerEmergencyUseCase = mockk(relaxed = true)
     private val cancelEmergency: CancelEmergencyUseCase = mockk(relaxed = true)
-    private val checkContourSync: CheckContourSyncUseCase = mockk()
+    private val checkContourSync: CheckNodeSyncUseCase = mockk()
     private val syncStateRepository: ContourSyncStateRepository = mockk(relaxed = true)
     private val rebootNode: RebootNodeUseCase = mockk(relaxed = true)
     private val rebootStateRepository: RebootStateRepository = mockk(relaxed = true)
@@ -172,7 +172,7 @@ class UserSettingsViewModelSyncDialogTest {
         val contour = makeContour("Alpha", byteArrayOf(0x01), isActive = false)
         contoursFlow.value = listOf(contour)
         connectionStatusFlow.value = connectedStatus
-        coEvery { checkContourSync.invoke() } returns ContourSyncResult.NeedsSync
+        coEvery { checkContourSync.invoke() } returns NodeSyncResult.NeedsSync
 
         viewModel.onToggleActive(contour.id, true)
         runCurrent()
@@ -185,7 +185,7 @@ class UserSettingsViewModelSyncDialogTest {
         val contour = makeContour("Alpha", byteArrayOf(0x01), isActive = false)
         contoursFlow.value = listOf(contour)
         connectionStatusFlow.value = connectedStatus
-        coEvery { checkContourSync.invoke() } returns ContourSyncResult.InSync
+        coEvery { checkContourSync.invoke() } returns NodeSyncResult.InSync
 
         viewModel.onToggleActive(contour.id, true)
         runCurrent()
@@ -225,7 +225,7 @@ class UserSettingsViewModelSyncDialogTest {
         val contour = makeContour("Alpha", byteArrayOf(0x01), isActive = false)
         contoursFlow.value = listOf(contour)
         connectionStatusFlow.value = connectedStatus
-        coEvery { checkContourSync.invoke() } returns ContourSyncResult.NeedsSync
+        coEvery { checkContourSync.invoke() } returns NodeSyncResult.NeedsSync
         viewModel.onToggleActive(contour.id, true)
         runCurrent()
         assertTrue(viewModel.uiState.value.showSyncDialog)
@@ -260,7 +260,7 @@ class UserSettingsViewModelSyncDialogTest {
         val contour = makeContour("Alpha", byteArrayOf(0x01), isActive = false)
         contoursFlow.value = listOf(contour)
         connectionStatusFlow.value = connectedStatus
-        coEvery { checkContourSync.invoke() } returns ContourSyncResult.NeedsSync
+        coEvery { checkContourSync.invoke() } returns NodeSyncResult.NeedsSync
         viewModel.onToggleActive(contour.id, true)
         runCurrent()
         assertTrue(viewModel.uiState.value.showSyncDialog)

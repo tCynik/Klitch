@@ -21,6 +21,7 @@ import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MeshConnectionS
 @Composable
 fun MeshStatusBar(
     status: MeshConnectionStatusUi,
+    rebootingNodeName: String,
     onDisconnectClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -38,7 +39,7 @@ fun MeshStatusBar(
             StatusDot(status = status)
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = statusLabel(status),
+                text = statusLabel(status, rebootingNodeName),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f),
             )
@@ -93,10 +94,12 @@ private fun StatusDot(status: MeshConnectionStatusUi) {
     }
 }
 
-private fun statusLabel(status: MeshConnectionStatusUi): String = when (status) {
+private fun statusLabel(status: MeshConnectionStatusUi, rebootingNodeName: String): String = when (status) {
     is MeshConnectionStatusUi.Disconnected -> "Not connected"
     is MeshConnectionStatusUi.Scanning -> "Scanning..."
-    is MeshConnectionStatusUi.Rebooting -> "Перезагрузка..."
+    is MeshConnectionStatusUi.Rebooting ->
+        if (rebootingNodeName.isNotBlank()) "$rebootingNodeName - Перезагрузка..."
+        else "Перезагрузка..."
     is MeshConnectionStatusUi.Connecting -> "Connecting to ${status.deviceName}..."
     is MeshConnectionStatusUi.Connected -> status.nodeId
     is MeshConnectionStatusUi.Error -> "Error: ${status.message}"

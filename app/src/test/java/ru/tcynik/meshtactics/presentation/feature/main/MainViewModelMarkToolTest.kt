@@ -1,9 +1,11 @@
 package ru.tcynik.meshtactics.presentation.feature.main
 
 import app.cash.turbine.test
+import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
@@ -22,7 +24,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
-import ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
@@ -81,6 +83,7 @@ class MainViewModelMarkToolTest {
     private val ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase = mockk()
     private val observeLogicalChannels: ObserveContoursUseCase = mockk()
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
+    private val checkNodeSync: CheckNodeSyncUseCase = mockk(relaxed = true)
     private val syncStateRepository: ContourSyncStateRepository = mockk(relaxed = true)
     private val rebootStateRepository: RebootStateRepository = mockk(relaxed = true)
 
@@ -107,6 +110,8 @@ class MainViewModelMarkToolTest {
         every { observeLogicalChannels.invoke(any()) } returns flowOf(emptyList())
         every { observeNodeChannels.invoke(any()) } returns flowOf(emptyList())
         every { syncStateRepository.syncRequired } returns MutableStateFlow(false)
+        every { rebootStateRepository.isRebooting } returns MutableStateFlow(false)
+        coEvery { checkNodeSync.invoke() } returns NodeSyncResult.InSync
         viewModel = MainViewModel(
             getTileUrl = getTileUrl,
             getLastPosition = getLastPosition,
@@ -122,6 +127,7 @@ class MainViewModelMarkToolTest {
             connectToDevice = connectToDevice,
             getLastConnectedDevice = getLastConnectedDevice,
             nodeProvisioning = nodeProvisioning,
+            checkNodeSync = checkNodeSync,
             observeGeoMarks = observeGeoMarks,
             sendGeoMark = sendGeoMark,
             ingestReceivedGeoMarks = ingestReceivedGeoMarks,

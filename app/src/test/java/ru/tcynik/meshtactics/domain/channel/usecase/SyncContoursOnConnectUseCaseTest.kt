@@ -16,7 +16,12 @@ import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
+import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
+import ru.tcynik.meshtactics.domain.user.model.AppUser
+import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import java.util.Base64
 
@@ -26,22 +31,38 @@ class SyncContoursOnConnectUseCaseTest {
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
     private val writeChannel: WriteChannelUseCase = mockk(relaxed = true)
     private val resolveSlot: ResolveChannelSlotUseCase = mockk()
+    private val writeOwner: WriteOwnerUseCase = mockk(relaxed = true)
+    private val observeAppUser: ObserveAppUserUseCase = mockk()
+    private val observeDeviceConfig: ObserveDeviceConfigUseCase = mockk()
 
     private val useCase = SyncContoursOnConnectUseCase(
         observeContours = observeContours,
         observeNodeChannels = observeNodeChannels,
         writeChannel = writeChannel,
         resolveSlot = resolveSlot,
+        writeOwner = writeOwner,
+        observeAppUser = observeAppUser,
+        observeDeviceConfig = observeDeviceConfig,
     )
 
     private val psk = byteArrayOf(0x01, 0x02)
     private val pskBase64 = Base64.getEncoder().encodeToString(psk)
 
+    private val emergencyPsk = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
+    private val emergencySlot = NodeChannelSlot(
+        index = 0,
+        name = DefaultContour.CHANNEL_NAME,
+        psk = emergencyPsk,
+        isEnabled = true,
+    )
+
     @Before
     fun setUp() {
         mockkStatic(android.util.Log::class)
+        every { android.util.Log.d(any(), any<String>()) } returns 0
         every { android.util.Log.w(any(), any<String>()) } returns 0
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(emptyList())
+        every { observeAppUser.invoke(any<NoParams>()) } returns flowOf(AppUser(displayName = ""))
     }
 
     @After
@@ -65,8 +86,29 @@ class SyncContoursOnConnectUseCaseTest {
     // ── slot 0 Emergency ──────────────────────────────────────────────────────
 
     @Test
-    fun `always writes Emergency to slot 0`() = runTest {
+    fun `writes Emergency to slot 0 when node channels empty`() = runTest {
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
+
+        useCase()
+
+        verify(exactly = 1) { writeChannel.invoke(0, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK) }
+    }
+
+    @Test
+    fun `skips Emergency write when slot 0 already matches`() = runTest {
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot))
+
+        useCase()
+
+        verify(exactly = 0) { writeChannel.invoke(0, any(), any()) }
+    }
+
+    @Test
+    fun `writes Emergency to slot 0 when slot 0 has different channel`() = runTest {
+        val wrongSlot0 = emergencySlot.copy(name = "SomethingElse")
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(wrongSlot0))
 
         useCase()
 
@@ -79,7 +121,7 @@ class SyncContoursOnConnectUseCaseTest {
     fun `active non-emergency contour on FreeSlot — writeChannel called with correct slot and psk`() = runTest {
         val contour = makeContour("99", "Bravo")
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(contour))
-        every { resolveSlot.invoke(contour, any()) } returns SlotResolution.FreeSlot(2)
+        every { resolveSlot.invoke(contour, any(), any(), any()) } returns SlotResolution.FreeSlot(2)
 
         useCase()
 
@@ -90,11 +132,11 @@ class SyncContoursOnConnectUseCaseTest {
     fun `active non-emergency contour AlreadySynced — no extra writeChannel call`() = runTest {
         val contour = makeContour("99", "Bravo")
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(contour))
-        every { resolveSlot.invoke(contour, any()) } returns SlotResolution.AlreadySynced(3)
+        every { resolveSlot.invoke(contour, any(), any(), any()) } returns SlotResolution.AlreadySynced(3)
 
         useCase()
 
-        // Only the slot 0 Emergency write should happen
+        // Only the slot 0 Emergency write (node channels empty → not synced)
         verify(exactly = 1) { writeChannel.invoke(any(), any(), any()) }
     }
 
@@ -115,7 +157,7 @@ class SyncContoursOnConnectUseCaseTest {
     fun `no free slots — logs warning, does not crash`() = runTest {
         val contour = makeContour("99", "Bravo")
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(contour))
-        every { resolveSlot.invoke(contour, any()) } returns SlotResolution.NoFreeSlot
+        every { resolveSlot.invoke(contour, any(), any(), any()) } returns SlotResolution.NoFreeSlot
 
         useCase()
 

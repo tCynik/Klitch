@@ -1,7 +1,6 @@
 package ru.tcynik.meshtactics.presentation.feature.settings
 
 import android.util.Base64
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -34,8 +33,8 @@ import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SaveContourUseCase
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
-import ru.tcynik.meshtactics.domain.channel.model.ContourSyncResult
-import ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCase
+import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
+import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SlotResolution
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
@@ -61,8 +60,6 @@ import ru.tcynik.meshtactics.presentation.feature.settings.models.ContourItem
 import ru.tcynik.meshtactics.presentation.feature.settings.models.NodeWriteEvent
 import java.util.UUID
 
-private const val TAG = "UserSettingsVM"
-
 class UserSettingsViewModel(
     private val observeAppUser: ObserveAppUserUseCase,
     private val saveAppUser: SaveAppUserUseCase,
@@ -81,7 +78,7 @@ class UserSettingsViewModel(
     private val observeEmergencyMode: ObserveEmergencyModeUseCase,
     private val triggerEmergency: TriggerEmergencyUseCase,
     private val cancelEmergency: CancelEmergencyUseCase,
-    private val checkContourSync: CheckContourSyncUseCase,
+    private val checkContourSync: CheckNodeSyncUseCase,
     private val syncStateRepository: ContourSyncStateRepository,
     private val rebootNode: RebootNodeUseCase,
     private val rebootStateRepository: RebootStateRepository,
@@ -150,10 +147,8 @@ class UserSettingsViewModel(
             }
 
             val justConnected = initialized && !wasConnected && status is MeshConnectionStatus.Connected
-            Log.d(TAG, "combine emit: initialized=$initialized wasConnected=$wasConnected status=${status::class.simpleName} justConnected=$justConnected")
             initialized = true
             if (justConnected) {
-                Log.d(TAG, "onConnected() triggered — real connection transition")
                 onConnected(contours)
             }
         }.launchIn(viewModelScope)
@@ -163,12 +158,9 @@ class UserSettingsViewModel(
         viewModelScope.launch {
             val emergencyActive = contours.find { it.isEmergency }?.isActive ?: false
             val broadcastEnabled = observeGpsBroadcastEnabled().first()
-            Log.d(TAG, "onConnected: emergencyActive=$emergencyActive broadcastEnabled=$broadcastEnabled")
             if (emergencyActive || !broadcastEnabled) {
-                Log.d(TAG, "onConnected → disableNodePositionBroadcast()")
                 disableNodePositionBroadcast()
             } else {
-                Log.d(TAG, "onConnected → enableNodePositionBroadcastReady()")
                 enableNodePositionBroadcastReady()
             }
         }
@@ -227,7 +219,7 @@ class UserSettingsViewModel(
         viewModelScope.launch {
             setContourActive(id, isActive)
             if (isActive && connectionStatus is MeshConnectionStatus.Connected) {
-                if (checkContourSync() is ContourSyncResult.NeedsSync) {
+                if (checkContourSync() is NodeSyncResult.NeedsSync) {
                     _uiState.update { it.copy(showSyncDialog = true) }
                 }
             }

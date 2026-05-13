@@ -216,16 +216,12 @@ fun UserTabContent(
                         emergencyMode = state.emergencyMode,
                         isNodeConnected = state.isNodeConnected,
                         onSosClick = viewModel::onSosClick,
-                        onPushToNode = { viewModel.onPushToNode(contour.id) },
-                        onDeleteFromNode = { viewModel.onDeleteFromNode(contour.id) },
                     )
                 } else {
                     ContourCard(
                         item = contour,
                         onEdit = { viewModel.onEditContourClick(contour.id) },
                         onDelete = { viewModel.onDeleteContourRequest(contour.id) },
-                        onPushToNode = { viewModel.onPushToNode(contour.id) },
-                        onDeleteFromNode = { viewModel.onDeleteFromNode(contour.id) },
                         onToggleActive = { enabled -> viewModel.onToggleActive(contour.id, enabled) },
                     )
                 }
@@ -254,8 +250,6 @@ private fun ContourCard(
     item: ContourItem,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onPushToNode: () -> Unit,
-    onDeleteFromNode: () -> Unit,
     onToggleActive: (Boolean) -> Unit,
 ) {
     var showDropdown by remember { mutableStateOf(false) }
@@ -296,16 +290,6 @@ private fun ContourCard(
                 expanded = showDropdown,
                 onDismissRequest = { showDropdown = false },
             ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.user_channel_push_to_node)) },
-                    onClick = { showDropdown = false; onPushToNode() },
-                )
-                if (item.syncStatus is ChannelSyncStatus.OnNode && item.syncStatus.slot != 0) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.user_channel_delete_from_node)) },
-                        onClick = { showDropdown = false; onDeleteFromNode() },
-                    )
-                }
                 if (!item.isEmergency) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.user_channel_edit)) },
@@ -440,12 +424,8 @@ private fun EmergencyContourCard(
     emergencyMode: Boolean,
     isNodeConnected: Boolean,
     onSosClick: () -> Unit,
-    onPushToNode: () -> Unit,
-    onDeleteFromNode: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var showDropdown by remember { mutableStateOf(false) }
-
     val cardColors = if (emergencyMode) {
         CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
     } else {
@@ -500,23 +480,12 @@ private fun EmergencyContourCard(
                     )
                 }
             }
-            IconButton(onClick = { showDropdown = true }) {
-                Icon(Icons.Default.MoreVert, contentDescription = null)
-            }
-            DropdownMenu(
-                expanded = showDropdown,
-                onDismissRequest = { showDropdown = false },
+            IconButton(
+                onClick = {
+                    // TODO(contour): emergency contour menu actions are not implemented yet.
+                },
             ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.user_channel_push_to_node)) },
-                    onClick = { showDropdown = false; onPushToNode() },
-                )
-                if (item.syncStatus is ChannelSyncStatus.OnNode && item.syncStatus.slot != 0) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.user_channel_delete_from_node)) },
-                        onClick = { showDropdown = false; onDeleteFromNode() },
-                    )
-                }
+                Icon(Icons.Default.MoreVert, contentDescription = null)
             }
         }
     }
