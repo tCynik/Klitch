@@ -18,6 +18,10 @@ import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
+import ru.tcynik.meshtactics.domain.mesh.model.MeshDeviceConfigModel
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
+import ru.tcynik.meshtactics.domain.user.model.AppUser
+import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import java.util.Base64
 import java.util.UUID
@@ -26,10 +30,14 @@ class CheckContourSyncUseCaseTest {
 
     private val observeContours: ObserveContoursUseCase = mockk()
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
+    private val observeAppUser: ObserveAppUserUseCase = mockk()
+    private val observeDeviceConfig: ObserveDeviceConfigUseCase = mockk()
 
     private val useCase = CheckContourSyncUseCase(
         observeContours = observeContours,
         observeNodeChannels = observeNodeChannels,
+        observeAppUser = observeAppUser,
+        observeDeviceConfig = observeDeviceConfig,
     )
 
     @Before
@@ -37,6 +45,7 @@ class CheckContourSyncUseCaseTest {
         mockkStatic(android.util.Log::class)
         every { android.util.Log.d(any(), any<String>()) } returns 0
         every { android.util.Log.w(any(), any<String>()) } returns 0
+        every { observeAppUser.invoke(any<NoParams>()) } returns flowOf(AppUser(displayName = ""))
     }
 
     @After
@@ -164,5 +173,37 @@ class CheckContourSyncUseCaseTest {
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot, noPrecisionSlot))
 
         assertEquals(ContourSyncResult.NeedsSync, useCase())
+    }
+
+    @Test
+    fun `NeedsSync — позывной приложения не совпадает с именем на ноде`() = runTest {
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot))
+        every { observeAppUser.invoke(any<NoParams>()) } returns flowOf(AppUser(displayName = "NewCallsign"))
+        every { observeDeviceConfig.invoke(any<NoParams>()) } returns flowOf(
+            MeshDeviceConfigModel(longName = "OldCallsign", shortName = "OLD", loraPreset = "", txPowerDbm = "", region = "", channels = emptyList())
+        )
+
+        assertEquals(ContourSyncResult.NeedsSync, useCase())
+    }
+
+    @Test
+    fun `InSync — позывной приложения совпадает с именем на ноде`() = runTest {
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot))
+        every { observeAppUser.invoke(any<NoParams>()) } returns flowOf(AppUser(displayName = "SameCallsign"))
+        every { observeDeviceConfig.invoke(any<NoParams>()) } returns flowOf(
+            MeshDeviceConfigModel(longName = "SameCallsign", shortName = "SC", loraPreset = "", txPowerDbm = "", region = "", channels = emptyList())
+        )
+
+        assertEquals(ContourSyncResult.InSync, useCase())
+    }
+
+    @Test
+    fun `InSync — displayName пустой, owner check пропускается`() = runTest {
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot))
+
+        assertEquals(ContourSyncResult.InSync, useCase())
     }
 }

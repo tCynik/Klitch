@@ -17,7 +17,11 @@ import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
+import ru.tcynik.meshtactics.domain.user.model.AppUser
+import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import java.util.Base64
 
@@ -27,12 +31,18 @@ class SyncContoursOnConnectUseCaseTest {
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
     private val writeChannel: WriteChannelUseCase = mockk(relaxed = true)
     private val resolveSlot: ResolveChannelSlotUseCase = mockk()
+    private val writeOwner: WriteOwnerUseCase = mockk(relaxed = true)
+    private val observeAppUser: ObserveAppUserUseCase = mockk()
+    private val observeDeviceConfig: ObserveDeviceConfigUseCase = mockk()
 
     private val useCase = SyncContoursOnConnectUseCase(
         observeContours = observeContours,
         observeNodeChannels = observeNodeChannels,
         writeChannel = writeChannel,
         resolveSlot = resolveSlot,
+        writeOwner = writeOwner,
+        observeAppUser = observeAppUser,
+        observeDeviceConfig = observeDeviceConfig,
     )
 
     private val psk = byteArrayOf(0x01, 0x02)
@@ -49,8 +59,10 @@ class SyncContoursOnConnectUseCaseTest {
     @Before
     fun setUp() {
         mockkStatic(android.util.Log::class)
+        every { android.util.Log.d(any(), any<String>()) } returns 0
         every { android.util.Log.w(any(), any<String>()) } returns 0
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(emptyList())
+        every { observeAppUser.invoke(any<NoParams>()) } returns flowOf(AppUser(displayName = ""))
     }
 
     @After

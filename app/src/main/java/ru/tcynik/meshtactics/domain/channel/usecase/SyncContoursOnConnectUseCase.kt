@@ -2,10 +2,14 @@ package ru.tcynik.meshtactics.domain.channel.usecase
 
 import android.util.Log
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.isEmergency
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
+import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 
 private const val TAG = "SyncContoursOnConnect"
@@ -15,6 +19,9 @@ class SyncContoursOnConnectUseCase(
     private val observeNodeChannels: ObserveNodeChannelsUseCase,
     private val writeChannel: WriteChannelUseCase,
     private val resolveSlot: ResolveChannelSlotUseCase,
+    private val writeOwner: WriteOwnerUseCase,
+    private val observeAppUser: ObserveAppUserUseCase,
+    private val observeDeviceConfig: ObserveDeviceConfigUseCase,
 ) {
     suspend operator fun invoke() {
         val contours = observeContours(NoParams).first()
@@ -41,6 +48,17 @@ class SyncContoursOnConnectUseCase(
                     // TODO(contour): обработать отсутствие свободных слотов (UI уведомление)
                     return
                 }
+            }
+        }
+
+        val user = observeAppUser(NoParams).first()
+        if (user.displayName.isNotBlank()) {
+            val deviceConfig = withTimeoutOrNull(5_000) {
+                observeDeviceConfig(NoParams).first { it != null }
+            }
+            if (deviceConfig?.longName != user.displayName) {
+                Log.d(TAG, "writeOwner longName='${user.displayName}'")
+                writeOwner(user.displayName, deviceConfig?.shortName ?: "")
             }
         }
     }

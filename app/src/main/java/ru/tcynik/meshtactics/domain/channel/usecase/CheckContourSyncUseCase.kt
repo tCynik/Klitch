@@ -2,10 +2,13 @@ package ru.tcynik.meshtactics.domain.channel.usecase
 
 import android.util.Log
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.ContourSyncResult
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.isEmergency
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
+import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 
 private const val TAG = "CheckContourSync"
@@ -13,6 +16,8 @@ private const val TAG = "CheckContourSync"
 class CheckContourSyncUseCase(
     private val observeContours: ObserveContoursUseCase,
     private val observeNodeChannels: ObserveNodeChannelsUseCase,
+    private val observeAppUser: ObserveAppUserUseCase,
+    private val observeDeviceConfig: ObserveDeviceConfigUseCase,
 ) {
     suspend operator fun invoke(): ContourSyncResult {
         val contours = observeContours(NoParams).first()
@@ -54,6 +59,17 @@ class CheckContourSyncUseCase(
                     val pskHex = slot.psk.joinToString("") { "%02x".format(it) }
                     Log.w(TAG, "    [${slot.index}] name='${slot.name}' enabled=${slot.isEnabled} hash=$slotHash psk=$pskHex")
                 }
+                return ContourSyncResult.NeedsSync
+            }
+        }
+
+        val user = observeAppUser(NoParams).first()
+        if (user.displayName.isNotBlank()) {
+            val deviceConfig = withTimeoutOrNull(5_000) {
+                observeDeviceConfig(NoParams).first { it != null }
+            }
+            if (deviceConfig != null && deviceConfig.longName != user.displayName) {
+                Log.w(TAG, "NeedsSync: owner name mismatch — node='${deviceConfig.longName}' app='${user.displayName}'")
                 return ContourSyncResult.NeedsSync
             }
         }

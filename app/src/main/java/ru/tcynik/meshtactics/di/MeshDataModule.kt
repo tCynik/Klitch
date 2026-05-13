@@ -142,10 +142,7 @@ val meshDataModule = module {
     single {
         NodeProvisioningUseCase(
             observeContours = get<ObserveContoursUseCase>(),
-            observeAppUser = get(),
-            observeDeviceConfig = get(),
             writeChannel = get(),
-            writeOwner = get(),
             observeNodeChannels = get<ObserveNodeChannelsUseCase>(),
             resolveSlot = get<ResolveChannelSlotUseCase>(),
         )
