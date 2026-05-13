@@ -39,6 +39,8 @@ import ru.tcynik.meshtactics.domain.chat.usecase.ObserveTotalUnreadChatCountUseC
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceParams
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
+import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
+import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
@@ -102,6 +104,7 @@ class MainViewModel(
     ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase,
     observeLogicalChannels: ObserveContoursUseCase,
     observeNodeChannels: ObserveNodeChannelsUseCase,
+    private val checkNodeSync: CheckNodeSyncUseCase,
     private val syncStateRepository: ContourSyncStateRepository,
     private val rebootStateRepository: RebootStateRepository,
 ) : ViewModel() {
@@ -159,6 +162,10 @@ class MainViewModel(
                     if (!wasConnected) {
                         if (rebootStateRepository.isRebooting.value) rebootStateRepository.setRebooting(false)
                         viewModelScope.launch { nodeProvisioning.provision() }
+                        viewModelScope.launch {
+                            if (checkNodeSync() is NodeSyncResult.NeedsSync)
+                                syncStateRepository.setSyncRequired(true)
+                        }
                         _uiState.update { it.copy(showConnectionLabel = true) }
                         connectedLabelJob?.cancel()
                         connectedLabelJob = viewModelScope.launch {

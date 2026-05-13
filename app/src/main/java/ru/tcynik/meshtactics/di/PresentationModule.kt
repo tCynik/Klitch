@@ -60,6 +60,7 @@ val presentationModule = module {
             connectToDevice = get<ConnectToMeshDeviceUseCase>(),
             getLastConnectedDevice = get<GetLastConnectedDeviceUseCase>(),
             nodeProvisioning = get<NodeProvisioningUseCase>(),
+            checkNodeSync = get<CheckNodeSyncUseCase>(),
             observeGeoMarks = get(),
             sendGeoMark = get(),
             ingestReceivedGeoMarks = get<IngestReceivedGeoMarksUseCase>(),
