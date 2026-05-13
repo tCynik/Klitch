@@ -173,8 +173,18 @@ class MeshToChatAdapter(
         if (contactId.contains('!') || contactId.contains('^')) {
             val parsedChannel = contactId[0].digitToIntOrNull()
             val dest = if (parsedChannel != null) contactId.substring(1) else contactId
-            val resolvedChannel = parsedChannel ?: channel
-            val dbContactKey = if (parsedChannel != null) contactId else "$resolvedChannel$contactId"
+            val resolvedChannel = if (dest.startsWith("!")) {
+                val liveNodeChannel = runCatching { nodeRepository.getNode(dest).channel }.getOrNull()
+                when {
+                    parsedChannel == DataPacket.PKC_CHANNEL_INDEX -> DataPacket.PKC_CHANNEL_INDEX
+                    liveNodeChannel != null && liveNodeChannel in 0..7 -> liveNodeChannel
+                    parsedChannel != null -> parsedChannel
+                    else -> channel
+                }
+            } else {
+                parsedChannel ?: channel
+            }
+            val dbContactKey = "$resolvedChannel$dest"
             doSend(text, dest, resolvedChannel, dbContactKey)
         } else {
             val contours = channelRepository.observeContours().first()
@@ -294,7 +304,7 @@ private fun buildPrivateCandidates(
         val node = onlineNodes[nodeId] ?: nodesByNum.values.firstOrNull { it.user.id == nodeId }
         val shortName = node?.user?.short_name?.ifBlank { nodeId } ?: nodeId
         val longName = node?.user?.long_name?.ifBlank { shortName } ?: shortName
-        val fallbackContactKey = node?.let { "${it.channel}${nodeId}" } ?: "0$nodeId"
+        val fallbackContactKey = "0$nodeId"
         val resolvedContactKey = history?.contactKey ?: fallbackContactKey
         PrivateNodeCandidate(
             id = resolvedContactKey,

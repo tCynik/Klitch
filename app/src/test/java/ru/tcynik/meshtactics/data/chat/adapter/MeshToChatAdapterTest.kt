@@ -153,16 +153,15 @@ class MeshToChatAdapterTest {
             num = 100,
             user = User(id = "!abc123", short_name = "A1", long_name = "Alpha"),
             lastHeard = Int.MAX_VALUE,
-            channel = 3,
         )
         setupContours(contours = listOf(makeContour(isActive = true)))
         every { nodeRepository.nodeDBbyNum } returns MutableStateFlow(mapOf(100 to onlineNode))
-        every { packetRepository.getUnreadCountFlow("3!abc123") } returns flowOf(0)
+        every { packetRepository.getUnreadCountFlow("0!abc123") } returns flowOf(0)
 
         adapter.observeContactsAsFlow().test {
             val contacts = awaitItem()
             val privateContact = contacts.firstOrNull { it.type == ru.tcynik.meshtactics.domain.chat.model.ContactType.PRIVATE }
-            assertEquals("3!abc123", privateContact?.id)
+            assertEquals("0!abc123", privateContact?.id)
             assertEquals("A1", privateContact?.shortName)
             cancelAndIgnoreRemainingEvents()
         }
@@ -190,6 +189,11 @@ class MeshToChatAdapterTest {
         val packetSlot = slot<DataPacket>()
         every { commandSender.sendData(capture(packetSlot)) } returns Unit
         every { nodeRepository.ourNodeInfo } returns MutableStateFlow(Node(num = 77))
+        every { nodeRepository.getNode("!abc123") } returns Node(
+            num = 100,
+            user = User(id = "!abc123"),
+            channel = 3,
+        )
         coEvery {
             packetRepository.savePacket(
                 myNodeNum = any(),
@@ -203,8 +207,8 @@ class MeshToChatAdapterTest {
 
         adapter.sendMessage(
             text = "ping",
-            contactId = "3!abc123",
-            channel = 0,
+            contactId = "0!abc123",
+            channel = 7,
         )
 
         verify(exactly = 1) { commandSender.sendData(any()) }
