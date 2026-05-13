@@ -144,7 +144,9 @@
       "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.main.MainViewModelHudWarningTest\" --info)",
       "Bash(./gradlew :app:testDebugUnitTest --continue)",
       "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelSyncDialogTest\" --continue)",
-      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelSyncDialogTest.onToggleActive isActive=true подключён NeedsSync — showSyncDialog=true\" --info)"
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelSyncDialogTest.onToggleActive isActive=true подключён NeedsSync — showSyncDialog=true\" --info)",
+      "Bash(./gradlew :app:test --tests \"ru.tcynik.meshtactics.data.chat.adapter.MeshToChatAdapterTest\" --tests \"ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCaseTest\")",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.data.chat.adapter.MeshToChatAdapterTest\" --tests \"ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCaseTest\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",

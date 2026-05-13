@@ -124,6 +124,18 @@ Contour.isActive (domain/channel)
 
 ---
 
+## Non-obvious decisions
+
+### Инвариант contactId для приватных чатов
+
+`ChatContact.id` для PRIVATE контактов всегда имеет формат `"${channel}!nodeId"` (например `"3!abc123"`). Канал берётся из `node.channel` при создании контакта (`buildPrivateCandidates`).
+
+**Критично**: `sendMessage()` должен использовать `parsedChannel` из самого contactId — и никогда не делать live lookup в `nodeRepository.getNode().channel` для переопределения канала. Если канал при отправке отличается от канала в contactId, то `dbContactKey` расходится с `selectedChatId`, и сообщения становятся невидимы в фильтре `updateFilteredMessages`.
+
+Правило: **channel кодируется в contactId один раз при создании контакта**, и дальше только он используется.
+
+---
+
 ## Известный техдолг
 
 | # | Проблема | Приоритет |

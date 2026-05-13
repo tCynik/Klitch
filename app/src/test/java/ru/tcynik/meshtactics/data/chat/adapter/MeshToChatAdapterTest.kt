@@ -185,15 +185,10 @@ class MeshToChatAdapterTest {
     }
 
     @Test
-    fun `send private message without history uses node channel from contact id`() = runTest {
+    fun `send private message uses channel encoded in contact id`() = runTest {
         val packetSlot = slot<DataPacket>()
         every { commandSender.sendData(capture(packetSlot)) } returns Unit
         every { nodeRepository.ourNodeInfo } returns MutableStateFlow(Node(num = 77))
-        every { nodeRepository.getNode("!abc123") } returns Node(
-            num = 100,
-            user = User(id = "!abc123"),
-            channel = 3,
-        )
         coEvery {
             packetRepository.savePacket(
                 myNodeNum = any(),
@@ -207,7 +202,7 @@ class MeshToChatAdapterTest {
 
         adapter.sendMessage(
             text = "ping",
-            contactId = "0!abc123",
+            contactId = "3!abc123",
             channel = 7,
         )
 
@@ -225,6 +220,26 @@ class MeshToChatAdapterTest {
                 read = true,
                 filtered = false,
             )
+        }
+    }
+
+    @Test
+    fun `online node with channel 3 — fallback contact id uses channel 3`() = runTest {
+        val onlineNode = Node(
+            num = 200,
+            user = User(id = "!xyz999", short_name = "X1", long_name = "Xray"),
+            lastHeard = Int.MAX_VALUE,
+            channel = 3,
+        )
+        setupContours(contours = listOf(makeContour(isActive = true)))
+        every { nodeRepository.nodeDBbyNum } returns MutableStateFlow(mapOf(200 to onlineNode))
+        every { packetRepository.getUnreadCountFlow("3!xyz999") } returns flowOf(0)
+
+        adapter.observeContactsAsFlow().test {
+            val contacts = awaitItem()
+            val privateContact = contacts.firstOrNull { it.type == ru.tcynik.meshtactics.domain.chat.model.ContactType.PRIVATE }
+            assertEquals("3!xyz999", privateContact?.id)
+            cancelAndIgnoreRemainingEvents()
         }
     }
 }
