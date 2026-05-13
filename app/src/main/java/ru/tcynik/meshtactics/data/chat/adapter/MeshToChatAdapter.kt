@@ -294,10 +294,11 @@ private fun buildPrivateCandidates(
         val node = onlineNodes[nodeId] ?: nodesByNum.values.firstOrNull { it.user.id == nodeId }
         val shortName = node?.user?.short_name?.ifBlank { nodeId } ?: nodeId
         val longName = node?.user?.long_name?.ifBlank { shortName } ?: shortName
-        val id = history?.id ?: nodeId
+        val fallbackContactKey = node?.let { "${it.channel}${nodeId}" } ?: "0$nodeId"
+        val resolvedContactKey = history?.contactKey ?: fallbackContactKey
         PrivateNodeCandidate(
-            id = id,
-            contactKey = history?.contactKey,
+            id = resolvedContactKey,
+            contactKey = resolvedContactKey,
             shortName = shortName,
             longName = longName,
             isOnline = node?.isOnline ?: false,

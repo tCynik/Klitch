@@ -1,8 +1,12 @@
 package ru.tcynik.meshtactics.data.chat.adapter
 
 import app.cash.turbine.test
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
+import io.mockk.verify
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -149,14 +153,16 @@ class MeshToChatAdapterTest {
             num = 100,
             user = User(id = "!abc123", short_name = "A1", long_name = "Alpha"),
             lastHeard = Int.MAX_VALUE,
+            channel = 3,
         )
         setupContours(contours = listOf(makeContour(isActive = true)))
         every { nodeRepository.nodeDBbyNum } returns MutableStateFlow(mapOf(100 to onlineNode))
+        every { packetRepository.getUnreadCountFlow("3!abc123") } returns flowOf(0)
 
         adapter.observeContactsAsFlow().test {
             val contacts = awaitItem()
             val privateContact = contacts.firstOrNull { it.type == ru.tcynik.meshtactics.domain.chat.model.ContactType.PRIVATE }
-            assertEquals("!abc123", privateContact?.id)
+            assertEquals("3!abc123", privateContact?.id)
             assertEquals("A1", privateContact?.shortName)
             cancelAndIgnoreRemainingEvents()
         }
@@ -176,6 +182,45 @@ class MeshToChatAdapterTest {
             val contacts = awaitItem()
             assertTrue(contacts.none { it.id == "!off001" })
             cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `send private message without history uses node channel from contact id`() = runTest {
+        val packetSlot = slot<DataPacket>()
+        every { commandSender.sendData(capture(packetSlot)) } returns Unit
+        every { nodeRepository.ourNodeInfo } returns MutableStateFlow(Node(num = 77))
+        coEvery {
+            packetRepository.savePacket(
+                myNodeNum = any(),
+                contactKey = any(),
+                packet = any(),
+                receivedTime = any(),
+                read = any(),
+                filtered = any(),
+            )
+        } returns Unit
+
+        adapter.sendMessage(
+            text = "ping",
+            contactId = "3!abc123",
+            channel = 0,
+        )
+
+        verify(exactly = 1) { commandSender.sendData(any()) }
+        assertEquals("!abc123", packetSlot.captured.to)
+        assertEquals(3, packetSlot.captured.channel)
+        assertEquals("ping", packetSlot.captured.text)
+
+        coVerify(exactly = 1) {
+            packetRepository.savePacket(
+                myNodeNum = 77,
+                contactKey = "3!abc123",
+                packet = any(),
+                receivedTime = any(),
+                read = true,
+                filtered = false,
+            )
         }
     }
 }
