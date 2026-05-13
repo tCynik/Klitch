@@ -12,7 +12,6 @@ import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import org.koin.core.logger.Level
 import org.maplibre.android.MapLibre
-import org.maplibre.android.WellKnownTileServer
 import org.maplibre.android.module.http.HttpRequestUtil
 import org.maplibre.android.offline.OfflineManager
 import ru.tcynik.meshtactics.data.map.TileCacheOkHttpConfigurator
@@ -65,9 +64,7 @@ class MyMeshApplication : Application() {
             )
         }
 
-        // Required by MapLibre internals before touching HTTP layer or creating MapView.
-        MapLibre.getInstance(this, "", WellKnownTileServer.MapLibre)
-
+        MapLibre.getInstance(this)
         val configurator = GlobalContext.get().get<TileCacheOkHttpConfigurator>()
         runCatching {
             HttpRequestUtil.setOkHttpClient(configurator.client)
