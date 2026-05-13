@@ -135,7 +135,16 @@
       "Bash(gradlew.bat :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.domain.channel.usecase.*\" --info)",
       "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCaseTest\" --tests \"ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCaseTest\" --quiet)",
       "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCaseTest\" --tests \"ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCaseTest\" --info)",
-      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.domain.channel.usecase.*\")"
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.domain.channel.usecase.*\")",
+      "Bash(python3 -c \"import sys,html; [print\\(html.unescape\\(l\\)\\) for l in sys.stdin if 'failure' in l.lower\\(\\) or 'expected' in l.lower\\(\\) or 'but was' in l.lower\\(\\) or 'NodeSyncResult' in l or 'ContourSyncResult' in l]\")",
+      "Bash(git stash *)",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.main.*\" --tests \"ru.tcynik.meshtactics.domain.channel.usecase.*\")",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.main.MainViewModelHudWarningTest.connected and hasChannelOnNode false*\")",
+      "Bash(python3 -c \"import sys,html,re; content=sys.stdin.read\\(\\); blocks=re.findall\\(r'class=\\\\\"code\\\\\">\\(.*?\\)</span>', content, re.DOTALL\\); [print\\(html.unescape\\(b[:800]\\)\\) for b in blocks[:5]]\")",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.main.MainViewModelHudWarningTest\" --info)",
+      "Bash(./gradlew :app:testDebugUnitTest --continue)",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelSyncDialogTest\" --continue)",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModelSyncDialogTest.onToggleActive isActive=true подключён NeedsSync — showSyncDialog=true\" --info)"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",
