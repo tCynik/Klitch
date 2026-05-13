@@ -18,7 +18,6 @@ import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.mesh.model.DataPacket
-import ru.tcynik.meshtactics.mesh.model.Node
 import ru.tcynik.meshtactics.mesh.repository.CommandSender
 import ru.tcynik.meshtactics.mesh.repository.NodeRepository
 import ru.tcynik.meshtactics.mesh.repository.PacketRepository
@@ -62,35 +61,24 @@ class MeshToChatAdapterTest {
     )
 
     private val channelContactKey = "1^all"
-    private val privateContactKey = "1!abc123"
     private val lastPacket = DataPacket(to = "^all", channel = 1, text = "hi")
 
-    private fun setupChannelContact(
-        contactKey: String = channelContactKey,
+    private fun setupContours(
         contours: List<Contour>,
         maps: ChannelSlotMaps = resolvedMaps,
     ) {
-        every { packetRepository.getContacts() } returns flowOf(mapOf(contactKey to lastPacket))
+        every { packetRepository.getContacts() } returns flowOf(mapOf(channelContactKey to lastPacket))
         every { packetRepository.getContactSettings() } returns flowOf(emptyMap())
         every { channelRepository.observeContours() } returns flowOf(contours)
         every { channelSlotResolver.mapsFlow } returns MutableStateFlow(maps)
-        every { packetRepository.getUnreadCountFlow(contactKey) } returns flowOf(0)
-    }
-
-    private fun setupPrivateContact(contactKey: String = privateContactKey) {
-        every { packetRepository.getContacts() } returns flowOf(mapOf(contactKey to lastPacket))
-        every { packetRepository.getContactSettings() } returns flowOf(emptyMap())
-        every { channelRepository.observeContours() } returns flowOf(emptyList())
-        every { channelSlotResolver.mapsFlow } returns MutableStateFlow(resolvedMaps)
-        every { packetRepository.getUnreadCountFlow(contactKey) } returns flowOf(0)
-        every { nodeRepository.getNode("!abc123") } returns Node(num = 0)
+        every { packetRepository.getUnreadCountFlow(channelContactKey) } returns flowOf(0)
     }
 
     // ── isActive propagation: CHANNEL ─────────────────────────────────────────
 
     @Test
     fun `channel contact with active contour — isActive is true in dto`() = runTest {
-        setupChannelContact(contours = listOf(makeContour(isActive = true)))
+        setupContours(contours = listOf(makeContour(isActive = true)))
 
         adapter.observeContactsAsFlow().test {
             val contacts = awaitItem()
@@ -102,7 +90,7 @@ class MeshToChatAdapterTest {
 
     @Test
     fun `channel contact with inactive contour — isActive is false in dto`() = runTest {
-        setupChannelContact(contours = listOf(makeContour(isActive = false)))
+        setupContours(contours = listOf(makeContour(isActive = false)))
 
         adapter.observeContactsAsFlow().test {
             val contacts = awaitItem()
@@ -112,37 +100,24 @@ class MeshToChatAdapterTest {
         }
     }
 
-    // ── isActive propagation: PRIVATE ─────────────────────────────────────────
+    // ── channel contact filtering ─────────────────────────────────────────────
 
     @Test
-    fun `private contact — isActive is always true regardless of contours`() = runTest {
-        setupPrivateContact()
+    fun `contour without resolved slot stays visible in list`() = runTest {
+        val emptyMaps = ChannelSlotMaps(slotToHash = emptyMap(), hashToSlot = emptyMap())
+        setupContours(contours = listOf(makeContour(isActive = true)), maps = emptyMaps)
 
         adapter.observeContactsAsFlow().test {
             val contacts = awaitItem()
             assertEquals(1, contacts.size)
-            assertTrue(contacts.first().isActive)
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    // ── channel contact filtering ─────────────────────────────────────────────
-
-    @Test
-    fun `channel contact with slot not in slotToHash — filtered out`() = runTest {
-        val emptyMaps = ChannelSlotMaps(slotToHash = emptyMap(), hashToSlot = emptyMap())
-        setupChannelContact(contours = listOf(makeContour(isActive = true)), maps = emptyMaps)
-
-        adapter.observeContactsAsFlow().test {
-            val contacts = awaitItem()
-            assertTrue(contacts.isEmpty())
+            assertEquals(contourId.value, contacts.first().id)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `channel contact with hash not matching any contour — filtered out`() = runTest {
-        setupChannelContact(contours = emptyList())
+    fun `empty contour list returns empty contacts`() = runTest {
+        setupContours(contours = emptyList())
 
         adapter.observeContactsAsFlow().test {
             val contacts = awaitItem()
@@ -155,7 +130,7 @@ class MeshToChatAdapterTest {
 
     @Test
     fun `channel contact — shortName equals contour name`() = runTest {
-        setupChannelContact(contours = listOf(makeContour(isActive = true)))
+        setupContours(contours = listOf(makeContour(isActive = true)))
 
         adapter.observeContactsAsFlow().test {
             val contacts = awaitItem()
