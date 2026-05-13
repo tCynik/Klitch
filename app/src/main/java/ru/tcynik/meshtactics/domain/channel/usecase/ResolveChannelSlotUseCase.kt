@@ -11,20 +11,26 @@ sealed interface SlotResolution {
 }
 
 class ResolveChannelSlotUseCase {
-    operator fun invoke(contour: Contour, nodeChannels: List<NodeChannelSlot>): SlotResolution {
+    operator fun invoke(
+        contour: Contour,
+        nodeChannels: List<NodeChannelSlot>,
+        usedSlots: Set<Int> = emptySet(),
+    ): SlotResolution {
         val contourHash = contour.transport.meshtastic.channelHash
 
         val matched = nodeChannels.find { slot ->
-            slot.index != 0 && slot.isEnabled &&
+            slot.index != 0 && slot.index !in usedSlots && slot.isEnabled &&
                 ContourHash.compute(slot.name, slot.psk) == contourHash
         }
         if (matched != null) return SlotResolution.AlreadySynced(matched.index)
 
-        val freeSlot = nodeChannels.find { slot -> slot.index != 0 && !slot.isEnabled }
+        val freeSlot = nodeChannels.find { slot ->
+            slot.index != 0 && slot.index !in usedSlots && !slot.isEnabled
+        }
         if (freeSlot != null) return SlotResolution.FreeSlot(freeSlot.index)
 
         val reportedIndices = nodeChannels.map { it.index }.toSet()
-        val unconfiguredIndex = (1..7).firstOrNull { it !in reportedIndices }
+        val unconfiguredIndex = (1..7).firstOrNull { it !in reportedIndices && it !in usedSlots }
         if (unconfiguredIndex != null) return SlotResolution.FreeSlot(unconfiguredIndex)
 
         return SlotResolution.NoFreeSlot

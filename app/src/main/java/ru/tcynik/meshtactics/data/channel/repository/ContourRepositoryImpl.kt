@@ -47,22 +47,20 @@ class ContourRepositoryImpl(
     }
 
     override suspend fun seedDefaultsIfAbsent() {
-        val rows = queries.selectAll().executeAsList()
-        if (rows.none { it.id == DefaultActiveContour.ID.value }) {
-            val pskBytes = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
-            val hash = ContourHash.compute(DefaultActiveContour.DISPLAY_NAME, pskBytes)
-            queries.upsert(
-                id = DefaultActiveContour.ID.value,
-                name = DefaultActiveContour.DISPLAY_NAME,
-                meshtasticSlot = null,
-                meshtasticPsk = pskBytes,
-                channelHash = hash.value,
-                isActive = 1L,
-                description = DefaultActiveContour.DESCRIPTION,
-                expiration = null,
-                exclusivityTime = null,
-            )
-        }
+        val pskBytes = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
+        val hash = ContourHash.compute(DefaultActiveContour.DISPLAY_NAME, pskBytes)
+        val existing = queries.selectAll().executeAsList().find { it.id == DefaultActiveContour.ID.value }
+        queries.upsert(
+            id = DefaultActiveContour.ID.value,
+            name = DefaultActiveContour.DISPLAY_NAME,
+            meshtasticSlot = null,
+            meshtasticPsk = pskBytes,
+            channelHash = hash.value,
+            isActive = existing?.is_active ?: 1L,
+            description = DefaultActiveContour.DESCRIPTION,
+            expiration = null,
+            exclusivityTime = null,
+        )
     }
 
     override suspend fun saveContour(contour: ContourDomain) {

@@ -131,7 +131,8 @@
       "Bash(unzip -q /c/Users/LocAdmin/.gradle/caches/modules-2/files-2.1/org.maplibre.gl/android-sdk/12.0.1/176b047a30fde92b4c343d54cd1a277807bd1f8a/android-sdk-12.0.1-sources.jar)",
       "Bash(mkdir -p /tmp/maplibre_android2)",
       "Bash(unzip -qq /c/Users/LocAdmin/.gradle/caches/modules-2/files-2.1/org.maplibre.gl/android-sdk/12.0.1/176b047a30fde92b4c343d54cd1a277807bd1f8a/android-sdk-12.0.1-sources.jar \"*.java\")",
-      "Bash(find . -name \"LatLngQuad*\")"
+      "Bash(find . -name \"LatLngQuad*\")",
+      "Bash(gradlew.bat :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.domain.channel.usecase.*\" --info)"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",
