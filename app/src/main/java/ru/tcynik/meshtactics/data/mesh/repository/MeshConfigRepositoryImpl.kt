@@ -44,6 +44,7 @@ class MeshConfigRepositoryImpl(
                     name = settings.name,
                     psk = settings.psk.toByteArray(),
                     isEnabled = index == 0 || settings.psk.size > 0,
+                    positionPrecision = settings.module_settings?.position_precision ?: 0,
                 )
             }
         }
@@ -58,7 +59,11 @@ class MeshConfigRepositoryImpl(
                        else Base64.decode(pskBase64.trim(), Base64.DEFAULT)
         val channel = Channel(
             index = index,
-            settings = ChannelSettings(name = name, psk = pskBytes.toByteString()),
+            settings = ChannelSettings(
+                name = name,
+                psk = pskBytes.toByteString(),
+                module_settings = ModuleSettings(position_precision = CHANNEL_POSITION_PRECISION),
+            ),
             role = if (index == 0) Channel.Role.PRIMARY else Channel.Role.SECONDARY,
         )
         meshRouter.actionHandler.handleSetChannel(Channel.ADAPTER.encode(channel), myNodeNum)
@@ -177,6 +182,7 @@ class MeshConfigRepositoryImpl(
         private const val GEO_BROADCAST_READY_SECS = 60
         private const val GEO_BROADCAST_DISABLED_SECS = Int.MAX_VALUE
         private const val GEO_CHANNEL_PRECISION = 13
+        private const val CHANNEL_POSITION_PRECISION = 32
     }
 
     private fun hasLocationPermission(): Boolean =

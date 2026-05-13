@@ -43,7 +43,7 @@ class CheckContourSyncUseCase(
         for (contour in activeNonEmergency) {
             val hash = contour.transport.meshtastic.channelHash
             val matched = nodeChannels.any { slot ->
-                slot.index != 0 && slot.isEnabled &&
+                slot.index != 0 && slot.isEnabled && slot.positionPrecision > 0 &&
                     ContourHash.compute(slot.name, slot.psk) == hash
             }
             if (!matched) {

@@ -22,7 +22,10 @@ class ResolveChannelSlotUseCase {
             slot.index != 0 && slot.index !in usedSlots && slot.isEnabled &&
                 ContourHash.compute(slot.name, slot.psk) == contourHash
         }
-        if (matched != null) return SlotResolution.AlreadySynced(matched.index)
+        if (matched != null) {
+            return if (matched.positionPrecision > 0) SlotResolution.AlreadySynced(matched.index)
+            else SlotResolution.FreeSlot(matched.index)
+        }
 
         val freeSlot = nodeChannels.find { slot ->
             slot.index != 0 && slot.index !in usedSlots && !slot.isEnabled

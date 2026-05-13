@@ -2,9 +2,13 @@ package ru.tcynik.meshtactics.domain.channel.usecase
 
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Test
 import ru.tcynik.meshtactics.domain.channel.model.Contour
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
@@ -27,6 +31,18 @@ class CheckContourSyncUseCaseTest {
         observeContours = observeContours,
         observeNodeChannels = observeNodeChannels,
     )
+
+    @Before
+    fun setUp() {
+        mockkStatic(android.util.Log::class)
+        every { android.util.Log.d(any(), any<String>()) } returns 0
+        every { android.util.Log.w(any(), any<String>()) } returns 0
+    }
+
+    @After
+    fun tearDown() {
+        unmockkStatic(android.util.Log::class)
+    }
 
     private val emergencyPsk = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
 
@@ -51,8 +67,13 @@ class CheckContourSyncUseCaseTest {
         )
     }
 
-    private fun makeSlot(index: Int, name: String, psk: ByteArray, isEnabled: Boolean = true) =
-        NodeChannelSlot(index = index, name = name, psk = psk, isEnabled = isEnabled)
+    private fun makeSlot(
+        index: Int,
+        name: String,
+        psk: ByteArray,
+        isEnabled: Boolean = true,
+        positionPrecision: Int = 32,
+    ) = NodeChannelSlot(index = index, name = name, psk = psk, isEnabled = isEnabled, positionPrecision = positionPrecision)
 
     // ── InSync ────────────────────────────────────────────────────────────────
 
@@ -88,11 +109,11 @@ class CheckContourSyncUseCaseTest {
     // ── NeedsSync ─────────────────────────────────────────────────────────────
 
     @Test
-    fun `NeedsSync — список каналов ноды пуст`() = runTest {
+    fun `InSync — список каналов ноды пуст (данные ещё не пришли)`() = runTest {
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(emptyList())
 
-        assertEquals(ContourSyncResult.NeedsSync, useCase())
+        assertEquals(ContourSyncResult.InSync, useCase())
     }
 
     @Test
@@ -130,6 +151,17 @@ class CheckContourSyncUseCaseTest {
         val disabledSlot = makeSlot(1, "Charlie", psk, isEnabled = false)
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(contour))
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot, disabledSlot))
+
+        assertEquals(ContourSyncResult.NeedsSync, useCase())
+    }
+
+    @Test
+    fun `NeedsSync — контур есть на ноде но position_precision = 0`() = runTest {
+        val psk = byteArrayOf(0x06)
+        val contour = makeContour("Echo", psk)
+        val noPrecisionSlot = makeSlot(1, "Echo", psk, positionPrecision = 0)
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(contour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot, noPrecisionSlot))
 
         assertEquals(ContourSyncResult.NeedsSync, useCase())
     }
