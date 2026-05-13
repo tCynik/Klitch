@@ -15,6 +15,7 @@ class ResolveChannelSlotUseCase {
         contour: Contour,
         nodeChannels: List<NodeChannelSlot>,
         usedSlots: Set<Int> = emptySet(),
+        checkPrecision: Boolean = false,
     ): SlotResolution {
         val contourHash = contour.transport.meshtastic.channelHash
 
@@ -23,7 +24,7 @@ class ResolveChannelSlotUseCase {
                 ContourHash.compute(slot.name, slot.psk) == contourHash
         }
         if (matched != null) {
-            return if (matched.positionPrecision > 0) SlotResolution.AlreadySynced(matched.index)
+            return if (!checkPrecision || matched.positionPrecision > 0) SlotResolution.AlreadySynced(matched.index)
             else SlotResolution.FreeSlot(matched.index)
         }
 

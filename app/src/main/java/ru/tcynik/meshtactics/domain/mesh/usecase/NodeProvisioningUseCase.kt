@@ -46,11 +46,15 @@ class NodeProvisioningUseCase(
         }
 
         if (user.displayName.isNotBlank()) {
-            Log.d(TAG, "  writeOwner longName='${user.displayName}'")
             val deviceConfig = withTimeoutOrNull(5_000) {
                 observeDeviceConfig(NoParams).first { it != null }
             }
-            writeOwner(user.displayName, deviceConfig?.shortName ?: "")
+            if (deviceConfig?.longName == user.displayName) {
+                Log.d(TAG, "  skip writeOwner — longName already matches")
+            } else {
+                Log.d(TAG, "  writeOwner longName='${user.displayName}'")
+                writeOwner(user.displayName, deviceConfig?.shortName ?: "")
+            }
         }
         Log.d(TAG, "provision() done")
     }

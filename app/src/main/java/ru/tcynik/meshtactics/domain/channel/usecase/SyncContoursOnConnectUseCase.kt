@@ -30,7 +30,7 @@ class SyncContoursOnConnectUseCase(
         val activeNonEmergency = contours.filter { it.isActive && !it.isEmergency }
         val usedSlots = mutableSetOf<Int>()
         for (contour in activeNonEmergency) {
-            when (val resolution = resolveSlot(contour, nodeChannels, usedSlots)) {
+            when (val resolution = resolveSlot(contour, nodeChannels, usedSlots, checkPrecision = true)) {
                 is SlotResolution.AlreadySynced -> usedSlots.add(resolution.slot)
                 is SlotResolution.FreeSlot -> {
                     writeChannel(resolution.slot, contour.name, contour.transport.meshtastic.psk)

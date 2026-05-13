@@ -109,7 +109,7 @@ class SyncContoursOnConnectUseCaseTest {
     fun `active non-emergency contour on FreeSlot — writeChannel called with correct slot and psk`() = runTest {
         val contour = makeContour("99", "Bravo")
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(contour))
-        every { resolveSlot.invoke(contour, any(), any()) } returns SlotResolution.FreeSlot(2)
+        every { resolveSlot.invoke(contour, any(), any(), any()) } returns SlotResolution.FreeSlot(2)
 
         useCase()
 
@@ -120,7 +120,7 @@ class SyncContoursOnConnectUseCaseTest {
     fun `active non-emergency contour AlreadySynced — no extra writeChannel call`() = runTest {
         val contour = makeContour("99", "Bravo")
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(contour))
-        every { resolveSlot.invoke(contour, any(), any()) } returns SlotResolution.AlreadySynced(3)
+        every { resolveSlot.invoke(contour, any(), any(), any()) } returns SlotResolution.AlreadySynced(3)
 
         useCase()
 
@@ -145,7 +145,7 @@ class SyncContoursOnConnectUseCaseTest {
     fun `no free slots — logs warning, does not crash`() = runTest {
         val contour = makeContour("99", "Bravo")
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(contour))
-        every { resolveSlot.invoke(contour, any(), any()) } returns SlotResolution.NoFreeSlot
+        every { resolveSlot.invoke(contour, any(), any(), any()) } returns SlotResolution.NoFreeSlot
 
         useCase()
 
