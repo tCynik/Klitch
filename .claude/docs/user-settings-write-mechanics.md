@@ -5,7 +5,7 @@
 | Настройка | Применение | Ребут | Диалог при выходе |
 |---|---|---|---|
 | GPS broadcast toggle | Немедленно на toggle | Нет | Нет |
-| Позывной (connected) | При подтверждении выхода | Да | Да |
+| Позывной (connected) | При подтверждении выхода ИЛИ sync dialog | Да | Да (settings) / нет (sync dialog) |
 | Позывной (disconnected) | Локально при выходе | Нет | Нет |
 
 **Правило для любой новой настройки на этом экране**: при добавлении указывать в docs строку «Write mechanics: immediate / deferred+reboot / local-only».
@@ -23,6 +23,12 @@ User нажимает назад / стрелку
 
 `BackHandler` перехватывает системную кнопку назад при `hasUnsavedUserChanges=true`.
 `userViewModel.navigateBack` SharedFlow — единственная точка реального перехода назад.
+
+## Sync Dialog Path (позывной)
+
+При подключении `CheckNodeSyncUseCase` сравнивает `appUser.displayName` с `deviceConfig.longName`. Если расходятся → `NeedsSync` → sync dialog → при подтверждении `SyncContoursOnConnectUseCase` вызывает `writeOwner()` → `rebootNode()`. Путь не требует входа в настройки.
+
+`NodeProvisioningUseCase` (тихое авто-provisioning) — **не пишет** owner name, чтобы не вызывать авторебут без подтверждения.
 
 ## GPS Broadcast Override
 
