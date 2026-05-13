@@ -13,7 +13,7 @@ import org.junit.Test
 import ru.tcynik.meshtactics.domain.channel.model.Contour
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.ContourId
-import ru.tcynik.meshtactics.domain.channel.model.ContourSyncResult
+import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
@@ -26,14 +26,14 @@ import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import java.util.Base64
 import java.util.UUID
 
-class CheckContourSyncUseCaseTest {
+class CheckNodeSyncUseCaseTest {
 
     private val observeContours: ObserveContoursUseCase = mockk()
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
     private val observeAppUser: ObserveAppUserUseCase = mockk()
     private val observeDeviceConfig: ObserveDeviceConfigUseCase = mockk()
 
-    private val useCase = CheckContourSyncUseCase(
+    private val useCase = CheckNodeSyncUseCase(
         observeContours = observeContours,
         observeNodeChannels = observeNodeChannels,
         observeAppUser = observeAppUser,
@@ -91,7 +91,7 @@ class CheckContourSyncUseCaseTest {
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot))
 
-        assertEquals(ContourSyncResult.InSync, useCase())
+        assertEquals(NodeSyncResult.InSync, useCase())
     }
 
     @Test
@@ -102,7 +102,7 @@ class CheckContourSyncUseCaseTest {
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(contour))
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot, contourSlot))
 
-        assertEquals(ContourSyncResult.InSync, useCase())
+        assertEquals(NodeSyncResult.InSync, useCase())
     }
 
     @Test
@@ -112,7 +112,7 @@ class CheckContourSyncUseCaseTest {
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(inactive))
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot))
 
-        assertEquals(ContourSyncResult.InSync, useCase())
+        assertEquals(NodeSyncResult.InSync, useCase())
     }
 
     // ── NeedsSync ─────────────────────────────────────────────────────────────
@@ -122,7 +122,7 @@ class CheckContourSyncUseCaseTest {
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(emptyList())
 
-        assertEquals(ContourSyncResult.InSync, useCase())
+        assertEquals(NodeSyncResult.InSync, useCase())
     }
 
     @Test
@@ -131,7 +131,7 @@ class CheckContourSyncUseCaseTest {
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(wrongSlot0))
 
-        assertEquals(ContourSyncResult.NeedsSync, useCase())
+        assertEquals(NodeSyncResult.NeedsSync, useCase())
     }
 
     @Test
@@ -140,7 +140,7 @@ class CheckContourSyncUseCaseTest {
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(wrongSlot0))
 
-        assertEquals(ContourSyncResult.NeedsSync, useCase())
+        assertEquals(NodeSyncResult.NeedsSync, useCase())
     }
 
     @Test
@@ -150,7 +150,7 @@ class CheckContourSyncUseCaseTest {
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(contour))
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot))
 
-        assertEquals(ContourSyncResult.NeedsSync, useCase())
+        assertEquals(NodeSyncResult.NeedsSync, useCase())
     }
 
     @Test
@@ -161,7 +161,7 @@ class CheckContourSyncUseCaseTest {
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(contour))
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot, disabledSlot))
 
-        assertEquals(ContourSyncResult.NeedsSync, useCase())
+        assertEquals(NodeSyncResult.NeedsSync, useCase())
     }
 
     @Test
@@ -172,7 +172,7 @@ class CheckContourSyncUseCaseTest {
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(contour))
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot, noPrecisionSlot))
 
-        assertEquals(ContourSyncResult.NeedsSync, useCase())
+        assertEquals(NodeSyncResult.NeedsSync, useCase())
     }
 
     @Test
@@ -184,7 +184,7 @@ class CheckContourSyncUseCaseTest {
             MeshDeviceConfigModel(longName = "OldCallsign", shortName = "OLD", loraPreset = "", txPowerDbm = "", region = "", channels = emptyList())
         )
 
-        assertEquals(ContourSyncResult.NeedsSync, useCase())
+        assertEquals(NodeSyncResult.NeedsSync, useCase())
     }
 
     @Test
@@ -196,7 +196,7 @@ class CheckContourSyncUseCaseTest {
             MeshDeviceConfigModel(longName = "SameCallsign", shortName = "SC", loraPreset = "", txPowerDbm = "", region = "", channels = emptyList())
         )
 
-        assertEquals(ContourSyncResult.InSync, useCase())
+        assertEquals(NodeSyncResult.InSync, useCase())
     }
 
     @Test
@@ -204,6 +204,6 @@ class CheckContourSyncUseCaseTest {
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot))
 
-        assertEquals(ContourSyncResult.InSync, useCase())
+        assertEquals(NodeSyncResult.InSync, useCase())
     }
 }

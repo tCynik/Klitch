@@ -21,9 +21,9 @@ import ru.tcynik.meshtactics.domain.mesh.model.LocationConfigModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.model.MeshMessageDelivery
 import ru.tcynik.meshtactics.domain.mesh.model.MeshNodeModel
-import ru.tcynik.meshtactics.domain.channel.model.ContourSyncResult
+import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
-import ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceParams
@@ -84,7 +84,7 @@ class MeshTestViewModel(
     private val writePositionConfig: WritePositionConfigUseCase,
     private val writeChannelPositionPrecision: WriteChannelPositionPrecisionUseCase,
     private val removeFixedPosition: RemoveFixedPositionUseCase,
-    private val checkContourSync: CheckContourSyncUseCase,
+    private val checkContourSync: CheckNodeSyncUseCase,
     private val syncContoursOnConnect: SyncContoursOnConnectUseCase,
     private val rebootNode: RebootNodeUseCase,
     private val syncStateRepository: ContourSyncStateRepository,
@@ -128,7 +128,7 @@ class MeshTestViewModel(
                 if (isRebooting) rebootStateRepository.setRebooting(false)
                 if (!wasConnected && !isRebooting) {
                     viewModelScope.launch {
-                        if (checkContourSync() is ContourSyncResult.NeedsSync) {
+                        if (checkContourSync() is NodeSyncResult.NeedsSync) {
                             _uiState.update { it.copy(showSyncDialog = true) }
                         }
                     }

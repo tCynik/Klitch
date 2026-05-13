@@ -24,7 +24,7 @@ import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
-import ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
@@ -106,7 +106,7 @@ val presentationModule = module {
             observeEmergencyMode = get(),
             triggerEmergency = get(),
             cancelEmergency = get(),
-            checkContourSync = get<CheckContourSyncUseCase>(),
+            checkContourSync = get<CheckNodeSyncUseCase>(),
             syncStateRepository = get<ContourSyncStateRepository>(),
             rebootNode = get<RebootNodeUseCase>(),
             rebootStateRepository = get<RebootStateRepository>(),
@@ -143,7 +143,7 @@ val presentationModule = module {
             writePositionConfig = get(),
             writeChannelPositionPrecision = get(),
             removeFixedPosition = get(),
-            checkContourSync = get<CheckContourSyncUseCase>(),
+            checkContourSync = get<CheckNodeSyncUseCase>(),
             syncContoursOnConnect = get<SyncContoursOnConnectUseCase>(),
             rebootNode = get<RebootNodeUseCase>(),
             syncStateRepository = get<ContourSyncStateRepository>(),

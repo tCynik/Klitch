@@ -34,8 +34,8 @@ import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SaveContourUseCase
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
-import ru.tcynik.meshtactics.domain.channel.model.ContourSyncResult
-import ru.tcynik.meshtactics.domain.channel.usecase.CheckContourSyncUseCase
+import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
+import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SlotResolution
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
@@ -81,7 +81,7 @@ class UserSettingsViewModel(
     private val observeEmergencyMode: ObserveEmergencyModeUseCase,
     private val triggerEmergency: TriggerEmergencyUseCase,
     private val cancelEmergency: CancelEmergencyUseCase,
-    private val checkContourSync: CheckContourSyncUseCase,
+    private val checkContourSync: CheckNodeSyncUseCase,
     private val syncStateRepository: ContourSyncStateRepository,
     private val rebootNode: RebootNodeUseCase,
     private val rebootStateRepository: RebootStateRepository,
@@ -227,7 +227,7 @@ class UserSettingsViewModel(
         viewModelScope.launch {
             setContourActive(id, isActive)
             if (isActive && connectionStatus is MeshConnectionStatus.Connected) {
-                if (checkContourSync() is ContourSyncResult.NeedsSync) {
+                if (checkContourSync() is NodeSyncResult.NeedsSync) {
                     _uiState.update { it.copy(showSyncDialog = true) }
                 }
             }
