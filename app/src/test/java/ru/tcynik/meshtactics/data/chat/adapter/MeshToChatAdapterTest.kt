@@ -72,6 +72,7 @@ class MeshToChatAdapterTest {
     private fun setupContours(
         contours: List<Contour>,
         maps: ChannelSlotMaps = resolvedMaps,
+        myNode: Node? = null,
     ) {
         every { packetRepository.getContacts() } returns flowOf(mapOf(channelContactKey to lastPacket))
         every { packetRepository.getContactSettings() } returns flowOf(emptyMap())
@@ -80,6 +81,7 @@ class MeshToChatAdapterTest {
         every { packetRepository.getUnreadCountFlow(channelContactKey) } returns flowOf(0)
         every { nodeRepository.nodeDBbyNum } returns MutableStateFlow(emptyMap())
         every { nodeRepository.myId } returns MutableStateFlow("!me")
+        every { nodeRepository.ourNodeInfo } returns MutableStateFlow(myNode)
     }
 
     // ── isActive propagation: CHANNEL ─────────────────────────────────────────
@@ -224,21 +226,77 @@ class MeshToChatAdapterTest {
     }
 
     @Test
-    fun `online node with channel 3 — fallback contact id uses channel 3`() = runTest {
+    fun `online node without PKC — fallback contact id uses channel 0`() = runTest {
         val onlineNode = Node(
             num = 200,
             user = User(id = "!xyz999", short_name = "X1", long_name = "Xray"),
             lastHeard = Int.MAX_VALUE,
-            channel = 3,
         )
         setupContours(contours = listOf(makeContour(isActive = true)))
         every { nodeRepository.nodeDBbyNum } returns MutableStateFlow(mapOf(200 to onlineNode))
-        every { packetRepository.getUnreadCountFlow("3!xyz999") } returns flowOf(0)
+        every { packetRepository.getUnreadCountFlow("0!xyz999") } returns flowOf(0)
 
         adapter.observeContactsAsFlow().test {
             val contacts = awaitItem()
             val privateContact = contacts.firstOrNull { it.type == ru.tcynik.meshtactics.domain.chat.model.ContactType.PRIVATE }
-            assertEquals("3!xyz999", privateContact?.id)
+            assertEquals("0!xyz999", privateContact?.id)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `both nodes have PKC — fallback contact id uses PKC channel 8`() = runTest {
+        val pkcKey = okio.ByteString.of(1, 2, 3, 4)
+        val onlineNode = Node(
+            num = 300,
+            user = User(id = "!pkc001", short_name = "P1", long_name = "PKCNode", public_key = pkcKey),
+            lastHeard = Int.MAX_VALUE,
+        )
+        val myNode = Node(
+            num = 1,
+            user = User(id = "!me", public_key = pkcKey),
+        )
+        setupContours(contours = listOf(makeContour(isActive = true)), myNode = myNode)
+        every { nodeRepository.nodeDBbyNum } returns MutableStateFlow(mapOf(300 to onlineNode))
+        every { packetRepository.getUnreadCountFlow("8!pkc001") } returns flowOf(0)
+
+        adapter.observeContactsAsFlow().test {
+            val contacts = awaitItem()
+            val privateContact = contacts.firstOrNull { it.type == ru.tcynik.meshtactics.domain.chat.model.ContactType.PRIVATE }
+            assertEquals("8!pkc001", privateContact?.id)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `PKC history wins over non-PKC when both exist for same node`() = runTest {
+        val nonPkcKey = "0!nodeA"
+        val pkcKey = "8!nodeA"
+        val pkcBytes = okio.ByteString.of(1, 2, 3, 4)
+        val onlineNode = Node(
+            num = 400,
+            user = User(id = "!nodeA", short_name = "NA", long_name = "NodeA", public_key = pkcBytes),
+            lastHeard = Int.MAX_VALUE,
+        )
+        val myNode = Node(num = 1, user = User(id = "!me", public_key = pkcBytes))
+        val nonPkcPacket = DataPacket(to = "!nodeA", channel = 0, text = "sent")
+        val pkcPacket = DataPacket(to = "!me", channel = 8, text = "received")
+        every { packetRepository.getContacts() } returns flowOf(
+            mapOf(channelContactKey to lastPacket, nonPkcKey to nonPkcPacket, pkcKey to pkcPacket)
+        )
+        every { packetRepository.getContactSettings() } returns flowOf(emptyMap())
+        every { channelRepository.observeContours() } returns flowOf(listOf(makeContour(isActive = true)))
+        every { channelSlotResolver.mapsFlow } returns MutableStateFlow(resolvedMaps)
+        every { packetRepository.getUnreadCountFlow(channelContactKey) } returns flowOf(0)
+        every { packetRepository.getUnreadCountFlow(pkcKey) } returns flowOf(0)
+        every { nodeRepository.nodeDBbyNum } returns MutableStateFlow(mapOf(400 to onlineNode))
+        every { nodeRepository.myId } returns MutableStateFlow("!me")
+        every { nodeRepository.ourNodeInfo } returns MutableStateFlow(myNode)
+
+        adapter.observeContactsAsFlow().test {
+            val contacts = awaitItem()
+            val privateContact = contacts.firstOrNull { it.type == ru.tcynik.meshtactics.domain.chat.model.ContactType.PRIVATE }
+            assertEquals("8!nodeA", privateContact?.id)
             cancelAndIgnoreRemainingEvents()
         }
     }

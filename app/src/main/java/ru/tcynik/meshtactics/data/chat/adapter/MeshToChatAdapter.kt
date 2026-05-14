@@ -49,9 +49,9 @@ class MeshToChatAdapter(
         ) { contacts, settings, contours, slotMaps ->
             Quadruple(contacts, settings, contours, slotMaps)
         }.flatMapLatest { (contacts, settings, contours, slotMaps) ->
-            combine(nodeRepository.nodeDBbyNum, nodeRepository.myId) { nodesByNum, myId ->
-                Pair(nodesByNum, myId)
-            }.flatMapLatest { (nodesByNum, myId) ->
+            combine(nodeRepository.nodeDBbyNum, nodeRepository.myId, nodeRepository.ourNodeInfo) { nodesByNum, myId, myNode ->
+                Triple(nodesByNum, myId, myNode)
+            }.flatMapLatest { (nodesByNum, myId, myNode) ->
                 val contourUnreadFlows = contours.map { contour ->
                     val slot = slotMaps.hashToSlot[contour.transport.meshtastic.channelHash]
                     val contactKey = slot?.let { "${it}${DataPacket.ID_BROADCAST}" }
@@ -61,6 +61,7 @@ class MeshToChatAdapter(
                     contacts = contacts,
                     nodesByNum = nodesByNum,
                     myId = myId,
+                    myHasPKC = myNode?.hasPKC ?: false,
                 )
                 val privateUnreadFlows = privateCandidates.map { candidate ->
                     candidate.contactKey?.let { packetRepository.getUnreadCountFlow(it) } ?: flowOf(0)
@@ -269,6 +270,7 @@ private fun buildPrivateCandidates(
     contacts: Map<String, DataPacket>,
     nodesByNum: Map<Int, Node>,
     myId: String?,
+    myHasPKC: Boolean,
 ): List<PrivateNodeCandidate> {
     val historyPrivateEntries = contacts.entries
         .filter { (_, packet) -> packet.to != DataPacket.ID_BROADCAST }
@@ -283,6 +285,8 @@ private fun buildPrivateCandidates(
                 isOnline = false,
             )
         }
+        // PKC history (channel=8) must win over non-PKC if both exist for same node
+        .sortedBy { if (it.contactKey?.startsWith("${DataPacket.PKC_CHANNEL_INDEX}") == true) 1 else 0 }
         .associateBy { it.id.dropWhile { it.isDigit() } }
 
     val onlineNodes = nodesByNum.values
@@ -298,8 +302,10 @@ private fun buildPrivateCandidates(
         val node = onlineNodes[nodeId] ?: nodesByNum.values.firstOrNull { it.user.id == nodeId }
         val shortName = node?.user?.short_name?.ifBlank { nodeId } ?: nodeId
         val longName = node?.user?.long_name?.ifBlank { shortName } ?: shortName
-        val nodeChannel = node?.channel?.takeIf { it in 0..7 } ?: 0
-        val fallbackContactKey = "$nodeChannel$nodeId"
+        val fallbackContactKey = when {
+            node?.hasPKC == true && myHasPKC -> "${DataPacket.PKC_CHANNEL_INDEX}$nodeId"
+            else -> "0$nodeId"
+        }
         val resolvedContactKey = history?.contactKey ?: fallbackContactKey
         PrivateNodeCandidate(
             id = resolvedContactKey,

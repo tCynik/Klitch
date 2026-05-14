@@ -128,11 +128,15 @@ Contour.isActive (domain/channel)
 
 ### Инвариант contactId для приватных чатов
 
-`ChatContact.id` для PRIVATE контактов всегда имеет формат `"${channel}!nodeId"` (например `"3!abc123"`). Канал берётся из `node.channel` при создании контакта (`buildPrivateCandidates`).
+`ChatContact.id` для PRIVATE контактов всегда имеет формат `"${channel}!nodeId"`. Канал определяется один раз при создании контакта и не меняется в дальнейшем.
 
-**Критично**: `sendMessage()` должен использовать `parsedChannel` из самого contactId — и никогда не делать live lookup в `nodeRepository.getNode().channel` для переопределения канала. Если канал при отправке отличается от канала в contactId, то `dbContactKey` расходится с `selectedChatId`, и сообщения становятся невидимы в фильтре `updateFilteredMessages`.
+**Правило выбора канала (`buildPrivateCandidates`):**
+1. Если есть история (contactKey в Room): берётся из истории. При конфликте (есть и `"0!B"` и `"8!B"`) — **PKC (channel=8) побеждает** (sort + associateBy).
+2. Если нет истории (новая нода): если оба узла `hasPKC == true` → `"8!nodeId"` (PKC); иначе → `"0!nodeId"` (канал 0 по умолчанию).
 
-Правило: **channel кодируется в contactId один раз при создании контакта**, и дальше только он используется.
+**Почему важно**: Meshtastic (firmware ≥ 2.5) автоматически отправляет DM через PKC (channel=8) когда оба узла имеют public key. `MeshDataMapper` хранит такие пакеты с `channel = PKC_CHANNEL_INDEX`. Если наш contactId = `"0!B"` а входящий DM = `"8!B"`, они хранятся в разных `logical_channel_id` в SQLDelight — сообщения невидимы в фильтре.
+
+**Критично для sendMessage()**: использовать `parsedChannel` из contactId напрямую — никогда не делать live lookup в `nodeRepository.getNode().channel`. Channel закодирован в contactId и отражает реальный канал коммуникации.
 
 ---
 
