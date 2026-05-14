@@ -23,10 +23,14 @@ class IngestReceivedChatMessagesUseCase(
     ) { messages, contours, maps ->
         val contourByHash = contours.associate { it.transport.meshtastic.channelHash to it }
 
+        //Log.i(TAG, "DBG ingest: total messages=${messages.size} ids=${messages.map { it.id }}")
         messages.forEach { msg ->
             val contactKey = msg.channelId
             val nodeId = contactKey.dropWhile { it.isDigit() }
-            val channelIndex = contactKey.firstOrNull()?.digitToIntOrNull() ?: return@forEach
+            val channelIndex = contactKey.firstOrNull()?.digitToIntOrNull() ?: run {
+                //Log.w(TAG, "DBG ingest: DROP no digit prefix contactKey=$contactKey")
+                return@forEach
+            }
             val isChannel = nodeId.startsWith("^")
 
             val logicalChannelId = if (isChannel) {
@@ -60,6 +64,7 @@ class IngestReceivedChatMessagesUseCase(
                 contactKey
             }
 
+            //Log.i(TAG, "DBG ingest: INSERT id=${msg.id} logicalChannelId=$logicalChannelId from=${msg.senderNodeId} isSelf=${msg.isFromMe}")
             chatMessageRepository.insertIfAbsent(
                 id = msg.id,
                 logicalChannelId = logicalChannelId,

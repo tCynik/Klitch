@@ -193,7 +193,9 @@ class MeshToChatAdapter(
     private suspend fun doSend(text: String, dest: String?, channelIndex: Int, dbContactKey: String) {
         val packet = DataPacket(to = dest, channel = channelIndex, text = text)
             .apply { status = MessageStatus.QUEUED }
+        //android.util.Log.i("ChatAdapter", "DBG doSend: to=$dest channel=$channelIndex contactKey=$dbContactKey")
         commandSender.sendData(packet)
+        //android.util.Log.i("ChatAdapter", "DBG doSend: after sendData packetId=${packet.id} status=${packet.status}")
         val myNodeNum = nodeRepository.ourNodeInfo.value?.num ?: 0
         packetRepository.savePacket(
             myNodeNum = myNodeNum,

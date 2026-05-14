@@ -145,3 +145,66 @@ Contour.isActive (domain/channel)
 | # | Проблема | Приоритет |
 |---|---|---|
 | 1 | `collectUnreadAll()` дублирован в `ChatScreen` и `ChatViewModel` | 🟢 Low |
+| 2 | DM не отображаются — PKC key exchange issue на firmware уровне | 🟡 Medium |
+
+---
+
+## Диагностика DM (личных сообщений) — 2026-05-14
+
+### Симптом
+Сообщения в каналах работают. DM: нет ни пуша, ни сообщения в чате.
+
+### Трассировка пути
+
+Добавлены диагностические логи (`tag:MeshDataHandler`, `tag:IngestChatMessages`, `tag:ChatAdapter`):
+
+**Отправка (doSend):** работает корректно.
+```
+DBG doSend: to=!9e9f2690 channel=0 contactKey=0!9e9f2690
+DBG doSend: after sendData packetId=... status=QUEUED
+```
+
+**Приём на принимающем устройстве** (`!9e7676a0`, myNodeNum=2658563744):
+```
+DBG fromRadio: portnum=null from=2661230224 to=2658563744 pki=false
+```
+
+`portnum=null` = `packet.decoded == null` — firmware не расшифровал DM.
+
+**Точка дропа в коде:**
+```kotlin
+// MeshMessageProcessorImpl.processReceivedMeshPacket(), line ~184
+val decoded = packet.decoded ?: return   // ← дроп здесь, до handleReceivedData
+```
+
+### Root cause
+
+DM приходит на радио принимающей ноды (подтверждено `ROUTING ACK` в логах от отправителя обратно к получателю). Однако **firmware не может расшифровать payload** (`decoded=null`).
+
+Broadcast-пакеты (позиции, канальные сообщения) от той же ноды расшифровываются нормально через PSK channel 0.
+
+**Причина:** Firmware Meshtastic автоматически применяет PKC-шифрование для DM между нодами, у которых есть public key. При сломанном или незавершённом PKC key exchange — decrypt fail. Поле `pki=false` в `FromRadio` firmware выставляет даже при PKC-fail.
+
+### Что было проверено в app-коде
+
+- `sendMessage` / `doSend`: канал кодируется корректно из contactId, no live lookup ✓
+- `buildPrivateCandidates`: PKC-aware fallback (`"8!nodeId"` vs `"0!nodeId"`) ✓
+- `resolveNodeNum`: hex→Int конвертация корректна ✓
+- `IngestReceivedChatMessagesUseCase`: DM routing через `logicalChannelId = contactKey` ✓
+- `ChatViewModel.updateFilteredMessages`: фильтр по `channelId == selectedChatId` ✓
+
+App-код корректен. Проблема ниже уровня нашего приложения.
+
+### TODO
+
+- [ ] Дождаться починки PKC в официальном приложении / firmware Meshtastic
+- [ ] При возобновлении: проверить состояние key exchange на тестовых нодах (Settings → Radio → User → public key присутствует на обеих нодах и видна в NodeDB у партнёра)
+- [ ] Рассмотреть fallback: если DM получен с `decoded=null` и `pki_encrypted=false` — показывать уведомление "зашифрованное сообщение (PKC)"
+- [ ] Убрать debug-логи из `MeshDataHandlerImpl` и `MeshMessageProcessorImpl` перед релизом
+
+### Добавленные debug-логи (НЕ закоммичены, удалить перед релизом)
+
+- `MeshDataHandlerImpl.handleReceivedData()` — лог всех входящих пакетов
+- `MeshDataHandlerImpl.handleTextMessage()` — лог text-пакетов
+- `MeshMessageProcessorImpl.handleFromRadio()` — лог до proto-decode включая `portnum=null` случаи
+- `MeshToChatAdapter.doSend()` — лог отправки DM
