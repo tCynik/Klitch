@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.collections.immutable.toImmutableList
@@ -42,6 +43,7 @@ import ru.tcynik.meshtactics.domain.emergency.usecase.CancelEmergencyUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
+import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
@@ -49,6 +51,8 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SetGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
@@ -86,6 +90,9 @@ class UserSettingsViewModel(
     private val setGpsBroadcastEnabled: SetGpsBroadcastEnabledUseCase,
     private val observeDeviceConfig: ObserveDeviceConfigUseCase,
     private val writeOwner: WriteOwnerUseCase,
+    private val checkOwnPkcHealth: CheckOwnPkcHealthUseCase,
+    private val refreshNodePublicKeys: RefreshNodePublicKeysUseCase,
+    private val regeneratePkcKeys: RegeneratePkcKeysUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UserSettingsUiState())
@@ -98,6 +105,7 @@ class UserSettingsViewModel(
     private var cachedNodeChannels: List<NodeChannelSlot> = emptyList()
     private var connectionStatus: MeshConnectionStatus = MeshConnectionStatus.Disconnected
     private var initialized = false
+    private var needsPkcRegen: Boolean = false
 
     init {
         observeAppUser(NoParams)
@@ -163,6 +171,11 @@ class UserSettingsViewModel(
             } else {
                 enableNodePositionBroadcastReady()
             }
+
+            needsPkcRegen = checkOwnPkcHealth()
+            refreshNodePublicKeys()
+            delay(30_000)
+            refreshNodePublicKeys()
         }
     }
 
@@ -229,6 +242,10 @@ class UserSettingsViewModel(
     fun onConfirmChannelSync() {
         _uiState.update { it.copy(showSyncDialog = false) }
         viewModelScope.launch {
+            if (needsPkcRegen) {
+                regeneratePkcKeys()
+                needsPkcRegen = false
+            }
             syncContoursOnConnect()
             rebootStateRepository.setRebooting(true)
             rebootNode()
@@ -277,6 +294,7 @@ class UserSettingsViewModel(
                 observeDeviceConfig(NoParams).first { it != null }
             }?.shortName ?: ""
             writeOwner(_uiState.value.displayName, shortName)
+            regeneratePkcKeys()
             saveAppUser(AppUser(displayName = _uiState.value.displayName))
             _uiState.update { it.copy(hasUnsavedUserChanges = false) }
             rebootStateRepository.setRebooting(true)

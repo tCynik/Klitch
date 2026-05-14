@@ -7,6 +7,13 @@ import ru.tcynik.meshtactics.domain.mesh.model.LocationConfigModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshDeviceConfigModel
 
 interface MeshConfigRepository {
+
+    // PKC key management
+    fun isOwnPkcKeyBroken(): Boolean
+    fun refreshKnownNodePublicKeys()
+    fun refreshNodePublicKey(nodeNum: Int)
+    fun regeneratePkcKeys()
+    fun observeCallsignChanges(): Flow<Int>
     fun observeNodeChannels(): Flow<List<NodeChannelSlot>>
     fun observeDeviceConfig(): Flow<MeshDeviceConfigModel?>
     fun requestDeviceConfig()

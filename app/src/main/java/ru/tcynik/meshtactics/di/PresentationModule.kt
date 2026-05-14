@@ -17,8 +17,13 @@ import ru.tcynik.meshtactics.domain.map.usecase.ImportMapFileUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveImportedMapsUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveSelectedOverlaysUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ToggleImportedMapSelectionUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeyUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
@@ -70,6 +75,8 @@ val presentationModule = module {
             observeNodeChannels = get<ObserveNodeChannelsUseCase>(),
             syncStateRepository = get<ContourSyncStateRepository>(),
             rebootStateRepository = get<RebootStateRepository>(),
+            observeCallsignChanges = get<ObserveCallsignChangesUseCase>(),
+            refreshNodePublicKey = get<RefreshNodePublicKeyUseCase>(),
         )
     }
 
@@ -115,6 +122,9 @@ val presentationModule = module {
             setGpsBroadcastEnabled = get<SetGpsBroadcastEnabledUseCase>(),
             observeDeviceConfig = get<ObserveDeviceConfigUseCase>(),
             writeOwner = get<WriteOwnerUseCase>(),
+            checkOwnPkcHealth = get<CheckOwnPkcHealthUseCase>(),
+            refreshNodePublicKeys = get<RefreshNodePublicKeysUseCase>(),
+            regeneratePkcKeys = get<RegeneratePkcKeysUseCase>(),
         )
     }
     viewModelOf(::NodeSettingsViewModel)
