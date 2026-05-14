@@ -116,6 +116,7 @@
 |---|---|---|
 | HUD Node Status Indicator | `.claude/plans/hud-node-status-indicator.md` | In Progress |
 | Connection Status HUD Info | `.claude/plans/connection-status-hud-info.md` | Approved |
+| Node PKC Key Management | `.claude/plans/node-key-management.md` | Approved |
 | Chat Feature | `.claude/plans/chat-feature-plan.md` | Done |
 | Node Provisioning | `.claude/plans/node-provisioning.md` | Done |
 | Contour Concept | `.claude/archive/contour-concept.md` | Archived |
