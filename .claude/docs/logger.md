@@ -75,13 +75,80 @@ All production classes receive `logger: Logger` via constructor injection and `g
 ```kotlin
 class GpsRepository(private val logger: Logger) {
     fun track(lat: Double, lon: Double) {
-        logger.d("GPS", "position $lat,$lon")
+        logger.d("GPS", "GpsRepository.track: $lat,$lon")
     }
 }
 ```
 
 - Feature tag is a constant string literal at the call site.
 - No wrapper class, no companion object.
+
+## Log Message Rules
+
+### 1. Searchable context — sufficiency rule
+
+A log message must be searchable: a unique substring in its text must lead back to the call site.
+
+If the message text itself is descriptive and specific enough — use it as-is, no prefix needed.
+Prefix `ClassName.methodName` is required when the message is short, generic, or the method name is common (`onCreate`, `onResume`, `init`, `start`, etc.).
+
+```kotlin
+// Bad — too short, not searchable
+logger.d("GPS", "onCreate")
+logger.d("BLE", "connected")
+
+// Good — descriptive message, searchable by its own text
+logger.d("BLE", "приступаю к фильтрации отсканированного BLE-девайса")
+logger.d("GPS", "запрос разрешений на геолокацию уже был выдан ранее")
+
+// Good — prefix needed: method name is common, message is short
+logger.d("GPS", "GpsService.onCreate")
+logger.d("BLE", "MeshConnectionRepositoryImpl.connect: nodeId='$nodeId'")
+```
+
+### 2. No duplicate message texts within a single file
+
+Each log message in a file must be unique. When two paths are semantically similar, the message must reflect the difference.
+
+```kotlin
+// Bad — two lines, same message, ungreppable
+logger.d("GPS", "GpsService.onStartCommand: started")
+logger.d("GPS", "GpsService.onStartCommand: started") // second path
+
+// Good
+logger.d("GPS", "GpsService.onStartCommand: foreground started")
+logger.d("GPS", "GpsService.onStartCommand: restarted after disconnect")
+```
+
+### 3. No one-word / context-free messages
+
+Messages like `"start"`, `"done"`, `"error"`, `"ok"` are forbidden.
+A log must convey enough to understand *what happened and where*, without opening the file.
+
+```kotlin
+// Bad
+logger.e("BLE", "error")
+logger.d("Node", "done")
+
+// Good
+logger.e("BLE", "MeshConnectionRepositoryImpl.observeNodes: exception in flow", t)
+logger.d("Node", "NodeProvisioningUseCase.execute: provisioning complete for $nodeId")
+```
+
+### 4. Data in messages — use key=value form
+
+When logging variable data, prefer `key=value` format for parsability.
+String values must be wrapped in single quotes `''` to visually separate them from surrounding log text.
+
+```kotlin
+// Bad
+logger.d("GPS", "GpsService.onLocationResult: ${location.lat} ${location.lon}")
+logger.d("BLE", "подключились к девайсу ${device.name}")
+
+// Good — numbers without quotes, strings in single quotes
+logger.d("GPS", "GpsService.onLocationResult: lat=${location.lat} lon=${location.lon}")
+logger.d("BLE", "подключились к девайсу name='${device.name}' address='${device.address}'")
+```
 
 ## Test Convention
 
