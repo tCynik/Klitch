@@ -23,6 +23,7 @@ import ru.tcynik.meshtactics.domain.mesh.model.GpsMode
 import ru.tcynik.meshtactics.domain.mesh.model.LocationConfigModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshChannelModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshDeviceConfigModel
+import ru.tcynik.meshtactics.domain.mesh.model.NodeSecurityModel
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshConfigRepository
 import ru.tcynik.meshtactics.mesh.model.MeshUser
 import ru.tcynik.meshtactics.mesh.model.Node
@@ -206,6 +207,16 @@ class MeshConfigRepositoryImpl(
         val payload = Config.ADAPTER.encode(Config(security = resetSec))
         meshRouter.actionHandler.handleSetConfig(payload, myNodeNum)
     }
+
+    override fun observeSecurityConfig(): Flow<NodeSecurityModel?> =
+        meshRouter.configHandler.localConfig.map { localConfig ->
+            val sec = localConfig.security ?: return@map null
+            NodeSecurityModel(
+                publicKeyHex = sec.public_key.hex(),
+                hasKey = sec.public_key.size > 0,
+                isMismatch = sec.public_key == Node.ERROR_BYTE_STRING,
+            )
+        }
 
     override fun observeCallsignChanges(): Flow<Int> = channelFlow {
         var prevNames = emptyMap<Int, String>()

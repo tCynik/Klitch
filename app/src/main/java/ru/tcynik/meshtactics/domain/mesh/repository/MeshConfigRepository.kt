@@ -5,11 +5,13 @@ import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
 import ru.tcynik.meshtactics.domain.mesh.model.GpsMode
 import ru.tcynik.meshtactics.domain.mesh.model.LocationConfigModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshDeviceConfigModel
+import ru.tcynik.meshtactics.domain.mesh.model.NodeSecurityModel
 
 interface MeshConfigRepository {
 
     // PKC key management
     fun isOwnPkcKeyBroken(): Boolean
+    fun observeSecurityConfig(): Flow<NodeSecurityModel?>
     fun refreshKnownNodePublicKeys()
     fun refreshNodePublicKey(nodeNum: Int)
     fun regeneratePkcKeys()

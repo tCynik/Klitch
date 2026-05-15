@@ -56,6 +56,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveNodeSecurityConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
 import ru.tcynik.meshtactics.data.mesh.GeoSendPolicyImpl
 import ru.tcynik.meshtactics.data.mesh.repository.RebootStateRepositoryImpl
@@ -149,6 +150,7 @@ val meshDataModule = module {
     single { RefreshNodePublicKeyUseCase(get()) }
     single { RegeneratePkcKeysUseCase(get()) }
     single { ObserveCallsignChangesUseCase(get()) }
+    single { ObserveNodeSecurityConfigUseCase(get()) }
     single {
         NodeProvisioningUseCase(
             observeContours = get<ObserveContoursUseCase>(),
