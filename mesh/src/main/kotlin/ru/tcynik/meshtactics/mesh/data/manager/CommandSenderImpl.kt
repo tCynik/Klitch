@@ -236,21 +236,55 @@ class CommandSenderImpl(
         nodeManager.handleReceivedPosition(destNum, nodeManager.myNodeNum ?: 0, meshPos, nowMillis)
     }
 
-    override fun requestUserInfo(destNum: Int) {
+    override fun respondNodeInfo(toNum: Int, channel: Int) {
         val myNum = nodeManager.myNodeNum ?: return
         val myNode = nodeManager.nodeDBbyNodeNum[myNum] ?: return
+        val destNode = nodeManager.nodeDBbyNodeNum[toNum]
+        val effectiveChannel = if (myNode.hasPKC && destNode?.hasPKC == true) {
+            DataPacket.PKC_CHANNEL_INDEX
+        } else {
+            channel
+        }
+        android.util.Log.i("PKCDebug", "respondNodeInfo: to=${toNum.toUInt()} channel=$effectiveChannel (orig=$channel) myPubKey=${myNode.user.public_key.size}B destHasPKC=${destNode?.hasPKC}")
         packetHandler.sendToRadio(
             buildMeshPacket(
-                to = destNum,
-                channel = nodeManager.nodeDBbyNodeNum[destNum]?.channel ?: 0,
-                decoded =
-                Data(
+                to = toNum,
+                channel = effectiveChannel,
+                decoded = Data(
                     portnum = PortNum.NODEINFO_APP,
-                    want_response = true,
                     payload = myNode.user.encode().toByteString(),
                 ),
             ),
         )
+    }
+
+    override fun requestUserInfo(destNum: Int) {
+        val myNum = nodeManager.myNodeNum ?: return
+        val myNode = nodeManager.nodeDBbyNodeNum[myNum] ?: return
+        val nodeChannel = nodeManager.nodeDBbyNodeNum[destNum]?.channel ?: 0
+        val channels = buildList {
+            add(nodeChannel)
+            if (nodeChannel == 0) {
+                val firstSecondary = channelSet.value.settings.drop(1)
+                    .indexOfFirst { it.psk.size > 0 }
+                    .let { if (it >= 0) it + 1 else null }
+                firstSecondary?.let { add(it) }
+            }
+        }
+        channels.forEach { ch ->
+            android.util.Log.i("PKCDebug", "requestUserInfo: to=${destNum.toUInt()} destChannel=$ch myPubKey=${myNode.user.public_key.size}B")
+            packetHandler.sendToRadio(
+                buildMeshPacket(
+                    to = destNum,
+                    channel = ch,
+                    decoded = Data(
+                        portnum = PortNum.NODEINFO_APP,
+                        want_response = true,
+                        payload = myNode.user.encode().toByteString(),
+                    ),
+                ),
+            )
+        }
     }
 
     override fun requestTraceroute(requestId: Int, destNum: Int) {
@@ -390,8 +424,12 @@ class CommandSenderImpl(
 
         if (channel == DataPacket.PKC_CHANNEL_INDEX) {
             pkiEncrypted = true
-            publicKey = nodeManager.nodeDBbyNodeNum[to]?.user?.public_key ?: ByteString.EMPTY
+            val destNode = nodeManager.nodeDBbyNodeNum[to]
+            publicKey = destNode?.user?.public_key ?: ByteString.EMPTY
             actualChannel = 0
+            android.util.Log.i("PKCDebug", "buildMeshPacket PKC to=${to.toUInt()}: userPubKey=${destNode?.user?.public_key?.size ?: -1}B nodePubKey=${destNode?.publicKey?.size ?: -1}B keyEmpty=${publicKey == ByteString.EMPTY}")
+        } else if (to != DataPacket.NODENUM_BROADCAST) {
+            android.util.Log.i("PKCDebug", "buildMeshPacket PSK DM to=${to.toUInt()} channel=$actualChannel")
         }
 
         return MeshPacket(

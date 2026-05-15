@@ -185,14 +185,22 @@ class MeshConfigRepositoryImpl(
 
     override fun isOwnPkcKeyBroken(): Boolean {
         val sec = meshRouter.configHandler.localConfig.value.security ?: return true
+        android.util.Log.i("PKCDebug", "isOwnPkcKeyBroken: pubKey=${sec.public_key.size}B privKey=${sec.private_key.size}B")
         return sec.public_key.size == 0 || sec.public_key == Node.ERROR_BYTE_STRING
     }
 
     override fun refreshKnownNodePublicKeys() {
-        val myNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
-        nodeRepository.nodeDBbyNum.value.values
-            .filter { it.num != myNum && it.lastHeard > 0 }
-            .forEach { node -> commandSender.requestUserInfo(node.num) }
+        val myNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: run {
+            android.util.Log.i("PKCDebug", "refreshKnownNodePublicKeys: myNodeNum=null → skip")
+            return
+        }
+        val allNodes = nodeRepository.nodeDBbyNum.value
+        val candidates = allNodes.values.filter { it.num != myNum && it.lastHeard > 0 }
+        android.util.Log.i("PKCDebug", "refreshKnownNodePublicKeys: myNum=${myNum.toUInt()} dbSize=${allNodes.size} candidates=${candidates.size}")
+        candidates.forEach { node ->
+            android.util.Log.i("PKCDebug", "refreshKnownNodePublicKeys: → requestUserInfo to=${node.num.toUInt()} lastHeard=${node.lastHeard}")
+            commandSender.requestUserInfo(node.num)
+        }
     }
 
     override fun refreshNodePublicKey(nodeNum: Int) {

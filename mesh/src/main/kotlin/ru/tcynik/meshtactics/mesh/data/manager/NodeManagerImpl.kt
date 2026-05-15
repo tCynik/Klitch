@@ -192,8 +192,11 @@ class NodeManagerImpl(
                     node.copy(channel = channel, manuallyVerified = manuallyVerified)
                 } else {
                     val keyMatch = !node.hasPKC || node.user.public_key == p.public_key
+                    android.util.Log.i("PKCDebug", "handleReceivedUser from=$fromNum hasPKC=${node.hasPKC} keyMatch=$keyMatch existingUserKey=${node.user.public_key.size}B existingNodeKey=${node.publicKey?.size ?: -1}B incomingKey=${p.public_key.size}B")
                     val newUser = if (keyMatch) p else p.copy(public_key = ByteString.EMPTY)
-                    node.copy(user = newUser, channel = channel, manuallyVerified = manuallyVerified)
+                    // On rejection: clear publicKey so hasPKC=false, allowing the second requestUserInfo to succeed
+                    val newPublicKey = if (keyMatch) node.publicKey else null
+                    node.copy(user = newUser, channel = channel, manuallyVerified = manuallyVerified, publicKey = newPublicKey)
                 }
             if (newNode && !shouldPreserve) {
                 scope.handledLaunch {
@@ -288,7 +291,7 @@ class NodeManagerImpl(
                 next.copy(
                     lastHeard = info.last_heard,
                     deviceMetrics = info.device_metrics ?: next.deviceMetrics,
-                    channel = info.channel,
+                    channel = if (info.channel != 0) info.channel else next.channel,
                     viaMqtt = info.via_mqtt,
                     hopsAway = info.hops_away ?: -1,
                     isFavorite = info.is_favorite,

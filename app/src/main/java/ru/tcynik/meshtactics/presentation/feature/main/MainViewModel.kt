@@ -40,7 +40,10 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceParams
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeyUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
@@ -111,6 +114,9 @@ class MainViewModel(
     private val rebootStateRepository: RebootStateRepository,
     private val observeCallsignChanges: ObserveCallsignChangesUseCase,
     private val refreshNodePublicKey: RefreshNodePublicKeyUseCase,
+    private val refreshNodePublicKeys: RefreshNodePublicKeysUseCase,
+    private val checkOwnPkcHealth: CheckOwnPkcHealthUseCase,
+    private val regeneratePkcKeys: RegeneratePkcKeysUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -169,6 +175,18 @@ class MainViewModel(
                         viewModelScope.launch {
                             if (checkNodeSync() is NodeSyncResult.NeedsSync)
                                 syncStateRepository.setSyncRequired(true)
+                        }
+                        viewModelScope.launch {
+                            if (checkOwnPkcHealth()) {
+                                android.util.Log.i("PKCDebug", "MainViewModel: own PKC broken → regenerating")
+                                regeneratePkcKeys()
+                            }
+                            delay(2_000)
+                            refreshNodePublicKeys()
+                            delay(5_000)
+                            refreshNodePublicKeys()
+                            delay(25_000)
+                            refreshNodePublicKeys()
                         }
                         _uiState.update { it.copy(showConnectionLabel = true) }
                         connectedLabelJob?.cancel()

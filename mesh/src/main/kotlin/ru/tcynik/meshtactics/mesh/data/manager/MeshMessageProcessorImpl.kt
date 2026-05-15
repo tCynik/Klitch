@@ -85,10 +85,10 @@ class MeshMessageProcessorImpl(
     override fun handleFromRadio(bytes: ByteArray, myNodeNum: Int?) {
         runCatching { FromRadio.ADAPTER.decode(bytes) }
             .onSuccess { proto ->
-                //val pkt = proto.packet
-                //if (pkt != null) {
-                //    android.util.Log.i("MeshDataHandler", "DBG fromRadio: portnum=${pkt.decoded?.portnum} from=${pkt.from.toUInt()} to=${pkt.to.toUInt()} pki=${pkt.pki_encrypted}")
-                //}
+                val pkt = proto.packet
+                if (pkt != null) {
+                    android.util.Log.i("PKCDebug", "fromRadio: portnum=${pkt.decoded?.portnum} from=${pkt.from.toUInt()} to=${pkt.to.toUInt()} pki=${pkt.pki_encrypted} channel=${pkt.channel} pubkeySize=${pkt.public_key.size}B")
+                }
                 processFromRadio(proto, myNodeNum)
             }
             .onFailure { primaryException ->

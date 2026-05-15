@@ -78,6 +78,9 @@ val presentationModule = module {
             rebootStateRepository = get<RebootStateRepository>(),
             observeCallsignChanges = get<ObserveCallsignChangesUseCase>(),
             refreshNodePublicKey = get<RefreshNodePublicKeyUseCase>(),
+            refreshNodePublicKeys = get<RefreshNodePublicKeysUseCase>(),
+            checkOwnPkcHealth = get<CheckOwnPkcHealthUseCase>(),
+            regeneratePkcKeys = get<RegeneratePkcKeysUseCase>(),
         )
     }
 

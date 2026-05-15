@@ -128,9 +128,9 @@ class MeshDataHandlerImpl(
         )
 
     override fun handleReceivedData(packet: MeshPacket, myNodeNum: Int, logUuid: String?, logInsertJob: Job?) {
-        //android.util.Log.i("MeshDataHandler", "DBG handleReceivedData: portnum=${packet.decoded?.portnum} from=${packet.from.toUInt()} to=${packet.to.toUInt()} myNodeNum=${myNodeNum.toUInt()}")
+        android.util.Log.i("PKCDebug", "handleReceivedData: portnum=${packet.decoded?.portnum} from=${packet.from.toUInt()} to=${packet.to.toUInt()} pki=${packet.pki_encrypted} pubkeySize=${packet.public_key.size}B")
         val dataPacket = dataMapper.toDataPacket(packet) ?: run {
-            //android.util.Log.w("MeshDataHandler", "DBG handleReceivedData: toDataPacket returned null, drop")
+            android.util.Log.w("PKCDebug", "handleReceivedData: toDataPacket=null → dropped")
             return
         }
         val fromUs = myNodeNum == packet.from
@@ -304,6 +304,9 @@ class MeshDataHandlerImpl(
                 .let { if (it.is_licensed == true) it.copy(public_key = okio.ByteString.EMPTY) else it }
                 .let { if (packet.via_mqtt == true) it.copy(long_name = "${it.long_name} (MQTT)") else it }
         nodeManager.handleReceivedUser(packet.from, u, packet.channel)
+        if (packet.decoded?.want_response == true && packet.via_mqtt != true) {
+            commandSender.respondNodeInfo(packet.from, packet.channel)
+        }
     }
 
     private fun handleNodeStatus(packet: MeshPacket, dataPacket: DataPacket, myNodeNum: Int) {

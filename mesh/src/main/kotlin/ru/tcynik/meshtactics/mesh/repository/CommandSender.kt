@@ -72,6 +72,9 @@ interface CommandSender {
     /** Requests user info from a specific node. */
     fun requestUserInfo(destNum: Int)
 
+    /** Sends our own node info to a specific node without requesting a response. */
+    fun respondNodeInfo(toNum: Int, channel: Int)
+
     /** Requests a traceroute to a specific node. */
     fun requestTraceroute(requestId: Int, destNum: Int)
 
