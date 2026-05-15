@@ -49,8 +49,10 @@ import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.settings.usecase.GetMarkerSizeLevelUseCase
@@ -83,6 +85,8 @@ class MainViewModelHudWarningTest {
     private val checkNodeSync: CheckNodeSyncUseCase = mockk(relaxed = true)
     private val syncStateRepository: ContourSyncStateRepository = mockk(relaxed = true)
     private val rebootStateRepository: RebootStateRepository = mockk(relaxed = true)
+    private val observeCallsignChanges: ObserveCallsignChangesUseCase = mockk()
+    private val refreshNodePublicKey: RefreshNodePublicKeyUseCase = mockk(relaxed = true)
 
     private val channelsFlow = MutableStateFlow<List<Contour>>(emptyList())
     private val nodeChannelsFlow = MutableStateFlow<List<NodeChannelSlot>>(emptyList())
@@ -113,6 +117,7 @@ class MainViewModelHudWarningTest {
         every { syncStateRepository.syncRequired } returns MutableStateFlow(false)
         every { rebootStateRepository.isRebooting } returns MutableStateFlow(false)
         coEvery { checkNodeSync.invoke() } returns NodeSyncResult.InSync
+        every { observeCallsignChanges.invoke(any()) } returns flowOf(0)
         viewModel = MainViewModel(
             getTileUrl = getTileUrl,
             getLastPosition = getLastPosition,
@@ -138,6 +143,8 @@ class MainViewModelHudWarningTest {
             observeNodeChannels = observeNodeChannels,
             syncStateRepository = syncStateRepository,
             rebootStateRepository = rebootStateRepository,
+            observeCallsignChanges = observeCallsignChanges,
+            refreshNodePublicKey = refreshNodePublicKey,
         )
     }
 

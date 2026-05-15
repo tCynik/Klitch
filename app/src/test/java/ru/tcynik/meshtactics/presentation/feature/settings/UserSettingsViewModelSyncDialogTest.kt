@@ -42,6 +42,7 @@ import ru.tcynik.meshtactics.domain.emergency.usecase.CancelEmergencyUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
+import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
@@ -49,6 +50,8 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SetGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
@@ -85,6 +88,9 @@ class UserSettingsViewModelSyncDialogTest {
     private val setGpsBroadcastEnabled: SetGpsBroadcastEnabledUseCase = mockk(relaxed = true)
     private val observeDeviceConfig: ObserveDeviceConfigUseCase = mockk()
     private val writeOwner: WriteOwnerUseCase = mockk(relaxed = true)
+    private val checkOwnPkcHealth: CheckOwnPkcHealthUseCase = mockk()
+    private val refreshNodePublicKeys: RefreshNodePublicKeysUseCase = mockk(relaxed = true)
+    private val regeneratePkcKeys: RegeneratePkcKeysUseCase = mockk(relaxed = true)
 
     private val contoursFlow = MutableStateFlow<List<Contour>>(emptyList())
     private val nodeChannelsFlow = MutableStateFlow<List<NodeChannelSlot>>(emptyList())
@@ -116,6 +122,7 @@ class UserSettingsViewModelSyncDialogTest {
         every { observeGpsBroadcastEnabled.invoke() } returns flowOf(true)
         every { observeDeviceConfig.invoke(any()) } returns flowOf(null)
         every { syncStateRepository.syncRequired } returns syncRequiredFlow
+        every { checkOwnPkcHealth.invoke() } returns false
         viewModel = UserSettingsViewModel(
             observeAppUser = observeAppUser,
             saveAppUser = saveAppUser,
@@ -142,6 +149,9 @@ class UserSettingsViewModelSyncDialogTest {
             setGpsBroadcastEnabled = setGpsBroadcastEnabled,
             observeDeviceConfig = observeDeviceConfig,
             writeOwner = writeOwner,
+            checkOwnPkcHealth = checkOwnPkcHealth,
+            refreshNodePublicKeys = refreshNodePublicKeys,
+            regeneratePkcKeys = regeneratePkcKeys,
         )
     }
 
