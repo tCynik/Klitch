@@ -98,6 +98,9 @@ fun NavGraph() {
                 NodeSettingsScreen(
                     uiState = uiState,
                     onNavigateBack = { navController.popBackStack() },
+                    onRegenerateClick = viewModel::onRegenerateClick,
+                    onRegenerateConfirm = viewModel::onRegenerateConfirm,
+                    onRegenerateDismiss = viewModel::onRegenerateDismiss,
                 )
             }
 

@@ -107,6 +107,7 @@
 | User Settings Write Mechanics | `.claude/docs/user-settings-write-mechanics.md` |
 | Tile Cache Settings | `.claude/docs/tile-cache-settings.md` |
 | Autonomous Beacon (concept) | `.claude/docs/autonomous-beacon.md` |
+| Node PKC Key Management | `.claude/docs/node-key-management.md` |
 
 ---
 
@@ -116,7 +117,7 @@
 |---|---|---|
 | HUD Node Status Indicator | `.claude/plans/hud-node-status-indicator.md` | In Progress |
 | Connection Status HUD Info | `.claude/plans/connection-status-hud-info.md` | Approved |
-| Node PKC Key Management | `.claude/plans/node-key-management.md` | Approved |
+| Node PKC Key Management | `.claude/archive/node-key-management.md` | Done |
 | Chat Feature | `.claude/plans/chat-feature-plan.md` | Done |
 | Node Provisioning | `.claude/plans/node-provisioning.md` | Done |
 | Contour Concept | `.claude/archive/contour-concept.md` | Archived |

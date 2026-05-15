@@ -29,6 +29,7 @@ data class ChatFilterItem(
     val isArchiveSection: Boolean = false,  // Признак секции «Архив»
     val isExpanded: Boolean = false,         // Раскрыт ли архив
     val children: ImmutableList<ChatFilterItem> = persistentListOf(),
+    val partnerHasPKC: Boolean = false,
 )
 
 /**

@@ -21,6 +21,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveNodeSecurityConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
@@ -127,7 +128,14 @@ val presentationModule = module {
             regeneratePkcKeys = get<RegeneratePkcKeysUseCase>(),
         )
     }
-    viewModelOf(::NodeSettingsViewModel)
+    viewModel {
+        NodeSettingsViewModel(
+            observeNodeSecurityConfig = get<ObserveNodeSecurityConfigUseCase>(),
+            observeConnectionStatus = get(),
+            regeneratePkcKeys = get<RegeneratePkcKeysUseCase>(),
+            rebootNode = get<RebootNodeUseCase>(),
+        )
+    }
     viewModelOf(::NodeStatusViewModel)
     viewModelOf(::MarkersViewModel)
     viewModelOf(::GroupsViewModel)

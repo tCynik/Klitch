@@ -11,4 +11,5 @@ data class ChatContact(
     val unreadCount: Int = 0,
     val lastMessageTime: Long? = null,
     val lastMessagePreview: String? = null,
+    val partnerHasPKC: Boolean = false,
 )

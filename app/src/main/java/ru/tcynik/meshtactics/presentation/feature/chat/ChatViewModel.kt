@@ -99,7 +99,7 @@ class ChatViewModel(
     fun switchTab(tab: ChatTab) {
         _uiState.update { state ->
             if (tab == ChatTab.FILTER) {
-                state.copy(currentTab = tab, selectedChatId = null)
+                state.copy(currentTab = tab, selectedChatId = null, selectedChatPartnerHasPKC = null)
             } else {
                 state.copy(currentTab = tab)
             }
@@ -115,6 +115,7 @@ class ChatViewModel(
 
     fun selectChat(chatId: String) {
         val item = findItemById(chatId, _uiState.value.filterItems)
+        val pkcStatus = if (item?.type == ChatType.DIRECT_CHAT) item.partnerHasPKC else null
         _uiState.update { state ->
             val title = if (item != null) "Чат с ${item.name}" else "Чат"
             state.copy(
@@ -123,6 +124,7 @@ class ChatViewModel(
                 chatTabTitle = title,
                 isChatTabEnabled = true,
                 isSelectedChatActive = item?.isActive ?: true,
+                selectedChatPartnerHasPKC = pkcStatus,
             )
         }
         markAsRead(chatId)
@@ -324,9 +326,12 @@ class ChatViewModel(
                     val isSelectedChatActive = state.selectedChatId
                         ?.let { id -> findItemById(id, allItems) }
                         ?.isActive ?: true
+                    val selectedItem = state.selectedChatId?.let { id -> findItemById(id, allItems) }
+                    val pkcStatus = if (selectedItem?.type == ChatType.DIRECT_CHAT) selectedItem.partnerHasPKC else null
                     state.copy(
                         filterItems = allItems,
                         isSelectedChatActive = isSelectedChatActive,
+                        selectedChatPartnerHasPKC = pkcStatus,
                     )
                 }
                 updateChatTabInfo()
@@ -436,4 +441,5 @@ private fun ChatContact.toFilterItem(isChecked: Boolean): ChatFilterItem = ChatF
     unreadCount = unreadCount,
     lastMessageTime = lastMessageTime ?: 0L,
     lastMessagePreview = lastMessagePreview ?: "",
+    partnerHasPKC = partnerHasPKC,
 )

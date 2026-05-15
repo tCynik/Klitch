@@ -21,4 +21,5 @@ data class ChatUiState(
     val chatTabTitle: String = "Лента",
     val isChatTabEnabled: Boolean = false,
     val isSelectedChatActive: Boolean = true,
+    val selectedChatPartnerHasPKC: Boolean? = null,
 )

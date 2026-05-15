@@ -192,6 +192,7 @@ fun ChatScreen(
                         searchQuery = uiState.searchQuery,
                         inputText = uiState.inputText,
                         isSelectedChatActive = uiState.isSelectedChatActive,
+                        partnerHasPKC = uiState.selectedChatPartnerHasPKC,
                         onSearchChanged = { viewModel.updateSearchQuery(it) },
                         onInputChanged = { viewModel.updateInputText(it) },
                         onSend = { viewModel.sendMessage() }
@@ -655,6 +656,7 @@ private fun ChatTabContent(
     searchQuery: String,
     inputText: String,
     isSelectedChatActive: Boolean,
+    partnerHasPKC: Boolean?,
     onSearchChanged: (String) -> Unit,
     onInputChanged: (String) -> Unit,
     onSend: () -> Unit,
@@ -679,6 +681,11 @@ private fun ChatTabContent(
                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
             )
         )
+
+        // PKC-статус для приватных чатов
+        if (partnerHasPKC != null) {
+            PkcStatusBanner(partnerHasPKC = partnerHasPKC)
+        }
 
         // Список сообщений
         val listState = rememberLazyListState()
@@ -725,6 +732,33 @@ private fun ChatTabContent(
             if (imeBottom > 0 && messages.isNotEmpty()) {
                 listState.animateScrollToItem(messages.lastIndex)
             }
+        }
+    }
+}
+
+// ==================== PKC-СТАТУС ====================
+
+@Composable
+private fun PkcStatusBanner(partnerHasPKC: Boolean) {
+    val color = if (partnerHasPKC) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
+    val text = if (partnerHasPKC) "PKC ✓ — зашифровано" else "PKC ✗ — незашифровано"
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            color = color.copy(alpha = 0.12f),
+            shape = RoundedCornerShape(4.dp),
+        ) {
+            Text(
+                text = text,
+                fontSize = 11.sp,
+                color = color,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            )
         }
     }
 }

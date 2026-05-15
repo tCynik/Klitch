@@ -1,7 +1,15 @@
 # Node PKC Key Management — план реализации
 
-**Статус**: Approved  
+**Статус**: Done  
 **Приоритет**: Medium (блокирует диагностику DM-чата)
+
+| Фаза | Статус |
+|---|---|
+| Фаза 0 — Автоматическое восстановление ключей при connect | ✅ Done |
+| Фаза 1 — Domain: ObserveNodeSecurityConfigUseCase | ✅ Done |
+| Фаза 2 — Domain: RegeneratePkcKeysUseCase | ✅ Done (реализован в рамках Фазы 0) |
+| Фаза 3 — UI: NodeSettingsScreen | ⬜ Next |
+| Фаза 4 — PKC-статус контакта в ChatScreen | ✅ Done |
 
 ---
 
@@ -493,21 +501,21 @@ single { RefreshNodePublicKeysUseCase(get()) }
 
 ## Последовательность реализации
 
-| # | Что | Где | Фаза |
-|---|---|---|---|
-| 1 | `ERROR_PUBLIC_KEY` + `isOwnPkcKeyBroken()` + `refreshKnownNodePublicKeys()` + `refreshNodePublicKey(nodeNum)` + `regeneratePkcKeys()` + `observeCallsignChanges()` в интерфейс и impl | `MeshConfigRepository` / `MeshConfigRepositoryImpl` | 0+2 |
-| 2 | `CheckOwnPkcHealthUseCase`, `RefreshNodePublicKeysUseCase`, `RefreshNodePublicKeyUseCase`, `RegeneratePkcKeysUseCase`, `ObserveCallsignChangesUseCase` | `domain/mesh/usecase/` | 0+2 |
-| 3 | `onConnected()` + `onConfirmChannelSync()` + `onSaveAndReboot()` расширить | `UserSettingsViewModel` | 0g кейс 1 |
-| 4 | `observeCallsignChanges` observer добавить в `init {}` | `MainViewModel` | 0g кейс 2 |
-| 5 | `NodeSecurityModel` data class + `observeSecurityConfig()` | `domain/mesh/model/` + repo | 1 |
-| 6 | `ObserveNodeSecurityConfigUseCase` | `domain/mesh/usecase/` | 1 |
-| 7 | `NodeSettingsUiState` расширить | `presentation/feature/node/` | 3 |
-| 8 | `NodeSettingsViewModel` расширить | `presentation/feature/node/` | 3 |
-| 9 | `NodeSettingsScreen` реализовать | `presentation/feature/node/` | 3 |
-| 10 | DI зарегистрировать всё новое | `di/` | — |
-| 11 | `ChatContact.partnerHasPKC` + adapter + UI | chat пакеты | 4 |
-| 12 | Обновить `user-settings-write-mechanics.md`, `channel-sync-validation.md`, `chat.md` | `.claude/docs/` | docs |
-| 13 | Создать `node-key-management.md` + добавить строку в `CLAUDE.md` | `.claude/docs/` + `CLAUDE.md` | docs |
+| # | Что | Где | Фаза | Статус |
+|---|---|---|---|---|
+| 1 | `ERROR_PUBLIC_KEY` + `isOwnPkcKeyBroken()` + `refreshKnownNodePublicKeys()` + `refreshNodePublicKey(nodeNum)` + `regeneratePkcKeys()` + `observeCallsignChanges()` в интерфейс и impl | `MeshConfigRepository` / `MeshConfigRepositoryImpl` | 0+2 | ✅ |
+| 2 | `CheckOwnPkcHealthUseCase`, `RefreshNodePublicKeysUseCase`, `RefreshNodePublicKeyUseCase`, `RegeneratePkcKeysUseCase`, `ObserveCallsignChangesUseCase` | `domain/mesh/usecase/` | 0+2 | ✅ |
+| 3 | `onConnected()` + `onConfirmChannelSync()` + `onSaveAndReboot()` расширить | `UserSettingsViewModel` | 0g кейс 1 | ✅ |
+| 4 | `observeCallsignChanges` observer добавить в `init {}` | `MainViewModel` | 0g кейс 2 | ✅ |
+| 5 | `NodeSecurityModel` data class + `observeSecurityConfig()` | `domain/mesh/model/` + repo | 1 | ✅ |
+| 6 | `ObserveNodeSecurityConfigUseCase` | `domain/mesh/usecase/` | 1 | ✅ |
+| 7 | `NodeSettingsUiState` расширить | `presentation/feature/node/` | 3 | ✅ |
+| 8 | `NodeSettingsViewModel` расширить | `presentation/feature/node/` | 3 | ✅ |
+| 9 | `NodeSettingsScreen` реализовать | `presentation/feature/node/` | 3 | ✅ |
+| 10 | DI зарегистрировать всё новое | `di/` | — | ✅ |
+| 11 | `ChatContact.partnerHasPKC` + adapter + UI | chat пакеты | 4 | ✅ |
+| 12 | Обновить `user-settings-write-mechanics.md`, `channel-sync-validation.md`, `chat.md` | `.claude/docs/` | docs | ⬜ |
+| 13 | Создать `node-key-management.md` + добавить строку в `CLAUDE.md` | `.claude/docs/` + `CLAUDE.md` | docs | ⬜ |
 
 ---
 

@@ -107,6 +107,7 @@ class MeshToChatAdapter(
                             unreadCount = unreadCounts[privateBaseIndex + index],
                             lastMessageTime = lastPacket?.time?.takeIf { it > 0 },
                             lastMessagePreview = lastPacket?.text,
+                            partnerHasPKC = candidate.partnerHasPKC,
                         )
                     }.sortedWith(
                         compareByDescending<Pair<PrivateNodeCandidate, ChatContactDto>> { it.first.isOnline }
@@ -266,6 +267,7 @@ private data class PrivateNodeCandidate(
     val shortName: String,
     val longName: String,
     val isOnline: Boolean,
+    val partnerHasPKC: Boolean = false,
 )
 
 private fun buildPrivateCandidates(
@@ -315,6 +317,7 @@ private fun buildPrivateCandidates(
             shortName = shortName,
             longName = longName,
             isOnline = node?.isOnline ?: false,
+            partnerHasPKC = node?.hasPKC ?: false,
         )
     }
 }
