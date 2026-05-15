@@ -31,6 +31,7 @@ val geoMarkDataModule = module {
             geoMarkRepository   = get(),
             adapter             = get(),
             channelSlotResolver = get(),
+            logger              = get(),
         )
     }
 }

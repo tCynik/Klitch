@@ -6,13 +6,11 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
-import io.mockk.mockkStatic
-import io.mockk.unmockkStatic
 import io.mockk.Runs
+import ru.tcynik.meshtactics.logger.NoOpLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapter
@@ -78,8 +76,6 @@ class IngestReceivedGeoMarksUseCaseTest {
 
     @Before
     fun setUp() {
-        mockkStatic(android.util.Log::class)
-        every { android.util.Log.w(any(), any<String>()) } returns 0
         coEvery { geoMarkRepository.persistReceived(any(), any()) } just Runs
 
         useCase = IngestReceivedGeoMarksUseCase(
@@ -88,12 +84,8 @@ class IngestReceivedGeoMarksUseCaseTest {
             geoMarkRepository = geoMarkRepository,
             adapter = adapter,
             channelSlotResolver = channelSlotResolver,
+            logger = NoOpLogger(),
         )
-    }
-
-    @After
-    fun tearDown() {
-        unmockkStatic(android.util.Log::class)
     }
 
     // ── happy path ────────────────────────────────────────────────────────────

@@ -7,12 +7,10 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
-import io.mockk.mockkStatic
-import io.mockk.unmockkStatic
+import ru.tcynik.meshtactics.logger.NoOpLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import ru.tcynik.meshtactics.data.chat.adapter.MeshToChatAdapter
@@ -70,8 +68,6 @@ class IngestReceivedChatMessagesUseCaseTest {
 
     @Before
     fun setUp() {
-        mockkStatic(android.util.Log::class)
-        every { android.util.Log.w(any(), any<String>()) } returns 0
         coEvery {
             chatMessageRepository.insertIfAbsent(any(), any(), any(), any(), any(), any(), any())
         } just Runs
@@ -81,12 +77,8 @@ class IngestReceivedChatMessagesUseCaseTest {
             channelRepository = channelRepository,
             chatMessageRepository = chatMessageRepository,
             channelSlotResolver = channelSlotResolver,
+            logger = NoOpLogger(),
         )
-    }
-
-    @After
-    fun tearDown() {
-        unmockkStatic(android.util.Log::class)
     }
 
     // ── happy path ────────────────────────────────────────────────────────────

@@ -103,6 +103,8 @@ Output a structured plan with phases. Each phase must have:
 - After implementation is complete: run `/simplify` on changed files before Phase 5
 - Output: buildable code, simplified and ready for review
 
+> **Logger checklist**: every new class that logs anything adds `logger: Logger` to its constructor and `get()` to its Koin binding. Feature tag is a string constant local to the class (e.g. `"GPS"`, `"BLE"`, `"Map"`). Never use `android.util.Log` directly.
+
 **Phase 4 — Testing**
 - Goal: feature verified at unit + integration level
 - Tasks:

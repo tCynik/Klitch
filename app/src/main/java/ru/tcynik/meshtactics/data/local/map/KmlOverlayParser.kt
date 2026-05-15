@@ -6,18 +6,21 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.RectF
 import android.net.Uri
-import android.util.Log
 import org.osmdroid.bonuspack.kml.KmlDocument
 import org.osmdroid.bonuspack.kml.KmlFeature
 import org.osmdroid.bonuspack.kml.KmlFolder
 import org.osmdroid.bonuspack.kml.KmlGroundOverlay
+import ru.tcynik.meshtactics.domain.logger.Logger
 import java.io.File
 import java.io.FileOutputStream
 import java.util.zip.ZipInputStream
 
-private const val TAG = "KmlOverlayParser"
+private const val FEATURE = "Map"
 
-class KmlOverlayParser(private val context: Context) {
+class KmlOverlayParser(
+    private val context: Context,
+    private val logger: Logger,
+) {
 
     data class ParseResult(
         val geoJsonPath: String?,
@@ -25,24 +28,24 @@ class KmlOverlayParser(private val context: Context) {
     )
 
     fun parse(id: String, uri: Uri): ParseResult {
-        Log.d(TAG, "parse: start id=$id uri=$uri")
+        logger.d(FEATURE, "parse: start id=$id uri=$uri")
         val outDir = File(context.filesDir, "overlays/$id").also { it.mkdirs() }
-        Log.d(TAG, "parse: outDir=$outDir")
+        logger.d(FEATURE, "parse: outDir=$outDir")
         val kmlDoc = KmlDocument()
 
         val uriPath = uri.path.orEmpty()
         val isKmz = uriPath.endsWith(".kmz", ignoreCase = true)
-        Log.d(TAG, "parse: isKmz=$isKmz path=$uriPath")
+        logger.d(FEATURE, "parse: isKmz=$isKmz path=$uriPath")
 
         if (isKmz) {
             val kmlFile = extractKmzContents(uri, outDir)
             if (kmlFile == null) {
-                Log.w(TAG, "parse: failed to extract KML from KMZ")
+                logger.w(FEATURE, "parse: failed to extract KML from KMZ")
                 return ParseResult(null, null)
             }
-            Log.d(TAG, "parse: extracted KML file=$kmlFile")
+            logger.d(FEATURE, "parse: extracted KML file=$kmlFile")
             val ok = kmlDoc.parseKMLFile(kmlFile)
-            Log.d(TAG, "parse: parseKMLFile result=$ok")
+            logger.d(FEATURE, "parse: parseKMLFile result=$ok")
             // Загрузить изображения в GroundOverlay из извлечённых файлов
             loadGroundOverlayIcons(kmlDoc.mKmlRoot, outDir)
         } else {
@@ -50,24 +53,24 @@ class KmlOverlayParser(private val context: Context) {
                 val kmlFile = File(outDir, "source.kml")
                 kmlFile.outputStream().use { stream.copyTo(it) }
                 val kmlSize = kmlFile.length()
-                Log.d(TAG, "parse: saved KML file=$kmlFile size=$kmlSize")
+                logger.d(FEATURE, "parse: saved KML file=$kmlFile size=$kmlSize")
                 val kmlContent = runCatching { kmlFile.readText().take(2000) }.getOrDefault("")
-                Log.d(TAG, "parse: KML preview=$kmlContent")
+                logger.d(FEATURE, "parse: KML preview=$kmlContent")
                 val ok = kmlDoc.parseKMLFile(kmlFile)
-                Log.d(TAG, "parse: parseKMLFile result=$ok")
+                logger.d(FEATURE, "parse: parseKMLFile result=$ok")
             } ?: return ParseResult(null, null).also {
-                Log.w(TAG, "parse: failed to open input stream for uri=$uri")
+                logger.w(FEATURE, "parse: failed to open input stream for uri=$uri")
             }
         }
 
-        Log.d(TAG, "parse: mKmlRoot=${kmlDoc.mKmlRoot?.javaClass?.simpleName}")
+        logger.d(FEATURE, "parse: mKmlRoot=${kmlDoc.mKmlRoot?.javaClass?.simpleName}")
         logKmlStructure(kmlDoc.mKmlRoot, indent = 0)
 
         val geoJsonPath = saveGeoJson(kmlDoc, outDir)
         val groundOverlayPath = saveGroundOverlay(kmlDoc, outDir)
 
-        Log.d(TAG, "parse: geoJsonPath=$geoJsonPath")
-        Log.d(TAG, "parse: groundOverlayPath=$groundOverlayPath")
+        logger.d(FEATURE, "parse: geoJsonPath=$geoJsonPath")
+        logger.d(FEATURE, "parse: groundOverlayPath=$groundOverlayPath")
 
         return ParseResult(
             geoJsonPath = geoJsonPath,
@@ -79,7 +82,7 @@ class KmlOverlayParser(private val context: Context) {
      * Извлекает все файлы из KMZ архива. Возвращает путь к .kml файлу.
      */
     private fun extractKmzContents(uri: Uri, outDir: File): File? {
-        Log.d(TAG, "extractKmzContents: start uri=$uri")
+        logger.d(FEATURE, "extractKmzContents: start uri=$uri")
         var kmlFile: File? = null
         var entriesCount = 0
 
@@ -88,14 +91,14 @@ class KmlOverlayParser(private val context: Context) {
                 var entry = zip.nextEntry
                 while (entry != null) {
                     entriesCount++
-                    Log.d(TAG, "extractKmzContents: entry=${entry.name} dir=${entry.isDirectory}")
+                    logger.d(FEATURE, "extractKmzContents: entry=${entry.name} dir=${entry.isDirectory}")
                     if (!entry.isDirectory) {
                         val targetFile = File(outDir, entry.name)
                         // Защита от path traversal
                         if (targetFile.absolutePath.startsWith(outDir.absolutePath)) {
                             targetFile.parentFile?.mkdirs()
                             FileOutputStream(targetFile).use { out -> zip.copyTo(out) }
-                            Log.d(TAG, "extractKmzContents: saved ${targetFile.absolutePath} size=${targetFile.length()}")
+                            logger.d(FEATURE, "extractKmzContents: saved ${targetFile.absolutePath} size=${targetFile.length()}")
                             if (entry.name.endsWith(".kml", ignoreCase = true)) {
                                 kmlFile = targetFile
                             }
@@ -105,11 +108,11 @@ class KmlOverlayParser(private val context: Context) {
                 }
             }
         } ?: run {
-            Log.w(TAG, "extractKmzContents: null input stream")
+            logger.w(FEATURE, "extractKmzContents: null input stream")
             return null
         }
 
-        Log.d(TAG, "extractKmzContents: total entries=$entriesCount kmlFile=$kmlFile")
+        logger.d(FEATURE, "extractKmzContents: total entries=$entriesCount kmlFile=$kmlFile")
         return kmlFile
     }
 
@@ -136,17 +139,17 @@ class KmlOverlayParser(private val context: Context) {
                         !f.isDirectory && (f.name == File(href).name || f.name == File(cleanPath).name)
                     }
 
-                Log.d(TAG, "loadGroundOverlayIcons: candidate=$candidates (href=$href)")
+                logger.d(FEATURE, "loadGroundOverlayIcons: candidate=$candidates (href=$href)")
                 if (candidates != null) {
                     val bitmap = BitmapFactory.decodeFile(candidates.absolutePath)
                     if (bitmap != null) {
                         feature.mIcon = bitmap
-                        Log.d(TAG, "loadGroundOverlayIcons: icon loaded size=${bitmap.byteCount}")
+                        logger.d(FEATURE, "loadGroundOverlayIcons: icon loaded size=${bitmap.byteCount}")
                     } else {
-                        Log.w(TAG, "loadGroundOverlayIcons: BitmapFactory returned null for $candidates")
+                        logger.w(FEATURE, "loadGroundOverlayIcons: BitmapFactory returned null for $candidates")
                     }
                 } else {
-                    Log.w(TAG, "loadGroundOverlayIcons: no image found for href=$href in $outDir")
+                    logger.w(FEATURE, "loadGroundOverlayIcons: no image found for href=$href in $outDir")
                 }
             }
         }
@@ -160,28 +163,28 @@ class KmlOverlayParser(private val context: Context) {
     private fun saveGeoJson(doc: KmlDocument, outDir: File): String? {
         return try {
             val file = File(outDir, "features.geojson")
-            Log.d(TAG, "saveGeoJson: saving to $file")
-            Log.d(TAG, "saveGeoJson: kmlRoot=${doc.mKmlRoot} kmlRoot type=${doc.mKmlRoot?.javaClass?.simpleName}")
+            logger.d(FEATURE, "saveGeoJson: saving to $file")
+            logger.d(FEATURE, "saveGeoJson: kmlRoot=${doc.mKmlRoot} kmlRoot type=${doc.mKmlRoot?.javaClass?.simpleName}")
             val success = doc.saveAsGeoJSON(file)
             if (!success) {
-                Log.w(TAG, "saveGeoJson: saveAsGeoJSON returned false")
+                logger.w(FEATURE, "saveGeoJson: saveAsGeoJSON returned false")
                 return null
             }
-            Log.d(TAG, "saveGeoJson: saved successfully size=${file.length()}")
+            logger.d(FEATURE, "saveGeoJson: saved successfully size=${file.length()}")
             file.absolutePath
         } catch (e: Exception) {
-            Log.e(TAG, "saveGeoJson: exception", e)
+            logger.e(FEATURE, "saveGeoJson: exception", e)
             null
         }
     }
 
     private fun saveGroundOverlay(doc: KmlDocument, outDir: File): String? {
-        Log.d(TAG, "saveGroundOverlay: start")
+        logger.d(FEATURE, "saveGroundOverlay: start")
         val overlays = findAllGroundOverlays(doc.mKmlRoot).filter { it.mIcon != null }
-        Log.d(TAG, "saveGroundOverlay: found ${overlays.size} overlay(s) with bitmaps")
+        logger.d(FEATURE, "saveGroundOverlay: found ${overlays.size} overlay(s) with bitmaps")
 
         if (overlays.isEmpty()) {
-            Log.d(TAG, "saveGroundOverlay: no GroundOverlay with bitmap found in KML")
+            logger.d(FEATURE, "saveGroundOverlay: no GroundOverlay with bitmap found in KML")
             return null
         }
 
@@ -200,7 +203,7 @@ class KmlOverlayParser(private val context: Context) {
                 south = bounds.latSouth
                 east  = bounds.lonEast
                 west  = bounds.lonWest
-                Log.d(TAG, "saveGroundOverlay: single tile bounds N=$north S=$south E=$east W=$west")
+                logger.d(FEATURE, "saveGroundOverlay: single tile bounds N=$north S=$south E=$east W=$west")
             } else {
                 // Multiple tiles — merge into one bitmap to cover the full geographic extent.
                 val allBounds = overlays.map { it.getBoundingBox() }
@@ -208,7 +211,7 @@ class KmlOverlayParser(private val context: Context) {
                 south = allBounds.minOf { it.latSouth }
                 east  = allBounds.maxOf { it.lonEast }
                 west  = allBounds.minOf { it.lonWest }
-                Log.d(TAG, "saveGroundOverlay: merging ${overlays.size} tiles into bounds N=$north S=$south E=$east W=$west")
+                logger.d(FEATURE, "saveGroundOverlay: merging ${overlays.size} tiles into bounds N=$north S=$south E=$east W=$west")
 
                 val lonSpan = east - west
                 val latSpan = north - south
@@ -243,16 +246,16 @@ class KmlOverlayParser(private val context: Context) {
             FileOutputStream(file).use { out ->
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
             }
-            Log.d(TAG, "saveGroundOverlay: saved bitmap size=${file.length()}")
+            logger.d(FEATURE, "saveGroundOverlay: saved bitmap size=${file.length()}")
 
             val boundsJson = GroundOverlayBoundsJson(
                 north = north, south = south, east = east, west = west,
             )
             File(outDir, "ground_overlay_bounds.json").writeText(boundsJson.toJson())
-            Log.d(TAG, "saveGroundOverlay: saved bounds json")
+            logger.d(FEATURE, "saveGroundOverlay: saved bounds json")
             file.absolutePath
         } catch (e: Exception) {
-            Log.e(TAG, "saveGroundOverlay: exception", e)
+            logger.e(FEATURE, "saveGroundOverlay: exception", e)
             null
         }
     }
@@ -261,7 +264,7 @@ class KmlOverlayParser(private val context: Context) {
         if (feature == null) return emptyList()
         return when (feature) {
             is KmlGroundOverlay -> {
-                Log.d(TAG, "findAllGroundOverlays: found overlay mIcon=${feature.mIcon != null} href=${feature.mIconHref} coords=${feature.mCoordinates?.size}")
+                logger.d(FEATURE, "findAllGroundOverlays: found overlay mIcon=${feature.mIcon != null} href=${feature.mIconHref} coords=${feature.mCoordinates?.size}")
                 listOf(feature)
             }
             is KmlFolder -> feature.mItems.flatMap { findAllGroundOverlays(it) }
@@ -274,16 +277,16 @@ class KmlOverlayParser(private val context: Context) {
         val prefix = "  ".repeat(indent)
         when (feature) {
             is KmlFolder -> {
-                Log.d(TAG, "${prefix}KmlFolder name=${feature.mName} children=${feature.mItems.size}")
+                logger.d(FEATURE, "${prefix}KmlFolder name=${feature.mName} children=${feature.mItems.size}")
                 for (child in feature.mItems) {
                     logKmlStructure(child, indent + 1)
                 }
             }
             is KmlGroundOverlay -> {
-                Log.d(TAG, "${prefix}KmlGroundOverlay name=${feature.mName} icon=${feature.mIcon != null} iconHref=${feature.mIconHref}")
+                logger.d(FEATURE, "${prefix}KmlGroundOverlay name=${feature.mName} icon=${feature.mIcon != null} iconHref=${feature.mIconHref}")
             }
             else -> {
-                Log.d(TAG, "${prefix}${feature.javaClass.simpleName} name=${feature.mName}")
+                logger.d(FEATURE, "${prefix}${feature.javaClass.simpleName} name=${feature.mName}")
             }
         }
     }

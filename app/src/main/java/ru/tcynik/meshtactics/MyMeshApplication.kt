@@ -1,7 +1,6 @@
 package ru.tcynik.meshtactics
 
 import android.app.Application
-import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -19,6 +18,8 @@ import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.settings.repository.MapCacheSettingsRepository
 import ru.tcynik.meshtactics.di.androidModule
 import ru.tcynik.meshtactics.di.chatDataModule
+import ru.tcynik.meshtactics.di.loggerModule
+import ru.tcynik.meshtactics.domain.logger.Logger
 import ru.tcynik.meshtactics.di.commonModule
 import ru.tcynik.meshtactics.di.gpsModule
 import ru.tcynik.meshtactics.di.locationDomainModule
@@ -35,9 +36,6 @@ import ru.tcynik.meshtactics.mesh.di.meshModule
 import ru.tcynik.meshtactics.mesh.service.MeshServiceOrchestrator
 
 class MyMeshApplication : Application() {
-    companion object {
-        private const val TAG = "MyMeshApplication"
-    }
 
     override fun onCreate() {
         super.onCreate()
@@ -47,6 +45,7 @@ class MyMeshApplication : Application() {
             androidContext(this@MyMeshApplication)
             allowOverride(true)
             modules(
+                loggerModule,
                 commonModule,
                 androidModule,
                 meshModule,
@@ -64,6 +63,7 @@ class MyMeshApplication : Application() {
             )
         }
 
+        val logger = GlobalContext.get().get<Logger>()
         MapLibre.getInstance(this)
         val configurator = GlobalContext.get().get<TileCacheOkHttpConfigurator>()
         runCatching {
@@ -71,7 +71,7 @@ class MyMeshApplication : Application() {
         }.onFailure { error ->
             // Do not crash app startup if MapLibre HTTP internals fail early initialization.
             // Fallback: continue with MapLibre default HTTP client for this session.
-            Log.e(TAG, "Failed to set custom MapLibre OkHttp client", error)
+            logger.e("App", "Failed to set custom MapLibre OkHttp client", error)
         }
         OfflineManager.getInstance(this).setMaximumAmbientCacheSize(100L * 1024 * 1024, null)
         CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {

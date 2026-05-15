@@ -167,6 +167,7 @@ val presentationModule = module {
             rebootNode = get<RebootNodeUseCase>(),
             syncStateRepository = get<ContourSyncStateRepository>(),
             rebootStateRepository = get<RebootStateRepository>(),
+            logger = get(),
         )
     }
 }

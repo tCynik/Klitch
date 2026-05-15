@@ -1,7 +1,7 @@
 package ru.tcynik.meshtactics.domain.channel.usecase
 
-import android.util.Log
 import kotlinx.coroutines.flow.first
+import ru.tcynik.meshtactics.domain.logger.Logger
 import kotlinx.coroutines.withTimeoutOrNull
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
@@ -12,8 +12,6 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 
-private const val TAG = "SyncContoursOnConnect"
-
 class SyncContoursOnConnectUseCase(
     private val observeContours: ObserveContoursUseCase,
     private val observeNodeChannels: ObserveNodeChannelsUseCase,
@@ -22,6 +20,7 @@ class SyncContoursOnConnectUseCase(
     private val writeOwner: WriteOwnerUseCase,
     private val observeAppUser: ObserveAppUserUseCase,
     private val observeDeviceConfig: ObserveDeviceConfigUseCase,
+    private val logger: Logger,
 ) {
     suspend operator fun invoke() {
         val contours = observeContours(NoParams).first()
@@ -44,7 +43,7 @@ class SyncContoursOnConnectUseCase(
                     usedSlots.add(resolution.slot)
                 }
                 is SlotResolution.NoFreeSlot -> {
-                    Log.w(TAG, "no free slots for contour '${contour.name}' — skipping")
+                    logger.w("Contour","no free slots for contour '${contour.name}' — skipping")
                     // TODO(contour): обработать отсутствие свободных слотов (UI уведомление)
                     return
                 }
@@ -57,7 +56,7 @@ class SyncContoursOnConnectUseCase(
                 observeDeviceConfig(NoParams).first { it != null }
             }
             if (deviceConfig?.longName != user.displayName) {
-                Log.d(TAG, "writeOwner longName='${user.displayName}'")
+                logger.d("Contour","writeOwner longName='${user.displayName}'")
                 writeOwner(user.displayName, deviceConfig?.shortName ?: "")
             }
         }

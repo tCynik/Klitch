@@ -1,7 +1,7 @@
 package ru.tcynik.meshtactics.domain.chat.usecase
 
-import android.util.Log
 import kotlinx.coroutines.flow.Flow
+import ru.tcynik.meshtactics.domain.logger.Logger
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import ru.tcynik.meshtactics.data.chat.adapter.MeshToChatAdapter
@@ -15,6 +15,7 @@ class IngestReceivedChatMessagesUseCase(
     private val channelRepository: ContourRepository,
     private val chatMessageRepository: ChatMessageRepository,
     private val channelSlotResolver: ChannelSlotResolver,
+    private val logger: Logger,
 ) {
     fun observe(): Flow<Unit> = combine(
         adapter.observeMessagesAsFlow(emptySet(), ""),
@@ -28,7 +29,7 @@ class IngestReceivedChatMessagesUseCase(
             val contactKey = msg.channelId
             val nodeId = contactKey.dropWhile { it.isDigit() }
             val channelIndex = contactKey.firstOrNull()?.digitToIntOrNull() ?: run {
-                //Log.w(TAG, "DBG ingest: DROP no digit prefix contactKey=$contactKey")
+                //logger.w("Chat","DBG ingest: DROP no digit prefix contactKey=$contactKey")
                 return@forEach
             }
             val isChannel = nodeId.startsWith("^")
@@ -38,7 +39,7 @@ class IngestReceivedChatMessagesUseCase(
                     0 -> {
                         val emergency = contours.find { it.id == DefaultContour.ID }
                         if (emergency == null) {
-                            Log.w(TAG, "emergency contour not found, drop")
+                            logger.w("Chat","emergency contour not found, drop")
                             return@forEach
                         }
                         if (!emergency.isActive) return@forEach
@@ -47,12 +48,12 @@ class IngestReceivedChatMessagesUseCase(
                     else -> {
                         val hash = maps.slotToHash[channelIndex]
                         if (hash == null) {
-                            Log.w(TAG, "unknown slot $channelIndex, drop")
+                            logger.w("Chat","unknown slot $channelIndex, drop")
                             return@forEach
                         }
                         val found = contourByHash[hash]
                         if (found == null) {
-                            Log.w(TAG, "no contour for hash $hash, drop")
+                            logger.w("Chat","no contour for hash $hash, drop")
                             return@forEach
                         }
                         if (!found.isActive) return@forEach
@@ -77,7 +78,4 @@ class IngestReceivedChatMessagesUseCase(
         }
     }.map { }
 
-    companion object {
-        private const val TAG = "IngestChatMessages"
-    }
 }

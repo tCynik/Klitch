@@ -2,11 +2,9 @@ package ru.tcynik.meshtactics.domain.channel.usecase
 
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkStatic
-import io.mockk.unmockkStatic
+import ru.tcynik.meshtactics.logger.NoOpLogger
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -38,19 +36,12 @@ class CheckNodeSyncUseCaseTest {
         observeNodeChannels = observeNodeChannels,
         observeAppUser = observeAppUser,
         observeDeviceConfig = observeDeviceConfig,
+        logger = NoOpLogger(),
     )
 
     @Before
     fun setUp() {
-        mockkStatic(android.util.Log::class)
-        every { android.util.Log.d(any(), any<String>()) } returns 0
-        every { android.util.Log.w(any(), any<String>()) } returns 0
         every { observeAppUser.invoke(any<NoParams>()) } returns flowOf(AppUser(displayName = ""))
-    }
-
-    @After
-    fun tearDown() {
-        unmockkStatic(android.util.Log::class)
     }
 
     private val emergencyPsk = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)

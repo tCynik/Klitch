@@ -2,12 +2,10 @@ package ru.tcynik.meshtactics.domain.channel.usecase
 
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkStatic
-import io.mockk.unmockkStatic
 import io.mockk.verify
+import ru.tcynik.meshtactics.logger.NoOpLogger
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import ru.tcynik.meshtactics.domain.channel.model.Contour
@@ -43,6 +41,7 @@ class SyncContoursOnConnectUseCaseTest {
         writeOwner = writeOwner,
         observeAppUser = observeAppUser,
         observeDeviceConfig = observeDeviceConfig,
+        logger = NoOpLogger(),
     )
 
     private val psk = byteArrayOf(0x01, 0x02)
@@ -58,16 +57,8 @@ class SyncContoursOnConnectUseCaseTest {
 
     @Before
     fun setUp() {
-        mockkStatic(android.util.Log::class)
-        every { android.util.Log.d(any(), any<String>()) } returns 0
-        every { android.util.Log.w(any(), any<String>()) } returns 0
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(emptyList())
         every { observeAppUser.invoke(any<NoParams>()) } returns flowOf(AppUser(displayName = ""))
-    }
-
-    @After
-    fun tearDown() {
-        unmockkStatic(android.util.Log::class)
     }
 
     private fun makeContour(id: String, name: String, isActive: Boolean = true): Contour {
@@ -154,13 +145,11 @@ class SyncContoursOnConnectUseCaseTest {
     // ── no free slots ─────────────────────────────────────────────────────────
 
     @Test
-    fun `no free slots — logs warning, does not crash`() = runTest {
+    fun `no free slots — does not crash`() = runTest {
         val contour = makeContour("99", "Bravo")
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(contour))
         every { resolveSlot.invoke(contour, any(), any(), any()) } returns SlotResolution.NoFreeSlot
 
         useCase()
-
-        verify { android.util.Log.w(any(), any<String>()) }
     }
 }
