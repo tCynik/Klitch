@@ -7,8 +7,11 @@ import android.util.Base64
 import android.util.Log
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import org.meshtastic.proto.Channel
 import org.meshtastic.proto.ChannelSettings
@@ -20,8 +23,10 @@ import ru.tcynik.meshtactics.domain.mesh.model.GpsMode
 import ru.tcynik.meshtactics.domain.mesh.model.LocationConfigModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshChannelModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshDeviceConfigModel
+import ru.tcynik.meshtactics.domain.mesh.model.NodeSecurityModel
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshConfigRepository
 import ru.tcynik.meshtactics.mesh.model.MeshUser
+import ru.tcynik.meshtactics.mesh.model.Node
 import ru.tcynik.meshtactics.mesh.model.Position
 import ru.tcynik.meshtactics.mesh.repository.CommandSender
 import ru.tcynik.meshtactics.mesh.repository.MeshRouter
@@ -176,6 +181,55 @@ class MeshConfigRepositoryImpl(
     override fun rebootNode() {
         val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
         meshRouter.actionHandler.handleRequestReboot(commandSender.generatePacketId(), myNodeNum)
+    }
+
+    override fun isOwnPkcKeyBroken(): Boolean {
+        val sec = meshRouter.configHandler.localConfig.value.security ?: return true
+        return sec.public_key.size == 0 || sec.public_key == Node.ERROR_BYTE_STRING
+    }
+
+    override fun refreshKnownNodePublicKeys() {
+        val myNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
+        nodeRepository.nodeDBbyNum.value.values
+            .filter { it.num != myNum && it.lastHeard > 0 }
+            .forEach { node -> commandSender.requestUserInfo(node.num) }
+    }
+
+    override fun refreshNodePublicKey(nodeNum: Int) {
+        commandSender.requestUserInfo(nodeNum)
+    }
+
+    override fun regeneratePkcKeys() {
+        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
+        val currentSec = meshRouter.configHandler.localConfig.value.security
+            ?: Config.SecurityConfig()
+        val resetSec = currentSec.copy(private_key = ByteString.EMPTY)
+        val payload = Config.ADAPTER.encode(Config(security = resetSec))
+        meshRouter.actionHandler.handleSetConfig(payload, myNodeNum)
+    }
+
+    override fun observeSecurityConfig(): Flow<NodeSecurityModel?> =
+        meshRouter.configHandler.localConfig.map { localConfig ->
+            val sec = localConfig.security ?: return@map null
+            NodeSecurityModel(
+                publicKeyHex = sec.public_key.hex(),
+                hasKey = sec.public_key.size > 0,
+                isMismatch = sec.public_key == Node.ERROR_BYTE_STRING,
+            )
+        }
+
+    override fun observeCallsignChanges(): Flow<Int> = channelFlow {
+        var prevNames = emptyMap<Int, String>()
+        nodeRepository.nodeDBbyNum.collect { db ->
+            val currNames = db.mapValues { (_, node) -> node.user.long_name }
+            currNames.forEach { (num, name) ->
+                val oldName = prevNames[num]
+                if (oldName != null && oldName.isNotEmpty() && oldName != name) {
+                    send(num)
+                }
+            }
+            prevNames = currNames
+        }
     }
 
     companion object {

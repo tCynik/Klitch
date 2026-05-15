@@ -1,0 +1,7 @@
+package ru.tcynik.meshtactics.domain.mesh.usecase
+
+import ru.tcynik.meshtactics.domain.mesh.repository.MeshConfigRepository
+
+class RefreshNodePublicKeyUseCase(private val repository: MeshConfigRepository) {
+    operator fun invoke(nodeNum: Int) = repository.refreshNodePublicKey(nodeNum)
+}

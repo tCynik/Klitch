@@ -15,6 +15,7 @@ data class ChatContactDto(
     val unreadCount: Int = 0,
     val lastMessageTime: Long? = null,
     val lastMessagePreview: String? = null,
+    val partnerHasPKC: Boolean = false,
 )
 
 fun ChatContactDto.toDomain(): ChatContact = ChatContact(
@@ -28,4 +29,5 @@ fun ChatContactDto.toDomain(): ChatContact = ChatContact(
     unreadCount = unreadCount,
     lastMessageTime = lastMessageTime,
     lastMessagePreview = lastMessagePreview,
+    partnerHasPKC = partnerHasPKC,
 )

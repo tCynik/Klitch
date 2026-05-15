@@ -128,7 +128,11 @@ class MeshDataHandlerImpl(
         )
 
     override fun handleReceivedData(packet: MeshPacket, myNodeNum: Int, logUuid: String?, logInsertJob: Job?) {
-        val dataPacket = dataMapper.toDataPacket(packet) ?: return
+        //android.util.Log.i("MeshDataHandler", "DBG handleReceivedData: portnum=${packet.decoded?.portnum} from=${packet.from.toUInt()} to=${packet.to.toUInt()} myNodeNum=${myNodeNum.toUInt()}")
+        val dataPacket = dataMapper.toDataPacket(packet) ?: run {
+            //android.util.Log.w("MeshDataHandler", "DBG handleReceivedData: toDataPacket returned null, drop")
+            return
+        }
         val fromUs = myNodeNum == packet.from
         dataPacket.status = MessageStatus.RECEIVED
 
@@ -284,6 +288,7 @@ class MeshDataHandlerImpl(
     }
 
     private fun handleTextMessage(packet: MeshPacket, dataPacket: DataPacket, myNodeNum: Int) {
+        //android.util.Log.i("MeshDataHandler", "DBG handleTextMessage: from=${dataPacket.from} to=${dataPacket.to} channel=${dataPacket.channel} text=${dataPacket.text}")
         val decoded = packet.decoded ?: return
         if (decoded.reply_id != 0 && decoded.emoji != 0) {
             rememberReaction(packet)
@@ -492,7 +497,7 @@ class MeshDataHandlerImpl(
                 // Check if message should be filtered
                 val isFiltered = shouldFilterMessage(dataPacket, contactKey)
 
-                android.util.Log.i("MeshDataHandler", "DBG inserting packet: contactKey=$contactKey myNodeNum=$myNodeNum from=${dataPacket.from} to=${dataPacket.to} filtered=$isFiltered")
+                //android.util.Log.i("MeshDataHandler", "DBG inserting packet: contactKey=$contactKey myNodeNum=$myNodeNum from=${dataPacket.from} to=${dataPacket.to} filtered=$isFiltered")
                 insert(
                     dataPacket,
                     myNodeNum,

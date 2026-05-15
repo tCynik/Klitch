@@ -124,8 +124,100 @@ Contour.isActive (domain/channel)
 
 ---
 
+## Non-obvious decisions
+
+### Инвариант contactId для приватных чатов
+
+`ChatContact.id` для PRIVATE контактов всегда имеет формат `"${channel}!nodeId"`. Канал определяется один раз при создании контакта и не меняется в дальнейшем.
+
+**Правило выбора канала (`buildPrivateCandidates`):**
+1. Если есть история (contactKey в Room): берётся из истории. При конфликте (есть и `"0!B"` и `"8!B"`) — **PKC (channel=8) побеждает** (sort + associateBy).
+2. Если нет истории (новая нода): если оба узла `hasPKC == true` → `"8!nodeId"` (PKC); иначе → `"0!nodeId"` (канал 0 по умолчанию).
+
+**Почему важно**: Meshtastic (firmware ≥ 2.5) автоматически отправляет DM через PKC (channel=8) когда оба узла имеют public key. `MeshDataMapper` хранит такие пакеты с `channel = PKC_CHANNEL_INDEX`. Если наш contactId = `"0!B"` а входящий DM = `"8!B"`, они хранятся в разных `logical_channel_id` в SQLDelight — сообщения невидимы в фильтре.
+
+**Критично для sendMessage()**: использовать `parsedChannel` из contactId напрямую — никогда не делать live lookup в `nodeRepository.getNode().channel`. Channel закодирован в contactId и отражает реальный канал коммуникации.
+
+---
+
 ## Известный техдолг
 
 | # | Проблема | Приоритет |
 |---|---|---|
 | 1 | `collectUnreadAll()` дублирован в `ChatScreen` и `ChatViewModel` | 🟢 Low |
+| 2 | DM не отображаются — PKC key exchange issue на firmware уровне | ✅ Закрыт автовосстановлением PKC |
+
+---
+
+## Диагностика DM (личных сообщений) — 2026-05-14
+
+### Симптом
+Сообщения в каналах работают. DM: нет ни пуша, ни сообщения в чате.
+
+### Трассировка пути
+
+Добавлены диагностические логи (`tag:MeshDataHandler`, `tag:IngestChatMessages`, `tag:ChatAdapter`):
+
+**Отправка (doSend):** работает корректно.
+```
+DBG doSend: to=!9e9f2690 channel=0 contactKey=0!9e9f2690
+DBG doSend: after sendData packetId=... status=QUEUED
+```
+
+**Приём на принимающем устройстве** (`!9e7676a0`, myNodeNum=2658563744):
+```
+DBG fromRadio: portnum=null from=2661230224 to=2658563744 pki=false
+```
+
+`portnum=null` = `packet.decoded == null` — firmware не расшифровал DM.
+
+**Точка дропа в коде:**
+```kotlin
+// MeshMessageProcessorImpl.processReceivedMeshPacket(), line ~184
+val decoded = packet.decoded ?: return   // ← дроп здесь, до handleReceivedData
+```
+
+### Root cause
+
+DM приходит на радио принимающей ноды (подтверждено `ROUTING ACK` в логах от отправителя обратно к получателю). Однако **firmware не может расшифровать payload** (`decoded=null`).
+
+Broadcast-пакеты (позиции, канальные сообщения) от той же ноды расшифровываются нормально через PSK channel 0.
+
+**Причина:** Firmware Meshtastic автоматически применяет PKC-шифрование для DM между нодами, у которых есть public key. При сломанном или незавершённом PKC key exchange — decrypt fail. Поле `pki=false` в `FromRadio` firmware выставляет даже при PKC-fail.
+
+### Что было проверено в app-коде
+
+- `sendMessage` / `doSend`: канал кодируется корректно из contactId, no live lookup ✓
+- `buildPrivateCandidates`: PKC-aware fallback (`"8!nodeId"` vs `"0!nodeId"`) ✓
+- `resolveNodeNum`: hex→Int конвертация корректна ✓
+- `IngestReceivedChatMessagesUseCase`: DM routing через `logicalChannelId = contactKey` ✓
+- `ChatViewModel.updateFilteredMessages`: фильтр по `channelId == selectedChatId` ✓
+
+App-код корректен. Проблема ниже уровня нашего приложения.
+
+### Автоматическое восстановление PKC
+
+При каждом подключении приложение вызывает `requestUserInfo()` для всех известных нод дважды с задержкой 30 с. Это обновляет NodeDB с актуальными public key — устраняет кейс `hasPKC=false` без участия пользователя.
+
+При смене позывного на нашей ноде — `regeneratePkcKeys()` автоматически добавляется в reboot-флоу (`onSaveAndReboot()`).
+
+При обнаружении смены позывного у партнёра — запускается двойной `requestUserInfo()` с задержкой 10 с (`observeCallsignChanges()` в `MainViewModel`).
+
+### PKC-статус в ChatScreen
+
+В открытом приватном чате показывается баннер между строкой поиска и сообщениями:
+- `PKC ✓ — зашифровано` (зелёный) — `node.hasPKC == true`
+- `PKC ✗ — незашифровано` (красный) — `node.hasPKC == false`
+
+Баннер скрыт для каналов и когда нет открытого чата. Данные текут через: `node.hasPKC` → `PrivateNodeCandidate.partnerHasPKC` → `ChatContactDto` → `ChatContact` → `ChatFilterItem` → `ChatUiState.selectedChatPartnerHasPKC`.
+
+### TODO
+
+- [ ] Убрать debug-логи из `MeshDataHandlerImpl` и `MeshMessageProcessorImpl` перед релизом
+
+### Добавленные debug-логи (НЕ закоммичены, удалить перед релизом)
+
+- `MeshDataHandlerImpl.handleReceivedData()` — лог всех входящих пакетов
+- `MeshDataHandlerImpl.handleTextMessage()` — лог text-пакетов
+- `MeshMessageProcessorImpl.handleFromRadio()` — лог до proto-decode включая `portnum=null` случаи
+- `MeshToChatAdapter.doSend()` — лог отправки DM

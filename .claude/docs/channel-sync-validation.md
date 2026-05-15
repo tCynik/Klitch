@@ -57,6 +57,10 @@ On user confirmation:
 
 Runs automatically on every connect from `MainViewModel`. Only writes channels — does NOT write owner name (that would trigger auto-reboot without user confirmation). Uses `checkPrecision = false` → skips precision-only rewrites.
 
+## PKC Key Regeneration on Sync Confirm
+
+Если при подключении был обнаружен сломанный PKC ключ (`CheckOwnPkcHealthUseCase` → `isOwnPkcKeyBroken=true`), флаг `needsPkcRegen` сохраняется в `UserSettingsViewModel`. При подтверждении sync dialog — перед reboot отправляется `regeneratePkcKeys()` (`set_config(SecurityConfig(private_key=EMPTY))`). Один reboot применяет каналы + новые ключи одновременно. Firmware генерирует новую пару и рассылает обновлённый `User(public_key)` соседям.
+
 ## MeshTest Reboot Status Contract
 
 On sync dialog confirmation in `MeshTestScreen`:

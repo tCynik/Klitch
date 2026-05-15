@@ -49,9 +49,15 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.SendMeshMessageUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SetProvideLocationUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelPositionPrecisionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WritePositionConfigUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeyUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveNodeSecurityConfigUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
 import ru.tcynik.meshtactics.data.mesh.GeoSendPolicyImpl
 import ru.tcynik.meshtactics.data.mesh.repository.RebootStateRepositoryImpl
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
@@ -139,6 +145,12 @@ val meshDataModule = module {
     single { EnableNodePositionBroadcastReadyUseCase(get()) }
     single { DisableNodePositionBroadcastUseCase(get()) }
     single { RebootNodeUseCase(get()) }
+    single { CheckOwnPkcHealthUseCase(get()) }
+    single { RefreshNodePublicKeysUseCase(get()) }
+    single { RefreshNodePublicKeyUseCase(get()) }
+    single { RegeneratePkcKeysUseCase(get()) }
+    single { ObserveCallsignChangesUseCase(get()) }
+    single { ObserveNodeSecurityConfigUseCase(get()) }
     single {
         NodeProvisioningUseCase(
             observeContours = get<ObserveContoursUseCase>(),

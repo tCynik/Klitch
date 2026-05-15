@@ -39,6 +39,8 @@ import ru.tcynik.meshtactics.domain.chat.usecase.ObserveTotalUnreadChatCountUseC
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceParams
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeyUseCase
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
@@ -107,6 +109,8 @@ class MainViewModel(
     private val checkNodeSync: CheckNodeSyncUseCase,
     private val syncStateRepository: ContourSyncStateRepository,
     private val rebootStateRepository: RebootStateRepository,
+    private val observeCallsignChanges: ObserveCallsignChangesUseCase,
+    private val refreshNodePublicKey: RefreshNodePublicKeyUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -250,6 +254,14 @@ class MainViewModel(
 
         syncStateRepository.syncRequired
             .onEach { required -> _uiState.update { it.copy(syncRequired = required) } }
+            .launchIn(viewModelScope)
+
+        observeCallsignChanges(NoParams)
+            .onEach { nodeNum ->
+                refreshNodePublicKey(nodeNum)
+                delay(10_000)
+                refreshNodePublicKey(nodeNum)
+            }
             .launchIn(viewModelScope)
 
         startAutoConnect()

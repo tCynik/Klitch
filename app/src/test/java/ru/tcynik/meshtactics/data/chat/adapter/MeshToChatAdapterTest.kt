@@ -1,8 +1,12 @@
 package ru.tcynik.meshtactics.data.chat.adapter
 
 import app.cash.turbine.test
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
+import io.mockk.verify
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -22,6 +26,7 @@ import ru.tcynik.meshtactics.mesh.model.Node
 import ru.tcynik.meshtactics.mesh.repository.CommandSender
 import ru.tcynik.meshtactics.mesh.repository.NodeRepository
 import ru.tcynik.meshtactics.mesh.repository.PacketRepository
+import org.meshtastic.proto.User
 
 class MeshToChatAdapterTest {
 
@@ -62,35 +67,28 @@ class MeshToChatAdapterTest {
     )
 
     private val channelContactKey = "1^all"
-    private val privateContactKey = "1!abc123"
     private val lastPacket = DataPacket(to = "^all", channel = 1, text = "hi")
 
-    private fun setupChannelContact(
-        contactKey: String = channelContactKey,
+    private fun setupContours(
         contours: List<Contour>,
         maps: ChannelSlotMaps = resolvedMaps,
+        myNode: Node? = null,
     ) {
-        every { packetRepository.getContacts() } returns flowOf(mapOf(contactKey to lastPacket))
+        every { packetRepository.getContacts() } returns flowOf(mapOf(channelContactKey to lastPacket))
         every { packetRepository.getContactSettings() } returns flowOf(emptyMap())
         every { channelRepository.observeContours() } returns flowOf(contours)
         every { channelSlotResolver.mapsFlow } returns MutableStateFlow(maps)
-        every { packetRepository.getUnreadCountFlow(contactKey) } returns flowOf(0)
-    }
-
-    private fun setupPrivateContact(contactKey: String = privateContactKey) {
-        every { packetRepository.getContacts() } returns flowOf(mapOf(contactKey to lastPacket))
-        every { packetRepository.getContactSettings() } returns flowOf(emptyMap())
-        every { channelRepository.observeContours() } returns flowOf(emptyList())
-        every { channelSlotResolver.mapsFlow } returns MutableStateFlow(resolvedMaps)
-        every { packetRepository.getUnreadCountFlow(contactKey) } returns flowOf(0)
-        every { nodeRepository.getNode("!abc123") } returns Node(num = 0)
+        every { packetRepository.getUnreadCountFlow(channelContactKey) } returns flowOf(0)
+        every { nodeRepository.nodeDBbyNum } returns MutableStateFlow(emptyMap())
+        every { nodeRepository.myId } returns MutableStateFlow("!me")
+        every { nodeRepository.ourNodeInfo } returns MutableStateFlow(myNode)
     }
 
     // ── isActive propagation: CHANNEL ─────────────────────────────────────────
 
     @Test
     fun `channel contact with active contour — isActive is true in dto`() = runTest {
-        setupChannelContact(contours = listOf(makeContour(isActive = true)))
+        setupContours(contours = listOf(makeContour(isActive = true)))
 
         adapter.observeContactsAsFlow().test {
             val contacts = awaitItem()
@@ -102,7 +100,7 @@ class MeshToChatAdapterTest {
 
     @Test
     fun `channel contact with inactive contour — isActive is false in dto`() = runTest {
-        setupChannelContact(contours = listOf(makeContour(isActive = false)))
+        setupContours(contours = listOf(makeContour(isActive = false)))
 
         adapter.observeContactsAsFlow().test {
             val contacts = awaitItem()
@@ -112,37 +110,24 @@ class MeshToChatAdapterTest {
         }
     }
 
-    // ── isActive propagation: PRIVATE ─────────────────────────────────────────
+    // ── channel contact filtering ─────────────────────────────────────────────
 
     @Test
-    fun `private contact — isActive is always true regardless of contours`() = runTest {
-        setupPrivateContact()
+    fun `contour without resolved slot stays visible in list`() = runTest {
+        val emptyMaps = ChannelSlotMaps(slotToHash = emptyMap(), hashToSlot = emptyMap())
+        setupContours(contours = listOf(makeContour(isActive = true)), maps = emptyMaps)
 
         adapter.observeContactsAsFlow().test {
             val contacts = awaitItem()
             assertEquals(1, contacts.size)
-            assertTrue(contacts.first().isActive)
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    // ── channel contact filtering ─────────────────────────────────────────────
-
-    @Test
-    fun `channel contact with slot not in slotToHash — filtered out`() = runTest {
-        val emptyMaps = ChannelSlotMaps(slotToHash = emptyMap(), hashToSlot = emptyMap())
-        setupChannelContact(contours = listOf(makeContour(isActive = true)), maps = emptyMaps)
-
-        adapter.observeContactsAsFlow().test {
-            val contacts = awaitItem()
-            assertTrue(contacts.isEmpty())
+            assertEquals(contourId.value, contacts.first().id)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `channel contact with hash not matching any contour — filtered out`() = runTest {
-        setupChannelContact(contours = emptyList())
+    fun `empty contour list returns empty contacts`() = runTest {
+        setupContours(contours = emptyList())
 
         adapter.observeContactsAsFlow().test {
             val contacts = awaitItem()
@@ -155,11 +140,163 @@ class MeshToChatAdapterTest {
 
     @Test
     fun `channel contact — shortName equals contour name`() = runTest {
-        setupChannelContact(contours = listOf(makeContour(isActive = true)))
+        setupContours(contours = listOf(makeContour(isActive = true)))
 
         adapter.observeContactsAsFlow().test {
             val contacts = awaitItem()
             assertEquals("TestChannel", contacts.first().shortName)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `online node without history appears as private contact`() = runTest {
+        val onlineNode = Node(
+            num = 100,
+            user = User(id = "!abc123", short_name = "A1", long_name = "Alpha"),
+            lastHeard = Int.MAX_VALUE,
+        )
+        setupContours(contours = listOf(makeContour(isActive = true)))
+        every { nodeRepository.nodeDBbyNum } returns MutableStateFlow(mapOf(100 to onlineNode))
+        every { packetRepository.getUnreadCountFlow("0!abc123") } returns flowOf(0)
+
+        adapter.observeContactsAsFlow().test {
+            val contacts = awaitItem()
+            val privateContact = contacts.firstOrNull { it.type == ru.tcynik.meshtactics.domain.chat.model.ContactType.PRIVATE }
+            assertEquals("0!abc123", privateContact?.id)
+            assertEquals("A1", privateContact?.shortName)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `offline node without history is not shown`() = runTest {
+        val offlineNode = Node(
+            num = 101,
+            user = User(id = "!off001", short_name = "OFF", long_name = "Offline"),
+            lastHeard = 0,
+        )
+        setupContours(contours = listOf(makeContour(isActive = true)))
+        every { nodeRepository.nodeDBbyNum } returns MutableStateFlow(mapOf(101 to offlineNode))
+
+        adapter.observeContactsAsFlow().test {
+            val contacts = awaitItem()
+            assertTrue(contacts.none { it.id == "!off001" })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `send private message uses channel encoded in contact id`() = runTest {
+        val packetSlot = slot<DataPacket>()
+        every { commandSender.sendData(capture(packetSlot)) } returns Unit
+        every { nodeRepository.ourNodeInfo } returns MutableStateFlow(Node(num = 77))
+        coEvery {
+            packetRepository.savePacket(
+                myNodeNum = any(),
+                contactKey = any(),
+                packet = any(),
+                receivedTime = any(),
+                read = any(),
+                filtered = any(),
+            )
+        } returns Unit
+
+        adapter.sendMessage(
+            text = "ping",
+            contactId = "3!abc123",
+            channel = 7,
+        )
+
+        verify(exactly = 1) { commandSender.sendData(any()) }
+        assertEquals("!abc123", packetSlot.captured.to)
+        assertEquals(3, packetSlot.captured.channel)
+        assertEquals("ping", packetSlot.captured.text)
+
+        coVerify(exactly = 1) {
+            packetRepository.savePacket(
+                myNodeNum = 77,
+                contactKey = "3!abc123",
+                packet = any(),
+                receivedTime = any(),
+                read = true,
+                filtered = false,
+            )
+        }
+    }
+
+    @Test
+    fun `online node without PKC — fallback contact id uses channel 0`() = runTest {
+        val onlineNode = Node(
+            num = 200,
+            user = User(id = "!xyz999", short_name = "X1", long_name = "Xray"),
+            lastHeard = Int.MAX_VALUE,
+        )
+        setupContours(contours = listOf(makeContour(isActive = true)))
+        every { nodeRepository.nodeDBbyNum } returns MutableStateFlow(mapOf(200 to onlineNode))
+        every { packetRepository.getUnreadCountFlow("0!xyz999") } returns flowOf(0)
+
+        adapter.observeContactsAsFlow().test {
+            val contacts = awaitItem()
+            val privateContact = contacts.firstOrNull { it.type == ru.tcynik.meshtactics.domain.chat.model.ContactType.PRIVATE }
+            assertEquals("0!xyz999", privateContact?.id)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `both nodes have PKC — fallback contact id uses PKC channel 8`() = runTest {
+        val pkcKey = okio.ByteString.of(1, 2, 3, 4)
+        val onlineNode = Node(
+            num = 300,
+            user = User(id = "!pkc001", short_name = "P1", long_name = "PKCNode", public_key = pkcKey),
+            lastHeard = Int.MAX_VALUE,
+        )
+        val myNode = Node(
+            num = 1,
+            user = User(id = "!me", public_key = pkcKey),
+        )
+        setupContours(contours = listOf(makeContour(isActive = true)), myNode = myNode)
+        every { nodeRepository.nodeDBbyNum } returns MutableStateFlow(mapOf(300 to onlineNode))
+        every { packetRepository.getUnreadCountFlow("8!pkc001") } returns flowOf(0)
+
+        adapter.observeContactsAsFlow().test {
+            val contacts = awaitItem()
+            val privateContact = contacts.firstOrNull { it.type == ru.tcynik.meshtactics.domain.chat.model.ContactType.PRIVATE }
+            assertEquals("8!pkc001", privateContact?.id)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `PKC history wins over non-PKC when both exist for same node`() = runTest {
+        val nonPkcKey = "0!nodeA"
+        val pkcKey = "8!nodeA"
+        val pkcBytes = okio.ByteString.of(1, 2, 3, 4)
+        val onlineNode = Node(
+            num = 400,
+            user = User(id = "!nodeA", short_name = "NA", long_name = "NodeA", public_key = pkcBytes),
+            lastHeard = Int.MAX_VALUE,
+        )
+        val myNode = Node(num = 1, user = User(id = "!me", public_key = pkcBytes))
+        val nonPkcPacket = DataPacket(to = "!nodeA", channel = 0, text = "sent")
+        val pkcPacket = DataPacket(to = "!me", channel = 8, text = "received")
+        every { packetRepository.getContacts() } returns flowOf(
+            mapOf(channelContactKey to lastPacket, nonPkcKey to nonPkcPacket, pkcKey to pkcPacket)
+        )
+        every { packetRepository.getContactSettings() } returns flowOf(emptyMap())
+        every { channelRepository.observeContours() } returns flowOf(listOf(makeContour(isActive = true)))
+        every { channelSlotResolver.mapsFlow } returns MutableStateFlow(resolvedMaps)
+        every { packetRepository.getUnreadCountFlow(channelContactKey) } returns flowOf(0)
+        every { packetRepository.getUnreadCountFlow(pkcKey) } returns flowOf(0)
+        every { nodeRepository.nodeDBbyNum } returns MutableStateFlow(mapOf(400 to onlineNode))
+        every { nodeRepository.myId } returns MutableStateFlow("!me")
+        every { nodeRepository.ourNodeInfo } returns MutableStateFlow(myNode)
+
+        adapter.observeContactsAsFlow().test {
+            val contacts = awaitItem()
+            val privateContact = contacts.firstOrNull { it.type == ru.tcynik.meshtactics.domain.chat.model.ContactType.PRIVATE }
+            assertEquals("8!nodeA", privateContact?.id)
             cancelAndIgnoreRemainingEvents()
         }
     }
