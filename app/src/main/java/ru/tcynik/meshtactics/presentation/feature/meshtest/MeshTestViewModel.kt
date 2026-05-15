@@ -299,6 +299,12 @@ class MeshTestViewModel(
     fun onScanClick() {
         userStoppedScan = false
         scanJob?.cancel()
+        _uiState.update { state ->
+            state.copy(
+                connectionStatus = MeshConnectionStatusUi.Scanning,
+                connectionTab = state.connectionTab.copy(isScanning = true),
+            )
+        }
         // isScanning driven by observeConnectionStatus → _isScanning in repo
         scanJob = scanDevices(NoParams)
             .onEach { devices ->

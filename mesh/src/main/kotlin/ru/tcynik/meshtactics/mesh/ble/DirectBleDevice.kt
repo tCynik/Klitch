@@ -25,6 +25,8 @@ class DirectBleDevice(override val address: String, override val name: String? =
     private val _state = MutableStateFlow<BleConnectionState>(BleConnectionState.Disconnected)
     override val state: StateFlow<BleConnectionState> = _state.asStateFlow()
 
+    override val rssi: Int = 0
+
     override val isBonded: Boolean = true
 
     override val isConnected: Boolean

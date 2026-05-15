@@ -1,17 +1,21 @@
 package ru.tcynik.meshtactics.data.mesh.repository
 
 import android.util.Log
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
 import java.util.concurrent.atomic.AtomicInteger
 import ru.tcynik.meshtactics.data.mesh.mapper.toMeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.model.MeshDeviceModel
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshConnectionRepository
+import ru.tcynik.meshtactics.mesh.ble.BleDevice
 import ru.tcynik.meshtactics.mesh.ble.BleScanner
 import ru.tcynik.meshtactics.mesh.ble.BluetoothRepository
 import ru.tcynik.meshtactics.mesh.ble.MeshtasticBleConstants
@@ -67,21 +71,25 @@ class MeshConnectionRepositoryImpl(
         activeScanCount.incrementAndGet()
         _isScanning.value = true
         try {
-            val discovered = mutableListOf<MeshDeviceModel>()
-            bleScanner.scan(timeout = 30.seconds, serviceUuid = MeshtasticBleConstants.SERVICE_UUID)
-                .catch { e -> Log.w("MeshRepo", "BLE scan terminated: ${e.message}") }
-                .collect { device ->
-                    if (discovered.none { it.address == device.address }) {
-                        discovered.add(
-                            MeshDeviceModel(
-                                address = device.address,
-                                name = device.name ?: device.address,
-                                rssi = 0,
-                            )
-                        )
-                        emit(discovered.toList())
-                    }
+            val discovered = mutableMapOf<String, Pair<MeshDeviceModel, Long>>()
+            val expiryMs = 10_000L
+            merge(
+                bleScanner.scan(timeout = 30.seconds, serviceUuid = MeshtasticBleConstants.SERVICE_UUID)
+                    .catch { e -> Log.w("MeshRepo", "BLE scan terminated: ${e.message}") }
+                    .map { it as BleDevice? },
+                flow { while (true) { delay(5_000); emit(null) } },
+            ).collect { device ->
+                val now = System.currentTimeMillis()
+                if (device != null) {
+                    discovered[device.address] = MeshDeviceModel(
+                        address = device.address,
+                        name = device.name ?: device.address,
+                        rssi = device.rssi,
+                    ) to now
                 }
+                discovered.entries.removeIf { (_, pair) -> now - pair.second > expiryMs }
+                emit(discovered.values.map { it.first }.toList())
+            }
         } finally {
             if (activeScanCount.decrementAndGet() == 0) {
                 _isScanning.value = false
