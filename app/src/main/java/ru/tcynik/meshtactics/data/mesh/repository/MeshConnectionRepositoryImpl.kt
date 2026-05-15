@@ -110,6 +110,7 @@ class MeshConnectionRepositoryImpl(
 
     override suspend fun disconnect() {
         pendingDeviceName = ""
+        radioInterfaceService.setBleRssi(0)
         radioInterfaceService.setDeviceAddress(null)
     }
 }

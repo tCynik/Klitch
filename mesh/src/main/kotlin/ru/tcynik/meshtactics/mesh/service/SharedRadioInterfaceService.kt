@@ -190,8 +190,8 @@ class SharedRadioInterfaceService(
     override fun setDeviceAddress(deviceAddr: String?): Boolean {
         val sanitized = if (deviceAddr == "n" || deviceAddr.isNullOrBlank()) null else deviceAddr
 
-        if (getBondedDeviceAddress() == sanitized && isStarted && _connectionState.value == ConnectionState.Connected) {
-            Logger.w { "Ignoring setBondedDevice ${sanitized?.anonymize}, already using that device" }
+        if (sanitized != null && getBondedDeviceAddress() == sanitized && isStarted && _connectionState.value == ConnectionState.Connected) {
+            Logger.w { "Ignoring setBondedDevice ${sanitized.anonymize}, already using that device" }
             return false
         }
 
@@ -204,7 +204,9 @@ class SharedRadioInterfaceService(
         processLifecycle.coroutineScope.launch {
             interfaceMutex.withLock {
                 ignoreException { stopInterfaceLocked() }
-                startInterfaceLocked()
+                // Don't auto-start when user explicitly disconnects (null address).
+                // Mock fallback in startInterfaceLocked would otherwise immediately reconnect.
+                if (sanitized != null) startInterfaceLocked()
             }
         }
         return true
