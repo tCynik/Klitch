@@ -98,6 +98,7 @@ class MeshTestViewModel(
     private var messagesJob: Job? = null
     private var wasConnected = false
     private var rebootDisconnectObserved = false
+    private var userStoppedScan = false
 
     private val myNodeNumFlow = MutableStateFlow<Int?>(null)
 
@@ -131,7 +132,11 @@ class MeshTestViewModel(
                 rebootStateRepository.setRebooting(false)
                 rebootDisconnectObserved = false
             }
-            val uiStatus = if (isRebooting) MeshConnectionStatusUi.Rebooting else status.toUi()
+            val uiStatus = when {
+                isRebooting -> MeshConnectionStatusUi.Rebooting
+                userStoppedScan && status is MeshConnectionStatus.Scanning -> MeshConnectionStatusUi.Disconnected
+                else -> status.toUi()
+            }
             _uiState.update { state ->
                 state.copy(
                     connectionStatus = uiStatus,
@@ -140,7 +145,7 @@ class MeshTestViewModel(
                         else -> state.lastConnectedNodeName
                     },
                     connectionTab = state.connectionTab.copy(
-                        isScanning = status is MeshConnectionStatus.Scanning,
+                        isScanning = status is MeshConnectionStatus.Scanning && !userStoppedScan,
                     ),
                 )
             }
@@ -157,7 +162,7 @@ class MeshTestViewModel(
             // Auto-start scan when the app is already scanning (MainViewModel auto-scan)
             // but this VM hasn't started collecting devices yet.
             // Skip during reboot: extra scan competes with GATT auto-connect and breaks reconnect.
-            if (status is MeshConnectionStatus.Scanning && scanJob == null && !isRebooting) {
+            if (status is MeshConnectionStatus.Scanning && scanJob == null && !isRebooting && !userStoppedScan) {
                 onScanClick()
             }
             // Stop scan when auto-connect from MainViewModel kicks in.
@@ -292,6 +297,7 @@ class MeshTestViewModel(
     // ── Connection Tab ────────────────────────────────────────────────────────
 
     fun onScanClick() {
+        userStoppedScan = false
         scanJob?.cancel()
         // isScanning driven by observeConnectionStatus → _isScanning in repo
         scanJob = scanDevices(NoParams)
@@ -309,9 +315,15 @@ class MeshTestViewModel(
     }
 
     fun onStopScanClick() {
+        userStoppedScan = true
         scanJob?.cancel()
         scanJob = null
-        // isScanning will be reset via observeConnectionStatus when _isScanning → false
+        _uiState.update { state ->
+            state.copy(
+                connectionStatus = MeshConnectionStatusUi.Disconnected,
+                connectionTab = state.connectionTab.copy(isScanning = false),
+            )
+        }
     }
 
     fun onConnectClick(address: String) {
