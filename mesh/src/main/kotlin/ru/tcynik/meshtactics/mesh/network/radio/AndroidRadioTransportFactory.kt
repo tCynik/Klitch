@@ -17,12 +17,10 @@
 package ru.tcynik.meshtactics.mesh.network.radio
 
 import android.content.Context
-import android.provider.Settings
 import org.koin.core.annotation.Single
 import ru.tcynik.meshtactics.mesh.ble.BleConnectionFactory
 import ru.tcynik.meshtactics.mesh.ble.BleScanner
 import ru.tcynik.meshtactics.mesh.ble.BluetoothRepository
-import ru.tcynik.meshtactics.mesh.common.BuildConfigProvider
 import ru.tcynik.meshtactics.mesh.di.CoroutineDispatchers
 import ru.tcynik.meshtactics.mesh.model.DeviceType
 import ru.tcynik.meshtactics.mesh.repository.RadioInterfaceService
@@ -39,7 +37,6 @@ import ru.tcynik.meshtactics.mesh.repository.RadioTransportFactory
 class AndroidRadioTransportFactory(
     private val context: Context,
     private val interfaceFactory: Lazy<InterfaceFactory>,
-    private val buildConfigProvider: BuildConfigProvider,
     scanner: BleScanner,
     bluetoothRepository: BluetoothRepository,
     connectionFactory: BleConnectionFactory,
@@ -48,13 +45,8 @@ class AndroidRadioTransportFactory(
 
     override val supportedDeviceTypes: List<DeviceType> = listOf(DeviceType.BLE, DeviceType.TCP, DeviceType.USB)
 
-    override fun isMockInterface(): Boolean =
-        buildConfigProvider.isDebug || Settings.System.getString(context.contentResolver, "firebase.test.lab") == "true"
-
     override fun isPlatformAddressValid(address: String): Boolean = interfaceFactory.value.addressValid(address)
 
-    override fun createPlatformTransport(address: String, service: RadioInterfaceService): RadioTransport {
-        // Fallback to legacy factory for Serial, Mocks, and NOPs
-        return interfaceFactory.value.createInterface(address, service)
-    }
+    override fun createPlatformTransport(address: String, service: RadioInterfaceService): RadioTransport =
+        interfaceFactory.value.createInterface(address, service)
 }

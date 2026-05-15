@@ -35,9 +35,6 @@ interface RadioInterfaceService {
     /** Flow of the current device address. */
     val currentDeviceAddressFlow: StateFlow<String?>
 
-    /** Whether we are currently using a mock interface. */
-    fun isMockInterface(): Boolean
-
     /** Flow of raw data received from the radio. */
     val receivedData: SharedFlow<ByteArray>
 

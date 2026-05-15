@@ -171,8 +171,6 @@ class SharedRadioInterfaceService(
         initStateListeners()
     }
 
-    override fun isMockInterface(): Boolean = transportFactory.isMockInterface()
-
     override fun toInterfaceAddress(interfaceId: InterfaceId, rest: String): String =
         transportFactory.toInterfaceAddress(interfaceId, rest)
 
@@ -216,11 +214,7 @@ class SharedRadioInterfaceService(
     private fun startInterfaceLocked() {
         if (radioIf != null) return
 
-        val address =
-            getBondedDeviceAddress()
-                ?: if (isMockInterface()) transportFactory.toInterfaceAddress(InterfaceId.MOCK, "") else null
-
-        if (address == null) {
+        val address = getBondedDeviceAddress() ?: run {
             Logger.w { "No valid address to connect to." }
             return
         }

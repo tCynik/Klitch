@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
@@ -88,14 +89,14 @@ class MeshConnectionRepositoryImpl(
                     ) to now
                 }
                 discovered.entries.removeIf { (_, pair) -> now - pair.second > expiryMs }
-                emit(discovered.values.map { it.first }.toList())
+                emit(discovered.values.map { it.first }.sortedBy { it.address })
             }
         } finally {
             if (activeScanCount.decrementAndGet() == 0) {
                 _isScanning.value = false
             }
         }
-    }
+    }.distinctUntilChanged()
 
     override suspend fun connect(address: String, deviceName: String) {
         Log.i("MeshRepo", "DBG connect: address=$address name=$deviceName")

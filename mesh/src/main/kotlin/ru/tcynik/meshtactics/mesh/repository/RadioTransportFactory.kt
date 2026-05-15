@@ -28,9 +28,6 @@ interface RadioTransportFactory {
     /** The device types supported by this factory. */
     val supportedDeviceTypes: List<DeviceType>
 
-    /** Whether we are currently forced into using a mock interface (e.g., Firebase Test Lab). */
-    fun isMockInterface(): Boolean
-
     /** Creates a transport for the given [address], or a NOP implementation if invalid/unsupported. */
     fun createTransport(address: String, service: RadioInterfaceService): RadioTransport
 

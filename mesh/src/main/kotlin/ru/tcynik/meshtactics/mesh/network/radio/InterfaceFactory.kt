@@ -30,7 +30,6 @@ import ru.tcynik.meshtactics.mesh.repository.RadioTransport
 @Single
 class InterfaceFactory(
     private val nopInterfaceFactory: NopInterfaceFactory,
-    private val mockSpec: Lazy<MockInterfaceSpec>,
     private val serialSpec: Lazy<SerialInterfaceSpec>,
     private val tcpSpec: Lazy<TCPInterfaceSpec>,
 ) {
@@ -39,7 +38,6 @@ class InterfaceFactory(
     private val specMap: Map<InterfaceId, InterfaceSpec<*>>
         get() =
             mapOf(
-                InterfaceId.MOCK to mockSpec.value,
                 InterfaceId.NOP to NopInterfaceSpec(nopInterfaceFactory),
                 InterfaceId.SERIAL to serialSpec.value,
                 InterfaceId.TCP to tcpSpec.value,
