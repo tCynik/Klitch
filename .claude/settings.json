@@ -157,6 +157,11 @@
       "Bash(Write-Host \"Deleted 3 mock files\")",
       "Bash(gradlew.bat :app:testDebugUnitTest --continue)"
       "Bash(mv \"c:/Users/LocAdmin/AndroidStudioProjects/MeshTactics/.claude/plans/node-key-management.md\" \"c:/Users/LocAdmin/AndroidStudioProjects/MeshTactics/.claude/archive/node-key-management.md\")"
+      "Bash(mv \"c:/Users/LocAdmin/AndroidStudioProjects/MeshTactics/.claude/plans/node-key-management.md\" \"c:/Users/LocAdmin/AndroidStudioProjects/MeshTactics/.claude/archive/node-key-management.md\")",
+      "Bash(Remove-Item \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\mesh\\\\src\\\\main\\\\kotlin\\\\ru\\\\tcynik\\\\meshtactics\\\\mesh\\\\network\\\\radio\\\\MockInterface.kt\")",
+      "Bash(Remove-Item \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\mesh\\\\src\\\\main\\\\kotlin\\\\ru\\\\tcynik\\\\meshtactics\\\\mesh\\\\network\\\\radio\\\\MockInterfaceFactory.kt\")",
+      "Bash(Remove-Item \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\mesh\\\\src\\\\main\\\\kotlin\\\\ru\\\\tcynik\\\\meshtactics\\\\mesh\\\\network\\\\radio\\\\MockInterfaceSpec.kt\")",
+      "Bash(Write-Host \"Deleted 3 mock files\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",
