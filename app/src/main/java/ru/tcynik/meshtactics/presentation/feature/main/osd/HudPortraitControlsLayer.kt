@@ -66,8 +66,6 @@ fun HudPortraitControlsLayer(
             ) {
                 HudRow(config = state.radio, side = HudSide.Right, modifier = Modifier.wrapContentWidth().height(60.dp))
                 Column {
-                    HudRow(config = state.mesh,     side = HudSide.Right, modifier = Modifier.wrapContentWidth().height(60.dp))
-                    Spacer(Modifier.height(10.dp))
                     HudRow(config = state.marks,    side = HudSide.Right, modifier = Modifier.wrapContentWidth().height(60.dp))
                     Spacer(Modifier.height(10.dp))
                     HudRow(config = state.chat,     side = HudSide.Right, modifier = Modifier.wrapContentWidth().height(60.dp))

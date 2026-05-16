@@ -12,7 +12,6 @@ data class HudUiState(
     val gps: HudRowConfig,
     // Right column (main menu) — radio pinned to top in portrait, rest at bottom
     val radio: HudRowConfig,
-    val mesh: HudRowConfig,
     val marks: HudRowConfig,
     val chat: HudRowConfig,
 )

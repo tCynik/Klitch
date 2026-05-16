@@ -484,7 +484,6 @@ class MainViewModel(
             ),
             info = buildConnectionInfoSlot(state),
         ),
-        mesh     = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_mesh,        label = "сетка",       onClick = nav.onMeshClick),      info = emptyInfoSlot()),
         marks    = HudRowConfig(
             button = HudButtonSlot(
                 iconRes   = R.drawable.ic_marks,
@@ -611,10 +610,6 @@ class MainViewModel(
                     info = buildConnectionInfoSlot(state),
                 ),
                 HudRowConfig(
-                    button = HudButtonSlot(iconRes = R.drawable.ic_mesh,     label = "сетка",     onClick = nav.onMeshClick),
-                    info = emptyInfoSlot(),
-                ),
-                HudRowConfig(
                     button = HudButtonSlot(
                         iconRes   = R.drawable.ic_marks,
                         label     = "метки",
@@ -633,6 +628,7 @@ class MainViewModel(
                     ),
                     info = emptyInfoSlot(),
                 ),
+                emptyHudRowConfig(),
                 emptyHudRowConfig(),
             ),
         )
