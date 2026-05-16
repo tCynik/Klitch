@@ -27,7 +27,7 @@ fun HudBlock(
                 config = rowConfig,
                 side = side,
                 modifier = Modifier.wrapContentWidth()
-                    .weight(1f),
+                    .height(70.dp),
             )
         }
     }

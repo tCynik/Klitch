@@ -41,6 +41,7 @@ import ru.tcynik.meshtactics.di.orientation.DeviceOrientationProvider
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkContextMenuEvent
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudUiState
 import ru.tcynik.meshtactics.presentation.feature.main.osd.HudControlsLayer
 import ru.tcynik.meshtactics.presentation.feature.main.osd.HudPortraitControlsLayer
 import ru.tcynik.meshtactics.presentation.feature.main.osd.MapLibreLayer
@@ -48,6 +49,7 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.MapLibreLayer
 fun MainScreen(
     uiState: MainUiState,
     hudConfig: HudConfig,
+    hudUiState: HudUiState,
     onCameraPositionChanged: (MapCameraPosition) -> Unit,
     locationProvider: LocationProvider,
     orientationProvider: DeviceOrientationProvider,
@@ -121,7 +123,7 @@ fun MainScreen(
             )
         } else {
             HudPortraitControlsLayer(
-                config = hudConfig,
+                state = hudUiState,
                 modifier = Modifier.fillMaxSize(),
             )
         }

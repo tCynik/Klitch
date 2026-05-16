@@ -46,6 +46,7 @@ fun NavGraph() {
                 val viewModel: MainViewModel = koinViewModel()
                 val uiState by viewModel.uiState.collectAsState()
                 val hudConfig by viewModel.hudConfig.collectAsState()
+                val hudUiState by viewModel.hudUiState.collectAsState()
                 val locationProvider: LocationProvider = koinInject()
                 val orientationProvider: DeviceOrientationProvider = koinInject()
 
@@ -65,6 +66,7 @@ fun NavGraph() {
                 MainScreen(
                     uiState = uiState,
                     hudConfig = hudConfig,
+                    hudUiState = hudUiState,
                     onCameraPositionChanged = viewModel::onCameraPositionChanged,
                     locationProvider = locationProvider,
                     orientationProvider = orientationProvider,
