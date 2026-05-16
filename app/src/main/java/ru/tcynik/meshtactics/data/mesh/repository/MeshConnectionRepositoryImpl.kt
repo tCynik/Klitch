@@ -100,10 +100,10 @@ class MeshConnectionRepositoryImpl(
     }.distinctUntilChanged()
 
     override suspend fun connect(address: String, deviceName: String) {
-        logger.i("BLE", "connect: address=$address name=$deviceName")
+        logger.i("BLE", "connect: address='$address' name='$deviceName'")
         pendingDeviceName = deviceName
         val bleAddress = radioInterfaceService.toInterfaceAddress(InterfaceId.BLUETOOTH, address)
-        logger.i("BLE", "connect: calling setDeviceAddress($bleAddress)")
+        logger.i("BLE", "connect: setDeviceAddress bleAddress='$bleAddress'")
         radioInterfaceService.setDeviceAddress(bleAddress)
         logger.i("BLE", "connect: calling radioInterfaceService.connect()")
         radioInterfaceService.connect()

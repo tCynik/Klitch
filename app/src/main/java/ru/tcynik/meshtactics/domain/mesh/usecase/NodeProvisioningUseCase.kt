@@ -37,6 +37,6 @@ class NodeProvisioningUseCase(
                 is SlotResolution.NoFreeSlot -> logger.w("Node","  no free slots for '${contour.name}' — skipping")
             }
         }
-        logger.d("Node","provision() done")
+        logger.d("Node","provision() complete")
     }
 }

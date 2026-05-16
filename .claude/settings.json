@@ -165,7 +165,8 @@
       "Bash(JAVA_HOME=\"C:/Program Files/Microsoft/jdk-21.0.10.7-hotspot\" ./gradlew :app:test --tests \"ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCaseTest\" --tests \"ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCaseTest\" --tests \"ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCaseTest\" --tests \"ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCaseTest\")",
       "Bash(JAVA_HOME=\"C:/Program Files/Microsoft/jdk-21.0.10.7-hotspot\" ./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCaseTest\" --tests \"ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCaseTest\" --tests \"ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCaseTest\" --tests \"ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCaseTest\")",
       "Bash(cp \"c:\\\\Users\\\\tcynik\\\\StudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\logger.md\" \"c:\\\\Users\\\\tcynik\\\\StudioProjects\\\\MeshTactics\\\\.claude\\\\archive\\\\logger.md\")",
-      "Bash(rm \"c:\\\\Users\\\\tcynik\\\\StudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\logger.md\")"
+      "Bash(rm \"c:\\\\Users\\\\tcynik\\\\StudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\logger.md\")",
+      "Bash(./gradlew :app:compileDebugUnitTestKotlin --no-daemon --stacktrace)"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",

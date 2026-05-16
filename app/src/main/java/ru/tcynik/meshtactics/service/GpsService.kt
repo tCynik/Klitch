@@ -31,7 +31,7 @@ class GpsService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        logger.d("GPS", "onCreate")
+        logger.d("GPS", "GpsService.onCreate")
         ensureNotificationChannel()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIFICATION_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
@@ -41,18 +41,18 @@ class GpsService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        logger.d("GPS", "onStartCommand")
+        logger.d("GPS", "GpsService.onStartCommand")
         gpsLifecycle.start()
         return START_STICKY
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        logger.d("GPS", "onTaskRemoved → stopSelf")
+        logger.d("GPS", "GpsService.onTaskRemoved → stopSelf")
         stopSelf()
     }
 
     override fun onDestroy() {
-        logger.d("GPS", "onDestroy")
+        logger.d("GPS", "GpsService.onDestroy")
         gpsLifecycle.stop()
         super.onDestroy()
     }

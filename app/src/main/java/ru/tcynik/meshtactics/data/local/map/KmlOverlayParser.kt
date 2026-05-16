@@ -45,7 +45,7 @@ class KmlOverlayParser(
             }
             logger.d(FEATURE, "parse: extracted KML file=$kmlFile")
             val ok = kmlDoc.parseKMLFile(kmlFile)
-            logger.d(FEATURE, "parse: parseKMLFile result=$ok")
+            logger.d(FEATURE, "parse: parseKMLFile result=$ok (kmz)")
             // Загрузить изображения в GroundOverlay из извлечённых файлов
             loadGroundOverlayIcons(kmlDoc.mKmlRoot, outDir)
         } else {
@@ -57,7 +57,7 @@ class KmlOverlayParser(
                 val kmlContent = runCatching { kmlFile.readText().take(2000) }.getOrDefault("")
                 logger.d(FEATURE, "parse: KML preview=$kmlContent")
                 val ok = kmlDoc.parseKMLFile(kmlFile)
-                logger.d(FEATURE, "parse: parseKMLFile result=$ok")
+                logger.d(FEATURE, "parse: parseKMLFile result=$ok (kml)")
             } ?: return ParseResult(null, null).also {
                 logger.w(FEATURE, "parse: failed to open input stream for uri=$uri")
             }
