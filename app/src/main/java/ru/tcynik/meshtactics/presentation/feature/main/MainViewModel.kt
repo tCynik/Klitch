@@ -47,6 +47,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.DrawerMenuItem
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudButtonSlot
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudColumnConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig
@@ -55,6 +56,7 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudRowConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudUiState
 import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyButtonSlot
 import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyHudColumn
+import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyHudRowConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyInfoSlot
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
@@ -482,7 +484,6 @@ class MainViewModel(
             ),
             info = buildConnectionInfoSlot(state),
         ),
-        settings = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_settings,   label = "настройки",   onClick = nav.onSettingsClick), info = emptyInfoSlot()),
         mesh     = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_mesh,        label = "сетка",       onClick = nav.onMeshClick),      info = emptyInfoSlot()),
         marks    = HudRowConfig(
             button = HudButtonSlot(
@@ -507,16 +508,17 @@ class MainViewModel(
 
     private fun buildMenuDrawerUiState(state: MainUiState, nav: HudNavCallbacks): MenuDrawerUiState = MenuDrawerUiState(
         isOpen = state.menuDrawerOpen,
-        radio = HudButtonSlot(
-            iconRes = R.drawable.ic_radio,
-            label = "радио",
-            onClick = { nav.onRadioClick(); toggleMenuDrawer() },
-            tintOverride = buildNodeStatusColor(state),
-        ),
-        settings = HudButtonSlot(
-            iconRes = R.drawable.ic_settings,
-            label = "настройки",
-            onClick = { nav.onSettingsClick(); toggleMenuDrawer() },
+        items = listOf(
+            DrawerMenuItem(
+                iconRes = R.drawable.ic_radio,
+                label = "радио",
+                onClick = { nav.onRadioClick(); toggleMenuDrawer() },
+            ),
+            DrawerMenuItem(
+                iconRes = R.drawable.ic_settings,
+                label = "настройки",
+                onClick = { nav.onSettingsClick(); toggleMenuDrawer() },
+            ),
         ),
         onDismiss = ::toggleMenuDrawer,
     )
@@ -589,10 +591,6 @@ class MainViewModel(
                     info = buildConnectionInfoSlot(state),
                 ),
                 HudRowConfig(
-                    button = HudButtonSlot(iconRes = R.drawable.ic_settings, label = "настройки", onClick = nav.onSettingsClick),
-                    info = emptyInfoSlot(),
-                ),
-                HudRowConfig(
                     button = HudButtonSlot(iconRes = R.drawable.ic_mesh,     label = "сетка",     onClick = nav.onMeshClick),
                     info = emptyInfoSlot(),
                 ),
@@ -615,6 +613,7 @@ class MainViewModel(
                     ),
                     info = emptyInfoSlot(),
                 ),
+                emptyHudRowConfig(),
             ),
         )
 

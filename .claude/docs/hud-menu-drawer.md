@@ -5,14 +5,16 @@
 
 ## Overview
 
-A slide-out navigation drawer that appears from the left edge of the screen, overlaying the HUD. Triggered by a hamburger button at the top of the HUD left column (portrait orientation only). Initial items: Radio and Settings — reusing existing `HudNavCallbacks`. Designed to grow: new items can be appended without restructuring.
+A slide-out navigation drawer that appears from the left edge of the screen, overlaying the HUD. Triggered by a hamburger button at the top of the HUD left column (portrait orientation only). Initial items: Radio and Settings — reusing existing `HudNavCallbacks`. Designed to grow: new items can be appended to `DrawerMenuItem` list without restructuring.
 
 ## Key Files
 
 | File | Role |
 |---|---|
+| `presentation/feature/main/osd/models/DrawerMenuItem.kt` | Drawer-specific item model (iconRes, label, onClick, enabled) |
 | `presentation/feature/main/osd/models/MenuDrawerUiState.kt` | State data class (lambda-containing → separate StateFlow) |
-| `presentation/feature/main/osd/MenuDrawer.kt` | Animated overlay composable (scrim + panel) |
+| `presentation/feature/main/osd/layouts/MenuDrawerItem.kt` | Single drawer row: Icon(50dp) + label (bodyMedium) |
+| `presentation/feature/main/osd/MenuDrawer.kt` | Animated overlay composable (scrim fade + panel slide) |
 | `presentation/feature/main/MainUiState.kt` | Added `menuDrawerOpen: Boolean = false` |
 | `presentation/feature/main/MainViewModel.kt` | `menuDrawerUiState: StateFlow<MenuDrawerUiState>`, `toggleMenuDrawer()`, `buildMenuDrawerUiState()` |
 | `presentation/feature/main/osd/models/HudUiState.kt` | Added `menuDrawer: HudRowConfig` |
@@ -24,7 +26,10 @@ A slide-out navigation drawer that appears from the left edge of the screen, ove
 ## Architecture Decisions
 
 ### State shape
-`MenuDrawerUiState` contains lambda fields (`onDismiss`, `HudButtonSlot.onClick`) → must live in its own `StateFlow`, never inside `MainUiState`. Built via `combine(_mainUiState, _navCallbacksFlow)` in `MainViewModel`. Pattern documented in `/architect` — see "Lambda-Containing UiState Pattern".
+`MenuDrawerUiState` contains lambda fields (`onDismiss`, `DrawerMenuItem.onClick`) → must live in its own `StateFlow`, never inside `MainUiState`. Built via `combine(_mainUiState, _navCallbacksFlow)` in `MainViewModel`. Pattern documented in `/architect` — see "Lambda-Containing UiState Pattern".
+
+### Drawer model decoupling
+Drawer items use their own `DrawerMenuItem` model — decoupled from `HudButtonSlot` by design. Drawer and HUD are independent UI zones; the earlier coupling to `HudButtonSlot` was an implementation artefact. `MenuDrawerUiState` holds `items: List<DrawerMenuItem>` instead of named `radio`/`settings` fields, allowing extensibility without ViewModel changes.
 
 ### Drawer as conditional overlay
 `MenuDrawer` is a **conditional overlay composable** inside the `MainScreen` Box, not a new architectural layer. Pattern documented in `/architect` — see "Main Screen: 2-Layer OSD Composition + Conditional Overlays".
@@ -43,8 +48,10 @@ On item tap: nav callback fires, then `toggleMenuDrawer()` closes the drawer imm
 | Drawer width | 200dp |
 | Scrim | `Color.Black.copy(alpha = 0.4f)` |
 | Panel background | `MaterialTheme.colorScheme.surface` |
-| Animation | `slideInHorizontally`/`slideOutHorizontally` from left, `tween(250)` |
-| Inner padding | 8dp + `statusBarsPadding` + `navigationBarsPadding` |
+| Scrim animation | `fadeIn`/`fadeOut`, `tween(200)` |
+| Panel animation | `slideInHorizontally`/`slideOutHorizontally` from left, `tween(250)` |
+| Item layout | `Row { Icon(50dp) + Spacer(16dp) + Text(bodyMedium) }`, padding `horizontal=16dp, vertical=12dp` |
+| Item icon tint | `onSurface`; disabled → `onSurface.copy(alpha=0.38f)` |
 | Item spacing | `Spacer(height = 10.dp)` between items |
 | Orientation | Portrait only; landscape is a TODO in `MainScreen` |
 
@@ -54,3 +61,5 @@ On item tap: nav callback fires, then `toggleMenuDrawer()` closes the drawer imm
 - Gesture-based open (swipe from left edge): out of scope
 - Drawer header / title label: out of scope
 - Persistence of drawer state across sessions: out of scope (always closed on restart)
+- Status-driven icon tinting: out of scope for drawer (icons always `onSurface`)
+- `settings` button removed from HUD right column — navigation to settings is now exclusively via the drawer

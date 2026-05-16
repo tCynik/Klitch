@@ -11,7 +11,7 @@ Row(SpaceBetween) {
     Column(Arrangement.Bottom)          // Left: all buttons at bottom
     Column(Arrangement.SpaceBetween) {  // Right: radio top, rest at bottom
         <radio>
-        Column { <settings> <mesh> <marks> <chat> }
+        Column { <mesh> <marks> <chat> }
     }
 }
 ```
@@ -33,7 +33,6 @@ Row(SpaceBetween) {
 | `mapTools` | ic_map_tools | инструменты | Left | bottom group |
 | `gps` | ic_satellite | спутники | Left | bottom group |
 | `radio` | ic_radio | радио | Right | **top** |
-| `settings` | ic_settings | настройки | Right | bottom group |
 | `mesh` | ic_mesh | сетка | Right | bottom group |
 | `marks` | ic_marks | метки | Right | bottom group |
 | `chat` | ic_chat | чаты | Right | bottom group |

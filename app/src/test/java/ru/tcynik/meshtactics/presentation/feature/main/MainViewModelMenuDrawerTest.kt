@@ -177,7 +177,7 @@ class MainViewModelMenuDrawerTest {
         viewModel.toggleMenuDrawer()
         assertTrue(viewModel.uiState.value.menuDrawerOpen)
 
-        viewModel.menuDrawerUiState.value.radio.onClick()
+        viewModel.menuDrawerUiState.value.items.first { it.label == "радио" }.onClick()
 
         assertTrue(radioCalled)
         assertFalse(viewModel.uiState.value.menuDrawerOpen)
@@ -190,7 +190,7 @@ class MainViewModelMenuDrawerTest {
         viewModel.toggleMenuDrawer()
         assertTrue(viewModel.uiState.value.menuDrawerOpen)
 
-        viewModel.menuDrawerUiState.value.settings.onClick()
+        viewModel.menuDrawerUiState.value.items.first { it.label == "настройки" }.onClick()
 
         assertTrue(settingsCalled)
         assertFalse(viewModel.uiState.value.menuDrawerOpen)
