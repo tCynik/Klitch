@@ -178,6 +178,7 @@ fun NavGraph() {
                     onNodeClick = { nodeId ->
                         navController.navigate(Route.MeshTest(nodeId))
                     },
+                    onNavigateBack = { navController.popBackStack() },
                 )
             }
 

@@ -515,6 +515,11 @@ class MainViewModel(
                 onClick = { nav.onRadioClick(); toggleMenuDrawer() },
             ),
             DrawerMenuItem(
+                iconRes = R.drawable.ic_mesh,
+                label = "ноды",
+                onClick = { nav.onMeshClick(); toggleMenuDrawer() },
+            ),
+            DrawerMenuItem(
                 iconRes = R.drawable.ic_settings,
                 label = "Главная",
                 onClick = { nav.onMainSettingsClick(); toggleMenuDrawer() },
