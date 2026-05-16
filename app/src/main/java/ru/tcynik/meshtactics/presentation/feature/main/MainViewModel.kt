@@ -47,13 +47,16 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.DrawerMenuItem
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudButtonSlot
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudColumnConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudInfoSlot
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudRowConfig
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudUiState
 import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyButtonSlot
 import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyHudColumn
+import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyHudRowConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyInfoSlot
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
@@ -69,6 +72,7 @@ import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkContextMenuEvent
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MenuDrawerUiState
 import java.util.UUID
 
 // BLE RSSI threshold separating low signal (red) from medium/high signal (green).
@@ -134,6 +138,25 @@ class MainViewModel(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
         initialValue = buildHudConfig(MainUiState(), HudNavCallbacks()),
+    )
+
+    // Portrait HUD state — named buttons replace the generic slot list.
+    // Contains lambdas → separate StateFlow, same pattern as hudConfig.
+    val hudUiState: StateFlow<HudUiState> = combine(_uiState, _navCallbacks) { state, nav ->
+        buildHudUiState(state, nav)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = buildHudUiState(MainUiState(), HudNavCallbacks()),
+    )
+
+    // Menu drawer state — contains lambdas → separate StateFlow.
+    val menuDrawerUiState: StateFlow<MenuDrawerUiState> = combine(_uiState, _navCallbacks) { state, nav ->
+        buildMenuDrawerUiState(state, nav)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = buildMenuDrawerUiState(MainUiState(), HudNavCallbacks()),
     )
 
     init {
@@ -272,6 +295,10 @@ class MainViewModel(
     }
 
     // ── Mark tool ─────────────────────────────────────────────────────────────
+
+    fun toggleMenuDrawer() {
+        _uiState.update { it.copy(menuDrawerOpen = !it.menuDrawerOpen) }
+    }
 
     fun toggleMarkTool() {
         _uiState.update { state ->
@@ -414,6 +441,107 @@ class MainViewModel(
         right = buildRightColumn(state, nav),
     )
 
+    private fun buildHudUiState(state: MainUiState, nav: HudNavCallbacks): HudUiState = HudUiState(
+        menuDrawer = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_menu, label = "меню", onClick = { toggleMenuDrawer() }), info = emptyInfoSlot()),
+        compass  = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_compass,    label = "направление", onClick = {}), info = emptyInfoSlot()),
+        target   = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_target,     label = "привязка",    onClick = {}), info = emptyInfoSlot()),
+        markTool = HudRowConfig(
+            button = HudButtonSlot(
+                iconRes  = R.drawable.ic_marks_tool,
+                label    = "метки",
+                selected = state.markToolActive,
+                onClick  = { toggleMarkTool() },
+            ),
+            info = emptyInfoSlot(),
+        ),
+        mapTools = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_map_tools,  label = "инструменты", onClick = {}), info = emptyInfoSlot()),
+        gps      = HudRowConfig(
+            button = HudButtonSlot(
+                iconRes      = R.drawable.ic_satellite,
+                label        = "спутники",
+                onClick      = {},
+                tintOverride = when (state.gpsStatus.signalLevel) {
+                    GpsSignalLevel.None   -> Color.Red
+                    GpsSignalLevel.Weak   -> Color.Yellow
+                    GpsSignalLevel.Strong -> Color.Green
+                },
+                infoBadge    = state.gpsStatus.accuracyMeters
+                    ?.let { it.toInt().coerceAtMost(99).toString() }
+                    .takeIf { it != "0" },
+            ),
+            info = emptyInfoSlot(),
+        ),
+        radio    = HudRowConfig(
+            button = HudButtonSlot(
+                iconRes      = R.drawable.ic_radio,
+                label        = "радио",
+                onClick      = nav.onRadioClick,
+                tintOverride = buildNodeStatusColor(state),
+                infoBadge    = when (state.connectionStatus) {
+                    is MeshConnectionStatus.Connected -> state.nodeMarkers.size.toString().take(2)
+                    else -> null
+                }.takeIf { it != "0" },
+            ),
+            info = buildConnectionInfoSlot(state),
+        ),
+        marks    = HudRowConfig(
+            button = HudButtonSlot(
+                iconRes   = R.drawable.ic_marks,
+                label     = "метки",
+                selected  = state.markToolActive,
+                onClick   = { toggleMarkTool() },
+                infoBadge = state.pendingMarkPoints.size.takeIf { it > 0 }?.toString(),
+            ),
+            info = emptyInfoSlot(),
+        ),
+        chat     = HudRowConfig(
+            button = HudButtonSlot(
+                iconRes   = R.drawable.ic_chat,
+                label     = "чаты",
+                onClick   = nav.onChatClick,
+                infoBadge = state.unreadChatCount.takeIf { it > 0 }?.toString(),
+            ),
+            info = emptyInfoSlot(),
+        ),
+    )
+
+    private fun buildMenuDrawerUiState(state: MainUiState, nav: HudNavCallbacks): MenuDrawerUiState = MenuDrawerUiState(
+        isOpen = state.menuDrawerOpen,
+        items = listOf(
+            DrawerMenuItem(
+                iconRes = R.drawable.ic_radio,
+                label = "радио",
+                onClick = { nav.onRadioClick(); toggleMenuDrawer() },
+            ),
+            DrawerMenuItem(
+                iconRes = R.drawable.ic_mesh,
+                label = "ноды",
+                onClick = { nav.onMeshClick(); toggleMenuDrawer() },
+            ),
+            DrawerMenuItem(
+                iconRes = R.drawable.ic_settings,
+                label = "Главная",
+                onClick = { nav.onMainSettingsClick(); toggleMenuDrawer() },
+            ),
+            DrawerMenuItem(
+                iconRes = R.drawable.ic_maps,
+                label = "Карта",
+                onClick = { nav.onMapSettingsClick(); toggleMenuDrawer() },
+            ),
+            DrawerMenuItem(
+                iconRes = R.drawable.ic_night,
+                label = "Экран",
+                onClick = { nav.onDisplaySettingsClick(); toggleMenuDrawer() },
+            ),
+            DrawerMenuItem(
+                iconRes = R.drawable.ic_man,
+                label = "Пользователь",
+                onClick = { nav.onUserSettingsClick(); toggleMenuDrawer() },
+            ),
+        ),
+        onDismiss = ::toggleMenuDrawer,
+    )
+
     // Left column — map tools.
     // Row 5 (bottom): GPS signal indicator — ic_satellite tinted by signal level.
     // onClick stubs: each action will be wired when its feature is implemented.
@@ -482,14 +610,6 @@ class MainViewModel(
                     info = buildConnectionInfoSlot(state),
                 ),
                 HudRowConfig(
-                    button = HudButtonSlot(iconRes = R.drawable.ic_settings, label = "настройки", onClick = nav.onSettingsClick),
-                    info = emptyInfoSlot(),
-                ),
-                HudRowConfig(
-                    button = HudButtonSlot(iconRes = R.drawable.ic_mesh,     label = "сетка",     onClick = nav.onMeshClick),
-                    info = emptyInfoSlot(),
-                ),
-                HudRowConfig(
                     button = HudButtonSlot(
                         iconRes   = R.drawable.ic_marks,
                         label     = "метки",
@@ -508,6 +628,8 @@ class MainViewModel(
                     ),
                     info = emptyInfoSlot(),
                 ),
+                emptyHudRowConfig(),
+                emptyHudRowConfig(),
             ),
         )
 

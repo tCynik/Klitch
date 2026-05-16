@@ -2,10 +2,10 @@ package ru.tcynik.meshtactics.presentation.feature.nodes
 
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
-import ru.tcynik.meshtactics.domain.model.NodeModel
+import ru.tcynik.meshtactics.domain.mesh.model.GeoNodeModel
 
 data class NodesUiState(
-    val nodes: ImmutableList<NodeModel> = persistentListOf(),
+    val nodes: ImmutableList<GeoNodeModel> = persistentListOf(),
     val isLoading: Boolean = false,
     val error: String? = null,
 )

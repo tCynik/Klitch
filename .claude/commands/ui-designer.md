@@ -143,6 +143,26 @@ These token decisions were established during the Emergency SOS feature and appl
 | SyncRequiredDialog | `app/.../ui/components/SyncRequiredDialog.kt` | Defined | AlertDialog; stateless; used in MainScreen + UserTabContent when `showSyncDialog = true` |
 | InactiveContourBanner | `app/.../feature/chat/ChatScreen.kt` | Defined | `Surface(tonalElevation=4dp)`, height=56dp, centered `bodyMedium` text `onSurfaceVariant`; replaces `ChatInputBar` when `isSelectedChatActive = false` |
 | TileCacheModeSelector | `app/.../feature/settings/SettingsScreen.kt` (private fun) | Defined | Labeled radio group pattern for settings tabs — see below |
+| MenuDrawer | `app/.../feature/main/osd/MenuDrawer.kt` | Defined | Slide-out overlay from left edge, portrait only — see Drawer Overlay Pattern below |
+
+**Drawer Overlay Pattern (MenuDrawer):**
+
+Slide-out panel that overlays the HUD from the left edge. Portrait-only in current implementation.
+
+| Property | Value |
+|---|---|
+| Drawer width | 200dp |
+| Scrim color | `Color.Black.copy(alpha = 0.4f)` |
+| Panel background | `MaterialTheme.colorScheme.surface` |
+| Animation | `slideInHorizontally`/`slideOutHorizontally` from left edge (`{ -it }`) |
+| Animation duration | `tween(250)` |
+| Inner padding | 8dp (all sides), + `statusBarsPadding()` + `navigationBarsPadding()` |
+| Dismiss — outside tap | scrim `clickable(indication = null)` → `state.onDismiss` |
+| Dismiss — back press | `BackHandler(enabled = state.isOpen)` → `state.onDismiss` |
+| Item spacing | `Spacer(Modifier.height(10.dp))` between items |
+| Orientation | Portrait only; landscape TODO gated in `MainScreen` with `if (!isLandscape)` |
+
+Scrim blocks clicks on content behind the drawer — implemented with a full-size `Box` + `clickable` with `indication = null` (no ripple). The drawer panel itself has a second `clickable(indication = null, onClick = {})` to prevent scrim click from bleeding through.
 
 **TileCacheModeSelector pattern (labeled radio group in settings tab):**
 - Stateless: `(selectedMode, onModeSelected, modifier)` — no internal state

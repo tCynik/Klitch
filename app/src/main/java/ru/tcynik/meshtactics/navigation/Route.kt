@@ -11,7 +11,16 @@ sealed interface Route {
     data object Chat : Route
 
     @Serializable
-    data object Settings : Route
+    data object MainSettings : Route
+
+    @Serializable
+    data object MapSettings : Route
+
+    @Serializable
+    data object DisplaySettings : Route
+
+    @Serializable
+    data object UserSettings : Route
 
     @Serializable
     data object NodeSettings : Route

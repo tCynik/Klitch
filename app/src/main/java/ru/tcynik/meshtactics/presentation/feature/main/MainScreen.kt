@@ -41,13 +41,17 @@ import ru.tcynik.meshtactics.di.orientation.DeviceOrientationProvider
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkContextMenuEvent
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudUiState
 import ru.tcynik.meshtactics.presentation.feature.main.osd.HudControlsLayer
 import ru.tcynik.meshtactics.presentation.feature.main.osd.HudPortraitControlsLayer
 import ru.tcynik.meshtactics.presentation.feature.main.osd.MapLibreLayer
+import ru.tcynik.meshtactics.presentation.feature.main.osd.MenuDrawer
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MenuDrawerUiState
 @Composable
 fun MainScreen(
     uiState: MainUiState,
     hudConfig: HudConfig,
+    hudUiState: HudUiState,
     onCameraPositionChanged: (MapCameraPosition) -> Unit,
     locationProvider: LocationProvider,
     orientationProvider: DeviceOrientationProvider,
@@ -56,6 +60,7 @@ fun MainScreen(
     onSendPendingMark: () -> Unit = {},
     contextMenuEvents: Flow<GeoMarkContextMenuEvent> = emptyFlow(),
     onDeletePendingPoint: (Int) -> Unit = {},
+    menuDrawerUiState: MenuDrawerUiState,
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var lastKnownPosition by remember { mutableStateOf(uiState.initialCameraPosition) }
@@ -121,7 +126,7 @@ fun MainScreen(
             )
         } else {
             HudPortraitControlsLayer(
-                config = hudConfig,
+                state = hudUiState,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -138,6 +143,11 @@ fun MainScreen(
             Button(onClick = onSendPendingMark) {
                 Text("Отправить (${uiState.pendingMarkPoints.size})")
             }
+        }
+
+        // z3 — menu drawer overlay (portrait only)
+        if (!isLandscape) {
+            MenuDrawer(state = menuDrawerUiState)
         }
 
         contextMenu?.let { event ->
