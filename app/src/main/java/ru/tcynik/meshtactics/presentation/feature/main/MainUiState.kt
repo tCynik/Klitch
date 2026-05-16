@@ -35,4 +35,5 @@ data class MainUiState(
     val hasChannelOnNode: Boolean = true,
     val syncRequired: Boolean = false,
     val isRebooting: Boolean = false,
+    val menuDrawerOpen: Boolean = false,
 )

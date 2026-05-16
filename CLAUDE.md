@@ -36,6 +36,7 @@
 | Настройки кэша тайлов (OkHttp duration modes) | ✅ Done |
 | Настройки ноды | ⬜ Planned |
 | Инжектируемый Logger (MT/<Feature>) | ✅ Done |
+| HUD Menu Drawer (выдвижная шторка навигации) | ✅ Done |
 
 ---
 
@@ -115,6 +116,7 @@
 | Autonomous Beacon (concept) | `.claude/docs/autonomous-beacon.md` |
 | Node PKC Key Management | `.claude/docs/node-key-management.md` |
 | App Logger | `.claude/docs/logger.md` |
+| HUD Menu Drawer | `.claude/docs/hud-menu-drawer.md` |
 
 ---
 
@@ -140,3 +142,4 @@
 | Tile Cache Settings | `.claude/archive/tile-cache-settings.md` | Archived |
 | App Logger | `.claude/archive/logger.md` | Archived |
 | HUD Portrait Refactor | `.claude/archive/hud-portrait-refactor.md` | Archived |
+| HUD Menu Drawer | `.claude/archive/hud-menu-drawer.md` | Archived |

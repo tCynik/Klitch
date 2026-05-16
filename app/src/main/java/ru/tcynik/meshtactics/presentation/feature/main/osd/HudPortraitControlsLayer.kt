@@ -20,7 +20,7 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudUiState
 import androidx.compose.foundation.layout.Arrangement
 
 // Portrait HUD — fixed layout:
-// Left column:  all buttons at the bottom.
+// Left column:  menuDrawer pinned at top (SpaceBetween), map tools at bottom.
 // Right column: radio button pinned to the top, remaining buttons at the bottom.
 @Composable
 fun HudPortraitControlsLayer(
@@ -38,20 +38,25 @@ fun HudPortraitControlsLayer(
             modifier = Modifier.fillMaxSize(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            // Left — all at bottom
+            // Left — hamburger at top, map tools at bottom
             Column(
                 modifier = Modifier.fillMaxHeight(),
-                verticalArrangement = Arrangement.Bottom,
+                verticalArrangement = Arrangement.SpaceBetween,
             ) {
-                HudRow(config = state.compass,  side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
-                Spacer(Modifier.height(10.dp))
-                HudRow(config = state.target,   side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
-                Spacer(Modifier.height(10.dp))
-                HudRow(config = state.markTool, side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
-                Spacer(Modifier.height(10.dp))
-                HudRow(config = state.mapTools, side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
-                Spacer(Modifier.height(10.dp))
-                HudRow(config = state.gps,      side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
+                HudRow(config = state.menuDrawer, side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
+                Column(
+                    verticalArrangement = Arrangement.Bottom,
+                ) {
+                    HudRow(config = state.compass,  side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
+                    Spacer(Modifier.height(10.dp))
+                    HudRow(config = state.target,   side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
+                    Spacer(Modifier.height(10.dp))
+                    HudRow(config = state.markTool, side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
+                    Spacer(Modifier.height(10.dp))
+                    HudRow(config = state.mapTools, side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
+                    Spacer(Modifier.height(10.dp))
+                    HudRow(config = state.gps,      side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
+                }
             }
 
             // Right — radio top, rest at bottom

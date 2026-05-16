@@ -45,6 +45,8 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudUiState
 import ru.tcynik.meshtactics.presentation.feature.main.osd.HudControlsLayer
 import ru.tcynik.meshtactics.presentation.feature.main.osd.HudPortraitControlsLayer
 import ru.tcynik.meshtactics.presentation.feature.main.osd.MapLibreLayer
+import ru.tcynik.meshtactics.presentation.feature.main.osd.MenuDrawer
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MenuDrawerUiState
 @Composable
 fun MainScreen(
     uiState: MainUiState,
@@ -58,6 +60,7 @@ fun MainScreen(
     onSendPendingMark: () -> Unit = {},
     contextMenuEvents: Flow<GeoMarkContextMenuEvent> = emptyFlow(),
     onDeletePendingPoint: (Int) -> Unit = {},
+    menuDrawerUiState: MenuDrawerUiState,
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var lastKnownPosition by remember { mutableStateOf(uiState.initialCameraPosition) }
@@ -140,6 +143,11 @@ fun MainScreen(
             Button(onClick = onSendPendingMark) {
                 Text("Отправить (${uiState.pendingMarkPoints.size})")
             }
+        }
+
+        // z3 — menu drawer overlay (portrait only)
+        if (!isLandscape) {
+            MenuDrawer(state = menuDrawerUiState)
         }
 
         contextMenu?.let { event ->

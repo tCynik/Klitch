@@ -70,6 +70,7 @@ import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkContextMenuEvent
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MenuDrawerUiState
 import java.util.UUID
 
 // BLE RSSI threshold separating low signal (red) from medium/high signal (green).
@@ -145,6 +146,15 @@ class MainViewModel(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
         initialValue = buildHudUiState(MainUiState(), HudNavCallbacks()),
+    )
+
+    // Menu drawer state — contains lambdas → separate StateFlow.
+    val menuDrawerUiState: StateFlow<MenuDrawerUiState> = combine(_uiState, _navCallbacks) { state, nav ->
+        buildMenuDrawerUiState(state, nav)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = buildMenuDrawerUiState(MainUiState(), HudNavCallbacks()),
     )
 
     init {
@@ -283,6 +293,10 @@ class MainViewModel(
     }
 
     // ── Mark tool ─────────────────────────────────────────────────────────────
+
+    fun toggleMenuDrawer() {
+        _uiState.update { it.copy(menuDrawerOpen = !it.menuDrawerOpen) }
+    }
 
     fun toggleMarkTool() {
         _uiState.update { state ->
@@ -426,6 +440,7 @@ class MainViewModel(
     )
 
     private fun buildHudUiState(state: MainUiState, nav: HudNavCallbacks): HudUiState = HudUiState(
+        menuDrawer = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_menu, label = "меню", onClick = { toggleMenuDrawer() }), info = emptyInfoSlot()),
         compass  = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_compass,    label = "направление", onClick = {}), info = emptyInfoSlot()),
         target   = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_target,     label = "привязка",    onClick = {}), info = emptyInfoSlot()),
         markTool = HudRowConfig(
@@ -488,6 +503,22 @@ class MainViewModel(
             ),
             info = emptyInfoSlot(),
         ),
+    )
+
+    private fun buildMenuDrawerUiState(state: MainUiState, nav: HudNavCallbacks): MenuDrawerUiState = MenuDrawerUiState(
+        isOpen = state.menuDrawerOpen,
+        radio = HudButtonSlot(
+            iconRes = R.drawable.ic_radio,
+            label = "радио",
+            onClick = { nav.onRadioClick(); toggleMenuDrawer() },
+            tintOverride = buildNodeStatusColor(state),
+        ),
+        settings = HudButtonSlot(
+            iconRes = R.drawable.ic_settings,
+            label = "настройки",
+            onClick = { nav.onSettingsClick(); toggleMenuDrawer() },
+        ),
+        onDismiss = ::toggleMenuDrawer,
     )
 
     // Left column — map tools.

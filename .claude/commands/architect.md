@@ -89,9 +89,9 @@ See `shared/src/commonMain/sqldelight/.../data/local/Node.sq:1`
 
 ## Canonical Patterns (continued)
 
-### Main Screen: 2-Layer OSD Composition
+### Main Screen: 2-Layer OSD Composition + Conditional Overlays
 
-The main screen is a `Box` with exactly **2 Compose layers**. This is the canonical structure — do not add more layers.
+The main screen `Box` has **2 always-rendered base layers**:
 
 ```kotlin
 Box(Modifier.fillMaxSize()) {
@@ -101,6 +101,29 @@ Box(Modifier.fillMaxSize()) {
 ```
 
 `MapLibreLayer` internally manages all 5 spatial product layers (tiles, grids, markers, live telemetry, channel markers) using MapLibre's own layer system. No additional Compose layers for spatial content.
+
+**Conditional overlay composables** (inside the same Box, rendered only when needed) are allowed in addition to the 2 base layers:
+
+```kotlin
+Box(Modifier.fillMaxSize()) {
+    MapLibreLayer(...)                               // z1 — always rendered
+    HudPortraitControlsLayer(...)                    // z2 — always rendered
+
+    // Conditional overlays — portrait only, not architectural "layers":
+    AnimatedVisibility(visible = showMarkButton) {   // floating action composable
+        Button(...) { ... }
+    }
+    if (!isLandscape) {
+        MenuDrawer(state = menuDrawerUiState)        // drawer overlay with scrim
+    }
+}
+```
+
+Conditional overlays:
+- Are **not** always rendered — they are gated on state or orientation
+- Must not contain spatial/map content (that belongs inside MapLibre)
+- Are driven by `StateFlow` from `MainViewModel`, never by local composable state
+- Examples: `MenuDrawer`, floating mark-tool action button
 
 ### Modals as NavGraph Destinations
 
@@ -415,6 +438,58 @@ See: `domain/channel/repository/ContourSyncStateRepository.kt`, `data/channel/re
 
 ---
 
+### Lambda-Containing UiState Pattern
+
+When a UiState data class needs to carry **lambda callbacks** (e.g. `onClick`, `onDismiss`), it must live in its own `StateFlow` — never inside `MainUiState`. Lambda fields make a class non-comparable (unstable for Compose), and mixing them into `MainUiState` causes unnecessary recompositions.
+
+**Rule:** if a UiState field type is `() -> Unit` or any function type → separate `StateFlow`.
+
+**Pattern:** build the lambda-containing state via `combine()` from the plain state flow + navigation callbacks:
+
+```kotlin
+// MainUiState — plain, no lambdas:
+data class MainUiState(
+    val menuDrawerOpen: Boolean = false,
+    // ...other fields
+)
+
+// MenuDrawerUiState — contains lambdas → separate StateFlow:
+data class MenuDrawerUiState(
+    val isOpen: Boolean,
+    val radio: HudButtonSlot,       // HudButtonSlot contains onClick: () -> Unit
+    val settings: HudButtonSlot,
+    val onDismiss: () -> Unit,
+)
+
+// ViewModel — wired via combine():
+val menuDrawerUiState: StateFlow<MenuDrawerUiState> =
+    combine(_mainUiState, _navCallbacksFlow) { state, nav ->
+        buildMenuDrawerUiState(state, nav)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, buildMenuDrawerUiState(...))
+
+private fun buildMenuDrawerUiState(state: MainUiState, nav: HudNavCallbacks) =
+    MenuDrawerUiState(
+        isOpen = state.menuDrawerOpen,
+        radio = HudButtonSlot(iconRes = R.drawable.ic_radio, onClick = {
+            nav.onRadioClick()
+            toggleMenuDrawer()
+        }),
+        settings = HudButtonSlot(iconRes = R.drawable.ic_settings, onClick = {
+            nav.onSettingsClick()
+            toggleMenuDrawer()
+        }),
+        onDismiss = ::toggleMenuDrawer,
+    )
+```
+
+**DI / wiring:** `menuDrawerUiState` is collected in `NavGraph.kt` and passed as a parameter to `MainScreen`. Never injected inside the composable.
+
+**When to use:** any UiState that mixes data fields with callback lambdas — `MenuDrawerUiState`, `HudUiState`, any feature-level interaction state.
+
+See: `presentation/feature/main/osd/models/MenuDrawerUiState.kt`, `MainViewModel.kt` (`menuDrawerUiState`, `buildMenuDrawerUiState`)
+
+---
+
 ### Transport Repository Abstraction Contract
 
 All transports (Meshtastic, MQTT, WiFi) implement the same domain interfaces. Define in `domain/`; implementations in `data/`:
@@ -459,7 +534,7 @@ In MVP only Meshtastic implementations are non-stub. MQTT and WiFi implementatio
 | `runBlocking` in production code | `viewModelScope`, `Dispatchers.IO` via Koin |
 | Hardcoded strings in UI | `stringResource` / `strings.xml` |
 | Modal as a Compose overlay layer | Modal is a NavGraph destination (`composable()` or `dialog()`) |
-| More than 2 Compose layers in MainScreen | Spatial content goes into MapLibre layers, not Compose layers |
+| Always-rendered 3rd+ Compose layer in MainScreen | Base layers are Map + HUD only; transient UI (drawers, FABs) must be conditional overlays gated on state or orientation |
 | Direct `meshtest` access in non-debug builds | Gate route behind `BuildConfig.DEBUG` |
 | `HttpRequestUtil.setOkHttpClient()` inside Composable or ViewModel | Must be called in `MyMeshApplication.onCreate()` after `startKoin` — see MapLibre OkHttp Injection Pattern |
 | Tile source switcher, MBTiles/PMTiles import, or Soviet topo sources in current phase | Still Beta 1.0 — not yet implemented |
