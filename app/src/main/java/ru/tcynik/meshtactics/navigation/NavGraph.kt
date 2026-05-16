@@ -29,11 +29,18 @@ import ru.tcynik.meshtactics.presentation.feature.node.NodeSettingsViewModel
 import ru.tcynik.meshtactics.presentation.feature.node.NodeStatusDialog
 import ru.tcynik.meshtactics.presentation.feature.node.NodeStatusViewModel
 import ru.tcynik.meshtactics.presentation.feature.nodes.NodesScreen
-import ru.tcynik.meshtactics.presentation.feature.settings.SettingsScreen
+import android.app.Activity
+import androidx.compose.ui.platform.LocalContext
+import ru.tcynik.meshtactics.presentation.feature.settings.display.DisplaySettingsScreen
+import ru.tcynik.meshtactics.presentation.feature.settings.main.MainSettingsScreen
+import ru.tcynik.meshtactics.presentation.feature.settings.map.MapSettingsScreen
+import ru.tcynik.meshtactics.presentation.feature.settings.user.UserSettingsScreen
+import ru.tcynik.meshtactics.service.GpsService
 
 @Composable
 fun NavGraph() {
     val navController = rememberNavController()
+    val context = LocalContext.current
 
     BlePermissionGuard {
         NavHost(
@@ -56,10 +63,17 @@ fun NavGraph() {
                 LaunchedEffect(Unit) {
                     viewModel.provideNavCallbacks(
                         HudNavCallbacks(
-                            onRadioClick    = { navController.navigate(Route.MeshTest()) },
-                            onSettingsClick = { navController.navigate(Route.Settings) },
-                            onMeshClick     = { navController.navigate(Route.Nodes) },
-                            onChatClick     = { navController.navigate(Route.Chat) },
+                            onRadioClick           = { navController.navigate(Route.MeshTest()) },
+                            onMeshClick            = { navController.navigate(Route.Nodes) },
+                            onChatClick            = { navController.navigate(Route.Chat) },
+                            onMainSettingsClick    = { navController.navigate(Route.MainSettings) },
+                            onMapSettingsClick     = { navController.navigate(Route.MapSettings) },
+                            onDisplaySettingsClick = { navController.navigate(Route.DisplaySettings) },
+                            onUserSettingsClick    = { navController.navigate(Route.UserSettings) },
+                            onExitApp              = {
+                                context.stopService(GpsService.createIntent(context))
+                                (context as? Activity)?.finishAndRemoveTask()
+                            },
                         )
                     )
                 }
@@ -90,8 +104,30 @@ fun NavGraph() {
                 )
             }
 
-            composable<Route.Settings> {
-                SettingsScreen(
+            composable<Route.MainSettings> {
+                MainSettingsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onExitApp = {
+                        context.stopService(GpsService.createIntent(context))
+                        (context as? Activity)?.finishAndRemoveTask()
+                    },
+                )
+            }
+
+            composable<Route.MapSettings> {
+                MapSettingsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                )
+            }
+
+            composable<Route.DisplaySettings> {
+                DisplaySettingsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                )
+            }
+
+            composable<Route.UserSettings> {
+                UserSettingsScreen(
                     onNavigateBack = { navController.popBackStack() },
                 )
             }

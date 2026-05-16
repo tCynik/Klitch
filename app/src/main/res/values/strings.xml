@@ -4,6 +4,10 @@
     <string name="gps_notification_title">GPS активен</string>
     <string name="gps_notification_text">Отслеживание местоположения</string>
     <string name="settings_title">Настройки</string>
+    <string name="settings_main_title">Главная</string>
+    <string name="settings_map_title">Карта</string>
+    <string name="settings_display_title">Экран</string>
+    <string name="settings_user_title">Пользователь</string>
     <string name="settings_saved">Сохранено</string>
     <string name="settings_back_description">Назад</string>
     <string name="settings_marker_size_label">Размер маркера: %ddp (уровень %d)</string>

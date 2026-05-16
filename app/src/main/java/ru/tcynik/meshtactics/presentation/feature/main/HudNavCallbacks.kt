@@ -4,7 +4,11 @@ package ru.tcynik.meshtactics.presentation.feature.main
 // Provided by NavGraph (has navController access) via MainViewModel.provideNavCallbacks().
 data class HudNavCallbacks(
     val onRadioClick: () -> Unit = {},
-    val onSettingsClick: () -> Unit = {},
     val onMeshClick: () -> Unit = {},
     val onChatClick: () -> Unit = {},
+    val onMainSettingsClick: () -> Unit = {},
+    val onMapSettingsClick: () -> Unit = {},
+    val onDisplaySettingsClick: () -> Unit = {},
+    val onUserSettingsClick: () -> Unit = {},
+    val onExitApp: () -> Unit = {},
 )

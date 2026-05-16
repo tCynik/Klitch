@@ -66,10 +66,6 @@ class SettingsViewModel(
             .launchIn(viewModelScope)
     }
 
-    fun onTabSelected(tab: SettingsTab) {
-        _uiState.update { it.copy(selectedTab = tab) }
-    }
-
     fun onMarkerSizeLevelChange(level: Int) {
         _uiState.update { it.copy(markerSizeLevelPending = level) }
     }

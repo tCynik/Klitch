@@ -184,13 +184,13 @@ class MainViewModelMenuDrawerTest {
     }
 
     @Test
-    fun `drawer settings onClick — invokes nav callback and closes drawer`() {
+    fun `drawer main settings onClick — invokes nav callback and closes drawer`() {
         var settingsCalled = false
-        viewModel.provideNavCallbacks(HudNavCallbacks(onSettingsClick = { settingsCalled = true }))
+        viewModel.provideNavCallbacks(HudNavCallbacks(onMainSettingsClick = { settingsCalled = true }))
         viewModel.toggleMenuDrawer()
         assertTrue(viewModel.uiState.value.menuDrawerOpen)
 
-        viewModel.menuDrawerUiState.value.items.first { it.label == "настройки" }.onClick()
+        viewModel.menuDrawerUiState.value.items.first { it.label == "Главная" }.onClick()
 
         assertTrue(settingsCalled)
         assertFalse(viewModel.uiState.value.menuDrawerOpen)

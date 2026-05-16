@@ -5,7 +5,7 @@
 
 ## Overview
 
-A slide-out navigation drawer that appears from the left edge of the screen, overlaying the HUD. Triggered by a hamburger button at the top of the HUD left column (portrait orientation only). Initial items: Radio and Settings — reusing existing `HudNavCallbacks`. Designed to grow: new items can be appended to `DrawerMenuItem` list without restructuring.
+A slide-out navigation drawer that appears from the left edge of the screen, overlaying the HUD. Triggered by a hamburger button at the top of the HUD left column (portrait orientation only). Items: Radio + 4 settings screens (Главная, Карта, Экран, Пользователь). Designed to grow: new items can be appended to `DrawerMenuItem` list without restructuring.
 
 ## Key Files
 
@@ -20,8 +20,13 @@ A slide-out navigation drawer that appears from the left edge of the screen, ove
 | `presentation/feature/main/osd/models/HudUiState.kt` | Added `menuDrawer: HudRowConfig` |
 | `presentation/feature/main/osd/HudPortraitControlsLayer.kt` | Left column restructured to `SpaceBetween` with hamburger at top |
 | `presentation/feature/main/MainScreen.kt` | Accepts `menuDrawerUiState`, renders `MenuDrawer` as conditional overlay (portrait only) |
-| `navigation/NavGraph.kt` | Collects `menuDrawerUiState`, passes to `MainScreen` |
+| `navigation/NavGraph.kt` | Collects `menuDrawerUiState`, passes to `MainScreen`; wires all nav callbacks incl. `onExitApp` |
 | `res/drawable/ic_menu.xml` | Hamburger icon (3-line, MeshIconButton style) |
+| `presentation/feature/settings/main/MainSettingsScreen.kt` | Экран "Главная" — placeholder + Exit button |
+| `presentation/feature/settings/map/MapSettingsScreen.kt` | Экран "Карта" — KMZ/KML оверлеи + tile cache |
+| `presentation/feature/settings/display/DisplaySettingsScreen.kt` | Экран "Экран" — размер маркера |
+| `presentation/feature/settings/user/UserSettingsScreen.kt` | Экран "Пользователь" — профиль, контуры, SOS |
+| `presentation/feature/settings/user/UserTabContent.kt` | Содержимое экрана пользователя (перенесено из `settings/`) |
 
 ## Architecture Decisions
 
@@ -55,6 +60,37 @@ On item tap: nav callback fires, then `toggleMenuDrawer()` closes the drawer imm
 | Item spacing | `Spacer(height = 10.dp)` between items |
 | Orientation | Portrait only; landscape is a TODO in `MainScreen` |
 
+## Dual-Source Drawer Assembly
+
+`buildMenuDrawerUiState()` assembles lambdas from two sources:
+
+| Source | What goes here | Examples |
+|---|---|---|
+| `HudNavCallbacks` (from NavGraph) | Actions ViewModel cannot execute — need `NavController` or Android `Context` | navigate, exitApp |
+| Direct ViewModel methods | Actions ViewModel executes itself | disconnect, SOS toggle |
+
+`HudNavCallbacks` = "external callbacks" only. NavGraph constructs them with access to `navController` and `LocalContext`. ViewModel stays context-free.
+
+`exitApp` → `HudNavCallbacks.onExitApp: () -> Unit`, assembled in NavGraph:
+```kotlin
+onExitApp = {
+    context.stopService(GpsService.createIntent(context))
+    (context as? Activity)?.finishAndRemoveTask()
+}
+```
+
+`MainSettingsScreen` receives `onExitApp: () -> Unit` as a plain parameter — no `LocalContext` inside the screen composable.
+
+## Drawer Items (current)
+
+| Order | Icon | Label | Destination |
+|---|---|---|---|
+| 1 | `ic_radio` | радио | `Route.MeshTest` |
+| 2 | `ic_settings` | Главная | `Route.MainSettings` |
+| 3 | `ic_maps` | Карта | `Route.MapSettings` |
+| 4 | `ic_night` | Экран | `Route.DisplaySettings` |
+| 5 | `ic_man` | Пользователь | `Route.UserSettings` |
+
 ## Scope Decisions
 
 - Landscape HUD: out of scope (drawer is portrait-only in this phase)
@@ -63,3 +99,4 @@ On item tap: nav callback fires, then `toggleMenuDrawer()` closes the drawer imm
 - Persistence of drawer state across sessions: out of scope (always closed on restart)
 - Status-driven icon tinting: out of scope for drawer (icons always `onSurface`)
 - `settings` button removed from HUD right column — navigation to settings is now exclusively via the drawer
+- `SettingsScreen` with tabs replaced by 4 independent screens accessible directly from the drawer; `SettingsTab` enum deleted; `selectedTab` field removed from `SettingsUiState`

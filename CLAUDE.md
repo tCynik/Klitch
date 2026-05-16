@@ -126,6 +126,7 @@
 |---|---|---|
 | HUD Node Status Indicator | `.claude/plans/hud-node-status-indicator.md` | In Progress |
 | Connection Status HUD Info | `.claude/plans/connection-status-hud-info.md` | Approved |
+| Settings Screens Split | `.claude/archive/settings-screens-split.md` | Done |
 | Node PKC Key Management | `.claude/archive/node-key-management.md` | Done |
 | Chat Feature | `.claude/plans/chat-feature-plan.md` | Done |
 | Node Provisioning | `.claude/plans/node-provisioning.md` | Done |

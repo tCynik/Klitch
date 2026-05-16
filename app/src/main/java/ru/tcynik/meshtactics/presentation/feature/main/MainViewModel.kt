@@ -516,8 +516,23 @@ class MainViewModel(
             ),
             DrawerMenuItem(
                 iconRes = R.drawable.ic_settings,
-                label = "настройки",
-                onClick = { nav.onSettingsClick(); toggleMenuDrawer() },
+                label = "Главная",
+                onClick = { nav.onMainSettingsClick(); toggleMenuDrawer() },
+            ),
+            DrawerMenuItem(
+                iconRes = R.drawable.ic_maps,
+                label = "Карта",
+                onClick = { nav.onMapSettingsClick(); toggleMenuDrawer() },
+            ),
+            DrawerMenuItem(
+                iconRes = R.drawable.ic_night,
+                label = "Экран",
+                onClick = { nav.onDisplaySettingsClick(); toggleMenuDrawer() },
+            ),
+            DrawerMenuItem(
+                iconRes = R.drawable.ic_man,
+                label = "Пользователь",
+                onClick = { nav.onUserSettingsClick(); toggleMenuDrawer() },
             ),
         ),
         onDismiss = ::toggleMenuDrawer,

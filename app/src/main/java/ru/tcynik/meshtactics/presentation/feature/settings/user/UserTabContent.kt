@@ -1,4 +1,4 @@
-package ru.tcynik.meshtactics.presentation.feature.settings
+package ru.tcynik.meshtactics.presentation.feature.settings.user
 
 import android.util.Base64
 import androidx.compose.foundation.layout.Arrangement
@@ -57,7 +57,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.domain.channel.model.ChannelSyncStatus
+import ru.tcynik.meshtactics.presentation.feature.settings.ContourEditorState
 import ru.tcynik.meshtactics.presentation.feature.settings.EmergencyEvent
+import ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModel
 import ru.tcynik.meshtactics.presentation.feature.settings.models.ContourItem
 import ru.tcynik.meshtactics.presentation.feature.settings.models.NodeWriteEvent
 import ru.tcynik.meshtactics.presentation.ui.components.SyncRequiredDialog
