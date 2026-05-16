@@ -139,3 +139,4 @@
 | Settings Refactor | `.claude/archive/settings-refactor.md` | Archived |
 | Tile Cache Settings | `.claude/archive/tile-cache-settings.md` | Archived |
 | App Logger | `.claude/archive/logger.md` | Archived |
+| HUD Portrait Refactor | `.claude/archive/hud-portrait-refactor.md` | Archived |

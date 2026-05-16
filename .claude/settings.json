@@ -166,7 +166,9 @@
       "Bash(JAVA_HOME=\"C:/Program Files/Microsoft/jdk-21.0.10.7-hotspot\" ./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCaseTest\" --tests \"ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCaseTest\" --tests \"ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCaseTest\" --tests \"ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCaseTest\")",
       "Bash(cp \"c:\\\\Users\\\\tcynik\\\\StudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\logger.md\" \"c:\\\\Users\\\\tcynik\\\\StudioProjects\\\\MeshTactics\\\\.claude\\\\archive\\\\logger.md\")",
       "Bash(rm \"c:\\\\Users\\\\tcynik\\\\StudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\logger.md\")",
-      "Bash(./gradlew :app:compileDebugUnitTestKotlin --no-daemon --stacktrace)"
+      "Bash(./gradlew :app:compileDebugUnitTestKotlin --no-daemon --stacktrace)",
+      "Bash(cp \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/hud-portrait-refactor.md\" \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/archive/hud-portrait-refactor.md\")",
+      "Bash(rm \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/hud-portrait-refactor.md\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",
