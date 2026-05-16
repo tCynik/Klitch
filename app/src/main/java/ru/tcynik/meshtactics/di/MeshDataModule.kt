@@ -89,6 +89,7 @@ val meshDataModule = module {
             radioInterfaceService = get(),
             serviceRepository = get(),
             nodeRepository = get(),
+            logger = get(),
         )
     }
     single<MeshNetworkRepository> {
@@ -99,6 +100,7 @@ val meshDataModule = module {
             packetRepository = get(),
             commandSender = get(),
             nodeRepository = get(),
+            logger = get(),
         )
     }
     single<MeshPacketLogRepository> {
@@ -111,6 +113,7 @@ val meshDataModule = module {
             commandSender = get(),
             uiPrefs = get(),
             context = androidContext(),
+            logger = get(),
         )
     }
 
@@ -157,6 +160,7 @@ val meshDataModule = module {
             writeChannel = get(),
             observeNodeChannels = get<ObserveNodeChannelsUseCase>(),
             resolveSlot = get<ResolveChannelSlotUseCase>(),
+            logger = get(),
         )
     }
 }

@@ -1,7 +1,7 @@
 package ru.tcynik.meshtactics.domain.marker.usecase
 
-import android.util.Log
 import kotlinx.coroutines.flow.Flow
+import ru.tcynik.meshtactics.domain.logger.Logger
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapter
@@ -17,6 +17,7 @@ class IngestReceivedGeoMarksUseCase(
     private val geoMarkRepository: GeoMarkRepository,
     private val adapter: GeoMarkWaypointAdapter,
     private val channelSlotResolver: ChannelSlotResolver,
+    private val logger: Logger,
 ) {
     fun observe(): Flow<Unit> = combine(
         packetRepository.getWaypoints(),
@@ -32,12 +33,12 @@ class IngestReceivedGeoMarksUseCase(
                 else -> {
                     val hash = maps.slotToHash[packet.channel]
                     if (hash == null) {
-                        Log.w(TAG, "unknown slot ${packet.channel}, drop")
+                        logger.w("Map","unknown slot ${packet.channel}, drop")
                         return@forEach
                     }
                     val found = contourByHash[hash]
                     if (found == null) {
-                        Log.w(TAG, "no contour for hash $hash, drop")
+                        logger.w("Map","no contour for hash $hash, drop")
                         return@forEach
                     }
                     found.takeIf { it.isActive }
@@ -51,7 +52,4 @@ class IngestReceivedGeoMarksUseCase(
         }
     }.map { }
 
-    companion object {
-        private const val TAG = "IngestGeoMarks"
-    }
 }

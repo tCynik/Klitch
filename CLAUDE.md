@@ -35,6 +35,7 @@
 | Emergency SOS (кнопка SOS, трансляция геопозиции) | ✅ Done |
 | Настройки кэша тайлов (OkHttp duration modes) | ✅ Done |
 | Настройки ноды | ⬜ Planned |
+| Инжектируемый Logger (MT/<Feature>) | ✅ Done |
 
 ---
 
@@ -113,6 +114,7 @@
 | Tile Cache Settings | `.claude/docs/tile-cache-settings.md` |
 | Autonomous Beacon (concept) | `.claude/docs/autonomous-beacon.md` |
 | Node PKC Key Management | `.claude/docs/node-key-management.md` |
+| App Logger | `.claude/docs/logger.md` |
 
 ---
 
@@ -136,3 +138,4 @@
 | Node Markers on Map | `.claude/archive/node-markers-on-map.md` | Archived |
 | Settings Refactor | `.claude/archive/settings-refactor.md` | Archived |
 | Tile Cache Settings | `.claude/archive/tile-cache-settings.md` | Archived |
+| App Logger | `.claude/archive/logger.md` | Archived |

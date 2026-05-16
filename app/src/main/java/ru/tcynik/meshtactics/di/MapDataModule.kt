@@ -52,7 +52,7 @@ val mapDataModule = module {
     single { ObserveTileCacheModeUseCase(get()) }
 
     // Imported map overlays (KMZ/KML via SAF)
-    single { KmlOverlayParser(androidContext()) }
+    single { KmlOverlayParser(androidContext(), get()) }
     single<ImportedMapRepository> { ImportedMapRepositoryImpl(androidContext(), get(), get()) }
     single { ObserveImportedMapsUseCase(get()) }
     single { ObserveSelectedOverlaysUseCase(get()) }

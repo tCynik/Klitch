@@ -47,6 +47,9 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SetGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
 import ru.tcynik.meshtactics.domain.user.model.AppUser
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
@@ -78,6 +81,9 @@ class UserSettingsViewModelSosTest {
     private val setGpsBroadcastEnabled: SetGpsBroadcastEnabledUseCase = mockk(relaxed = true)
     private val observeDeviceConfig: ObserveDeviceConfigUseCase = mockk()
     private val writeOwner: WriteOwnerUseCase = mockk(relaxed = true)
+    private val checkOwnPkcHealth: CheckOwnPkcHealthUseCase = mockk()
+    private val refreshNodePublicKeys: RefreshNodePublicKeysUseCase = mockk(relaxed = true)
+    private val regeneratePkcKeys: RegeneratePkcKeysUseCase = mockk(relaxed = true)
 
     private val emergencyModeFlow = MutableStateFlow(false)
     private val connectionStatusFlow = MutableStateFlow<MeshConnectionStatus>(MeshConnectionStatus.Disconnected)
@@ -100,6 +106,7 @@ class UserSettingsViewModelSosTest {
         every { observeGpsBroadcastEnabled.invoke() } returns flowOf(true)
         every { observeDeviceConfig.invoke(any()) } returns flowOf(null)
         every { syncStateRepository.syncRequired } returns MutableStateFlow(false)
+        every { checkOwnPkcHealth.invoke() } returns false
         viewModel = UserSettingsViewModel(
             observeAppUser = observeAppUser,
             saveAppUser = saveAppUser,
@@ -126,6 +133,9 @@ class UserSettingsViewModelSosTest {
             setGpsBroadcastEnabled = setGpsBroadcastEnabled,
             observeDeviceConfig = observeDeviceConfig,
             writeOwner = writeOwner,
+            checkOwnPkcHealth = checkOwnPkcHealth,
+            refreshNodePublicKeys = refreshNodePublicKeys,
+            regeneratePkcKeys = regeneratePkcKeys,
         )
     }
 

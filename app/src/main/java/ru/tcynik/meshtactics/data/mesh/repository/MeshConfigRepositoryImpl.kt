@@ -4,8 +4,8 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.util.Base64
-import android.util.Log
 import androidx.core.content.ContextCompat
+import ru.tcynik.meshtactics.domain.logger.Logger
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.collect
@@ -39,6 +39,7 @@ class MeshConfigRepositoryImpl(
     private val commandSender: CommandSender,
     private val uiPrefs: UiPrefs,
     private val context: Context,
+    private val logger: Logger,
 ) : MeshConfigRepository {
 
     override fun observeNodeChannels(): Flow<List<NodeChannelSlot>> =
@@ -263,7 +264,7 @@ class MeshConfigRepositoryImpl(
             commandSender.channelSetFlow,
         ) { config, nodeDB, myNodeInfo, channelSet ->
             val ourNode = myNodeInfo?.myNodeNum?.let { nodeDB[it] }
-            Log.i("MeshConfigRepo", "DBG combine: myNodeNum=${myNodeInfo?.myNodeNum} ourNode=${ourNode?.user?.long_name ?: "null"} nodeDBsize=${nodeDB.size} loraRegion=${config.lora?.region} channels=${channelSet.settings.size}")
+            logger.i("Node", "observeDeviceConfig: myNodeNum=${myNodeInfo?.myNodeNum} ourNode=${ourNode?.user?.long_name ?: "null"} nodeDBsize=${nodeDB.size} loraRegion=${config.lora?.region} channels=${channelSet.settings.size}")
             if (ourNode == null) return@combine null
 
             val loraConfig = config.lora

@@ -56,6 +56,8 @@ Identify the smallest code path that triggers the bug:
 
 Read those files before proposing a fix. Do not guess.
 
+> **Diagnostic logging**: when adding temporary log calls to trace a bug, use `logger.d("FeatureTag", "...")` — never `android.util.Log`. Filter output in Logcat with `tag:MT` (all app logs) or `tag:MT/<FeatureTag>` (e.g. `tag:MT/BLE`). Remove diagnostic calls after the bug is confirmed fixed.
+
 ### Step 3. Fix
 
 - Implement the fix in the minimum number of files

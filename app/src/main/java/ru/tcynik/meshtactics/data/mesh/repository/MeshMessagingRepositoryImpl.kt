@@ -1,7 +1,7 @@
 package ru.tcynik.meshtactics.data.mesh.repository
 
-import android.util.Log
 import kotlinx.coroutines.flow.Flow
+import ru.tcynik.meshtactics.domain.logger.Logger
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -19,10 +19,11 @@ class MeshMessagingRepositoryImpl(
     private val packetRepository: PacketRepository,
     private val commandSender: CommandSender,
     private val nodeRepository: NodeRepository,
+    private val logger: Logger,
 ) : MeshMessagingRepository {
 
     override fun observeMessages(contactKey: String): Flow<List<MeshMessageModel>> = flow {
-        Log.i("MeshMessagingRepo", "DBG observeMessages: contactKey=$contactKey")
+        logger.i("Chat", "observeMessages: contactKey=$contactKey")
         val messagesFlow = packetRepository.getMessagesFrom(
             contact = contactKey,
             limit = 50,
@@ -30,7 +31,7 @@ class MeshMessagingRepositoryImpl(
             getNode = { userId -> nodeRepository.getNode(userId ?: "") },
         )
         emitAll(messagesFlow.map { messages ->
-            Log.i("MeshMessagingRepo", "DBG Room flow emitted: ${messages.size} messages for key=$contactKey")
+            logger.i("Chat", "observeMessages: flow emitted ${messages.size} messages for key=$contactKey")
             messages.map { it.toMeshMessageModel() }
         })
     }
@@ -43,7 +44,7 @@ class MeshMessagingRepositoryImpl(
         val resolvedChannel = parsedChannel ?: channel
         // DB contact_key format: "${channel}${nodeId}" e.g. "0^all"
         val dbContactKey = if (parsedChannel != null) contactKey else "$resolvedChannel$contactKey"
-        Log.i("MeshMessagingRepo", "DBG sendMessage: dest=$dest channel=$resolvedChannel dbKey=$dbContactKey")
+        logger.i("Chat", "sendMessage: dest=$dest channel=$resolvedChannel dbKey=$dbContactKey")
         val packet = DataPacket(
             to = dest,
             channel = resolvedChannel,

@@ -1,7 +1,7 @@
 package ru.tcynik.meshtactics.data.mesh.repository
 
-import android.util.Log
 import kotlinx.coroutines.delay
+import ru.tcynik.meshtactics.domain.logger.Logger
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
@@ -34,6 +34,7 @@ class MeshConnectionRepositoryImpl(
     private val radioInterfaceService: RadioInterfaceService,
     private val serviceRepository: ServiceRepository,
     private val nodeRepository: NodeRepository,
+    private val logger: Logger,
 ) : MeshConnectionRepository {
 
     /**
@@ -49,7 +50,7 @@ class MeshConnectionRepositoryImpl(
 
     override val connectionStatus: Flow<MeshConnectionStatus> =
         combine(
-            serviceRepository.connectionState.onEach { Log.d("MeshRepo", "DBG connectionStatus: serviceRepo state -> $it") },
+            serviceRepository.connectionState.onEach { logger.d("BLE", "connectionStatus: serviceRepo state -> $it") },
             nodeRepository.ourNodeInfo,
             radioInterfaceService.bleRssi,
             _isScanning,
@@ -59,14 +60,14 @@ class MeshConnectionRepositoryImpl(
             } else {
                 state.toMeshConnectionStatus(node, pendingDeviceName, bleRssi)
             }
-            Log.d("MeshRepo", "DBG connectionStatus: combined -> $status")
+            logger.d("BLE", "connectionStatus: combined -> $status")
             status
         }
 
     @OptIn(ExperimentalUuidApi::class)
     override fun scanDevices(): Flow<List<MeshDeviceModel>> = flow {
         if (!bluetoothRepository.state.value.enabled) {
-            Log.w("MeshRepo", "scanDevices: Bluetooth is disabled, aborting scan")
+            logger.w("BLE", "scanDevices: Bluetooth is disabled, aborting scan")
             return@flow
         }
         activeScanCount.incrementAndGet()
@@ -76,7 +77,7 @@ class MeshConnectionRepositoryImpl(
             val expiryMs = 10_000L
             merge(
                 bleScanner.scan(timeout = 30.seconds, serviceUuid = MeshtasticBleConstants.SERVICE_UUID)
-                    .catch { e -> Log.w("MeshRepo", "BLE scan terminated: ${e.message}") }
+                    .catch { e -> logger.w("BLE", "BLE scan terminated: ${e.message}") }
                     .map { it as BleDevice? },
                 flow { while (true) { delay(5_000); emit(null) } },
             ).collect { device ->
@@ -99,14 +100,14 @@ class MeshConnectionRepositoryImpl(
     }.distinctUntilChanged()
 
     override suspend fun connect(address: String, deviceName: String) {
-        Log.i("MeshRepo", "DBG connect: address=$address name=$deviceName")
+        logger.i("BLE", "connect: address='$address' name='$deviceName'")
         pendingDeviceName = deviceName
         val bleAddress = radioInterfaceService.toInterfaceAddress(InterfaceId.BLUETOOTH, address)
-        Log.i("MeshRepo", "DBG connect: calling setDeviceAddress($bleAddress)")
+        logger.i("BLE", "connect: setDeviceAddress bleAddress='$bleAddress'")
         radioInterfaceService.setDeviceAddress(bleAddress)
-        Log.i("MeshRepo", "DBG connect: calling radioInterfaceService.connect()")
+        logger.i("BLE", "connect: calling radioInterfaceService.connect()")
         radioInterfaceService.connect()
-        Log.i("MeshRepo", "DBG connect: connect() returned")
+        logger.i("BLE", "connect: connect() returned")
     }
 
     override suspend fun disconnect() {

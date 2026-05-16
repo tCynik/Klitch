@@ -1,8 +1,8 @@
 package ru.tcynik.meshtactics.presentation.feature.meshtest
 
 import android.text.format.DateUtils
-import android.util.Log
 import androidx.lifecycle.ViewModel
+import ru.tcynik.meshtactics.domain.logger.Logger
 import androidx.lifecycle.viewModelScope
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Job
@@ -89,6 +89,7 @@ class MeshTestViewModel(
     private val rebootNode: RebootNodeUseCase,
     private val syncStateRepository: ContourSyncStateRepository,
     private val rebootStateRepository: RebootStateRepository,
+    private val logger: Logger,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MeshTestUiState())
@@ -123,7 +124,7 @@ class MeshTestViewModel(
             .launchIn(viewModelScope)
 
         observeConnectionStatus(NoParams).onEach { status ->
-            Log.i("MeshTestVM", "DBG connectionStatus flow emitted: $status")
+            logger.i("App","DBG connectionStatus flow emitted: $status")
             val isRebooting = rebootStateRepository.isRebooting.value
             if (isRebooting && status !is MeshConnectionStatus.Connected) {
                 rebootDisconnectObserved = true
@@ -225,7 +226,7 @@ class MeshTestViewModel(
         }.launchIn(viewModelScope)
 
         observeDeviceConfig(NoParams).onEach { config ->
-            Log.i("MeshTestVM", "DBG observeDeviceConfig emitted: config=${config?.let { "longName=${it.longName} region=${it.region} lora=${it.loraPreset}" } ?: "null"}")
+            logger.i("App","DBG observeDeviceConfig emitted: config=${config?.let { "longName=${it.longName} region=${it.region} lora=${it.loraPreset}" } ?: "null"}")
             if (config != null) {
                 _uiState.update { state ->
                     val updatedChannels = if (state.configTab.isEditing) {
@@ -337,7 +338,7 @@ class MeshTestViewModel(
         scanJob = null
         val deviceName = _uiState.value.connectionTab.scannedDevices
             .find { it.address == address }?.name ?: address
-        Log.i("MeshTestVM", "DBG onConnectClick: address=$address name=$deviceName")
+        logger.i("App","DBG onConnectClick: address=$address name=$deviceName")
         _uiState.update { state ->
             state.copy(
                 connectionStatus = MeshConnectionStatusUi.Connecting(deviceName),
@@ -345,11 +346,11 @@ class MeshTestViewModel(
             )
         }
         viewModelScope.launch {
-            Log.i("MeshTestVM", "DBG onConnectClick: calling connectToDevice...")
+            logger.i("App","DBG onConnectClick: calling connectToDevice...")
             runCatching { connectToDevice(ConnectToMeshDeviceParams(address, deviceName)) }
-                .onSuccess { Log.i("MeshTestVM", "DBG onConnectClick: connectToDevice returned OK") }
+                .onSuccess { logger.i("App","DBG onConnectClick: connectToDevice returned OK") }
                 .onFailure { e ->
-                    Log.e("MeshTestVM", "DBG onConnectClick: connectToDevice failed: ${e.message}", e)
+                    logger.e("App","DBG onConnectClick: connectToDevice failed: ${e.message}", e)
                     _uiState.update {
                         it.copy(connectionStatus = MeshConnectionStatusUi.Error(e.message ?: "Connection failed"))
                     }
@@ -562,10 +563,10 @@ class MeshTestViewModel(
 
     private fun startObservingMessages(contactKey: String) {
         messagesJob?.cancel()
-        Log.i("MeshTestVM", "DBG startObservingMessages: contactKey=$contactKey")
+        logger.i("App","DBG startObservingMessages: contactKey=$contactKey")
         messagesJob = observeMessages(contactKey)
             .onEach { messages ->
-                Log.i("MeshTestVM", "DBG messages flow emitted: count=${messages.size}")
+                logger.i("App","DBG messages flow emitted: count=${messages.size}")
                 _uiState.update { state ->
                     state.copy(
                         messagesTab = state.messagesTab.copy(

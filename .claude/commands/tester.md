@@ -121,6 +121,7 @@ Use the canonical SQLDelight in-memory integration test template (see below).
 - [ ] MockK mocks only domain interfaces, not implementations
 - [ ] FlowUseCase tests use Turbine (`turbineScope` / `test {}`)
 - [ ] SQLDelight integration tests use in-memory driver, not mocks
+- [ ] Classes with `logger: Logger` constructor param receive `NoOpLogger()` — never `mockkStatic(android.util.Log::class)`
 
 3. Output: violations (file + line), remarks, and corrected code snippets
 
@@ -343,3 +344,4 @@ androidTestImplementation(libs.junit4.android)
 - **Turbine for Flows.** Never `collect` manually in tests — use `turbineScope` or `.test {}` to avoid timing issues.
 - **Real DB for integration.** SQLDelight in-memory driver is fast and accurate. Mocking the DB hides schema bugs.
 - **One assertion focus per test.** Each test should have one reason to fail. Avoid combining multiple behaviors in one test method.
+- **NoOpLogger for logger-injected classes.** Any class under test that accepts `logger: Logger` in its constructor must receive `NoOpLogger()` — inject it directly, never `mockkStatic(android.util.Log::class)`. See `CheckNodeSyncUseCaseTest.kt` for a reference example.
