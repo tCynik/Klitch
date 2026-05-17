@@ -102,6 +102,36 @@ Always respond in Russian.
 
 ---
 
+### Established Token Usage (Inactive / Disabled States)
+
+These token decisions were established during the Inactive Contour feature and apply to any future inactive/disabled-state UI:
+
+| Context | Token / Value | Role |
+|---|---|---|
+| Inactive contact row — dimmed content | `Modifier.alpha(0.45f)` | Applied to row content (checkbox, name, preview, pin/favorite indicators) |
+| Inactive contact row — unread badge | full alpha (no modifier) | Badge stays visible so user can see unread count on inactive contacts |
+| InactiveContourBanner background | `MaterialTheme.colorScheme.surfaceVariant` (via `Surface tonalElevation = 4.dp`) | Non-interactive banner replacing input bar |
+| InactiveContourBanner text | `MaterialTheme.colorScheme.onSurfaceVariant` | Neutral, not alarming — the state is expected |
+
+**Rule**: inactive state uses alpha dimming (0.45f) + surfaceVariant tones, never error/warning colors — the contour is intentionally deactivated, not broken.
+
+---
+
+### Established Token Usage (Alert / Error States)
+
+These token decisions were established during the Emergency SOS feature and apply to any future alert-state UI:
+
+| Context | Token | Role |
+|---|---|---|
+| Active-alert card background | `errorContainer` | Card `containerColor` when an alarm is active |
+| Active-alert card content color | `onErrorContainer` | Text/icon on an active-alert card |
+| Destructive action button | `error` / `onError` | Confirm buttons for irreversible / danger actions (e.g. "Send SOS") |
+| Cancelled / disabled-state icon button | `surfaceVariant` / `onSurfaceVariant` | FilledIconButton when the action is suppressed by an active state |
+
+**Rule**: never use hardcoded red; always route through `error` / `errorContainer` so both light and dark themes are correct.
+
+---
+
 ### Component Library
 
 *Documented as components are designed. Each entry: name, file path, variants, usage rules.*
@@ -109,6 +139,38 @@ Always respond in Russian.
 | Component | File | Status | Notes |
 |---|---|---|---|
 | MeshIconButton | `app/.../MeshIconButton.kt` | Defined | See `/icon-designer` |
+| EmergencyContourCard | `app/.../feature/settings/UserTabContent.kt` | Defined | SOS button + alert card; see Emergency SOS token decisions above |
+| SyncRequiredDialog | `app/.../ui/components/SyncRequiredDialog.kt` | Defined | AlertDialog; stateless; used in MainScreen + UserTabContent when `showSyncDialog = true` |
+| InactiveContourBanner | `app/.../feature/chat/ChatScreen.kt` | Defined | `Surface(tonalElevation=4dp)`, height=56dp, centered `bodyMedium` text `onSurfaceVariant`; replaces `ChatInputBar` when `isSelectedChatActive = false` |
+| TileCacheModeSelector | `app/.../feature/settings/SettingsScreen.kt` (private fun) | Defined | Labeled radio group pattern for settings tabs — see below |
+| MenuDrawer | `app/.../feature/main/osd/MenuDrawer.kt` | Defined | Slide-out overlay from left edge, portrait only — see Drawer Overlay Pattern below |
+
+**Drawer Overlay Pattern (MenuDrawer):**
+
+Slide-out panel that overlays the HUD from the left edge. Portrait-only in current implementation.
+
+| Property | Value |
+|---|---|
+| Drawer width | 200dp |
+| Scrim color | `Color.Black.copy(alpha = 0.4f)` |
+| Panel background | `MaterialTheme.colorScheme.surface` |
+| Animation | `slideInHorizontally`/`slideOutHorizontally` from left edge (`{ -it }`) |
+| Animation duration | `tween(250)` |
+| Inner padding | 8dp (all sides), + `statusBarsPadding()` + `navigationBarsPadding()` |
+| Dismiss — outside tap | scrim `clickable(indication = null)` → `state.onDismiss` |
+| Dismiss — back press | `BackHandler(enabled = state.isOpen)` → `state.onDismiss` |
+| Item spacing | `Spacer(Modifier.height(10.dp))` between items |
+| Orientation | Portrait only; landscape TODO gated in `MainScreen` with `if (!isLandscape)` |
+
+Scrim blocks clicks on content behind the drawer — implemented with a full-size `Box` + `clickable` with `indication = null` (no ripple). The drawer panel itself has a second `clickable(indication = null, onClick = {})` to prevent scrim click from bleeding through.
+
+**TileCacheModeSelector pattern (labeled radio group in settings tab):**
+- Stateless: `(selectedMode, onModeSelected, modifier)` — no internal state
+- Section header: `labelMedium` + `onSurfaceVariant`
+- Each option: `Row(Modifier.selectable(..., role = Role.RadioButton)) { RadioButton(selected, onClick = null) + Column { bodyLarge label + bodySmall desc } }` — `onClick=null` on `RadioButton` is correct; click handled by outer Row
+- Divider: `HorizontalDivider(Modifier.padding(horizontal=16.dp))` separates selector from list content below
+- Warning dialog for destructive/costly selection (Maximum mode): state `var pendingConfirm` lives in the *tab composable* (`MapTabContent`), not in selector itself. Selector fires `onModeSelected(mode)`, tab intercepts MAXIMUM → shows dialog → confirms → passes to VM; cancel → no state change (VM value unchanged = automatic rollback)
+- Extension helpers `TileCacheMode.labelRes()` / `TileCacheMode.descRes()` — private funs in same file
 
 ---
 

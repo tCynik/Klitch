@@ -87,6 +87,9 @@ class PacketRepositoryImpl(private val dbManager: DatabaseProvider, private val 
     override fun getUnreadCountTotal(): Flow<Int> =
         dbManager.currentDb.flatMapLatest { db -> db.packetDao().getUnreadCountTotal() }
 
+    override fun getUnreadCountExcludingArchived(): Flow<Int> =
+        dbManager.currentDb.flatMapLatest { db -> db.packetDao().getUnreadCountExcludingArchived() }
+
     override suspend fun clearUnreadCount(contact: String, timestamp: Long) =
         withContext(dispatchers.io) { dbManager.currentDb.value.packetDao().clearUnreadCount(contact, timestamp) }
 
@@ -416,6 +419,15 @@ class PacketRepositoryImpl(private val dbManager: DatabaseProvider, private val 
     override suspend fun setMuteUntil(contacts: List<String>, until: Long) =
         withContext(dispatchers.io) { dbManager.currentDb.value.packetDao().setMuteUntil(contacts, until) }
 
+    override suspend fun setFavorite(contactKey: String, isFavorite: Boolean) =
+        withContext(dispatchers.io) { dbManager.currentDb.value.packetDao().updateFavorite(contactKey, isFavorite) }
+
+    override suspend fun setPinned(contactKey: String, isPinned: Boolean) =
+        withContext(dispatchers.io) { dbManager.currentDb.value.packetDao().updatePinned(contactKey, isPinned) }
+
+    override suspend fun setArchived(contactKey: String, isArchived: Boolean) =
+        withContext(dispatchers.io) { dbManager.currentDb.value.packetDao().updateArchived(contactKey, isArchived) }
+
     suspend fun insertReaction(reaction: RoomReaction) =
         withContext(dispatchers.io) { dbManager.currentDb.value.packetDao().insert(reaction) }
 
@@ -456,6 +468,9 @@ class PacketRepositoryImpl(private val dbManager: DatabaseProvider, private val 
         lastReadMessageTimestamp = lastReadMessageTimestamp,
         filteringDisabled = filteringDisabled,
         isMuted = isMuted,
+        isFavorite = isFavorite,
+        isPinned = isPinned,
+        isArchived = isArchived,
     )
 
     private fun Reaction.toEntity(myNodeNum: Int) = RoomReaction(

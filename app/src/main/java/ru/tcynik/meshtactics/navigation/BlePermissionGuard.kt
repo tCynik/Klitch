@@ -1,8 +1,10 @@
 package ru.tcynik.meshtactics.navigation
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -14,25 +16,33 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.BluetoothDisabled
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import org.koin.compose.koinInject
+import ru.tcynik.meshtactics.mesh.ble.BluetoothRepository
+import ru.tcynik.meshtactics.service.GpsService
 
 @Composable
 fun BlePermissionGuard(content: @Composable () -> Unit) {
     val context = LocalContext.current
+    val bluetoothRepository = koinInject<BluetoothRepository>()
+    val btState by bluetoothRepository.state.collectAsState()
 
     val required = buildList {
         add(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -52,12 +62,54 @@ fun BlePermissionGuard(content: @Composable () -> Unit) {
         contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) { granted = allGranted() }
 
-    if (granted) {
-        content()
-    } else {
-        PermissionRequestScreen(
+    // Запускаем GpsService как только разрешение получено (первый запуск или повторный вход).
+    // startForegroundService требует foreground-контекста и наличия ACCESS_FINE_LOCATION —
+    // оба условия выполнены здесь: Activity видима, разрешение только что выдано.
+    LaunchedEffect(granted) {
+        if (granted) context.startForegroundService(GpsService.createIntent(context))
+    }
+
+    when {
+        !granted -> PermissionRequestScreen(
             onRequestClick = { launcher.launch(required.toTypedArray()) },
         )
+        !btState.enabled -> BluetoothDisabledScreen()
+        else -> content()
+    }
+}
+
+@Composable
+private fun BluetoothDisabledScreen() {
+    val context = LocalContext.current
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Default.BluetoothDisabled,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.error,
+        )
+        Spacer(Modifier.height(24.dp))
+        Text(
+            text = "Bluetooth выключен",
+            style = MaterialTheme.typography.headlineSmall,
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = "Включите Bluetooth для подключения к Meshtastic-узлу.",
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(32.dp))
+        Button(onClick = { context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }) {
+            Text("Настройки Bluetooth")
+        }
     }
 }
 

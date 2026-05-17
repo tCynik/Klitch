@@ -22,6 +22,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -59,6 +60,7 @@ open class DatabaseManager(
 
     private val cacheLimitKey = intPreferencesKey(DatabaseConstants.CACHE_LIMIT_KEY)
     private val legacyCleanedKey = booleanPreferencesKey(DatabaseConstants.LEGACY_DB_CLEANED_KEY)
+    private val lastDeviceAddressKey = stringPreferencesKey("db_last_device_address")
 
     private fun lastUsedKey(dbName: String) = longPreferencesKey("db_last_used:$dbName")
 
@@ -103,13 +105,29 @@ open class DatabaseManager(
 
     /** Switch active database to the one associated with [address]. Serialized via mutex. */
     override suspend fun switchActiveDatabase(address: String?) = mutex.withLock {
-        val dbName = buildDbName(address)
+        // Resolve effective address: use last known device address when none is connected
+        val resolvedAddress = if (address.isNullOrBlank()) {
+            withContext(dispatchers.io) { datastore.data.first()[lastDeviceAddressKey] }
+        } else {
+            // Persist the real device address so it can be restored when address is null later
+            managerScope.launch { datastore.edit { it[lastDeviceAddressKey] = address } }
+            address
+        }
+        // Determine the DB to open: use the resolved address if known, or fall back to the
+        // most recently modified device DB on disk (handles bootstrap: first offline launch
+        // before any connection has been made since the fix was deployed).
+        val dbName = if (resolvedAddress != null) {
+            buildDbName(resolvedAddress)
+        } else {
+            withContext(dispatchers.io) { findMostRecentDeviceDbName() }
+                ?: DatabaseConstants.DEFAULT_DB_NAME
+        }
 
         // Remember the previously active DB name (any) so we can record its last-used time as well.
         val previousDbName = _currentDb.value?.let { buildDbName(_currentAddress.value) }
 
         // Fast path: no-op if already on this address
-        if (_currentAddress.value == address && _currentDb.value != null) {
+        if (_currentAddress.value == resolvedAddress && _currentDb.value != null) {
             markLastUsed(dbName)
             return@withLock
         }
@@ -120,7 +138,7 @@ open class DatabaseManager(
                 ?: withContext(dispatchers.io) { getDatabaseBuilder(dbName).build() }.also { dbCache[dbName] = it }
 
         _currentDb.value = db
-        _currentAddress.value = address
+        _currentAddress.value = resolvedAddress
         markLastUsed(dbName)
         // Also mark the previous DB as used "just now" so LRU has an accurate, recent timestamp
         previousDbName?.let { markLastUsed(it) }
@@ -131,7 +149,7 @@ open class DatabaseManager(
         // One-time cleanup: remove legacy DB if present and not active
         managerScope.launch(dispatchers.io) { cleanupLegacyDbIfNeeded(activeDbName = dbName) }
 
-        Logger.i { "Switched active DB to ${anonymizeDbName(dbName)} for address ${anonymizeAddress(address)}" }
+        Logger.i { "Switched active DB to ${anonymizeDbName(dbName)} for address ${anonymizeAddress(resolvedAddress)}" }
     }
 
     private val limitedIo = dispatchers.io.limitedParallelism(4)
@@ -226,6 +244,17 @@ open class DatabaseManager(
             Logger.i { "Deleted legacy DB ${anonymizeDbName(legacy)}" }
         }
         datastore.edit { it[legacyCleanedKey] = true }
+    }
+
+    /** Returns the most recently modified device-specific DB name from disk, or null if none exist. */
+    private fun findMostRecentDeviceDbName(): String? {
+        val deviceDbs = listExistingDbNames().filterNot {
+            it == DatabaseConstants.LEGACY_DB_NAME || it == DatabaseConstants.DEFAULT_DB_NAME
+        }
+        return deviceDbs.maxByOrNull { dbName ->
+            val path = getDatabaseDirectory().resolve("$dbName.db")
+            getFileSystem().metadataOrNull(path)?.lastModifiedAtMillis ?: 0L
+        }
     }
 
     /** Closes all open databases and cancels background work. */

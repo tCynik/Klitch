@@ -19,7 +19,6 @@ package ru.tcynik.meshtactics.mesh.model
 /** Address identifiers for all supported radio backend implementations. */
 enum class InterfaceId(val id: Char) {
     BLUETOOTH('x'),
-    MOCK('m'),
     NOP('n'),
     SERIAL('s'),
     TCP('t'),

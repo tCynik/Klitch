@@ -1,57 +1,69 @@
 package ru.tcynik.meshtactics.presentation.feature.meshtest
 
 import android.text.format.DateUtils
-import android.util.Log
 import androidx.lifecycle.ViewModel
+import ru.tcynik.meshtactics.domain.logger.Logger
 import androidx.lifecycle.viewModelScope
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import ru.tcynik.meshtactics.domain.mesh.model.GpsMode
+import ru.tcynik.meshtactics.domain.mesh.model.LocationConfigModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.model.MeshMessageDelivery
 import ru.tcynik.meshtactics.domain.mesh.model.MeshNodeModel
-import ru.tcynik.meshtactics.domain.mesh.model.MeshPacketLogModel
+import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
+import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
+import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
+import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceParams
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGeoNodesUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveLocationConfigUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RemoveFixedPositionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RequestDeviceConfigUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.SetProvideLocationUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelPositionPrecisionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
-import ru.tcynik.meshtactics.domain.mesh.util.PskValidator
+import ru.tcynik.meshtactics.domain.mesh.usecase.WritePositionConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMessagesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveOurNodeUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.ObservePacketLogUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SendMeshMessageParams
 import ru.tcynik.meshtactics.domain.mesh.usecase.SendMeshMessageUseCase
+import ru.tcynik.meshtactics.domain.mesh.util.PskValidator
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.BleDeviceUi
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.ConfigTabState
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.ChannelConfigUi
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.DeviceConfigUi
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.DeviceMetricsUi
-import ru.tcynik.meshtactics.presentation.feature.meshtest.state.LogDirection
-import ru.tcynik.meshtactics.presentation.feature.meshtest.state.LogEntryUi
-import ru.tcynik.meshtactics.presentation.feature.meshtest.state.LogFilter
+import ru.tcynik.meshtactics.presentation.feature.meshtest.state.GeoNodesTabState
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MeshConnectionStatusUi
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MeshMessageUi
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MeshNodeUi
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MeshTestTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MessageDirection
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MessageStatus
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.GeoNodeUi
+import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.GpsModeUi
+import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.LocationConfigUi
 
 class MeshTestViewModel(
     private val observeConnectionStatus: ObserveConnectionStatusUseCase,
@@ -62,11 +74,22 @@ class MeshTestViewModel(
     private val observeOurNode: ObserveOurNodeUseCase,
     private val observeMessages: ObserveMessagesUseCase,
     private val sendMessage: SendMeshMessageUseCase,
-    private val observePacketLog: ObservePacketLogUseCase,
+    private val observeGeoNodes: ObserveGeoNodesUseCase,
     private val observeDeviceConfig: ObserveDeviceConfigUseCase,
     private val requestDeviceConfig: RequestDeviceConfigUseCase,
     private val writeOwner: WriteOwnerUseCase,
     private val writeChannel: WriteChannelUseCase,
+    private val observeLocationConfig: ObserveLocationConfigUseCase,
+    private val setProvideLocation: SetProvideLocationUseCase,
+    private val writePositionConfig: WritePositionConfigUseCase,
+    private val writeChannelPositionPrecision: WriteChannelPositionPrecisionUseCase,
+    private val removeFixedPosition: RemoveFixedPositionUseCase,
+    private val checkContourSync: CheckNodeSyncUseCase,
+    private val syncContoursOnConnect: SyncContoursOnConnectUseCase,
+    private val rebootNode: RebootNodeUseCase,
+    private val syncStateRepository: ContourSyncStateRepository,
+    private val rebootStateRepository: RebootStateRepository,
+    private val logger: Logger,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MeshTestUiState())
@@ -74,18 +97,80 @@ class MeshTestViewModel(
 
     private var scanJob: Job? = null
     private var messagesJob: Job? = null
-    private var frozenLogEntries = emptyList<LogEntryUi>()
+    private var wasConnected = false
+    private var rebootDisconnectObserved = false
+    private var userStoppedScan = false
+
+    private val myNodeNumFlow = MutableStateFlow<Int?>(null)
 
     /** Contact key currently observed for messages (broadcast ch0 by default).
      *  Format matches mesh layer: "${channel}${nodeId}", e.g. "0^all" for ch0 broadcast. */
     private var activeContactKey: String = "0^all"
 
-    private val logTimeFmt = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault())
-
     init {
+        rebootStateRepository.isRebooting
+            .onEach { rebooting ->
+                _uiState.update { state ->
+                    state.copy(
+                        isRebooting = rebooting,
+                        connectionStatus = if (rebooting) {
+                            MeshConnectionStatusUi.Rebooting
+                        } else {
+                            state.connectionStatus
+                        },
+                    )
+                }
+            }
+            .launchIn(viewModelScope)
+
         observeConnectionStatus(NoParams).onEach { status ->
-            Log.i("MeshTestVM", "DBG connectionStatus flow emitted: $status")
-            _uiState.update { it.copy(connectionStatus = status.toUi()) }
+            logger.i("App","DBG connectionStatus flow emitted: $status")
+            val isRebooting = rebootStateRepository.isRebooting.value
+            if (isRebooting && status !is MeshConnectionStatus.Connected) {
+                rebootDisconnectObserved = true
+            }
+            if (isRebooting && rebootDisconnectObserved && status is MeshConnectionStatus.Connected) {
+                rebootStateRepository.setRebooting(false)
+                rebootDisconnectObserved = false
+            }
+            val uiStatus = when {
+                isRebooting -> MeshConnectionStatusUi.Rebooting
+                userStoppedScan && status is MeshConnectionStatus.Scanning -> MeshConnectionStatusUi.Disconnected
+                else -> status.toUi()
+            }
+            _uiState.update { state ->
+                state.copy(
+                    connectionStatus = uiStatus,
+                    lastConnectedNodeName = when (status) {
+                        is MeshConnectionStatus.Connected -> status.nodeId
+                        else -> state.lastConnectedNodeName
+                    },
+                    connectionTab = state.connectionTab.copy(
+                        isScanning = status is MeshConnectionStatus.Scanning && !userStoppedScan,
+                    ),
+                )
+            }
+            if (status is MeshConnectionStatus.Connected) {
+                if (!wasConnected && !isRebooting) {
+                    viewModelScope.launch {
+                        if (checkContourSync() is NodeSyncResult.NeedsSync) {
+                            _uiState.update { it.copy(showSyncDialog = true) }
+                        }
+                    }
+                }
+            }
+            wasConnected = status is MeshConnectionStatus.Connected
+            // Auto-start scan when the app is already scanning (MainViewModel auto-scan)
+            // but this VM hasn't started collecting devices yet.
+            // Skip during reboot: extra scan competes with GATT auto-connect and breaks reconnect.
+            if (status is MeshConnectionStatus.Scanning && scanJob == null && !isRebooting && !userStoppedScan) {
+                onScanClick()
+            }
+            // Stop scan when auto-connect from MainViewModel kicks in.
+            if (status is MeshConnectionStatus.Connecting || status is MeshConnectionStatus.Connected) {
+                scanJob?.cancel()
+                scanJob = null
+            }
         }.launchIn(viewModelScope)
 
         observeNodes(NoParams).onEach { nodes ->
@@ -100,6 +185,7 @@ class MeshTestViewModel(
         }.launchIn(viewModelScope)
 
         observeOurNode(NoParams).onEach { node ->
+            myNodeNumFlow.value = node?.num
             _uiState.update { state ->
                 state.copy(
                     telemetryTab = state.telemetryTab.copy(
@@ -120,26 +206,29 @@ class MeshTestViewModel(
             }
         }.launchIn(viewModelScope)
 
-        observePacketLog(NoParams).onEach { packets ->
-            val entries = packets.map { it.toLogEntryUi() }
-            if (!_uiState.value.logTab.isPaused) {
-                _uiState.update { state ->
-                    state.copy(
-                        logTab = state.logTab.copy(
-                            entries = applyLogFilter(entries, state.logTab.activeFilter).toImmutableList()
-                        )
+        observeGeoNodes(NoParams).onEach { nodes ->
+            _uiState.update { state ->
+                state.copy(
+                    geoNodesTab = GeoNodesTabState(
+                        nodes = nodes.map { node ->
+                            GeoNodeUi(
+                                nodeId = node.nodeId,
+                                shortName = node.shortName,
+                                distanceFormatted = node.distanceMeters?.let { formatDistance(it) } ?: "—",
+                                positionTime = node.positionTime,
+                                groundSpeed = node.groundSpeed,
+                                groundTrack = node.groundTrack,
+                            )
+                        }.toImmutableList()
                     )
-                }
-            } else {
-                frozenLogEntries = entries
+                )
             }
         }.launchIn(viewModelScope)
 
         observeDeviceConfig(NoParams).onEach { config ->
-            Log.i("MeshTestVM", "DBG observeDeviceConfig emitted: config=${config?.let { "longName=${it.longName} region=${it.region} lora=${it.loraPreset}" } ?: "null"}")
+            logger.i("App","DBG observeDeviceConfig emitted: config=${config?.let { "longName=${it.longName} region=${it.region} lora=${it.loraPreset}" } ?: "null"}")
             if (config != null) {
                 _uiState.update { state ->
-                    // Don't overwrite unsaved channel edits while user is editing
                     val updatedChannels = if (state.configTab.isEditing) {
                         state.configTab.channels
                     } else {
@@ -168,7 +257,36 @@ class MeshTestViewModel(
             }
         }.launchIn(viewModelScope)
 
+        @OptIn(ExperimentalCoroutinesApi::class)
+        myNodeNumFlow
+            .filterNotNull()
+            .flatMapLatest { nodeNum -> observeLocationConfig(nodeNum) }
+            .onEach { config ->
+                _uiState.update { state ->
+                    state.copy(configTab = state.configTab.copy(locationConfig = config.toLocationUi()))
+                }
+            }
+            .launchIn(viewModelScope)
+
         startObservingMessages(activeContactKey)
+    }
+
+    // ── Sync Dialog ───────────────────────────────────────────────────────────
+
+    fun onConfirmChannelSync() {
+        _uiState.update { it.copy(showSyncDialog = false) }
+        viewModelScope.launch {
+            rebootDisconnectObserved = false
+            rebootStateRepository.setRebooting(true)
+            syncContoursOnConnect()
+            rebootNode()
+            syncStateRepository.clear()
+        }
+    }
+
+    fun onDismissChannelSync() {
+        _uiState.update { it.copy(showSyncDialog = false) }
+        syncStateRepository.setSyncRequired(true)
     }
 
     // ── Navigation ────────────────────────────────────────────────────────────
@@ -180,6 +298,7 @@ class MeshTestViewModel(
     // ── Connection Tab ────────────────────────────────────────────────────────
 
     fun onScanClick() {
+        userStoppedScan = false
         scanJob?.cancel()
         _uiState.update { state ->
             state.copy(
@@ -187,6 +306,7 @@ class MeshTestViewModel(
                 connectionTab = state.connectionTab.copy(isScanning = true),
             )
         }
+        // isScanning driven by observeConnectionStatus → _isScanning in repo
         scanJob = scanDevices(NoParams)
             .onEach { devices ->
                 _uiState.update { state ->
@@ -198,15 +318,11 @@ class MeshTestViewModel(
                     )
                 }
             }
-            .onCompletion {
-                _uiState.update { state ->
-                    state.copy(connectionTab = state.connectionTab.copy(isScanning = false))
-                }
-            }
             .launchIn(viewModelScope)
     }
 
     fun onStopScanClick() {
+        userStoppedScan = true
         scanJob?.cancel()
         scanJob = null
         _uiState.update { state ->
@@ -222,7 +338,7 @@ class MeshTestViewModel(
         scanJob = null
         val deviceName = _uiState.value.connectionTab.scannedDevices
             .find { it.address == address }?.name ?: address
-        Log.i("MeshTestVM", "DBG onConnectClick: address=$address name=$deviceName")
+        logger.i("App","DBG onConnectClick: address=$address name=$deviceName")
         _uiState.update { state ->
             state.copy(
                 connectionStatus = MeshConnectionStatusUi.Connecting(deviceName),
@@ -230,11 +346,11 @@ class MeshTestViewModel(
             )
         }
         viewModelScope.launch {
-            Log.i("MeshTestVM", "DBG onConnectClick: calling connectToDevice...")
+            logger.i("App","DBG onConnectClick: calling connectToDevice...")
             runCatching { connectToDevice(ConnectToMeshDeviceParams(address, deviceName)) }
-                .onSuccess { Log.i("MeshTestVM", "DBG onConnectClick: connectToDevice returned OK") }
+                .onSuccess { logger.i("App","DBG onConnectClick: connectToDevice returned OK") }
                 .onFailure { e ->
-                    Log.e("MeshTestVM", "DBG onConnectClick: connectToDevice failed: ${e.message}", e)
+                    logger.e("App","DBG onConnectClick: connectToDevice failed: ${e.message}", e)
                     _uiState.update {
                         it.copy(connectionStatus = MeshConnectionStatusUi.Error(e.message ?: "Connection failed"))
                     }
@@ -364,6 +480,76 @@ class MeshTestViewModel(
         }
     }
 
+    // ── Location Config Handlers ──────────────────────────────────────────────
+
+    fun onProvideLocationToggle(enabled: Boolean) {
+        val nodeNum = myNodeNumFlow.value ?: return
+        setProvideLocation(nodeNum, enabled)
+        if (enabled) removeFixedPosition(nodeNum)
+    }
+
+    fun onGpsModeChange(mode: GpsModeUi) {
+        val nodeNum = myNodeNumFlow.value ?: return
+        val config = _uiState.value.configTab.locationConfig ?: return
+        writePositionConfig(
+            nodeNum,
+            mode.toDomain(),
+            config.broadcastIntervalSecs,
+            config.smartBroadcastEnabled,
+            config.smartBroadcastMinDistanceM,
+            config.positionFlags,
+        )
+    }
+
+    fun onRemoveFixedPosition() {
+        val nodeNum = myNodeNumFlow.value ?: return
+        removeFixedPosition(nodeNum)
+    }
+
+    fun onBroadcastIntervalChange(secs: Int) {
+        val nodeNum = myNodeNumFlow.value ?: return
+        val config = _uiState.value.configTab.locationConfig ?: return
+        writePositionConfig(
+            nodeNum,
+            config.gpsMode.toDomain(),
+            secs,
+            config.smartBroadcastEnabled,
+            config.smartBroadcastMinDistanceM,
+            config.positionFlags,
+        )
+    }
+
+    fun onSmartBroadcastToggle(enabled: Boolean) {
+        val nodeNum = myNodeNumFlow.value ?: return
+        val config = _uiState.value.configTab.locationConfig ?: return
+        writePositionConfig(
+            nodeNum,
+            config.gpsMode.toDomain(),
+            config.broadcastIntervalSecs,
+            enabled,
+            config.smartBroadcastMinDistanceM,
+            config.positionFlags,
+        )
+    }
+
+    fun onPositionFlagsChange(flags: Int) {
+        val nodeNum = myNodeNumFlow.value ?: return
+        val config = _uiState.value.configTab.locationConfig ?: return
+        writePositionConfig(
+            nodeNum,
+            config.gpsMode.toDomain(),
+            config.broadcastIntervalSecs,
+            config.smartBroadcastEnabled,
+            config.smartBroadcastMinDistanceM,
+            flags,
+        )
+    }
+
+    fun onChannelPositionPrecisionChange(precision: Int) {
+        val nodeNum = myNodeNumFlow.value ?: return
+        writeChannelPositionPrecision(nodeNum, 0, precision)
+    }
+
     // ── Telemetry Tab ─────────────────────────────────────────────────────────
 
     fun onRefreshTelemetryClick() {
@@ -373,50 +559,14 @@ class MeshTestViewModel(
         // Nodes are observed reactively — isLoading resets when the next emission arrives
     }
 
-    // ── Log Tab ───────────────────────────────────────────────────────────────
-
-    fun onLogFilterChange(filter: LogFilter) {
-        _uiState.update { state ->
-            val currentEntries = if (state.logTab.isPaused) frozenLogEntries
-            else state.logTab.entries.toList()
-            state.copy(
-                logTab = state.logTab.copy(
-                    activeFilter = filter,
-                    entries = applyLogFilter(currentEntries, filter).toImmutableList(),
-                )
-            )
-        }
-    }
-
-    fun onLogPauseToggle() {
-        val wasPaused = _uiState.value.logTab.isPaused
-        if (wasPaused) {
-            // Resume: apply current frozen entries
-            val currentFilter = _uiState.value.logTab.activeFilter
-            _uiState.update { state ->
-                state.copy(
-                    logTab = state.logTab.copy(
-                        isPaused = false,
-                        entries = applyLogFilter(frozenLogEntries, currentFilter).toImmutableList(),
-                    )
-                )
-            }
-        } else {
-            frozenLogEntries = _uiState.value.logTab.entries.toList()
-            _uiState.update { state ->
-                state.copy(logTab = state.logTab.copy(isPaused = true))
-            }
-        }
-    }
-
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private fun startObservingMessages(contactKey: String) {
         messagesJob?.cancel()
-        Log.i("MeshTestVM", "DBG startObservingMessages: contactKey=$contactKey")
+        logger.i("App","DBG startObservingMessages: contactKey=$contactKey")
         messagesJob = observeMessages(contactKey)
             .onEach { messages ->
-                Log.i("MeshTestVM", "DBG messages flow emitted: count=${messages.size}")
+                logger.i("App","DBG messages flow emitted: count=${messages.size}")
                 _uiState.update { state ->
                     state.copy(
                         messagesTab = state.messagesTab.copy(
@@ -464,18 +614,6 @@ class MeshTestViewModel(
         hopsAway = if (hopsAway > 0) hopsAway else null,
     )
 
-    private fun MeshPacketLogModel.toLogEntryUi(): LogEntryUi = LogEntryUi(
-        formattedTime = logTimeFmt.format(Date(timestamp)),
-        direction = when {
-            messageType == "fromRadio" && fromNum == 0 -> LogDirection.System
-            fromNum == 0 -> LogDirection.Out
-            else -> LogDirection.In
-        },
-        packetType = messageType,
-        summary = "from=$fromNum port=$portNum",
-        rawHex = rawMessage.take(64).takeIf { it.isNotBlank() },
-    )
-
     private fun MeshMessageDelivery.toUiStatus(): MessageStatus = when (this) {
         MeshMessageDelivery.Pending -> MessageStatus.Pending
         MeshMessageDelivery.Sent -> MessageStatus.Sent
@@ -483,21 +621,39 @@ class MeshTestViewModel(
         MeshMessageDelivery.Failed -> MessageStatus.Failed
     }
 
-    private fun applyLogFilter(entries: List<LogEntryUi>, filter: LogFilter): List<LogEntryUi> =
-        when (filter) {
-            LogFilter.All -> entries
-            LogFilter.Incoming -> entries.filter { it.direction == LogDirection.In }
-            LogFilter.Outgoing -> entries.filter { it.direction == LogDirection.Out }
-            LogFilter.System -> entries.filter { it.direction == LogDirection.System }
-            LogFilter.Errors -> entries.filter { it.summary.contains("error", ignoreCase = true) }
-        }
+    private fun formatDistance(meters: Int): String =
+        if (meters >= 1000) "${"%.1f".format(meters / 1000.0)} km" else "$meters m"
 
     private fun formatUptime(seconds: Long): String {
         val h = seconds / 3600
         val m = (seconds % 3600) / 60
         val s = seconds % 60
-        return if (h > 0) "%dh %02dm" .format(h, m)
+        return if (h > 0) "%dh %02dm".format(h, m)
         else if (m > 0) "%dm %02ds".format(m, s)
         else "${s}s"
+    }
+
+    private fun LocationConfigModel.toLocationUi() = LocationConfigUi(
+        provideLocationToMesh = provideLocationToMesh,
+        hasLocationPermission = hasLocationPermission,
+        gpsMode = gpsMode.toUi(),
+        fixedPositionEnabled = fixedPositionEnabled,
+        broadcastIntervalSecs = broadcastIntervalSecs,
+        smartBroadcastEnabled = smartBroadcastEnabled,
+        smartBroadcastMinDistanceM = smartBroadcastMinDistanceM,
+        positionFlags = positionFlags,
+        primaryChannelPositionPrecision = primaryChannelPositionPrecision,
+    )
+
+    private fun GpsMode.toUi(): GpsModeUi = when (this) {
+        GpsMode.DISABLED -> GpsModeUi.DISABLED
+        GpsMode.ENABLED -> GpsModeUi.ENABLED
+        GpsMode.NOT_PRESENT -> GpsModeUi.NOT_PRESENT
+    }
+
+    private fun GpsModeUi.toDomain(): GpsMode = when (this) {
+        GpsModeUi.DISABLED -> GpsMode.DISABLED
+        GpsModeUi.ENABLED -> GpsMode.ENABLED
+        GpsModeUi.NOT_PRESENT -> GpsMode.NOT_PRESENT
     }
 }

@@ -20,4 +20,8 @@ data class MeshNodeModel(
     /** Unix timestamp (seconds) of the last GPS position report. 0 if never reported. */
     val positionTime: Int,
     val isOnline: Boolean,
+    /** Ground speed in m/s (0 if unknown or stationary). */
+    val groundSpeed: Int,
+    /** Ground track (bearing) in degrees 0–359, clockwise from north. 0 if unknown. */
+    val groundTrack: Int,
 )

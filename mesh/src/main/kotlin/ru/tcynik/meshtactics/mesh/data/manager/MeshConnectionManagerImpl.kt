@@ -23,6 +23,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -37,6 +38,7 @@ import ru.tcynik.meshtactics.mesh.model.Position
 import ru.tcynik.meshtactics.mesh.model.TelemetryType
 import ru.tcynik.meshtactics.mesh.repository.AppWidgetUpdater
 import ru.tcynik.meshtactics.mesh.repository.CommandSender
+import ru.tcynik.meshtactics.mesh.repository.GeoSendPolicy
 import ru.tcynik.meshtactics.mesh.repository.DataPair
 import ru.tcynik.meshtactics.mesh.repository.HandshakeConstants
 import ru.tcynik.meshtactics.mesh.repository.HistoryManager
@@ -83,6 +85,7 @@ class MeshConnectionManagerImpl(
     private val packetRepository: PacketRepository,
     private val workerManager: MeshWorkerManager,
     private val appWidgetUpdater: AppWidgetUpdater,
+    private val geoSendPolicy: GeoSendPolicy,
 ) : MeshConnectionManager {
     private var scope: CoroutineScope = CoroutineScope(ioDispatcher + SupervisorJob())
     private var sleepTimeout: Job? = null
@@ -111,26 +114,21 @@ class MeshConnectionManagerImpl(
                 locationRequestsJob?.cancel()
                 if (myNodeEntity != null) {
                     locationRequestsJob =
-                        uiPrefs
-                            .shouldProvideNodeLocation(myNodeEntity.myNodeNum)
-                            .onEach { shouldProvide ->
-                                if (shouldProvide) {
+                        uiPrefs.shouldProvideNodeLocation(myNodeEntity.myNodeNum)
+                            .combine(geoSendPolicy.observeAllowed()) { shouldProvide, geoAllowed ->
+                                shouldProvide && geoAllowed
+                            }
+                            .onEach { allowed ->
+                                if (allowed) {
+                                    // Clear fixed_position so firmware doesn't ignore sendPosition packets
+                                    commandSender.setFixedPosition(myNodeEntity.myNodeNum, Position(0.0, 0.0, 0))
                                     locationManager.start(scope) { pos ->
-                                        val lat = Position.degD(pos.latitude_i ?: 0)
-                                        val lon = Position.degD(pos.longitude_i ?: 0)
-                                        Logger.i { "PhoneGPS→radio: setFixedPosition(${myNodeEntity.myNodeNum}, lat=$lat lon=$lon)" }
-                                        commandSender.setFixedPosition(
-                                            myNodeEntity.myNodeNum,
-                                            Position(latitude = lat, longitude = lon, altitude = pos.altitude ?: 0),
-                                        )
+                                        Logger.i { "PhoneGPS→radio: sendPosition lat=${Position.degD(pos.latitude_i ?: 0)} lon=${Position.degD(pos.longitude_i ?: 0)}" }
+                                        commandSender.sendPosition(pos)
                                     }
                                 } else {
                                     locationManager.stop()
-                                    Logger.i { "PhoneGPS→radio: shouldProvide=false, removing fixed position" }
-                                    commandSender.setFixedPosition(
-                                        myNodeEntity.myNodeNum,
-                                        Position(0.0, 0.0, 0),
-                                    )
+                                    // Do not touch fixed_position — let node use its own GPS if available
                                 }
                             }
                             .launchIn(scope)

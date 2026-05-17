@@ -1,0 +1,5 @@
+ALTER TABLE logical_channel RENAME TO contour;
+ALTER TABLE contour ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE contour ADD COLUMN description TEXT;
+ALTER TABLE contour ADD COLUMN expiration INTEGER;
+ALTER TABLE contour ADD COLUMN exclusivity_time INTEGER;

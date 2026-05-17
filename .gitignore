@@ -18,6 +18,7 @@
 /.idea/misc.xml
 /.idea/render.experimental.xml
 /.idea/artifacts/
+/.idea/deploymentTargetSelector.xml
 .externalNativeBuild
 .cxx
 /captures
@@ -50,3 +51,7 @@ Thumbs.db
 
 # Shared module build
 shared/build/
+/.idea/inspectionProfiles/Project_Default.xml
+/claude-login.bat
+/claude-login.ps1
+/.vscode/API.txt

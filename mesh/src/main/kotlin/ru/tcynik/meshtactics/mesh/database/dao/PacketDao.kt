@@ -140,6 +140,18 @@ interface PacketDao {
 
     @Query(
         """
+    SELECT COUNT(*) FROM packet
+    WHERE (myNodeNum = 0 OR myNodeNum = (SELECT myNodeNum FROM my_node))
+        AND port_num = 1 AND read = 0 AND filtered = 0
+        AND contact_key NOT IN (
+            SELECT contact_key FROM contact_settings WHERE is_archived = 1
+        )
+    """,
+    )
+    fun getUnreadCountExcludingArchived(): Flow<Int>
+
+    @Query(
+        """
     UPDATE packet
     SET read = 1
     WHERE (myNodeNum = 0 OR myNodeNum = (SELECT myNodeNum FROM my_node))
@@ -358,6 +370,15 @@ interface PacketDao {
     suspend fun getContactSettings(contact: String): ContactSettings?
 
     @Upsert suspend fun upsertContactSettings(contacts: List<ContactSettings>)
+
+    @Query("UPDATE contact_settings SET is_favorite = :value WHERE contact_key = :key")
+    suspend fun updateFavorite(key: String, value: Boolean)
+
+    @Query("UPDATE contact_settings SET is_pinned = :value WHERE contact_key = :key")
+    suspend fun updatePinned(key: String, value: Boolean)
+
+    @Query("UPDATE contact_settings SET is_archived = :value WHERE contact_key = :key")
+    suspend fun updateArchived(key: String, value: Boolean)
 
     @Transaction
     suspend fun setMuteUntil(contacts: List<String>, until: Long) {

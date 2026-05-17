@@ -61,6 +61,9 @@ interface PacketRepository {
     /** Reactive flow of the total unread message count across all conversations. */
     fun getUnreadCountTotal(): Flow<Int>
 
+    /** Reactive flow of the total unread message count, excluding archived conversations. */
+    fun getUnreadCountExcludingArchived(): Flow<Int>
+
     /** Clears the unread status for messages in a conversation up to the given timestamp. */
     suspend fun clearUnreadCount(contact: String, timestamp: Long)
 
@@ -140,6 +143,15 @@ interface PacketRepository {
 
     /** Mutes the given contacts until the specified timestamp. */
     suspend fun setMuteUntil(contacts: List<String>, until: Long)
+
+    /** Updates the favorite flag for a contact. */
+    suspend fun setFavorite(contactKey: String, isFavorite: Boolean)
+
+    /** Updates the pinned flag for a contact. */
+    suspend fun setPinned(contactKey: String, isPinned: Boolean)
+
+    /** Updates the archived flag for a contact. */
+    suspend fun setArchived(contactKey: String, isArchived: Boolean)
 
     /** Reactive flow of the number of filtered messages for a contact. */
     fun getFilteredCountFlow(contactKey: String): Flow<Int>

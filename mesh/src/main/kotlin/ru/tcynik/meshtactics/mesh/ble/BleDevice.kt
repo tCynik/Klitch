@@ -35,6 +35,9 @@ interface BleDevice {
     /** Whether the device is currently connected. */
     val isConnected: Boolean
 
+    /** RSSI from the last advertisement packet. */
+    val rssi: Int
+
     /** Reads the current RSSI value. */
     suspend fun readRssi(): Int
 

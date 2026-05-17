@@ -1,58 +1,75 @@
 package ru.tcynik.meshtactics.presentation.feature.main
 
-import androidx.compose.foundation.Image
+import android.content.res.Configuration
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.DpOffset
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
 import org.maplibre.compose.location.LocationProvider
 import org.maplibre.spatialk.geojson.Position
-import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.di.orientation.DeviceOrientationProvider
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkContextMenuEvent
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudUiState
 import ru.tcynik.meshtactics.presentation.feature.main.osd.HudControlsLayer
+import ru.tcynik.meshtactics.presentation.feature.main.osd.HudPortraitControlsLayer
 import ru.tcynik.meshtactics.presentation.feature.main.osd.MapLibreLayer
-
+import ru.tcynik.meshtactics.presentation.feature.main.osd.MenuDrawer
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MenuDrawerUiState
 @Composable
 fun MainScreen(
     uiState: MainUiState,
+    hudConfig: HudConfig,
+    hudUiState: HudUiState,
     onCameraPositionChanged: (MapCameraPosition) -> Unit,
-    onChatClick: () -> Unit,
-    onSettingsClick: () -> Unit,
-    onNodeStatusClick: () -> Unit,
-    onMarkerManagementClick: () -> Unit,
     locationProvider: LocationProvider,
     orientationProvider: DeviceOrientationProvider,
+    onMapClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
+    onMapLongClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit = { _, _, _, _ -> },
+    onSendPendingMark: () -> Unit = {},
+    contextMenuEvents: Flow<GeoMarkContextMenuEvent> = emptyFlow(),
+    onDeletePendingPoint: (Int) -> Unit = {},
+    menuDrawerUiState: MenuDrawerUiState,
 ) {
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var lastKnownPosition by remember { mutableStateOf(uiState.initialCameraPosition) }
-    val density = LocalDensity.current
+    var contextMenu by remember { mutableStateOf<GeoMarkContextMenuEvent?>(null) }
 
-    // CameraState created here so both MapLibreLayer and overlay can use it
+    LaunchedEffect(contextMenuEvents) {
+        contextMenuEvents.collect { event -> contextMenu = event }
+    }
+
     val cameraState = rememberCameraState(
         firstPosition = CameraPosition(
             target = Position(
@@ -62,11 +79,6 @@ fun MainScreen(
             zoom = uiState.initialCameraPosition.zoom,
         ),
     )
-
-    // Track the size of the map container to convert projection coordinates to
-    // overlay (Box-relative) offsets.  Projection returns DP offsets from the
-    // top-left of the map view; we convert to pixels using the measured size.
-    var mapSize by remember { mutableStateOf(IntSize.Zero) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -82,16 +94,7 @@ fun MainScreen(
     val bearing by orientationProvider.bearing.collectAsStateWithLifecycle()
     val currentLocation by locationProvider.location.collectAsStateWithLifecycle()
 
-    // Camera bearing — used to correct the arrow rotation when the map is rotated
-    val cameraBearing by remember {
-        derivedStateOf { cameraState.position.bearing.toFloat() }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .onSizeChanged { mapSize = it },
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         if (uiState.tileUrlTemplate.isNotEmpty()) {
             MapLibreLayer(
                 modifier = Modifier.fillMaxSize(),
@@ -103,45 +106,65 @@ fun MainScreen(
                 },
                 nodeMarkers = uiState.nodeMarkers,
                 cameraState = cameraState,
-            )
-        }
-
-        // ── User location arrow overlay ──────────────────────────────────
-        val projection = cameraState.projection
-        if (projection != null && mapSize != IntSize.Zero && currentLocation != null) {
-            val screenOffset: DpOffset = projection.screenLocationFromPosition(
-                Position(
-                    longitude = currentLocation!!.position.longitude,
-                    latitude  = currentLocation!!.position.latitude,
-                ),
-            )
-
-            // Convert DP to pixels using the map container density
-            val arrowOffsetX = with(density) { screenOffset.x.roundToPx() }
-            val arrowOffsetY = with(density) { screenOffset.y.roundToPx() }
-
-            // Center the arrow on the point (icon is 24dp, center = 12dp offset)
-            val halfIconPx = with(density) { 18.dp.roundToPx() }
-
-            Image(
-                painter = painterResource(R.drawable.ic_navigation_arrow),
-                contentDescription = null,
-                modifier = Modifier
-                    .offset { IntOffset(arrowOffsetX - halfIconPx, arrowOffsetY - halfIconPx) }
-                    .size(36.dp)
-                    .rotate(bearing - cameraBearing),
+                markerSizeLevel = uiState.markerSizeLevel,
+                userPosition = currentLocation?.position,
+                userBearing = bearing,
+                selectedOverlays = uiState.selectedOverlays,
+                geoMarks = uiState.geoMarks,
+                pendingMarkPoints = uiState.pendingMarkPoints,
+                markToolActive = uiState.markToolActive,
+                onMapClick = onMapClick,
+                onMapLongClick = onMapLongClick,
             )
         }
 
         // HUD button columns
-        HudControlsLayer(
-            modifier = Modifier.fillMaxSize(),
-            connectionStatus = uiState.connectionStatus,
-            nodesWithPositionCount = uiState.nodeMarkers.size,
-            onChatClick = onChatClick,
-            onSettingsClick = onSettingsClick,
-            onNodeStatusClick = onNodeStatusClick,
-            onMarkerManagementClick = onMarkerManagementClick,
-        )
+        if (isLandscape) {
+            HudControlsLayer(
+                config = hudConfig,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            HudPortraitControlsLayer(
+                state = hudUiState,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+
+        AnimatedVisibility(
+            visible = uiState.markToolActive && uiState.pendingMarkPoints.isNotEmpty(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 420.dp),
+            enter = fadeIn() + slideInVertically { it },
+            exit  = fadeOut() + slideOutVertically { it },
+        ) {
+            Button(onClick = onSendPendingMark) {
+                Text("Отправить (${uiState.pendingMarkPoints.size})")
+            }
+        }
+
+        // z3 — menu drawer overlay (portrait only)
+        if (!isLandscape) {
+            MenuDrawer(state = menuDrawerUiState)
+        }
+
+        contextMenu?.let { event ->
+            Box(Modifier.offset(event.screenX.dp, event.screenY.dp).size(0.dp)) {
+                DropdownMenu(
+                    expanded = true,
+                    onDismissRequest = { contextMenu = null },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Удалить точку") },
+                        onClick = {
+                            onDeletePendingPoint(event.pointIndex)
+                            contextMenu = null
+                        },
+                    )
+                }
+            }
+        }
     }
 }

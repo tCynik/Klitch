@@ -21,10 +21,11 @@ import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.meshtactics.presentation.feature.meshtest.components.MeshStatusBar
 import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.ConfigTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.ConnectionTab
-import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.LogTab
+import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.GeoNodesTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.MessagesTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.TelemetryTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MeshTestTab
+import ru.tcynik.meshtactics.presentation.ui.components.SyncRequiredDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +35,13 @@ fun MeshTestScreen(
     viewModel: MeshTestViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    if (state.showSyncDialog) {
+        SyncRequiredDialog(
+            onConfirm = viewModel::onConfirmChannelSync,
+            onDismiss = viewModel::onDismissChannelSync,
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -54,6 +62,7 @@ fun MeshTestScreen(
         ) {
             MeshStatusBar(
                 status = state.connectionStatus,
+                rebootingNodeName = state.lastConnectedNodeName,
                 onDisconnectClick = viewModel::onDisconnectClick,
             )
 
@@ -96,6 +105,13 @@ fun MeshTestScreen(
                     onChannelNameChange = viewModel::onChannelNameChange,
                     onChannelPskChange = viewModel::onChannelPskChange,
                     onAddChannelClick = viewModel::onAddChannelClick,
+                    onProvideLocationToggle = viewModel::onProvideLocationToggle,
+                    onGpsModeChange = viewModel::onGpsModeChange,
+                    onRemoveFixedPosition = viewModel::onRemoveFixedPosition,
+                    onBroadcastIntervalChange = viewModel::onBroadcastIntervalChange,
+                    onSmartBroadcastToggle = viewModel::onSmartBroadcastToggle,
+                    onPositionFlagsChange = viewModel::onPositionFlagsChange,
+                    onChannelPositionPrecisionChange = viewModel::onChannelPositionPrecisionChange,
                     modifier = Modifier.fillMaxSize(),
                 )
                 MeshTestTab.Telemetry -> TelemetryTab(
@@ -104,10 +120,8 @@ fun MeshTestScreen(
                     onRefreshClick = viewModel::onRefreshTelemetryClick,
                     modifier = Modifier.fillMaxSize(),
                 )
-                MeshTestTab.Log -> LogTab(
-                    state = state.logTab,
-                    onFilterChange = viewModel::onLogFilterChange,
-                    onPauseToggle = viewModel::onLogPauseToggle,
+                MeshTestTab.GeoNodes -> GeoNodesTab(
+                    state = state.geoNodesTab,
                     modifier = Modifier.fillMaxSize(),
                 )
             }

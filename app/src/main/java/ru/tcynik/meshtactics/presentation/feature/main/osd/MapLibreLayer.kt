@@ -8,20 +8,70 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.delay
 import org.maplibre.compose.camera.CameraState
+import org.maplibre.compose.expressions.dsl.asString
+import org.maplibre.spatialk.geojson.Position
 import org.maplibre.compose.expressions.dsl.const
+import org.maplibre.compose.expressions.dsl.eq
+import org.maplibre.compose.expressions.dsl.feature
+import org.maplibre.compose.expressions.dsl.format
+import org.maplibre.compose.expressions.dsl.image
+import org.maplibre.compose.expressions.dsl.not
+import org.maplibre.compose.expressions.dsl.offset
+import org.maplibre.compose.expressions.dsl.span
+import org.maplibre.compose.expressions.value.FloatValue
+import org.maplibre.compose.expressions.value.IconRotationAlignment
+import org.maplibre.compose.expressions.value.SymbolAnchor
 import org.maplibre.compose.layers.CircleLayer
+import org.maplibre.compose.layers.FillLayer
+import org.maplibre.compose.layers.LineLayer
 import org.maplibre.compose.layers.RasterLayer
+import org.maplibre.compose.layers.SymbolLayer
+import org.maplibre.compose.map.GestureOptions
+import org.maplibre.compose.map.MapOptions
 import org.maplibre.compose.map.MaplibreMap
 import org.maplibre.compose.sources.GeoJsonData
 import org.maplibre.compose.sources.rememberGeoJsonSource
+import org.maplibre.compose.sources.rememberImageSource
 import org.maplibre.compose.sources.rememberRasterSource
 import org.maplibre.compose.style.BaseStyle
+import org.maplibre.compose.util.ClickResult
+import org.maplibre.compose.util.PositionQuad
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
+import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.domain.marker.model.NodeMarkerModel
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MarkerSizeConfig
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.OverlayRenderModel
+
+// BaseStyle.Empty has no `glyphs` URL — SymbolLayer text rendering fails without it and breaks
+// all other layers too. This style adds the MapLibre demotiles glyph server.
+private val BASE_STYLE_WITH_GLYPHS = BaseStyle.Json(
+    """{"version":8,"glyphs":"https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf","sources":{},"layers":[]}"""
+)
+
+// Animation duration for marker position interpolation, in milliseconds.
+private const val MARKER_ANIMATION_MS = 500L
+
+// Frame interval targeting ~60 FPS.
+private const val FRAME_INTERVAL_MS = 16L
+
+/**
+ * Quadratic ease-in-out for smooth start and stop.
+ */
+private fun quadraticEaseInOut(t: Float): Float {
+    return if (t < 0.5f) 2f * t * t else -1f + (4f - 2f * t) * t
+}
 
 @Composable
 fun MapLibreLayer(
@@ -31,6 +81,15 @@ fun MapLibreLayer(
     onCameraPositionChanged: (MapCameraPosition) -> Unit,
     nodeMarkers: ImmutableList<NodeMarkerModel> = persistentListOf(),
     cameraState: CameraState,
+    markerSizeLevel: Int = 5,
+    userPosition: Position? = null,
+    userBearing: Float = 0f,
+    selectedOverlays: ImmutableList<OverlayRenderModel> = persistentListOf(),
+    geoMarks: ImmutableList<GeoMarkModel> = persistentListOf(),
+    pendingMarkPoints: ImmutableList<ru.tcynik.meshtactics.domain.marker.model.GeoPoint> = persistentListOf(),
+    markToolActive: Boolean = false,
+    onMapClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
+    onMapLongClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit = { _, _, _, _ -> },
 ) {
     var hasUserMoved by remember { mutableStateOf(false) }
 
@@ -52,8 +111,27 @@ fun MapLibreLayer(
 
     MaplibreMap(
         modifier = modifier,
-        baseStyle = BaseStyle.Empty,
+        baseStyle = BASE_STYLE_WITH_GLYPHS,
         cameraState = cameraState,
+        options = if (markToolActive) {
+            MapOptions(gestureOptions = GestureOptions(
+                isDoubleTapEnabled = false,
+                isQuickZoomEnabled = false,
+            ))
+        } else {
+            MapOptions()
+        },
+        onMapClick = { position, _ ->
+            onMapClick(position.latitude, position.longitude)
+            ClickResult.Pass
+        },
+        onMapLongClick = { position, dpOffset ->
+            onMapLongClick(
+                position.latitude, position.longitude,
+                dpOffset.x.value, dpOffset.y.value,
+            )
+            ClickResult.Pass
+        },
     ) {
         val tileSource = rememberRasterSource(
             tiles = listOf(tileUrlTemplate),
@@ -64,35 +142,220 @@ fun MapLibreLayer(
             source = tileSource,
         )
 
-        val peerOnlineJson = remember(nodeMarkers) {
-            buildNodeGeoJson(nodeMarkers.filter { it.isOnline })
-        }
-        val peerOfflineJson = remember(nodeMarkers) {
-            buildNodeGeoJson(nodeMarkers.filter { !it.isOnline })
+        // ── Overlay layers (above base map, below node markers) ──────────────
+        for (overlay in selectedOverlays) {
+            // GroundOverlay raster
+            val bitmap = overlay.groundOverlayBitmap
+            val bounds = overlay.groundOverlayBounds
+            if (bitmap != null && bounds != null) {
+                val quad = PositionQuad(
+                    topLeft     = Position(longitude = bounds.west, latitude = bounds.north),
+                    topRight    = Position(longitude = bounds.east, latitude = bounds.north),
+                    bottomRight = Position(longitude = bounds.east, latitude = bounds.south),
+                    bottomLeft  = Position(longitude = bounds.west, latitude = bounds.south),
+                )
+                val imageSource = rememberImageSource(
+                    position = quad,
+                    bitmap = bitmap.asImageBitmap(),
+                )
+                RasterLayer(
+                    id = "overlay-ground-${overlay.id}",
+                    source = imageSource,
+                )
+            }
+
+            // GeoJSON vector
+            val geoJson = overlay.geoJson
+            if (geoJson != null) {
+                val geoSource = rememberGeoJsonSource(GeoJsonData.JsonString(geoJson))
+                FillLayer(
+                    id = "overlay-fill-${overlay.id}",
+                    source = geoSource,
+                )
+                LineLayer(
+                    id = "overlay-line-${overlay.id}",
+                    source = geoSource,
+                )
+            }
         }
 
-        val peerOnlineSource  = rememberGeoJsonSource(GeoJsonData.JsonString(peerOnlineJson))
-        val peerOfflineSource = rememberGeoJsonSource(GeoJsonData.JsonString(peerOfflineJson))
+        val (animatedOnlineJson, animatedOfflineJson, animatedStaleJson) = animateGeoJsonInterpolation(nodeMarkers)
 
+        val peerOnlineSource  = rememberGeoJsonSource(GeoJsonData.JsonString(animatedOnlineJson))
+        val peerOfflineSource = rememberGeoJsonSource(GeoJsonData.JsonString(animatedOfflineJson))
+        val peerStaleSource   = rememberGeoJsonSource(GeoJsonData.JsonString(animatedStaleJson))
+
+        val markerSize = MarkerSizeConfig.fromLevel(markerSizeLevel)
+        val nodeMarkerRadius = MarkerSizeConfig.nodeMarkerRadius(markerSize)
+        val nodeMarkerStrokeWidth = MarkerSizeConfig.nodeMarkerStrokeWidth(markerSize)
+        val nodeIconSize = markerSize
+
+        // Stale nodes (position older than 2 min) — grey circle + grey label
         CircleLayer(
-            id = "node-remote-online-dot",
-            source = peerOnlineSource,
-            color = const(Color(0xFF4CAF50)),
-            radius = const(6.dp),
+            id = "node-stale-dot",
+            source = peerStaleSource,
+            color = const(Color(0xFF9E9E9E)),
+            radius = const(nodeMarkerRadius),
             strokeColor = const(Color.White),
-            strokeWidth = const(1.5.dp),
+            strokeWidth = const(nodeMarkerStrokeWidth),
         )
+
+        SymbolLayer(
+            id = "node-stale-label",
+            source = peerStaleSource,
+            textField = format(span(feature["longName"].asString())),
+            textAnchor = const(SymbolAnchor.Bottom),
+            textOffset = offset(0f.em, (-1.2f).em),
+            textSize = const(12.sp),
+            textColor = const(Color(0xFF9E9E9E)),
+            textHaloColor = const(Color.Black),
+            textHaloWidth = const(1.5.dp),
+            textAllowOverlap = const(true),
+        )
+
+        val stationaryPainter = painterResource(R.drawable.ic_node_marker_stationary)
+        val movingPainter = painterResource(R.drawable.ic_node_marker_moving)
+
+        // Online stationary nodes — diamond with 4 rounded corners (heading unknown)
+        SymbolLayer(
+            id = "node-online-stationary",
+            source = peerOnlineSource,
+            filter = !feature.has("bearing_known"),
+            iconImage = image(stationaryPainter, size = DpSize(nodeIconSize, nodeIconSize)),
+            iconSize = const(1f),
+            iconRotationAlignment = const(IconRotationAlignment.Map),
+            iconAllowOverlap = const(true),
+        )
+
+        // Online moving nodes — sharp top corner rotated to direction of travel
+        SymbolLayer(
+            id = "node-online-moving",
+            source = peerOnlineSource,
+            filter = feature.has("bearing_known"),
+            iconImage = image(movingPainter, size = DpSize(nodeIconSize, nodeIconSize)),
+            iconSize = const(1f),
+            iconRotate = feature["bearing"].cast<FloatValue>(),
+            iconRotationAlignment = const(IconRotationAlignment.Map),
+            iconAllowOverlap = const(true),
+        )
+
         CircleLayer(
             id = "node-remote-offline-dot",
             source = peerOfflineSource,
             color = const(Color(0xFF9E9E9E)),
-            radius = const(6.dp),
+            radius = const(nodeMarkerRadius),
             strokeColor = const(Color.White),
-            strokeWidth = const(1.5.dp),
+            strokeWidth = const(nodeMarkerStrokeWidth),
         )
 
-        // User location arrow is rendered as a Compose overlay in MainScreen.
+        SymbolLayer(
+            id = "node-remote-online-label",
+            source = peerOnlineSource,
+            textField = format(span(feature["longName"].asString())),
+            textAnchor = const(SymbolAnchor.Bottom),
+            textOffset = offset(0f.em, (-1.2f).em),
+            textSize = const(12.sp),
+            textColor = const(Color.White),
+            textHaloColor = const(Color.Black),
+            textHaloWidth = const(1.5.dp),
+            textAllowOverlap = const(true),
+        )
+        SymbolLayer(
+            id = "node-remote-offline-label",
+            source = peerOfflineSource,
+            textField = format(span(feature["longName"].asString())),
+            textAnchor = const(SymbolAnchor.Bottom),
+            textOffset = offset(0f.em, (-1.2f).em),
+            textSize = const(12.sp),
+            textColor = const(Color(0xFFBDBDBD)),
+            textHaloColor = const(Color.Black),
+            textHaloWidth = const(1.5.dp),
+            textAllowOverlap = const(true),
+        )
+
+        // User location arrow — rendered as SymbolLayer so the Box stays at 2 layers.
+        val userLocationSource = rememberGeoJsonSource(GeoJsonData.JsonString(buildUserLocationGeoJson(userPosition)))
+        val navigationArrowPainter = painterResource(R.drawable.ic_navigation_arrow)
+        SymbolLayer(
+            id = "user-location-arrow",
+            source = userLocationSource,
+            iconImage = image(navigationArrowPainter, size = DpSize(nodeIconSize, nodeIconSize)),
+            iconSize = const(1f),
+            iconRotate = const(userBearing),
+            iconRotationAlignment = const(IconRotationAlignment.Map),
+            iconAllowOverlap = const(true),
+        )
+
+        // ── Geo marks ────────────────────────────────────────────────────────
+        // Draft (unsent) marks — hollow cyan circles + dashed line
+        val draftPointsSource = rememberGeoJsonSource(
+            GeoJsonData.JsonString(buildDraftPointsGeoJson(pendingMarkPoints.toList()))
+        )
+        CircleLayer(
+            id = "geo-draft-points",
+            source = draftPointsSource,
+            color = const(Color(0x0029B6F6)),      // transparent fill
+            strokeColor = const(Color(0xFF29B6F6)),
+            strokeWidth = const(2.dp),
+            radius = const(8.dp),
+        )
+        if (pendingMarkPoints.size >= 2) {
+            val draftLineSource = rememberGeoJsonSource(
+                GeoJsonData.JsonString(buildDraftLineGeoJson(pendingMarkPoints.toList()))
+            )
+            LineLayer(
+                id = "geo-draft-line",
+                source = draftLineSource,
+                color = const(Color(0xFF29B6F6)),
+                width = const(2.dp),
+            )
+        }
+
+        // Received / confirmed marks — solid blue
+        val receivedPoints = geoMarks.filter { it.type == GeoMarkType.POINT }
+        val receivedTracks = geoMarks.filter { it.type == GeoMarkType.TRACK }
+
+        val receivedPointsSource = rememberGeoJsonSource(
+            GeoJsonData.JsonString(buildReceivedPointsGeoJson(receivedPoints))
+        )
+        CircleLayer(
+            id = "geo-received-points",
+            source = receivedPointsSource,
+            color = const(Color(0xFF1E88E5)),
+            strokeColor = const(Color.White),
+            strokeWidth = const(2.dp),
+            radius = const(8.dp),
+        )
+
+        if (receivedTracks.isNotEmpty()) {
+            val receivedTracksSource = rememberGeoJsonSource(
+                GeoJsonData.JsonString(buildReceivedTracksGeoJson(receivedTracks))
+            )
+            LineLayer(
+                id = "geo-received-tracks",
+                source = receivedTracksSource,
+                color = const(Color(0xFF1E88E5)),
+                width = const(3.dp),
+            )
+            // Track endpoint circles
+            val trackAnchorsSource = rememberGeoJsonSource(
+                GeoJsonData.JsonString(buildTrackAnchorsGeoJson(receivedTracks))
+            )
+            CircleLayer(
+                id = "geo-received-track-anchors",
+                source = trackAnchorsSource,
+                color = const(Color(0xFF1E88E5)),
+                strokeColor = const(Color.White),
+                strokeWidth = const(2.dp),
+                radius = const(5.dp),
+            )
+        }
     }
+}
+
+private fun buildUserLocationGeoJson(position: Position?): String {
+    if (position == null) return """{"type":"FeatureCollection","features":[]}"""
+    return """{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[${position.longitude},${position.latitude}]},"properties":{}}]}"""
 }
 
 private fun buildNodeGeoJson(nodes: List<NodeMarkerModel>): String {
@@ -100,8 +363,143 @@ private fun buildNodeGeoJson(nodes: List<NodeMarkerModel>): String {
         val lon  = node.position.longitude
         val lat  = node.position.latitude
         val name = node.longName.replace("\\", "\\\\").replace("\"", "\\\"")
-        """{"type":"Feature","geometry":{"type":"Point","coordinates":[$lon,$lat]},"properties":{"longName":"$name"}}"""
+        val bearingProps = if (node.heading != null) {
+            ""","bearing":${node.heading},"bearing_known":true"""
+        } else {
+            ""
+        }
+        """{"type":"Feature","geometry":{"type":"Point","coordinates":[$lon,$lat]},"properties":{"longName":"$name","isStale":${node.isStale}$bearingProps}}"""
     }
     return """{"type":"FeatureCollection","features":[$features]}"""
 }
 
+/**
+ * Holds the previous and current marker lists to interpolate between.
+ */
+private data class MarkerAnimationState(
+    val previous: List<NodeMarkerModel> = emptyList(),
+    val target: List<NodeMarkerModel> = emptyList(),
+)
+
+/**
+ * Interpolates marker positions between the previous and current [nodeMarkers] list.
+ *
+ * When the list changes (positions or contents), this launches a coroutine that emits
+ * intermediate GeoJSON strings at ~60 fps, smoothly transitioning from old to new
+ * coordinates using quadratic ease-in-out.
+ *
+ * New markers (present in target but not in previous) appear instantly at their target
+ * position. Removed markers vanish instantly. Only existing markers with changed positions
+ * are animated.
+ *
+ * Returns a triple of `(onlineGeoJson, offlineGeoJson, staleGeoJson)` that updates every animation frame.
+ */
+@Composable
+private fun animateGeoJsonInterpolation(
+    nodeMarkers: ImmutableList<NodeMarkerModel>,
+): Triple<String, String, String> {
+    var animationState by remember { mutableStateOf(MarkerAnimationState()) }
+    var animatedOnlineJson by remember { mutableStateOf(buildNodeGeoJson(nodeMarkers.filter { it.isOnline && !it.isStale })) }
+    var animatedOfflineJson by remember { mutableStateOf(buildNodeGeoJson(nodeMarkers.filter { !it.isOnline && !it.isStale })) }
+    var animatedStaleJson by remember { mutableStateOf(buildNodeGeoJson(nodeMarkers.filter { it.isStale })) }
+
+    // Detect changes in the nodeMarkers list and start animation.
+    LaunchedEffect(nodeMarkers) {
+        val previous = animationState.target
+        val target = nodeMarkers.toList()
+        animationState = MarkerAnimationState(previous, target)
+
+        // Build lookup: previous positions keyed by nodeId.
+        val previousPositions = previous.associateBy { it.nodeId }
+
+        val totalFrames = (MARKER_ANIMATION_MS / FRAME_INTERVAL_MS).toInt()
+        for (frame in 0..totalFrames) {
+            val rawT = frame.toFloat() / totalFrames
+            val t = quadraticEaseInOut(rawT)
+
+            // Interpolate each marker's position.
+            val interpolated = target.map { targetNode ->
+                val prev = previousPositions[targetNode.nodeId]
+                if (prev != null) {
+                    // Only interpolate if the position actually changed.
+                    val startLon = prev.position.longitude
+                    val startLat = prev.position.latitude
+                    val endLon = targetNode.position.longitude
+                    val endLat = targetNode.position.latitude
+                    if (startLon != endLon || startLat != endLat) {
+                        val interpLon = startLon + (endLon - startLon) * t
+                        val interpLat = startLat + (endLat - startLat) * t
+                        targetNode.copy(
+                            position = ru.tcynik.meshtactics.domain.marker.model.GeoPoint(interpLat, interpLon),
+                        )
+                    } else {
+                        targetNode
+                    }
+                } else {
+                    // New marker — no previous position to interpolate from.
+                    targetNode
+                }
+            }
+
+            animatedOnlineJson = buildNodeGeoJson(interpolated.filter { it.isOnline && !it.isStale })
+            animatedOfflineJson = buildNodeGeoJson(interpolated.filter { !it.isOnline && !it.isStale })
+            animatedStaleJson = buildNodeGeoJson(interpolated.filter { it.isStale })
+
+            if (frame < totalFrames) {
+                delay(FRAME_INTERVAL_MS)
+            }
+        }
+    }
+
+    return Triple(animatedOnlineJson, animatedOfflineJson, animatedStaleJson)
+}
+
+// ── Geo mark GeoJSON builders ─────────────────────────────────────────────────
+
+private fun buildDraftPointsGeoJson(
+    points: List<ru.tcynik.meshtactics.domain.marker.model.GeoPoint>,
+): String {
+    if (points.isEmpty()) return """{"type":"FeatureCollection","features":[]}"""
+    val features = points.joinToString(",") { pt ->
+        """{"type":"Feature","geometry":{"type":"Point","coordinates":[${pt.longitude},${pt.latitude}]},"properties":{}}"""
+    }
+    return """{"type":"FeatureCollection","features":[$features]}"""
+}
+
+private fun buildDraftLineGeoJson(
+    points: List<ru.tcynik.meshtactics.domain.marker.model.GeoPoint>,
+): String {
+    if (points.size < 2) return """{"type":"FeatureCollection","features":[]}"""
+    val coords = points.joinToString(",") { "[${it.longitude},${it.latitude}]" }
+    return """{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"LineString","coordinates":[$coords]},"properties":{}}]}"""
+}
+
+private fun buildReceivedPointsGeoJson(marks: List<GeoMarkModel>): String {
+    if (marks.isEmpty()) return """{"type":"FeatureCollection","features":[]}"""
+    val features = marks.joinToString(",") { mark ->
+        val anchor = mark.points.first()
+        """{"type":"Feature","geometry":{"type":"Point","coordinates":[${anchor.longitude},${anchor.latitude}]},"properties":{}}"""
+    }
+    return """{"type":"FeatureCollection","features":[$features]}"""
+}
+
+private fun buildReceivedTracksGeoJson(marks: List<GeoMarkModel>): String {
+    if (marks.isEmpty()) return """{"type":"FeatureCollection","features":[]}"""
+    val features = marks.joinToString(",") { mark ->
+        val coords = mark.points.joinToString(",") { "[${it.longitude},${it.latitude}]" }
+        """{"type":"Feature","geometry":{"type":"LineString","coordinates":[$coords]},"properties":{}}"""
+    }
+    return """{"type":"FeatureCollection","features":[$features]}"""
+}
+
+/** Anchor (first) and last point of each track — rendered as endpoint circles. */
+private fun buildTrackAnchorsGeoJson(marks: List<GeoMarkModel>): String {
+    if (marks.isEmpty()) return """{"type":"FeatureCollection","features":[]}"""
+    val features = marks.flatMap { mark ->
+        listOfNotNull(mark.points.firstOrNull(), mark.points.lastOrNull()
+            .takeIf { mark.points.size > 1 })
+    }.joinToString(",") { pt ->
+        """{"type":"Feature","geometry":{"type":"Point","coordinates":[${pt.longitude},${pt.latitude}]},"properties":{}}"""
+    }
+    return """{"type":"FeatureCollection","features":[$features]}"""
+}

@@ -15,6 +15,8 @@ import ru.tcynik.meshtactics.data.remote.api.MeshApiService
 import ru.tcynik.meshtactics.data.repository.NodeRepositoryImpl
 import ru.tcynik.meshtactics.data.settings.AppSettings
 import ru.tcynik.meshtactics.domain.repository.NodeRepository
+import ru.tcynik.meshtactics.domain.settings.repository.MapCacheSettingsRepository
+import ru.tcynik.meshtactics.domain.settings.repository.MarkerSettingsRepository
 import ru.tcynik.meshtactics.domain.usecase.node.GetNodesUseCase
 
 val commonModule: Module = module {
@@ -42,9 +44,15 @@ val commonModule: Module = module {
     // Data — local (SqlDriver предоставляется платформенным модулем)
     single { AppDatabase(get<SqlDriver>()) }
     single { get<AppDatabase>().nodeQueries }
+    single { get<AppDatabase>().importedMapOverlayQueries }
+    single { get<AppDatabase>().geoMarkQueries }
+    single { get<AppDatabase>().contourQueries }
+    single { get<AppDatabase>().chatMessageQueries }
 
     // Data — settings (Settings предоставляется платформенным модулем)
     single { AppSettings(get()) }
+    single<MarkerSettingsRepository> { get<AppSettings>() }
+    single<MapCacheSettingsRepository> { get<AppSettings>() }
 
     // Domain
     single<NodeRepository> { NodeRepositoryImpl(get(), get(), get()) }

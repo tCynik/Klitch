@@ -12,17 +12,21 @@ import ru.tcynik.meshtactics.NoOpPlatformAnalytics
 import ru.tcynik.meshtactics.mesh.common.BuildConfigProvider
 import ru.tcynik.meshtactics.mesh.repository.AppWidgetUpdater
 import ru.tcynik.meshtactics.mesh.repository.PlatformAnalytics
+import ru.tcynik.meshtactics.data.local.mesh.LastConnectedDeviceRepositoryImpl
 import ru.tcynik.meshtactics.data.mesh.repository.MeshConfigRepositoryImpl
 import ru.tcynik.meshtactics.data.mesh.repository.MeshConnectionRepositoryImpl
 import ru.tcynik.meshtactics.data.mesh.repository.MeshMessagingRepositoryImpl
 import ru.tcynik.meshtactics.data.mesh.repository.MeshNetworkRepositoryImpl
 import ru.tcynik.meshtactics.data.mesh.repository.MeshPacketLogRepositoryImpl
+import ru.tcynik.meshtactics.domain.mesh.repository.LastConnectedDeviceRepository
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshConfigRepository
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshConnectionRepository
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshMessagingRepository
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshNetworkRepository
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshPacketLogRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.SaveLastConnectedDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
@@ -32,9 +36,32 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMessagesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveOurNodeUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGeoNodesUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveLocationConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObservePacketLogUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RemoveFixedPositionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SendMeshMessageUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.SetProvideLocationUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelPositionPrecisionUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.WritePositionConfigUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeyUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveNodeSecurityConfigUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
+import ru.tcynik.meshtactics.data.mesh.GeoSendPolicyImpl
+import ru.tcynik.meshtactics.data.mesh.repository.RebootStateRepositoryImpl
+import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
+import ru.tcynik.meshtactics.mesh.repository.GeoSendPolicy
 
 val meshDataModule = module {
 
@@ -58,9 +85,11 @@ val meshDataModule = module {
     single<MeshConnectionRepository> {
         MeshConnectionRepositoryImpl(
             bleScanner = get(),
+            bluetoothRepository = get(),
             radioInterfaceService = get(),
             serviceRepository = get(),
             nodeRepository = get(),
+            logger = get(),
         )
     }
     single<MeshNetworkRepository> {
@@ -71,6 +100,7 @@ val meshDataModule = module {
             packetRepository = get(),
             commandSender = get(),
             nodeRepository = get(),
+            logger = get(),
         )
     }
     single<MeshPacketLogRepository> {
@@ -81,16 +111,28 @@ val meshDataModule = module {
             meshRouter = get(),
             nodeRepository = get(),
             commandSender = get(),
+            uiPrefs = get(),
+            context = androidContext(),
+            logger = get(),
         )
     }
+
+    single<RebootStateRepository> { RebootStateRepositoryImpl() }
+
+    single<GeoSendPolicy> { GeoSendPolicyImpl(get()) }
+
+    single<LastConnectedDeviceRepository> { LastConnectedDeviceRepositoryImpl(get()) }
+    single { GetLastConnectedDeviceUseCase(get()) }
+    single { SaveLastConnectedDeviceUseCase(get()) }
 
     // --- Use Cases ---
     single { ObserveConnectionStatusUseCase(get()) }
     single { ScanMeshDevicesUseCase(get()) }
-    single { ConnectToMeshDeviceUseCase(get()) }
+    single { ConnectToMeshDeviceUseCase(get(), get()) }
     single { DisconnectFromMeshUseCase(get()) }
     single { ObserveMeshNodesUseCase(get()) }
     single { ObserveOurNodeUseCase(get()) }
+    single { ObserveGeoNodesUseCase(get()) }
     single { ObserveMessagesUseCase(get()) }
     single { SendMeshMessageUseCase(get()) }
     single { ObservePacketLogUseCase(get()) }
@@ -98,4 +140,27 @@ val meshDataModule = module {
     single { RequestDeviceConfigUseCase(get()) }
     single { WriteOwnerUseCase(get()) }
     single { WriteChannelUseCase(get()) }
+    single { ObserveLocationConfigUseCase(get()) }
+    single { SetProvideLocationUseCase(get()) }
+    single { WritePositionConfigUseCase(get()) }
+    single { WriteChannelPositionPrecisionUseCase(get()) }
+    single { RemoveFixedPositionUseCase(get()) }
+    single { EnableNodePositionBroadcastReadyUseCase(get()) }
+    single { DisableNodePositionBroadcastUseCase(get()) }
+    single { RebootNodeUseCase(get()) }
+    single { CheckOwnPkcHealthUseCase(get()) }
+    single { RefreshNodePublicKeysUseCase(get()) }
+    single { RefreshNodePublicKeyUseCase(get()) }
+    single { RegeneratePkcKeysUseCase(get()) }
+    single { ObserveCallsignChangesUseCase(get()) }
+    single { ObserveNodeSecurityConfigUseCase(get()) }
+    single {
+        NodeProvisioningUseCase(
+            observeContours = get<ObserveContoursUseCase>(),
+            writeChannel = get(),
+            observeNodeChannels = get<ObserveNodeChannelsUseCase>(),
+            resolveSlot = get<ResolveChannelSlotUseCase>(),
+            logger = get(),
+        )
+    }
 }

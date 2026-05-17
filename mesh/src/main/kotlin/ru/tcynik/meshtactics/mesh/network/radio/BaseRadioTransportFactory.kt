@@ -39,7 +39,7 @@ abstract class BaseRadioTransportFactory(
     override fun isAddressValid(address: String?): Boolean {
         val spec = address?.firstOrNull() ?: return false
         return spec in
-            listOf(InterfaceId.TCP.id, InterfaceId.SERIAL.id, InterfaceId.BLUETOOTH.id, InterfaceId.MOCK.id) ||
+            listOf(InterfaceId.TCP.id, InterfaceId.SERIAL.id, InterfaceId.BLUETOOTH.id) ||
             spec == '!' ||
             isPlatformAddressValid(address)
     }

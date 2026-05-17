@@ -32,6 +32,8 @@ class KableBleDevice(val advertisement: Advertisement) : BleDevice {
 
     // On desktop, bonding isn't strictly required before connecting via Kable,
     // and we don't have a pairing flow. Defaulting to true lets the UI connect directly.
+    override val rssi: Int get() = advertisement.rssi
+
     override val isBonded: Boolean = true
 
     override val isConnected: Boolean

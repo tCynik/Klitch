@@ -19,6 +19,7 @@ You are the feature planner for the MeshTactics project. Your job is to decompos
 - `/ui-designer` — visual design system: colors, typography, spacing, components, UX patterns
 - `/icon-designer` — button icon design in MeshIconButton style (delegated from `/ui-designer`)
 - `/tester` — test scaffolding: FlowUseCase/Turbine, ViewModel/MockK, SQLDelight integration; invoke in Phase 4
+- `/iterate` — debug and iteration on existing features: bug diagnosis, scoped extensions, feature health review; invoke when returning to a Done feature
 - `/planner` — this skill
 
 **Before planning, always check `.claude/commands/` for skills added since this snapshot. If new skills exist, use them in the coordination map where appropriate.**
@@ -102,6 +103,8 @@ Output a structured plan with phases. Each phase must have:
 - After implementation is complete: run `/simplify` on changed files before Phase 5
 - Output: buildable code, simplified and ready for review
 
+> **Logger checklist**: every new class that logs anything adds `logger: Logger` to its constructor and `get()` to its Koin binding. Feature tag is a string constant local to the class (e.g. `"GPS"`, `"BLE"`, `"Map"`). Never use `android.util.Log` directly.
+
 **Phase 4 — Testing**
 - Goal: feature verified at unit + integration level
 - Tasks:
@@ -137,17 +140,47 @@ Output a structured plan with phases. Each phase must have:
 **Rule**: this phase is never skipped. If there is nothing to update, say so explicitly for each skill — do not silently omit the phase.
 
 **Phase 6b — Project Docs & Memory Update** *(always, after Phase 6)*
-- Goal: project metadata and Claude's memory reflect the completed feature
+- Goal: project metadata, feature documentation, and Claude's memory reflect the completed feature
 - Tasks:
   - Update feature status in **CLAUDE.md** status table (e.g. `In Progress` → `Done`)
-  - Set plan file `.claude/plans/<feature-slug>.md` status to `Done`
+  - **Create or update `.claude/docs/<feature-slug>.md`** — see *Feature Doc Format* below
+  - **Move the plan to archive**: copy `.claude/plans/<feature-slug>.md` → `.claude/archive/<feature-slug>.md`, then delete the original from `plans/`. **After deletion, verify with `ls .claude/plans/` that the file is gone — do not proceed to Phase 7 until confirmed.**
   - Review memory files in `~/.claude/projects/.../memory/` — update `project_state.md` and any other stale entries (completed features, new patterns, resolved decisions)
   - If the feature introduced a workflow insight worth preserving — add it to `workflow_feedback.md`
-  - **Token log**: append to the plan file's Change Log: `- <date>: done | tokens: <value>`. Ask the user to check `/cost` or the status bar and provide the number. If not recorded — write `tokens: not recorded`.
+  - **Token log**: append to the archived plan file's Change Log: `- <date>: done | tokens: <value>`. Ask the user to check `/cost` or the status bar and provide the number. If not recorded — write `tokens: not recorded`.
 - Skill: direct edit (Write / Edit tools)
-- Output: CLAUDE.md accurate, plan file closed, memory up to date, token cost recorded
+- Output: CLAUDE.md accurate, feature doc created/updated, plan archived, memory up to date, token cost recorded
 
 **Rule**: this phase is never skipped. If memory and docs are already accurate, say so explicitly — do not silently omit.
+
+#### Feature Doc Format
+
+File: `.claude/docs/<feature-slug>.md`
+
+```markdown
+# <Feature Name>
+
+## What it does
+1–2 sentences describing the user-facing behaviour.
+
+## Key classes
+- `ClassName` — role, which layer (domain / data / presentation)
+
+## Non-obvious decisions
+- <what and why — not "what the code does" but "why this approach over alternatives">
+
+## Known limitations / planned extensions
+- <MVP shortcuts, deferred scope, future work>
+
+## Source
+Plan: `.claude/archive/<feature-slug>.md`
+```
+
+**Rules for feature docs:**
+- This is a *living document* — update it whenever the feature changes (bugfix, extension, refactor)
+- The archive plan is historical — never modify it after archiving
+- Keep it short: if a decision is obvious from the code, omit it; only document what a reader *cannot* derive by reading the implementation
+- When returning to a Done feature for a bugfix or extension, read the feature doc first
 
 **Phase 7 — Commit Preparation** *(always, after Phase 5, Phase 6, and Phase 6b are complete)*
 - Goal: all changes staged, commit message ready, waiting for user confirmation
@@ -181,7 +214,7 @@ Phase 3: [direct coding] → /simplify
 Phase 4: [direct coding — tests]
 Phase 5: /architect review: ...
 Phase 6: [skill update review]
-Phase 6b: [docs & memory update — CLAUDE.md, plan file, memory/]
+Phase 6b: [docs & memory — CLAUDE.md, create/update .claude/docs/<slug>.md, archive plan, memory/]
 Phase 7: [stage files by name] → [propose commit message] → [wait for confirmation] → git commit
 ```
 

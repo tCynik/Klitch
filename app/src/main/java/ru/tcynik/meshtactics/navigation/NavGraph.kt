@@ -1,6 +1,7 @@
 package ru.tcynik.meshtactics.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.navigation.compose.NavHost
@@ -17,6 +18,7 @@ import ru.tcynik.meshtactics.presentation.feature.chat.ChatScreen
 import ru.tcynik.meshtactics.presentation.feature.chat.ChatViewModel
 import ru.tcynik.meshtactics.presentation.feature.groups.GroupManagementScreen
 import ru.tcynik.meshtactics.presentation.feature.groups.GroupsViewModel
+import ru.tcynik.meshtactics.presentation.feature.main.HudNavCallbacks
 import ru.tcynik.meshtactics.presentation.feature.main.MainScreen
 import ru.tcynik.meshtactics.presentation.feature.main.MainViewModel
 import ru.tcynik.meshtactics.presentation.feature.markers.MarkerManagementScreen
@@ -27,12 +29,18 @@ import ru.tcynik.meshtactics.presentation.feature.node.NodeSettingsViewModel
 import ru.tcynik.meshtactics.presentation.feature.node.NodeStatusDialog
 import ru.tcynik.meshtactics.presentation.feature.node.NodeStatusViewModel
 import ru.tcynik.meshtactics.presentation.feature.nodes.NodesScreen
-import ru.tcynik.meshtactics.presentation.feature.settings.SettingsScreen
-import ru.tcynik.meshtactics.presentation.feature.settings.SettingsViewModel
+import android.app.Activity
+import androidx.compose.ui.platform.LocalContext
+import ru.tcynik.meshtactics.presentation.feature.settings.display.DisplaySettingsScreen
+import ru.tcynik.meshtactics.presentation.feature.settings.main.MainSettingsScreen
+import ru.tcynik.meshtactics.presentation.feature.settings.map.MapSettingsScreen
+import ru.tcynik.meshtactics.presentation.feature.settings.user.UserSettingsScreen
+import ru.tcynik.meshtactics.service.GpsService
 
 @Composable
 fun NavGraph() {
     val navController = rememberNavController()
+    val context = LocalContext.current
 
     BlePermissionGuard {
         NavHost(
@@ -44,17 +52,45 @@ fun NavGraph() {
             composable<Route.Main> {
                 val viewModel: MainViewModel = koinViewModel()
                 val uiState by viewModel.uiState.collectAsState()
+                val hudConfig by viewModel.hudConfig.collectAsState()
+                val hudUiState by viewModel.hudUiState.collectAsState()
+                val menuDrawerUiState by viewModel.menuDrawerUiState.collectAsState()
                 val locationProvider: LocationProvider = koinInject()
                 val orientationProvider: DeviceOrientationProvider = koinInject()
+
+                // Provide navigation callbacks to ViewModel once navController is available.
+                // Unit key — callbacks are stable for the lifetime of this destination.
+                LaunchedEffect(Unit) {
+                    viewModel.provideNavCallbacks(
+                        HudNavCallbacks(
+                            onRadioClick           = { navController.navigate(Route.MeshTest()) },
+                            onMeshClick            = { navController.navigate(Route.Nodes) },
+                            onChatClick            = { navController.navigate(Route.Chat) },
+                            onMainSettingsClick    = { navController.navigate(Route.MainSettings) },
+                            onMapSettingsClick     = { navController.navigate(Route.MapSettings) },
+                            onDisplaySettingsClick = { navController.navigate(Route.DisplaySettings) },
+                            onUserSettingsClick    = { navController.navigate(Route.UserSettings) },
+                            onExitApp              = {
+                                context.stopService(GpsService.createIntent(context))
+                                (context as? Activity)?.finishAndRemoveTask()
+                            },
+                        )
+                    )
+                }
+
                 MainScreen(
                     uiState = uiState,
+                    hudConfig = hudConfig,
+                    hudUiState = hudUiState,
                     onCameraPositionChanged = viewModel::onCameraPositionChanged,
-                    onChatClick = { navController.navigate(Route.Chat) },
-                    onSettingsClick = { navController.navigate(Route.Settings) },
-                    onNodeStatusClick = { navController.navigate(Route.MeshTest()) },
-                    onMarkerManagementClick = { navController.navigate(Route.MarkerManagement) },
                     locationProvider = locationProvider,
                     orientationProvider = orientationProvider,
+                    onMapClick = viewModel::onMapClick,
+                    onMapLongClick = viewModel::onMapLongClick,
+                    onSendPendingMark = viewModel::sendPendingMark,
+                    contextMenuEvents = viewModel.contextMenuEvent,
+                    onDeletePendingPoint = viewModel::deletePendingPoint,
+                    menuDrawerUiState = menuDrawerUiState,
                 )
             }
 
@@ -68,11 +104,30 @@ fun NavGraph() {
                 )
             }
 
-            composable<Route.Settings> {
-                val viewModel: SettingsViewModel = koinViewModel()
-                val uiState by viewModel.uiState.collectAsState()
-                SettingsScreen(
-                    uiState = uiState,
+            composable<Route.MainSettings> {
+                MainSettingsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onExitApp = {
+                        context.stopService(GpsService.createIntent(context))
+                        (context as? Activity)?.finishAndRemoveTask()
+                    },
+                )
+            }
+
+            composable<Route.MapSettings> {
+                MapSettingsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                )
+            }
+
+            composable<Route.DisplaySettings> {
+                DisplaySettingsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                )
+            }
+
+            composable<Route.UserSettings> {
+                UserSettingsScreen(
                     onNavigateBack = { navController.popBackStack() },
                 )
             }
@@ -83,6 +138,9 @@ fun NavGraph() {
                 NodeSettingsScreen(
                     uiState = uiState,
                     onNavigateBack = { navController.popBackStack() },
+                    onRegenerateClick = viewModel::onRegenerateClick,
+                    onRegenerateConfirm = viewModel::onRegenerateConfirm,
+                    onRegenerateDismiss = viewModel::onRegenerateDismiss,
                 )
             }
 
@@ -120,6 +178,7 @@ fun NavGraph() {
                     onNodeClick = { nodeId ->
                         navController.navigate(Route.MeshTest(nodeId))
                     },
+                    onNavigateBack = { navController.popBackStack() },
                 )
             }
 

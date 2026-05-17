@@ -54,6 +54,7 @@ fun ConnectionTab(
                     onClick = onScanClick,
                     modifier = Modifier.weight(1f),
                     enabled = connectionStatus is MeshConnectionStatusUi.Disconnected
+                            || connectionStatus is MeshConnectionStatusUi.Scanning
                             || connectionStatus is MeshConnectionStatusUi.Error,
                 ) {
                     Text("Scan for devices")

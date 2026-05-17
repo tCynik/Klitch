@@ -27,26 +27,36 @@ import kotlin.uuid.Uuid
 @Single
 class KableBleScanner : BleScanner {
     override fun scan(timeout: Duration, serviceUuid: Uuid?, address: String?): Flow<BleDevice> {
+        // Service UUID is intentionally kept OUT of the native ScanFilter.
+        // Android's hardware BLE filter is applied before the device's scan response is received.
+        // If the service UUID is in the scan response (or Android hasn't cached the response yet),
+        // the hardware filter silently drops the device on the first scan pass.
+        // On restart the device IS found because Android has the scan response cached from the
+        // previous pass and the hardware filter succeeds.
+        //
+        // Fix: scan with address-only hardware filter (always reliable), and filter by service UUID
+        // in software against advertisement.uuids — which Android assembles from BOTH the primary
+        // advertisement and the scan response, making it immune to this timing issue.
         val scanner = Scanner {
-            if (serviceUuid != null || address != null) {
+            if (address != null) {
                 filters {
                     match {
-                        if (serviceUuid != null) {
-                            services = listOf(serviceUuid)
-                        }
-                        if (address != null) {
-                            this.address = address
-                        }
+                        this.address = address
                     }
                 }
             }
         }
 
-        // Kable's Scanner doesn't enforce timeout internally, it runs until the Flow is cancelled.
-        // By wrapping it in a channelFlow with a timeout, we enforce the BleScanner contract cleanly.
+        // Kable's Scanner doesn't enforce timeout internally; it runs until the Flow is cancelled.
+        // channelFlow + withTimeoutOrNull enforces the BleScanner timeout contract cleanly.
         return kotlinx.coroutines.flow.channelFlow {
             kotlinx.coroutines.withTimeoutOrNull(timeout) {
-                scanner.advertisements.collect { advertisement -> send(KableBleDevice(advertisement)) }
+                scanner.advertisements.collect { advertisement ->
+                    val matchesService = serviceUuid == null || advertisement.uuids.any { it == serviceUuid }
+                    if (matchesService) {
+                        send(KableBleDevice(advertisement))
+                    }
+                }
             }
         }
     }

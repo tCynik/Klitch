@@ -21,6 +21,7 @@ import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MeshConnectionS
 @Composable
 fun MeshStatusBar(
     status: MeshConnectionStatusUi,
+    rebootingNodeName: String,
     onDisconnectClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -38,7 +39,7 @@ fun MeshStatusBar(
             StatusDot(status = status)
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = statusLabel(status),
+                text = statusLabel(status, rebootingNodeName),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f),
             )
@@ -83,6 +84,7 @@ private fun StatusDot(status: MeshConnectionStatusUi) {
     val color = when (status) {
         is MeshConnectionStatusUi.Connected -> Color(0xFF4CAF50)
         is MeshConnectionStatusUi.Connecting -> Color(0xFFFFC107)
+        is MeshConnectionStatusUi.Rebooting -> Color(0xFFFFC107)
         is MeshConnectionStatusUi.Scanning -> Color(0xFF2196F3)
         is MeshConnectionStatusUi.Error -> MaterialTheme.colorScheme.error
         is MeshConnectionStatusUi.Disconnected -> MaterialTheme.colorScheme.outline
@@ -92,9 +94,12 @@ private fun StatusDot(status: MeshConnectionStatusUi) {
     }
 }
 
-private fun statusLabel(status: MeshConnectionStatusUi): String = when (status) {
+private fun statusLabel(status: MeshConnectionStatusUi, rebootingNodeName: String): String = when (status) {
     is MeshConnectionStatusUi.Disconnected -> "Not connected"
     is MeshConnectionStatusUi.Scanning -> "Scanning..."
+    is MeshConnectionStatusUi.Rebooting ->
+        if (rebootingNodeName.isNotBlank()) "$rebootingNodeName - Перезагрузка..."
+        else "Перезагрузка..."
     is MeshConnectionStatusUi.Connecting -> "Connecting to ${status.deviceName}..."
     is MeshConnectionStatusUi.Connected -> status.nodeId
     is MeshConnectionStatusUi.Error -> "Error: ${status.message}"

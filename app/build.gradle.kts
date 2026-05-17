@@ -75,8 +75,15 @@ dependencies {
     // Immutable collections
     implementation(libs.immutable.collections)
 
+    // DataStore
+    implementation(libs.datastore.preferences)
+
     // Coroutines
     implementation(libs.coroutines.android)
+
+    // SQLDelight — coroutines extensions (asFlow / mapToList used in ImportedMapRepositoryImpl)
+    implementation(libs.sqldelight.coroutines)
+    testImplementation(libs.sqldelight.jvm.driver)
 
     // WorkManager
     implementation(libs.work.runtime)
@@ -86,9 +93,15 @@ dependencies {
     implementation(libs.koin.compose)
     implementation(libs.koin.compose.viewmodel)
 
+    // OSMBonusPack — KML/KMZ parser
+    implementation("com.github.MKergall:osmbonuspack:6.9.0")
+
     // maplibre-compose — Jetpack Compose wrapper for MapLibre (pulls in android-sdk transitively)
     // Note: if field device OpenGL ES compatibility issues arise, investigate android-sdk-opengl variant
     implementation("org.maplibre.compose:maplibre-compose:0.12.1")
+
+    // OkHttp — explicit declaration required for TileCacheInterceptor / TileCacheOkHttpConfigurator
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // Тестирование
     testImplementation(libs.junit)

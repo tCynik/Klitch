@@ -1,3 +1,123 @@
 <resources>
     <string name="app_name">MeshTactics</string>
+    <string name="gps_notification_channel_name">GPS Background</string>
+    <string name="gps_notification_title">GPS активен</string>
+    <string name="gps_notification_text">Отслеживание местоположения</string>
+    <string name="settings_title">Настройки</string>
+    <string name="settings_main_title">Главная</string>
+    <string name="settings_map_title">Карта</string>
+    <string name="settings_display_title">Экран</string>
+    <string name="settings_user_title">Пользователь</string>
+    <string name="settings_saved">Сохранено</string>
+    <string name="settings_back_description">Назад</string>
+    <string name="settings_marker_size_label">Размер маркера: %ddp (уровень %d)</string>
+    <string name="settings_save_button">Сохранить</string>
+    <string name="settings_exit_app_description">Выйти из приложения</string>
+    <string name="settings_exit_app_icon">Иконка выхода</string>
+    <string name="map_add_button">Добавить</string>
+    <string name="map_item_more_actions">Дополнительные действия</string>
+    <string name="map_item_hide">Скрыть</string>
+    <string name="map_item_delete">Удалить</string>
+    <string name="map_delete_confirm_title">Удалить файл?</string>
+    <string name="map_delete_confirm_message">Файл будет удалён из системы. Это действие необратимо.</string>
+    <string name="map_delete_confirm_yes">Удалить</string>
+    <string name="map_delete_confirm_no">Отмена</string>
+    <string name="chat_title">Чаты</string>
+    <string name="chat_tab_filter">Фильтр</string>
+    <string name="chat_tab_chat">Чат</string>
+    <string name="chat_select_all">Выбрать всё</string>
+    <string name="chat_deselect_all">Снять выделение</string>
+    <string name="chat_select_favorite">Избранное</string>
+    <string name="chat_select_archive">Архив</string>
+    <string name="chat_search_hint">Поиск...</string>
+    <string name="chat_send">Отправить</string>
+    <string name="chat_input_hint">Сообщение...</string>
+    <string name="chat_menu_pin">Закрепить</string>
+    <string name="chat_menu_unpin">Открепить</string>
+    <string name="chat_menu_favorite">В избранное</string>
+    <string name="chat_menu_unfavorite">Убрать из избранного</string>
+    <string name="chat_menu_read">Пометить прочитанным</string>
+    <string name="chat_menu_archive">В архив</string>
+    <string name="chat_menu_unarchive">Из архива</string>
+    <string name="chat_menu_clear">Очистить</string>
+    <string name="chat_clear_confirm">Очистить чат?</string>
+    <string name="chat_clear_confirm_button">Очистить</string>
+    <string name="chat_cancel">Отмена</string>
+    <string name="chat_inactive_contour">Контур неактивен</string>
+
+    <!-- User Settings Tab -->
+    <string name="user_section_profile">Профиль</string>
+    <string name="user_display_name_label">Позывной</string>
+    <string name="user_short_name_label">Короткое имя</string>
+    <string name="user_save_button">Сохранить</string>
+    <string name="user_section_radio">Радио</string>
+    <string name="user_gps_broadcast_label">Транслировать геопозицию</string>
+    <string name="user_section_contours">Контуры</string>
+    <string name="user_add_contour_button">+ Добавить контур</string>
+    <string name="user_channel_edit">Редактировать</string>
+    <string name="user_channel_delete">Удалить</string>
+    <string name="user_channel_more_actions">Действия с каналом</string>
+    <string name="user_channel_delete_title">Удалить канал?</string>
+    <string name="user_channel_delete_message">Канал будет удалён. Это действие необратимо.</string>
+    <string name="user_channel_delete_confirm">Удалить</string>
+    <string name="user_channel_delete_cancel">Отмена</string>
+
+    <string name="user_channel_push_to_node">Записать в ноду</string>
+    <string name="user_channel_delete_from_node">Удалить из ноды</string>
+
+    <!-- Channel sync status badges -->
+    <string name="channel_sync_on_node">На ноде · слот %d</string>
+    <string name="channel_sync_not_on_node">Не на ноде</string>
+    <string name="channel_sync_no_free_slot">Нет слотов</string>
+    <string name="channel_auto_sync_label">Авто-синхронизация</string>
+
+    <!-- HUD -->
+    <string name="hud_radio_setup_channel">Настройте канал</string>
+
+    <!-- Channel sync snackbar messages -->
+    <string name="channel_snackbar_sent">Канал «%s» записан в ноду</string>
+    <string name="channel_snackbar_not_connected">Нет подключения к ноде</string>
+    <string name="channel_snackbar_no_free_slot">Нет свободных слотов (1–7)</string>
+
+    <!-- Channel Editor Sheet -->
+    <string name="channel_editor_title_new">Новый канал</string>
+    <string name="channel_editor_title_edit">Редактировать канал</string>
+    <string name="channel_editor_name_label">Название</string>
+    <string name="channel_editor_meshtastic_section">Meshtastic</string>
+    <string name="channel_editor_psk_label">PSK (base64)</string>
+    <string name="channel_editor_psk_generate">Сгенерировать</string>
+    <string name="channel_editor_psk_error">Невалидный PSK: требуется 16 или 32 байта в base64</string>
+    <string name="channel_editor_cancel">Отмена</string>
+    <string name="channel_editor_save">Сохранить</string>
+
+    <string name="emergency_trigger_dialog_title">Позвать на помощь?</string>
+    <string name="emergency_trigger_dialog_confirm">ДА</string>
+    <string name="emergency_trigger_dialog_dismiss">Отмена</string>
+    <string name="emergency_cancel_dialog_title">Всё хорошо? Отменить тревогу?</string>
+    <string name="emergency_cancel_dialog_confirm">Да</string>
+    <string name="emergency_cancel_dialog_dismiss">Нет</string>
+    <string name="emergency_toast_triggered">Запрос о помощи отправлен. Трансляция геопозиции начата.</string>
+    <string name="sync_required_dialog_title">Требуется синхронизация</string>
+    <string name="sync_required_dialog_message">Для работы требуется синхронизация настроек ноды. После синхронизации нода будет перезагружена.</string>
+    <string name="sync_required_dialog_confirm">Да</string>
+    <string name="sync_required_dialog_dismiss">Нет</string>
+
+    <!-- Leave Settings Dialog -->
+    <string name="leave_settings_dialog_title">Сохранить изменения?</string>
+    <string name="leave_settings_dialog_message">Нода будет перезагружена.</string>
+    <string name="leave_settings_dialog_save">Сохранить</string>
+    <string name="leave_settings_dialog_discard">Сбросить</string>
+
+    <!-- Tile Cache Settings -->
+    <string name="tile_cache_section_label">Кэш тайлов</string>
+    <string name="tile_cache_mode_default">По умолчанию</string>
+    <string name="tile_cache_mode_default_desc">Заголовки сервера (~7 дней)</string>
+    <string name="tile_cache_mode_month">Месяц</string>
+    <string name="tile_cache_mode_month_desc">Хранить тайлы 30 дней</string>
+    <string name="tile_cache_mode_maximum">Максимально</string>
+    <string name="tile_cache_mode_maximum_desc">Хранить тайлы 1 год</string>
+    <string name="tile_cache_maximum_warning_title">Большой объём хранилища</string>
+    <string name="tile_cache_maximum_warning_message">Режим «Максимально» накапливает до 100 МБ тайлов на диске. Кэш не очищается автоматически.</string>
+    <string name="tile_cache_maximum_warning_confirm">Продолжить</string>
+    <string name="tile_cache_maximum_warning_dismiss">Отмена</string>
 </resources>

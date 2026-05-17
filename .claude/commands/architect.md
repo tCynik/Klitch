@@ -39,6 +39,7 @@ shared/data            ← implements domain interfaces, not the other way aroun
 - `FlowUseCase` (reactive): see `shared/src/commonMain/.../usecase/node/GetNodesUseCase.kt:9`
 - `UseCase` (suspend, one-shot): see `app/src/main/.../mesh/usecase/ConnectToMeshDeviceUseCase.kt:8`
 - SyncUseCase — plain `operator fun invoke`, no base class: see `app/src/main/.../map/usecase/GetLastMapPositionUseCase.kt:6`
+- Pure domain use case (no repository dep) — plain `operator fun invoke`, zero constructor args, registered as `single`: see `domain/channel/usecase/ResolveChannelSlotUseCase.kt`
 
 > Do NOT use `FlowUseCase` or `UseCase` for synchronous operations — use plain `operator fun invoke`.
 
@@ -78,6 +79,8 @@ fun NodeDto.toDomain() = NodeModel(
 
 > Settings-backed repos: inject `Settings` directly via `get<Settings>()`, NOT `AppSettings`. Add `implementation(libs.multiplatform.settings)` to `app/build.gradle.kts` if the repo lives in `app/data/local/` (Settings is `implementation`-scoped in `:shared`).
 
+> Logger injection: any new class with logging adds `logger: Logger` to its constructor and `get()` in its Koin binding. Feature tag is a local constant (e.g. `"GPS"`, `"BLE"`, `"Chat"`). `LoggerModule` is already registered — no changes needed there. Tests pass `NoOpLogger()` directly.
+
 ### SQL (SQLDelight)
 
 See `shared/src/commonMain/sqldelight/.../data/local/Node.sq:1`
@@ -86,9 +89,9 @@ See `shared/src/commonMain/sqldelight/.../data/local/Node.sq:1`
 
 ## Canonical Patterns (continued)
 
-### Main Screen: 2-Layer OSD Composition
+### Main Screen: 2-Layer OSD Composition + Conditional Overlays
 
-The main screen is a `Box` with exactly **2 Compose layers**. This is the canonical structure — do not add more layers.
+The main screen `Box` has **2 always-rendered base layers**:
 
 ```kotlin
 Box(Modifier.fillMaxSize()) {
@@ -98,6 +101,29 @@ Box(Modifier.fillMaxSize()) {
 ```
 
 `MapLibreLayer` internally manages all 5 spatial product layers (tiles, grids, markers, live telemetry, channel markers) using MapLibre's own layer system. No additional Compose layers for spatial content.
+
+**Conditional overlay composables** (inside the same Box, rendered only when needed) are allowed in addition to the 2 base layers:
+
+```kotlin
+Box(Modifier.fillMaxSize()) {
+    MapLibreLayer(...)                               // z1 — always rendered
+    HudPortraitControlsLayer(...)                    // z2 — always rendered
+
+    // Conditional overlays — portrait only, not architectural "layers":
+    AnimatedVisibility(visible = showMarkButton) {   // floating action composable
+        Button(...) { ... }
+    }
+    if (!isLandscape) {
+        MenuDrawer(state = menuDrawerUiState)        // drawer overlay with scrim
+    }
+}
+```
+
+Conditional overlays:
+- Are **not** always rendered — they are gated on state or orientation
+- Must not contain spatial/map content (that belongs inside MapLibre)
+- Are driven by `StateFlow` from `MainViewModel`, never by local composable state
+- Examples: `MenuDrawer`, floating mark-tool action button
 
 ### Modals as NavGraph Destinations
 
@@ -122,19 +148,17 @@ NavHost(startDestination = "main") {
 
 ### Map Feature Staging
 
-`data/map/` grows incrementally. In MVP: `MapTileRepository` interface + one `HardcodedXyzTileSource` only.
+`data/map/` grows incrementally.
 
 | Feature | Stage |
 |---|---|
-| Single hardcoded XYZ tile source | MVP |
-| Markers (`PointAnnotation`) | MVP |
+| Single hardcoded XYZ tile source | ✅ Done |
+| Markers (`PointAnnotation`) | ✅ Done |
+| Tile cache duration (OkHttp interceptor + OfflineManager) | ✅ Done |
+| KMZ/KML import + rendering | ✅ Done |
 | Tile source switcher | Beta 1.0 |
-| Tile caching / `OfflineManager` | Beta 1.0 |
 | MBTiles/PMTiles import | Beta 1.0 |
-| KMZ import | Beta 1.0 |
 | Soviet topo tile sources | Beta 1.0 |
-
-Do not add caching or import logic to MVP implementations.
 
 ### MeshTest Removal Policy
 
@@ -168,6 +192,303 @@ See canonical implementations:
 - `MapLibreLayer` (CircleLayer + GeoJsonData.JsonString): `app/src/main/.../feature/main/osd/MapLibreLayer.kt:77`
 
 **DI injection point:** `LocationProvider` is injected in `NavGraph.kt` via `koinInject()` and passed as a parameter to `MainScreen` — never injected inside the Screen composable itself.
+
+---
+
+### MapLibre OkHttp Injection Pattern
+
+Inject a custom `OkHttpClient` into MapLibre via `HttpRequestUtil.setOkHttpClient()` **before** the first `MapView` is composed.
+
+**Package:** `org.maplibre.android.module.http.HttpRequestUtil`
+
+**Call site:** `MyMeshApplication.onCreate()` — after `startKoin { }`, never inside a Composable or ViewModel.
+
+```kotlin
+// MyMeshApplication.onCreate()
+startKoin { ... }
+val configurator: TileCacheOkHttpConfigurator by inject()
+configurator.applyTo(this)   // calls HttpRequestUtil.setOkHttpClient() + OfflineManager
+```
+
+**Two-cache model:** MapLibre runs two independent caches simultaneously:
+- **OkHttp disk cache** — file-based (e.g. 100 MB), lifespan controlled by `Cache-Control` interceptor
+- **MapLibre ambient cache** — internal SQLite, default 50 MB LRU; raise to match OkHttp cache via `OfflineManager.setMaximumAmbientCacheSize` in the same `Application.onCreate()` block, otherwise MONTH/MAXIMUM modes lose effectiveness early
+
+**Dynamic mode without restart (AtomicReference interceptor):**
+`TileCacheInterceptor` holds an `AtomicReference<TileCacheMode>`. `TileCacheOkHttpConfigurator.updateMode(mode)` mutates it — OkHttpClient is built once at startup; mode change takes effect on the next tile request.
+
+**DI wiring (all in `MapDataModule`):**
+- `TileCacheOkHttpConfigurator` — `single` (stateful singleton, holds `AtomicReference`)
+- `MapCacheSettingsRepository` — `single<MapCacheSettingsRepository> { get<AppSettings>() }`
+- `GetTileCacheModeUseCase`, `SetTileCacheModeUseCase`, `ObserveTileCacheModeUseCase` — `single`
+
+**Anti-pattern:** calling `HttpRequestUtil.setOkHttpClient()` inside a Compose side-effect or ViewModel — must precede first `MapView` composition.
+
+See: `app/data/map/TileCacheOkHttpConfigurator.kt`, `app/data/map/TileCacheInterceptor.kt`, `MyMeshApplication.kt`
+
+---
+
+### Android Foreground Service Lifecycle Pattern
+
+When an Android foreground service (app layer) needs to start/stop a data-layer singleton, use a **split interface** pattern. A service must not inject a concrete data class.
+
+**Two domain interfaces** for one implementation:
+
+```kotlin
+// app/domain/gps/repository/GpsRepository.kt  — read-only state
+interface GpsRepository {
+    val location: StateFlow<GpsLocation?>
+    val isReceivingUpdates: StateFlow<Boolean>
+}
+
+// app/domain/gps/repository/GpsLifecycleController.kt  — lifecycle control
+interface GpsLifecycleController {
+    fun start()
+    fun stop()
+}
+```
+
+**Implementation** in data layer implements both:
+
+```kotlin
+// app/data/gps/GpsRepositoryImpl.kt
+class GpsRepositoryImpl(context: Application) : GpsRepository, GpsLifecycleController { ... }
+```
+
+**DI** — register with `binds`:
+
+```kotlin
+single { GpsRepositoryImpl(context = androidApplication()) } binds arrayOf(
+    GpsRepository::class,
+    GpsLifecycleController::class,
+)
+```
+
+**Service** injects only the lifecycle interface:
+
+```kotlin
+class GpsService : Service() {
+    private val gpsLifecycle: GpsLifecycleController by inject()
+
+    override fun onStartCommand(...): Int { gpsLifecycle.start(); return START_STICKY }
+    override fun onDestroy() { gpsLifecycle.stop(); super.onDestroy() }
+    override fun onTaskRemoved(...) { stopSelf() }  // clean stop — START_STICKY не перезапускает
+}
+```
+
+**Service stop behaviour:**
+
+| Trigger | Mechanism | Outcome |
+|---|---|---|
+| Home / screen off | — | Service keeps running |
+| OS kill | — | `START_STICKY` → auto-restart |
+| Swipe from Recents | `onTaskRemoved() → stopSelf()` | Clean stop, no restart |
+| Explicit close button | `stopService(intent)` from Activity | Clean stop, no restart |
+
+`stopSelf()` = clean stop — `START_STICKY` does **not** reschedule restart for clean stops.
+
+See: `app/src/main/.../service/GpsService.kt`, `app/src/main/.../domain/gps/repository/GpsLifecycleController.kt`
+
+---
+
+### Controllable Background Repository Pattern
+
+Use this pattern when a repository must run a long-lived background job that can be explicitly started and stopped by domain use cases — and must survive screen changes.
+
+**Structure:**
+
+```kotlin
+// domain — interface only
+interface EmergencyPositionBroadcastRepository {
+    val isActive: StateFlow<Boolean>
+    fun start()
+    fun stop()
+}
+
+// data — owns its own coroutine scope
+class EmergencyPositionBroadcastRepositoryImpl(
+    private val gpsRepository: GpsRepository,
+    // ... other deps
+) : EmergencyPositionBroadcastRepository {
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var broadcastJob: Job? = null
+
+    private val _isActive = MutableStateFlow(false)
+    override val isActive: StateFlow<Boolean> = _isActive.asStateFlow()
+
+    init {
+        // Restore persisted state on startup
+        scope.launch {
+            val wasActive = contourRepository.observeEmergencyIsActive().first()
+            if (wasActive) start()
+        }
+    }
+
+    override fun start() {
+        if (broadcastJob?.isActive == true) return
+        _isActive.value = true
+        broadcastJob = scope.launch { /* loop */ }
+    }
+
+    override fun stop() {
+        broadcastJob?.cancel()
+        broadcastJob = null
+        _isActive.value = false
+    }
+}
+```
+
+**DI:** `single<EmergencyPositionBroadcastRepository> { EmergencyPositionBroadcastRepositoryImpl(get(), get(), get()) }` with `createdAtStart = true` to restore persisted state at app start.
+
+**Lifecycle:** `start()` / `stop()` are called only from domain use cases (`TriggerEmergencyUseCase` / `CancelEmergencyUseCase`), never from ViewModel or Composable.
+
+**Distinction from related patterns:**
+- `ChannelSlotResolverImpl` — always-on, no external lifecycle control; subscribes in `init`, never paused
+- `GpsLifecycleController` — lifecycle control extracted to a *separate domain interface* so an Android Service can inject it without knowing the concrete class; use that split-interface approach when a Service needs the controller
+- `EmergencyPositionBroadcastRepository` — lifecycle control is on the *same interface* because only use cases control it (no service involved); simpler when no Android Service lifecycle is required
+
+**When to use:** Long-running background work (polling, periodic broadcast) where start/stop is triggered by user action via use cases, and the job must persist across screen changes. If an Android Service needs to control the lifecycle, use the **Foreground Service Lifecycle Pattern** (split interface) instead.
+
+See: `data/emergency/EmergencyPositionBroadcastRepositoryImpl.kt`, `domain/emergency/repository/EmergencyPositionBroadcastRepository.kt`
+
+---
+
+### Runtime Resolver Pattern (ChannelSlotResolver)
+
+Use this pattern when live node state must be resolved into a domain lookup at runtime — not stored in DB and not derived from a use case call.
+
+**Structure:**
+
+```kotlin
+// domain — interface only, no data imports
+interface ChannelSlotResolver {
+    val slotToHash: Map<Int, LogicalChannelHash>      // ingestion: slot → hash
+    val hashToSlot: Map<LogicalChannelHash, Int>      // send: hash → slot
+    val mapsFlow: StateFlow<ChannelSlotMaps>          // reactive for combine blocks
+}
+
+// data — subscribes to live node state in init block
+class ChannelSlotResolverImpl(
+    observeNodeChannels: ObserveNodeChannelsUseCase,
+) : ChannelSlotResolver {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val _mapsFlow = MutableStateFlow(ChannelSlotMaps())
+    override val mapsFlow = _mapsFlow.asStateFlow()
+    override val slotToHash get() = _mapsFlow.value.slotToHash
+    override val hashToSlot get() = _mapsFlow.value.hashToSlot
+
+    init {
+        observeNodeChannels(NoParams)
+            .onEach { slots -> _mapsFlow.value = buildMaps(slots) }
+            .launchIn(scope)
+    }
+}
+```
+
+**Rules:**
+- Domain interface lives in `domain/` — no data imports
+- Implementation lives in `data/`, subscribes to a use case (not repository) in `init`
+- Registered as `single<ChannelSlotResolver> { ChannelSlotResolverImpl(get()) }` — one instance for the app lifetime
+- Use cases and adapters inject the interface, never the impl
+- Sync properties (`slotToHash`, `hashToSlot`) give non-blocking snapshot access; `mapsFlow` is for reactive `combine` blocks
+- Unresolved lookups → drop silently (`Log.w(...)`) — no "unknown" UI state
+
+**When to use:** Any "live node state → domain lookup" need (e.g., slot index → channel hash, node id → display name). Prefer over: storing ephemeral node state in DB, or calling `observeX().first()` on each packet.
+
+See: `data/channel/ChannelSlotResolverImpl.kt`, `domain/channel/ChannelSlotResolver.kt`
+
+---
+
+### In-memory Domain State Bus Pattern (ContourSyncStateRepository)
+
+Use this pattern when a transient boolean/status flag must be shared between multiple ViewModels and survive across screen changes — but does NOT need persistence to DataStore.
+
+**Structure:**
+
+```kotlin
+// domain — interface only, no data imports
+interface ContourSyncStateRepository {
+    val syncRequired: StateFlow<Boolean>
+    fun setSyncRequired(value: Boolean)
+    fun clear()
+}
+
+// data — thin MutableStateFlow wrapper
+class ContourSyncStateRepositoryImpl : ContourSyncStateRepository {
+    private val _syncRequired = MutableStateFlow(false)
+    override val syncRequired: StateFlow<Boolean> = _syncRequired.asStateFlow()
+    override fun setSyncRequired(value: Boolean) { _syncRequired.value = value }
+    override fun clear() { _syncRequired.value = false }
+}
+```
+
+**DI:** `single<ContourSyncStateRepository> { ContourSyncStateRepositoryImpl() }` — one instance shared across all ViewModels.
+
+**Lifecycle:** flag is in-memory only; cleared on app restart. Each new connect triggers a fresh check. If stronger persistence is needed, add DataStore — but for MVP in-memory is sufficient.
+
+**Distinction from related patterns:**
+- `Controllable Background Repository` — owns a long-running coroutine job, has `start()`/`stop()`; this pattern has no background work
+- `ChannelSlotResolver` (Runtime Resolver) — always-on, derived from live node state; this pattern holds user-driven transient flags
+- `GpsLifecycleController` (Foreground Service split interface) — service lifecycle control; this pattern is purely ViewModel-to-ViewModel state sharing
+
+**When to use:** A transient boolean flag that must be set in one ViewModel (e.g. `MainViewModel` on connect), observed in another (HUD slot), and cleared on user action — without persisting between app sessions.
+
+See: `domain/channel/repository/ContourSyncStateRepository.kt`, `data/channel/repository/ContourSyncStateRepositoryImpl.kt`
+
+---
+
+### Lambda-Containing UiState Pattern
+
+When a UiState data class needs to carry **lambda callbacks** (e.g. `onClick`, `onDismiss`), it must live in its own `StateFlow` — never inside `MainUiState`. Lambda fields make a class non-comparable (unstable for Compose), and mixing them into `MainUiState` causes unnecessary recompositions.
+
+**Rule:** if a UiState field type is `() -> Unit` or any function type → separate `StateFlow`.
+
+**Pattern:** build the lambda-containing state via `combine()` from the plain state flow + navigation callbacks:
+
+```kotlin
+// MainUiState — plain, no lambdas:
+data class MainUiState(
+    val menuDrawerOpen: Boolean = false,
+    // ...other fields
+)
+
+// MenuDrawerUiState — contains lambdas → separate StateFlow:
+data class MenuDrawerUiState(
+    val isOpen: Boolean,
+    val radio: HudButtonSlot,       // HudButtonSlot contains onClick: () -> Unit
+    val settings: HudButtonSlot,
+    val onDismiss: () -> Unit,
+)
+
+// ViewModel — wired via combine():
+val menuDrawerUiState: StateFlow<MenuDrawerUiState> =
+    combine(_mainUiState, _navCallbacksFlow) { state, nav ->
+        buildMenuDrawerUiState(state, nav)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, buildMenuDrawerUiState(...))
+
+private fun buildMenuDrawerUiState(state: MainUiState, nav: HudNavCallbacks) =
+    MenuDrawerUiState(
+        isOpen = state.menuDrawerOpen,
+        radio = HudButtonSlot(iconRes = R.drawable.ic_radio, onClick = {
+            nav.onRadioClick()
+            toggleMenuDrawer()
+        }),
+        settings = HudButtonSlot(iconRes = R.drawable.ic_settings, onClick = {
+            nav.onSettingsClick()
+            toggleMenuDrawer()
+        }),
+        onDismiss = ::toggleMenuDrawer,
+    )
+```
+
+**DI / wiring:** `menuDrawerUiState` is collected in `NavGraph.kt` and passed as a parameter to `MainScreen`. Never injected inside the composable.
+
+**When to use:** any UiState that mixes data fields with callback lambdas — `MenuDrawerUiState`, `HudUiState`, any feature-level interaction state.
+
+See: `presentation/feature/main/osd/models/MenuDrawerUiState.kt`, `MainViewModel.kt` (`menuDrawerUiState`, `buildMenuDrawerUiState`)
+
+---
 
 ### Transport Repository Abstraction Contract
 
@@ -213,12 +534,16 @@ In MVP only Meshtastic implementations are non-stub. MQTT and WiFi implementatio
 | `runBlocking` in production code | `viewModelScope`, `Dispatchers.IO` via Koin |
 | Hardcoded strings in UI | `stringResource` / `strings.xml` |
 | Modal as a Compose overlay layer | Modal is a NavGraph destination (`composable()` or `dialog()`) |
-| More than 2 Compose layers in MainScreen | Spatial content goes into MapLibre layers, not Compose layers |
+| Always-rendered 3rd+ Compose layer in MainScreen | Base layers are Map + HUD only; transient UI (drawers, FABs) must be conditional overlays gated on state or orientation |
 | Direct `meshtest` access in non-debug builds | Gate route behind `BuildConfig.DEBUG` |
-| Caching or import logic in MVP `data/map/` | Staging: only `HardcodedXyzTileSource` in MVP |
+| `HttpRequestUtil.setOkHttpClient()` inside Composable or ViewModel | Must be called in `MyMeshApplication.onCreate()` after `startKoin` — see MapLibre OkHttp Injection Pattern |
+| Tile source switcher, MBTiles/PMTiles import, or Soviet topo sources in current phase | Still Beta 1.0 — not yet implemented |
 | Synchronous use case extends `UseCase<P,R>` (suspend) | Use plain `operator fun invoke` — `UseCase` is for suspend operations only |
 | New feature adds keys to `AppSettings` | Create a new repository in `data/local/` that injects `Settings` directly |
 | `LocationPuck` / `rememberUserLocationState` with maplibre-compose 0.12.1 | Use `CircleLayer + GeoJsonData.JsonString` — `spatialk:geojson:0.6.0` crashes on empty `FeatureCollection()` serialization (LocationPuck's initial null-location path) |
+| Android Service injects concrete data class (`SomethingImpl`) | Extract lifecycle interface in domain (`LifecycleController`), service injects the interface — see Foreground Service Lifecycle Pattern |
+| `single<Iface> { Impl() }` in app module conflicts with mesh auto-scanned binding | In Koin 4.x `saveMapping` always overwrites — no `override` parameter needed; just declare the binding normally and ensure `gpsModule` is loaded after the mesh module |
+| `import android.util.Log` in any class other than `AndroidLogger` | Inject `Logger` via constructor (`logger: Logger`), wire with `get()` in Koin module — see `domain/logger/Logger.kt`, `logger/AndroidLogger.kt`, `di/LoggerModule.kt` |
 
 ---
 
@@ -281,7 +606,7 @@ Show concrete code for each new file, following the canonical patterns above. Do
 - [ ] Repository implements the domain interface and nothing else
 
 **Use Cases**
-- [ ] Extend `FlowUseCase`, `UseCase`, or `ResultUseCase`
+- [ ] Extend `FlowUseCase`, `UseCase`, or `ResultUseCase` — OR plain `operator fun invoke` for pure synchronous logic with no dependencies
 - [ ] Accept no Android types
 - [ ] Contain only orchestration, not low-level business logic
 
