@@ -91,6 +91,7 @@ fun NavGraph() {
                     contextMenuEvents = viewModel.contextMenuEvent,
                     onDeletePendingPoint = viewModel::deletePendingPoint,
                     menuDrawerUiState = menuDrawerUiState,
+                    onFollowMeDeactivated = viewModel::onFollowMeDeactivated,
                 )
             }
 

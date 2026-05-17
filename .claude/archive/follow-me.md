@@ -1,7 +1,7 @@
 # Plan: Follow Me
 
 **Date**: 2026-04-09
-**Status**: Approved
+**Status**: Done
 
 ## Summary
 
@@ -135,3 +135,4 @@ Phase 7: [stage by name] → [propose commit] → [wait for confirmation] → gi
 ## Change Log
 
 - 2026-04-09: created; open questions 1 & 2 resolved via maplibre-compose API research
+- 2026-05-17: implementation review passed; plan archived. Deviation: animation duration 500ms (plan: 300ms). Phase 4 tests not implemented.
