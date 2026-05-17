@@ -33,8 +33,10 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import org.maplibre.compose.camera.CameraMoveReason
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
+import kotlin.time.Duration.Companion.milliseconds
 import org.maplibre.compose.location.LocationProvider
 import org.maplibre.spatialk.geojson.Position
 import ru.tcynik.meshtactics.di.orientation.DeviceOrientationProvider
@@ -61,6 +63,7 @@ fun MainScreen(
     contextMenuEvents: Flow<GeoMarkContextMenuEvent> = emptyFlow(),
     onDeletePendingPoint: (Int) -> Unit = {},
     menuDrawerUiState: MenuDrawerUiState,
+    onFollowMeDeactivated: () -> Unit = {},
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var lastKnownPosition by remember { mutableStateOf(uiState.initialCameraPosition) }
@@ -93,6 +96,25 @@ fun MainScreen(
 
     val bearing by orientationProvider.bearing.collectAsStateWithLifecycle()
     val currentLocation by locationProvider.location.collectAsStateWithLifecycle()
+
+    LaunchedEffect(currentLocation, uiState.isFollowMeActive) {
+        if (uiState.isFollowMeActive) {
+            val pos = currentLocation?.position ?: return@LaunchedEffect
+            cameraState.animateTo(
+                finalPosition = CameraPosition(
+                    target = pos,
+                    zoom = cameraState.position.zoom,
+                ),
+                duration = 500.milliseconds,
+            )
+        }
+    }
+
+    LaunchedEffect(cameraState.moveReason) {
+        if (cameraState.moveReason == CameraMoveReason.GESTURE && uiState.isFollowMeActive) {
+            onFollowMeDeactivated()
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (uiState.tileUrlTemplate.isNotEmpty()) {

@@ -300,6 +300,14 @@ class MainViewModel(
         _uiState.update { it.copy(menuDrawerOpen = !it.menuDrawerOpen) }
     }
 
+    fun onFollowMeToggle() {
+        _uiState.update { it.copy(isFollowMeActive = !it.isFollowMeActive) }
+    }
+
+    fun onFollowMeDeactivated() {
+        _uiState.update { it.copy(isFollowMeActive = false) }
+    }
+
     fun toggleMarkTool() {
         _uiState.update { state ->
             if (state.markToolActive) {
@@ -444,7 +452,7 @@ class MainViewModel(
     private fun buildHudUiState(state: MainUiState, nav: HudNavCallbacks): HudUiState = HudUiState(
         menuDrawer = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_menu, label = "меню", onClick = { toggleMenuDrawer() }), info = emptyInfoSlot()),
         compass  = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_compass,    label = "направление", onClick = {}), info = emptyInfoSlot()),
-        target   = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_target,     label = "привязка",    onClick = {}), info = emptyInfoSlot()),
+        target   = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_target, label = "привязка", selected = state.isFollowMeActive, onClick = { onFollowMeToggle() }), info = emptyInfoSlot()),
         markTool = HudRowConfig(
             button = HudButtonSlot(
                 iconRes  = R.drawable.ic_marks_tool,
@@ -552,9 +560,13 @@ class MainViewModel(
                 button = HudButtonSlot(iconRes = R.drawable.ic_compass,   label = "направление",  onClick = {}),
                 info = emptyInfoSlot(),
             ),
-            // TODO: wire to follow-user / map lock toggle when implemented
             HudRowConfig(
-                button = HudButtonSlot(iconRes = R.drawable.ic_target,    label = "привязка",     onClick = {}),
+                button = HudButtonSlot(
+                    iconRes  = R.drawable.ic_target,
+                    label    = "привязка",
+                    selected = state.isFollowMeActive,
+                    onClick  = { onFollowMeToggle() },
+                ),
                 info = emptyInfoSlot(),
             ),
             HudRowConfig(

@@ -36,4 +36,5 @@ data class MainUiState(
     val syncRequired: Boolean = false,
     val isRebooting: Boolean = false,
     val menuDrawerOpen: Boolean = false,
+    val isFollowMeActive: Boolean = false,
 )
