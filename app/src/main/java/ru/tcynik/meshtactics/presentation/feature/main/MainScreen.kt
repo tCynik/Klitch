@@ -66,6 +66,7 @@ fun MainScreen(
     onFollowMeDeactivated: () -> Unit = {},
     onHeadingUpDeactivated: () -> Unit = {},
     resetBearingEvents: Flow<Unit> = emptyFlow(),
+    onMapBearingChanged: (Double) -> Unit = {},
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var lastKnownPosition by remember { mutableStateOf(uiState.initialCameraPosition) }
@@ -127,6 +128,10 @@ fun MainScreen(
                 duration = 300.milliseconds,
             )
         }
+    }
+
+    LaunchedEffect(cameraState.position.bearing) {
+        onMapBearingChanged(cameraState.position.bearing)
     }
 
     LaunchedEffect(bearing, uiState.isHeadingUpActive) {

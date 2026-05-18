@@ -94,6 +94,7 @@ fun NavGraph() {
                     onFollowMeDeactivated = viewModel::onFollowMeDeactivated,
                     onHeadingUpDeactivated = viewModel::onHeadingUpDeactivated,
                     resetBearingEvents = viewModel.resetBearingEvent,
+                    onMapBearingChanged = viewModel::onMapBearingChanged,
                 )
             }
 

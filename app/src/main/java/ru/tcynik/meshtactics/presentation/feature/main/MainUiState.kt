@@ -38,4 +38,6 @@ data class MainUiState(
     val menuDrawerOpen: Boolean = false,
     val isFollowMeActive: Boolean = false,
     val isHeadingUpActive: Boolean = false,
+    // true when camera bearing is within 1° of north — compass button shown inactive
+    val isMapNorthUp: Boolean = true,
 )

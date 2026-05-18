@@ -326,6 +326,10 @@ class MainViewModel(
         _uiState.update { it.copy(isHeadingUpActive = false) }
     }
 
+    fun onMapBearingChanged(bearing: Double) {
+        _uiState.update { it.copy(isMapNorthUp = kotlin.math.abs(bearing) < 1.0) }
+    }
+
     fun toggleMarkTool() {
         _uiState.update { state ->
             if (state.markToolActive) {
@@ -473,7 +477,11 @@ class MainViewModel(
             button = HudButtonSlot(
                 iconRes = R.drawable.ic_compass,
                 label = "направление",
-                selected = if (state.isHeadingUpActive) true else null,
+                selected = when {
+                    state.isHeadingUpActive -> true
+                    state.isMapNorthUp -> false
+                    else -> null
+                },
                 onClick = { onCompassTap() },
                 onLongClick = { onCompassLongPress() },
             ),
@@ -586,7 +594,11 @@ class MainViewModel(
                 button = HudButtonSlot(
                     iconRes = R.drawable.ic_compass,
                     label = "направление",
-                    selected = if (state.isHeadingUpActive) true else null,
+                    selected = when {
+                    state.isHeadingUpActive -> true
+                    state.isMapNorthUp -> false
+                    else -> null
+                },
                     onClick = { onCompassTap() },
                     onLongClick = { onCompassLongPress() },
                 ),
