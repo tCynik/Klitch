@@ -315,24 +315,24 @@ class MainViewModel(
         if (_uiState.value.isHeadingUpActive) {
             _uiState.update { it.copy(isHeadingUpActive = false) }
         }
+        _uiState.update { it.copy(isNorthLocked = true) }
         viewModelScope.launch { _resetBearingEvent.emit(Unit) }
     }
 
     fun onCompassLongPress() {
-        _uiState.update { it.copy(isHeadingUpActive = !it.isHeadingUpActive) }
+        _uiState.update { it.copy(isHeadingUpActive = !it.isHeadingUpActive, isNorthLocked = false) }
     }
 
     fun onHeadingUpDeactivated() {
         _uiState.update { it.copy(isHeadingUpActive = false) }
     }
 
+    fun onMapGestureDetected() {
+        _uiState.update { it.copy(isNorthLocked = false) }
+    }
+
     fun onMapBearingChanged(bearing: Double) {
-        _uiState.update {
-            it.copy(
-                isMapNorthUp = kotlin.math.abs(bearing) < 1.0,
-                mapBearing = bearing.toFloat(),
-            )
-        }
+        _uiState.update { it.copy(mapBearing = bearing.toFloat()) }
     }
 
     fun toggleMarkTool() {
@@ -581,7 +581,7 @@ class MainViewModel(
     )
 
     private fun buildCompassButton(state: MainUiState): HudButtonSlot {
-        val rotated = !state.isMapNorthUp
+        val rotated = !state.isNorthLocked
         return HudButtonSlot(
             iconRes = if (rotated) R.drawable.ic_compass_rotated else R.drawable.ic_compass,
             label = "направление",
@@ -589,7 +589,7 @@ class MainViewModel(
             iconRotationDegrees = if (rotated) -state.mapBearing - 45f else 0f,
             selected = when {
                 state.isHeadingUpActive -> true
-                state.isMapNorthUp -> false
+                state.isNorthLocked -> false
                 else -> null
             },
             onClick = { onCompassTap() },

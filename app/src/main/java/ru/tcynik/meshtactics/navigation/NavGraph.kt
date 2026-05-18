@@ -93,6 +93,7 @@ fun NavGraph() {
                     menuDrawerUiState = menuDrawerUiState,
                     onFollowMeDeactivated = viewModel::onFollowMeDeactivated,
                     onHeadingUpDeactivated = viewModel::onHeadingUpDeactivated,
+                    onMapGestureDetected = viewModel::onMapGestureDetected,
                     resetBearingEvents = viewModel.resetBearingEvent,
                     onMapBearingChanged = viewModel::onMapBearingChanged,
                 )

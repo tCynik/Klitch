@@ -65,6 +65,7 @@ fun MainScreen(
     menuDrawerUiState: MenuDrawerUiState,
     onFollowMeDeactivated: () -> Unit = {},
     onHeadingUpDeactivated: () -> Unit = {},
+    onMapGestureDetected: () -> Unit = {},
     resetBearingEvents: Flow<Unit> = emptyFlow(),
     onMapBearingChanged: (Double) -> Unit = {},
 ) {
@@ -115,6 +116,7 @@ fun MainScreen(
 
     LaunchedEffect(cameraState.moveReason) {
         if (cameraState.moveReason == CameraMoveReason.GESTURE) {
+            onMapGestureDetected()
             if (uiState.isFollowMeActive) onFollowMeDeactivated()
             if (uiState.isHeadingUpActive) onHeadingUpDeactivated()
         }
