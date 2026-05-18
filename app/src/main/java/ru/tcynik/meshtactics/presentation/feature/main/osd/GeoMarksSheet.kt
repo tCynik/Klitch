@@ -56,7 +56,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkColor
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
-import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import ru.tcynik.meshtactics.domain.marker.model.TrackEndType
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkAddressee
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarksSheetUiState
@@ -112,7 +111,6 @@ fun GeoMarksSheet(state: GeoMarksSheetUiState) {
                 HorizontalDivider()
                 NameRow(state)
                 HorizontalDivider()
-                PendingSection(state)
                 BottomRow(state)
             }
         }
@@ -197,7 +195,6 @@ private fun TypeDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
 private fun ColorDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
     var expanded by remember { mutableStateOf(false) }
     val currentColor = GeoMarkColor.colorAt(state.selectedColor)
-    val currentName = GeoMarkColor.names.getOrElse(state.selectedColor) { "Цвет ${state.selectedColor}" }
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -205,14 +202,14 @@ private fun ColorDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
         modifier = modifier,
     ) {
         OutlinedTextField(
-            value = currentName,
+            value = "",
             onValueChange = {},
             readOnly = true,
             label = { Text("Цвет") },
             leadingIcon = {
                 Box(
                     modifier = Modifier
-                        .size(20.dp)
+                        .size(24.dp)
                         .background(currentColor, RoundedCornerShape(4.dp))
                 )
             },
@@ -223,21 +220,21 @@ private fun ColorDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            GeoMarkColor.palette.forEachIndexed { index, color ->
-                DropdownMenuItem(
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .background(color, RoundedCornerShape(3.dp))
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(GeoMarkColor.names.getOrElse(index) { "Цвет $index" })
-                        }
-                    },
-                    onClick = { state.onColorSelected(index); expanded = false },
-                )
+            GeoMarkColor.palette.chunked(4).forEachIndexed { rowIndex, rowColors ->
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    rowColors.forEachIndexed { colIndex, color ->
+                        val index = rowIndex * 4 + colIndex
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(color, RoundedCornerShape(6.dp))
+                                .clickable { state.onColorSelected(index); expanded = false },
+                        )
+                    }
+                }
             }
         }
     }
@@ -362,43 +359,6 @@ private fun NameRow(state: GeoMarksSheetUiState) {
     }
 }
 
-@Composable
-private fun PendingSection(state: GeoMarksSheetUiState) {
-    AnimatedVisibility(visible = state.pendingPoints.isNotEmpty()) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-            Text(
-                text = "Черновик (${state.pendingPoints.size}):",
-                style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.padding(bottom = 4.dp),
-            )
-            state.pendingPoints.forEachIndexed { index, point ->
-                PendingPointRow(index, point, onDelete = { state.onDeletePendingPoint(index) })
-            }
-            Spacer(Modifier.height(4.dp))
-            HorizontalDivider()
-        }
-    }
-}
-
-@Composable
-private fun PendingPointRow(index: Int, point: GeoPoint, onDelete: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(
-            text = "${index + 1}. %.5f°  %.5f°".format(point.latitude, point.longitude),
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.weight(1f),
-        )
-        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Close, contentDescription = "Удалить точку", modifier = Modifier.size(16.dp))
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
