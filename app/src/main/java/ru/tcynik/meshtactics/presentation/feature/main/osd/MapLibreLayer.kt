@@ -46,6 +46,7 @@ import org.maplibre.compose.sources.rememberRasterSource
 import org.maplibre.compose.style.BaseStyle
 import org.maplibre.compose.util.ClickResult
 import org.maplibre.compose.util.PositionQuad
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkColor
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.R
@@ -87,6 +88,7 @@ fun MapLibreLayer(
     selectedOverlays: ImmutableList<OverlayRenderModel> = persistentListOf(),
     geoMarks: ImmutableList<GeoMarkModel> = persistentListOf(),
     pendingMarkPoints: ImmutableList<ru.tcynik.meshtactics.domain.marker.model.GeoPoint> = persistentListOf(),
+    pendingMarkColor: Int = 0,
     markToolActive: Boolean = false,
     onMapClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
     onMapLongClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit = { _, _, _, _ -> },
@@ -291,11 +293,12 @@ fun MapLibreLayer(
         val draftPointsSource = rememberGeoJsonSource(
             GeoJsonData.JsonString(buildDraftPointsGeoJson(pendingMarkPoints.toList()))
         )
+        val draftColor = GeoMarkColor.colorAt(pendingMarkColor)
         CircleLayer(
             id = "geo-draft-points",
             source = draftPointsSource,
-            color = const(Color(0x0029B6F6)),      // transparent fill
-            strokeColor = const(Color(0xFF29B6F6)),
+            color = const(draftColor.copy(alpha = 0f)),
+            strokeColor = const(draftColor),
             strokeWidth = const(2.dp),
             radius = const(8.dp),
         )
@@ -306,7 +309,7 @@ fun MapLibreLayer(
             LineLayer(
                 id = "geo-draft-line",
                 source = draftLineSource,
-                color = const(Color(0xFF29B6F6)),
+                color = const(draftColor),
                 width = const(2.dp),
             )
         }

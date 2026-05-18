@@ -5,6 +5,7 @@ import org.meshtastic.proto.Waypoint
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
+import ru.tcynik.meshtactics.domain.marker.model.TrackEndType
 import ru.tcynik.meshtactics.mesh.model.DataPacket
 import java.nio.ByteBuffer
 import java.util.UUID
@@ -24,7 +25,7 @@ class GeoMarkWaypointAdapter {
         /** Max raw payload bytes before base64 encoding (LoRa budget). */
         const val MAX_PAYLOAD_BYTES = 145
 
-        /** Expiry TTL in seconds (8 hours). */
+        /** Default expiry TTL in seconds (8 hours). Used when no TTL is specified. */
         const val EXPIRE_TTL_SECONDS = 8 * 3600L
 
         private const val NAMESPACE = 0x4D
@@ -43,13 +44,22 @@ class GeoMarkWaypointAdapter {
     /**
      * Encodes a [GeoMarkModel] into a broadcast [DataPacket] (WAYPOINT_APP port).
      *
-     * @param mark       The mark to encode. Must pass validation (extra points ≤ MAX_POINTS).
-     * @param ourNodeNum Sender's node number — written to [Waypoint.locked_to].
-     * @param ourNodeId  Sender's node id string — written to [GeoMarkModel.authorNodeId].
-     * @param nowSeconds Current Unix time in seconds — used to compute expiry.
+     * @param mark         The mark to encode. Must pass validation (extra points ≤ MAX_POINTS).
+     * @param ourNodeNum   Sender's node number — written to [Waypoint.locked_to].
+     * @param ourNodeId    Sender's node id string — written to [GeoMarkModel.authorNodeId].
+     * @param nowSeconds   Current Unix time in seconds.
      * @throws IllegalArgumentException if point count exceeds MAX_POINTS.
+     *
+     * Expiry: uses [GeoMarkModel.expiresAt] if set; falls back to nowSeconds + [EXPIRE_TTL_SECONDS].
+     * Channel routing is intentionally excluded — caller (repo) overrides DataPacket.channel
+     * based on the selected contour after encoding.
      */
-    fun encode(mark: GeoMarkModel, ourNodeNum: Int, ourNodeId: String, nowSeconds: Long): DataPacket {
+    fun encode(
+        mark: GeoMarkModel,
+        ourNodeNum: Int,
+        ourNodeId: String,
+        nowSeconds: Long,
+    ): DataPacket {
         require(mark.points.isNotEmpty()) { "mark must have at least one point" }
         if (mark.type == GeoMarkType.TRACK) {
             val extraPoints = mark.points.size - 1
@@ -59,16 +69,17 @@ class GeoMarkWaypointAdapter {
         }
 
         val anchor = mark.points.first()
-        val icon = buildIcon(mark.type, color = 0, variant = 0)
+        val icon = buildIcon(mark.type, color = mark.color, variant = 0)
         val description = buildDescription(mark)
+        val expireSeconds = mark.expiresAt ?: (nowSeconds + EXPIRE_TTL_SECONDS)
 
         val waypoint = Waypoint(
             id = 0,
             latitude_i = (anchor.latitude * LAT_LON_SCALE).roundToInt(),
             longitude_i = (anchor.longitude * LAT_LON_SCALE).roundToInt(),
-            expire = (nowSeconds + EXPIRE_TTL_SECONDS).toInt(),
+            expire = expireSeconds.toInt(),
             locked_to = ourNodeNum,
-            name = "",
+            name = mark.name,
             description = description,
             icon = icon,
         )
@@ -111,6 +122,9 @@ class GeoMarkWaypointAdapter {
             UUID.randomUUID().toString()
         }
 
+        val colorIndex = (waypoint.icon ushr 8) and 0xF
+        val endsByte = extractEndsByte(waypoint.description, type)
+
         return GeoMarkModel(
             id = markId,
             waypointId = waypoint.id,
@@ -120,6 +134,9 @@ class GeoMarkWaypointAdapter {
             createdAt = packet.time / 1_000,
             expiresAt = waypoint.expire.takeIf { it > 0 }?.toLong(),
             isSelf = markId in selfIds,
+            color = colorIndex,
+            name = waypoint.name.orEmpty(),
+            trackEndType = TrackEndType.fromByte(endsByte),
         )
     }
 
@@ -162,8 +179,8 @@ class GeoMarkWaypointAdapter {
         val anchor = mark.points.first()
         val extras = mark.points.drop(1)
         val buf = ByteBuffer.allocate(2 + extras.size * 4)
-        buf.put(extras.size.toByte())  // count: u8
-        buf.put(0)                     // ends: u8 (reserved for MVP)
+        buf.put(extras.size.toByte())       // count: u8
+        buf.put(mark.trackEndType.ends)     // ends: u8
         for (pt in extras) {
             val (x, y) = toLocal(anchor, pt)
             buf.putShort(x.toShort())
@@ -184,7 +201,7 @@ class GeoMarkWaypointAdapter {
         if (bytes.size < 2) return null
         val buf = ByteBuffer.wrap(bytes)
         val count = buf.get().toInt() and 0xFF
-        buf.get() // skip ends
+        buf.get() // ends byte — consumed here; extracted separately via extractEndsByte()
         if (buf.remaining() < count * 4) return null
         val result = mutableListOf(anchor)
         repeat(count) {
@@ -193,6 +210,18 @@ class GeoMarkWaypointAdapter {
             result.add(fromLocal(anchor, x, y))
         }
         return result
+    }
+
+    private fun extractEndsByte(description: String, type: GeoMarkType): Byte {
+        if (type != GeoMarkType.TRACK) return 0
+        val b64 = description.removePrefix(MT1_PREFIX)
+        if (b64.isEmpty()) return 0
+        return try {
+            val bytes = Base64.decode(b64, Base64.NO_WRAP)
+            if (bytes.size >= 2) bytes[1] else 0
+        } catch (e: IllegalArgumentException) {
+            0
+        }
     }
 
     private fun toLocal(anchor: GeoPoint, point: GeoPoint): Pair<Int, Int> {

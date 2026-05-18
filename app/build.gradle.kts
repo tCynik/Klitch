@@ -77,6 +77,7 @@ dependencies {
 
     // DataStore
     implementation(libs.datastore.preferences)
+    implementation(libs.serialization.json)
 
     // Coroutines
     implementation(libs.coroutines.android)

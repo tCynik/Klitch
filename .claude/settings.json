@@ -174,7 +174,10 @@
       "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.main.MainViewModelMarkToolTest\" --no-daemon)",
       "Bash(JAVA_HOME=\"C:/Program Files/Microsoft/jdk-21.0.10.7-hotspot\" ./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.main.MainViewModelMenuDrawerTest\" --no-daemon)",
       "Bash(cp \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/hud-menu-drawer.md\" \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/archive/hud-menu-drawer.md\")",
-      "Bash(rm \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/hud-menu-drawer.md\")"
+      "Bash(rm \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/hud-menu-drawer.md\")",
+      "Bash(./gradlew :shared:generateCommonMainAppDatabaseInterface :app:compileDebugKotlin)",
+      "Bash(./gradlew :shared:generateCommonMainAppDatabaseInterface --rerun-tasks)",
+      "Bash(./gradlew :app:compileDebugKotlin --rerun-tasks)"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",

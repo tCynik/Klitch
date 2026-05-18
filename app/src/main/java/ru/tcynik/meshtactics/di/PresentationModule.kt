@@ -32,6 +32,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
+import ru.tcynik.meshtactics.data.markprefs.GeoMarkPrefsDataSource
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
@@ -78,6 +79,7 @@ val presentationModule = module {
             rebootStateRepository = get<RebootStateRepository>(),
             observeCallsignChanges = get<ObserveCallsignChangesUseCase>(),
             refreshNodePublicKey = get<RefreshNodePublicKeyUseCase>(),
+            geoMarkPrefsDataSource = get<GeoMarkPrefsDataSource>(),
         )
     }
 
