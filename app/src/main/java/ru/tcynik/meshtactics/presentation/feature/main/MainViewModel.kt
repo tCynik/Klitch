@@ -581,7 +581,7 @@ class MainViewModel(
     )
 
     private fun buildCompassButton(state: MainUiState): HudButtonSlot {
-        val rotated = !state.isMapNorthUp && !state.isHeadingUpActive
+        val rotated = !state.isMapNorthUp
         return HudButtonSlot(
             iconRes = if (rotated) R.drawable.ic_compass_rotated else R.drawable.ic_compass,
             label = "направление",
