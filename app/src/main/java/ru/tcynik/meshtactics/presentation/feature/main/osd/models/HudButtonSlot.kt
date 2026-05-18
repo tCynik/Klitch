@@ -21,4 +21,5 @@ data class HudButtonSlot(
     val tintOverride: Color? = null,
     // Additional info badge (max 2 characters) displayed as a circle overlay
     val infoBadge: String? = null,
+    val onLongClick: (() -> Unit)? = null,
 )

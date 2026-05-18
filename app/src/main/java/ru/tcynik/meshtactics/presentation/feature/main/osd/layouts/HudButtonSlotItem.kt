@@ -54,6 +54,7 @@ fun HudButtonSlotItem(
                 enabled = slot.enabled,
                 selected = slot.selected,
                 tintOverride = slot.tintOverride,
+                onLongClick = slot.onLongClick,
             )
             // Info badge overlay
             slot.infoBadge?.takeIf { it.isNotBlank() }?.let { badgeText ->

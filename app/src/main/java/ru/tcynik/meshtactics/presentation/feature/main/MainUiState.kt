@@ -37,4 +37,5 @@ data class MainUiState(
     val isRebooting: Boolean = false,
     val menuDrawerOpen: Boolean = false,
     val isFollowMeActive: Boolean = false,
+    val isHeadingUpActive: Boolean = false,
 )

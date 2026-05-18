@@ -126,6 +126,9 @@ class MainViewModel(
     private val _contextMenuEvent = MutableSharedFlow<GeoMarkContextMenuEvent>()
     val contextMenuEvent: SharedFlow<GeoMarkContextMenuEvent> = _contextMenuEvent.asSharedFlow()
 
+    private val _resetBearingEvent = MutableSharedFlow<Unit>()
+    val resetBearingEvent: SharedFlow<Unit> = _resetBearingEvent.asSharedFlow()
+
     // Navigation callbacks provided by NavGraph (has navController access).
     // Updated via provideNavCallbacks() before the first frame renders.
     private val _navCallbacks = MutableStateFlow(HudNavCallbacks())
@@ -308,6 +311,21 @@ class MainViewModel(
         _uiState.update { it.copy(isFollowMeActive = false) }
     }
 
+    fun onCompassTap() {
+        if (_uiState.value.isHeadingUpActive) {
+            _uiState.update { it.copy(isHeadingUpActive = false) }
+        }
+        viewModelScope.launch { _resetBearingEvent.emit(Unit) }
+    }
+
+    fun onCompassLongPress() {
+        _uiState.update { it.copy(isHeadingUpActive = !it.isHeadingUpActive) }
+    }
+
+    fun onHeadingUpDeactivated() {
+        _uiState.update { it.copy(isHeadingUpActive = false) }
+    }
+
     fun toggleMarkTool() {
         _uiState.update { state ->
             if (state.markToolActive) {
@@ -451,7 +469,16 @@ class MainViewModel(
 
     private fun buildHudUiState(state: MainUiState, nav: HudNavCallbacks): HudUiState = HudUiState(
         menuDrawer = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_menu, label = "меню", onClick = { toggleMenuDrawer() }), info = emptyInfoSlot()),
-        compass  = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_compass,    label = "направление", onClick = {}), info = emptyInfoSlot()),
+        compass  = HudRowConfig(
+            button = HudButtonSlot(
+                iconRes = R.drawable.ic_compass,
+                label = "направление",
+                selected = if (state.isHeadingUpActive) true else null,
+                onClick = { onCompassTap() },
+                onLongClick = { onCompassLongPress() },
+            ),
+            info = emptyInfoSlot(),
+        ),
         target   = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_target, label = "привязка", selected = state.isFollowMeActive, onClick = { onFollowMeToggle() }), info = emptyInfoSlot()),
         markTool = HudRowConfig(
             button = HudButtonSlot(
@@ -555,9 +582,14 @@ class MainViewModel(
     // onClick stubs: each action will be wired when its feature is implemented.
     private fun buildLeftColumn(state: MainUiState) = HudColumnConfig(
         rows = listOf(
-            // TODO: wire to compass/bearing mode toggle when implemented
             HudRowConfig(
-                button = HudButtonSlot(iconRes = R.drawable.ic_compass,   label = "направление",  onClick = {}),
+                button = HudButtonSlot(
+                    iconRes = R.drawable.ic_compass,
+                    label = "направление",
+                    selected = if (state.isHeadingUpActive) true else null,
+                    onClick = { onCompassTap() },
+                    onLongClick = { onCompassLongPress() },
+                ),
                 info = emptyInfoSlot(),
             ),
             HudRowConfig(

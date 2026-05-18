@@ -92,6 +92,8 @@ fun NavGraph() {
                     onDeletePendingPoint = viewModel::deletePendingPoint,
                     menuDrawerUiState = menuDrawerUiState,
                     onFollowMeDeactivated = viewModel::onFollowMeDeactivated,
+                    onHeadingUpDeactivated = viewModel::onHeadingUpDeactivated,
+                    resetBearingEvents = viewModel.resetBearingEvent,
                 )
             }
 

@@ -64,6 +64,8 @@ fun MainScreen(
     onDeletePendingPoint: (Int) -> Unit = {},
     menuDrawerUiState: MenuDrawerUiState,
     onFollowMeDeactivated: () -> Unit = {},
+    onHeadingUpDeactivated: () -> Unit = {},
+    resetBearingEvents: Flow<Unit> = emptyFlow(),
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var lastKnownPosition by remember { mutableStateOf(uiState.initialCameraPosition) }
@@ -111,9 +113,26 @@ fun MainScreen(
     }
 
     LaunchedEffect(cameraState.moveReason) {
-        if (cameraState.moveReason == CameraMoveReason.GESTURE && uiState.isFollowMeActive) {
-            onFollowMeDeactivated()
+        if (cameraState.moveReason == CameraMoveReason.GESTURE) {
+            if (uiState.isFollowMeActive) onFollowMeDeactivated()
+            if (uiState.isHeadingUpActive) onHeadingUpDeactivated()
         }
+    }
+
+    LaunchedEffect(resetBearingEvents) {
+        resetBearingEvents.collect {
+            val pos = cameraState.position
+            cameraState.animateTo(
+                finalPosition = CameraPosition(bearing = 0.0, target = pos.target, zoom = pos.zoom),
+                duration = 300.milliseconds,
+            )
+        }
+    }
+
+    LaunchedEffect(bearing, uiState.isHeadingUpActive) {
+        if (!uiState.isHeadingUpActive) return@LaunchedEffect
+        val pos = cameraState.position
+        cameraState.position = CameraPosition(bearing = bearing.toDouble(), target = pos.target, zoom = pos.zoom)
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
