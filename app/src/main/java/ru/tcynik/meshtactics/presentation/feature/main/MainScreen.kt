@@ -154,7 +154,10 @@ fun MainScreen(
 
         // z4 — geo marks sheet (portrait only)
         if (!isLandscape) {
-            GeoMarksSheet(state = geoMarksSheetUiState)
+            GeoMarksSheet(
+                state = geoMarksSheetUiState,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
 
         contextMenu?.let { event ->

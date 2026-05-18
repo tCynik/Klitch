@@ -16,18 +16,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
@@ -41,6 +37,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,9 +46,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkColor
@@ -75,32 +69,32 @@ private val TTL_OPTIONS = listOf(
 )
 
 @Composable
-fun GeoMarksSheet(state: GeoMarksSheetUiState) {
+fun GeoMarksSheet(state: GeoMarksSheetUiState, modifier: Modifier = Modifier) {
     BackHandler(enabled = state.isVisible, onBack = state.onClose)
 
-    val maxSheetHeight = LocalConfiguration.current.screenHeightDp.dp * 0.85f
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        AnimatedVisibility(
-            visible = state.isVisible,
-            modifier = Modifier.align(Alignment.BottomCenter),
-            enter = slideInVertically(animationSpec = tween(250)) { it } + fadeIn(tween(200)),
-            exit  = slideOutVertically(animationSpec = tween(250)) { it } + fadeOut(tween(200)),
+    AnimatedVisibility(
+        visible = state.isVisible,
+        modifier = modifier,
+        enter = slideInVertically(animationSpec = tween(250)) { it } + fadeIn(tween(200)),
+        exit  = slideOutVertically(animationSpec = tween(250)) { it } + fadeOut(tween(200)),
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() },
+                    onClick = {},
+                ),
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+            color = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = maxSheetHeight)
-                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() },
-                        onClick = {},
-                    )
                     .navigationBarsPadding()
-                    .padding(bottom = 8.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .padding(bottom = 8.dp),
             ) {
                 SheetHeader(state)
                 HorizontalDivider()
