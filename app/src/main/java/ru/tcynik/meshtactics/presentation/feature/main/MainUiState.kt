@@ -40,4 +40,6 @@ data class MainUiState(
     val isHeadingUpActive: Boolean = false,
     // true when camera bearing is within 1° of north — compass button shown inactive
     val isMapNorthUp: Boolean = true,
+    // current map camera bearing in degrees [0, 360); used to rotate compass icon
+    val mapBearing: Float = 0f,
 )

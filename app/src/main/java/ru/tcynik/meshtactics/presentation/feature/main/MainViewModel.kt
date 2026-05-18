@@ -327,7 +327,12 @@ class MainViewModel(
     }
 
     fun onMapBearingChanged(bearing: Double) {
-        _uiState.update { it.copy(isMapNorthUp = kotlin.math.abs(bearing) < 1.0) }
+        _uiState.update {
+            it.copy(
+                isMapNorthUp = kotlin.math.abs(bearing) < 1.0,
+                mapBearing = bearing.toFloat(),
+            )
+        }
     }
 
     fun toggleMarkTool() {
@@ -474,17 +479,7 @@ class MainViewModel(
     private fun buildHudUiState(state: MainUiState, nav: HudNavCallbacks): HudUiState = HudUiState(
         menuDrawer = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_menu, label = "меню", onClick = { toggleMenuDrawer() }), info = emptyInfoSlot()),
         compass  = HudRowConfig(
-            button = HudButtonSlot(
-                iconRes = R.drawable.ic_compass,
-                label = "направление",
-                selected = when {
-                    state.isHeadingUpActive -> true
-                    state.isMapNorthUp -> false
-                    else -> null
-                },
-                onClick = { onCompassTap() },
-                onLongClick = { onCompassLongPress() },
-            ),
+            button = buildCompassButton(state),
             info = emptyInfoSlot(),
         ),
         target   = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_target, label = "привязка", selected = state.isFollowMeActive, onClick = { onFollowMeToggle() }), info = emptyInfoSlot()),
@@ -585,23 +580,30 @@ class MainViewModel(
         onDismiss = ::toggleMenuDrawer,
     )
 
+    private fun buildCompassButton(state: MainUiState): HudButtonSlot {
+        val rotated = !state.isMapNorthUp && !state.isHeadingUpActive
+        return HudButtonSlot(
+            iconRes = if (rotated) R.drawable.ic_compass_rotated else R.drawable.ic_compass,
+            label = "направление",
+            preserveIconColors = rotated,
+            iconRotationDegrees = if (rotated) -state.mapBearing - 45f else 0f,
+            selected = when {
+                state.isHeadingUpActive -> true
+                state.isMapNorthUp -> false
+                else -> null
+            },
+            onClick = { onCompassTap() },
+            onLongClick = { onCompassLongPress() },
+        )
+    }
+
     // Left column — map tools.
     // Row 5 (bottom): GPS signal indicator — ic_satellite tinted by signal level.
     // onClick stubs: each action will be wired when its feature is implemented.
     private fun buildLeftColumn(state: MainUiState) = HudColumnConfig(
         rows = listOf(
             HudRowConfig(
-                button = HudButtonSlot(
-                    iconRes = R.drawable.ic_compass,
-                    label = "направление",
-                    selected = when {
-                    state.isHeadingUpActive -> true
-                    state.isMapNorthUp -> false
-                    else -> null
-                },
-                    onClick = { onCompassTap() },
-                    onLongClick = { onCompassLongPress() },
-                ),
+                button = buildCompassButton(state),
                 info = emptyInfoSlot(),
             ),
             HudRowConfig(

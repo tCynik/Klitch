@@ -54,6 +54,8 @@ fun HudButtonSlotItem(
                 enabled = slot.enabled,
                 selected = slot.selected,
                 tintOverride = slot.tintOverride,
+                preserveIconColors = slot.preserveIconColors,
+                iconRotationDegrees = slot.iconRotationDegrees,
                 onLongClick = slot.onLongClick,
             )
             // Info badge overlay

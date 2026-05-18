@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.unit.dp
 import ru.tcynik.meshtactics.ui.theme.IconActive
 import ru.tcynik.meshtactics.ui.theme.IconDisabled
@@ -48,6 +49,11 @@ fun MeshIconButton(
     // null  → color driven by enabled/selected state (default)
     // set   → overrides the computed content color (e.g. GPS signal level tint)
     tintOverride: Color? = null,
+    // true  → icon is drawn with its own intrinsic colors (no tint applied to the icon)
+    //         frame still uses contentColor
+    preserveIconColors: Boolean = false,
+    // clockwise rotation applied to the icon only (degrees); 0 = no rotation
+    iconRotationDegrees: Float = 0f,
     onLongClick: (() -> Unit)? = null,
 ) {
     val strokeWidth = 3.dp
@@ -94,8 +100,10 @@ fun MeshIconButton(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = contentColor,
-            modifier = Modifier.size(squareSize * 0.70f),
+            tint = if (preserveIconColors) Color.Unspecified else contentColor,
+            modifier = Modifier
+                .size(squareSize * 0.70f)
+                .rotate(iconRotationDegrees),
         )
     }
 }
