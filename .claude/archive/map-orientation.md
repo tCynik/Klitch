@@ -293,3 +293,4 @@ Phase 6: [stage by name] → [propose commit] → [wait for confirmation] → gi
 
 - 2026-05-18: created
 - 2026-05-18: done | tokens: not recorded
+- 2026-05-18: post-merge additions — native compass hidden (OrnamentOptions); compass button tri-state (isMapNorthUp + onMapBearingChanged); docs updated

@@ -6,12 +6,18 @@ Long-tap toggles **heading-up mode**: the camera bearing continuously follows th
 sensor. The mode auto-deactivates when the user rotates the map via gesture. Follow Me
 (position tracking) is independent and can run simultaneously.
 
+The compass button reflects the current map state: inactive (dimmed) when north is up, normal when
+the map is rotated, active glow when heading-up mode is on. The built-in MapLibre compass ornament
+is disabled — our button replaces it entirely.
+
 ## Key classes
-- `MainUiState` — `isHeadingUpActive: Boolean` (presentation layer)
+- `MainUiState` — `isHeadingUpActive: Boolean`, `isMapNorthUp: Boolean` (presentation layer)
 - `MainViewModel` — `onCompassTap()`, `onCompassLongPress()`, `onHeadingUpDeactivated()`,
-  `resetBearingEvent: SharedFlow<Unit>`
-- `MainScreen` — three `LaunchedEffect`s: reset-to-north (collect SharedFlow + `animateTo`),
-  heading-up (direct `cameraState.position =` write on every bearing change), gesture deactivation
+  `onMapBearingChanged(Double)`, `resetBearingEvent: SharedFlow<Unit>`
+- `MainScreen` — four `LaunchedEffect`s: reset-to-north (collect SharedFlow + `animateTo`),
+  heading-up (direct `cameraState.position =` write), gesture deactivation,
+  bearing tracker (`cameraState.position.bearing` → `onMapBearingChanged`)
+- `MapLibreLayer` — native compass disabled via `OrnamentOptions(isCompassEnabled = false)`
 - `MeshIconButton` — added `onLongClick: (() -> Unit)? = null` + `combinedClickable`
 - `HudButtonSlot` — added `onLongClick` field
 
@@ -24,8 +30,14 @@ sensor. The mode auto-deactivates when the user rotates the map via gesture. Fol
 - **SharedFlow for reset-to-north event**: tap is a one-shot imperative action, not persistent
   state. `MutableSharedFlow<Unit>(replay=0)` fires exactly once per tap with no reset bookkeeping.
   See `/architect` — "One-Shot Event via SharedFlow" pattern.
-- **`selected = if (state.isHeadingUpActive) true else null`**: `null` = regular button,
-  `true` = toggle-on glow. Button is not a standard two-state toggle — it's a mode indicator.
+- **Compass button `selected` tri-state**:
+  `isHeadingUpActive=true` → `selected=true` (glow); `isMapNorthUp=true` → `selected=false` (dimmed);
+  otherwise → `selected=null` (regular, map is rotated — tap to reset). `isMapNorthUp` is derived
+  from `cameraState.position.bearing` with a 1° threshold to handle floating-point drift after
+  `animateTo(bearing=0.0)`.
+- **Native MapLibre compass disabled**: `OrnamentOptions(isCompassEnabled = false)` in `MapOptions`.
+  The native compass would bypass `onHeadingUpDeactivated` on tap, causing heading-up to immediately
+  re-rotate the map back — visual flicker with no net effect.
 - **`combinedClickable` with `@OptIn(ExperimentalFoundationApi::class)`**: existing `MeshIconButton`
   used `Modifier.clickable`; switched to `combinedClickable` to add long-press. All callers that
   don't pass `onLongClick` get `null` (no behaviour change).
