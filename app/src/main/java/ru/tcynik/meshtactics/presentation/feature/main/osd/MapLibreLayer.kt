@@ -39,6 +39,7 @@ import org.maplibre.compose.layers.SymbolLayer
 import org.maplibre.compose.map.GestureOptions
 import org.maplibre.compose.map.MapOptions
 import org.maplibre.compose.map.MaplibreMap
+import org.maplibre.compose.map.OrnamentOptions
 import org.maplibre.compose.sources.GeoJsonData
 import org.maplibre.compose.sources.rememberGeoJsonSource
 import org.maplibre.compose.sources.rememberImageSource
@@ -114,12 +115,15 @@ fun MapLibreLayer(
         baseStyle = BASE_STYLE_WITH_GLYPHS,
         cameraState = cameraState,
         options = if (markToolActive) {
-            MapOptions(gestureOptions = GestureOptions(
-                isDoubleTapEnabled = false,
-                isQuickZoomEnabled = false,
-            ))
+            MapOptions(
+                gestureOptions = GestureOptions(
+                    isDoubleTapEnabled = false,
+                    isQuickZoomEnabled = false,
+                ),
+                ornamentOptions = OrnamentOptions(isCompassEnabled = false),
+            )
         } else {
-            MapOptions()
+            MapOptions(ornamentOptions = OrnamentOptions(isCompassEnabled = false))
         },
         onMapClick = { position, _ ->
             onMapClick(position.latitude, position.longitude)
