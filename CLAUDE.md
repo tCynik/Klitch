@@ -146,3 +146,4 @@
 | HUD Portrait Refactor | `.claude/archive/hud-portrait-refactor.md` | Archived |
 | HUD Menu Drawer | `.claude/archive/hud-menu-drawer.md` | Archived |
 | Follow Me | `.claude/archive/follow-me.md` | Archived |
+| Geo Marks Bottom Sheet | `.claude/archive/geo-marks-sheet.md` | Done |

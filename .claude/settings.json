@@ -181,7 +181,9 @@
       "Bash(mkdir -p C:/tmp/mljars)",
       "Read(//c/tmp/**)",
       "PowerShell(Get-ChildItem -Recurse -Path \"C:\\\\tmp\\\\mljars\" -Filter \"LineLayer.kt\" | ForEach-Object { $_.FullName })",
-      "Read(//c/tmp/mljars/commonMain/org/maplibre/compose/sources/**)"
+      "Read(//c/tmp/mljars/commonMain/org/maplibre/compose/sources/**)",
+      "Bash(cp \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\geo-marks-sheet.md\" \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\archive\\\\geo-marks-sheet.md\")",
+      "Bash(Remove-Item \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\geo-marks-sheet.md\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",

@@ -1,7 +1,8 @@
 # Plan: Geo Marks Bottom Sheet
 
 **Date**: 2026-05-18
-**Status**: Approved
+**Archived**: 2026-05-19
+**Status**: Done
 
 ## Summary
 
