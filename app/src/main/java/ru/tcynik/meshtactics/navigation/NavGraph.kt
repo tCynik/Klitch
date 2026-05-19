@@ -55,6 +55,7 @@ fun NavGraph() {
                 val hudConfig by viewModel.hudConfig.collectAsState()
                 val hudUiState by viewModel.hudUiState.collectAsState()
                 val menuDrawerUiState by viewModel.menuDrawerUiState.collectAsState()
+                val geoMarksSheetUiState by viewModel.geoMarksSheetUiState.collectAsState()
                 val locationProvider: LocationProvider = koinInject()
                 val orientationProvider: DeviceOrientationProvider = koinInject()
 
@@ -87,10 +88,9 @@ fun NavGraph() {
                     orientationProvider = orientationProvider,
                     onMapClick = viewModel::onMapClick,
                     onMapLongClick = viewModel::onMapLongClick,
-                    onSendPendingMark = viewModel::sendPendingMark,
                     contextMenuEvents = viewModel.contextMenuEvent,
-                    onDeletePendingPoint = viewModel::deletePendingPoint,
                     menuDrawerUiState = menuDrawerUiState,
+                    geoMarksSheetUiState = geoMarksSheetUiState,
                     onFollowMeDeactivated = viewModel::onFollowMeDeactivated,
                 )
             }

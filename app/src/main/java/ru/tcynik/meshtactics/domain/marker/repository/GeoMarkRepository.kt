@@ -6,7 +6,7 @@ import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 
 interface GeoMarkRepository {
     fun observeGeoMarks(): Flow<List<GeoMarkModel>>
-    suspend fun sendGeoMark(mark: GeoMarkModel)
+    suspend fun sendGeoMark(mark: GeoMarkModel, contourId: ContourId? = null, localOnly: Boolean = false)
     suspend fun persistReceived(mark: GeoMarkModel, contourId: ContourId)
     suspend fun deleteExpired(nowSeconds: Long)
 }

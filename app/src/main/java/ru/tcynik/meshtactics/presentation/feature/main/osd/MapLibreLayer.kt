@@ -1,5 +1,9 @@
 package ru.tcynik.meshtactics.presentation.feature.main.osd
 
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Path
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -19,6 +23,8 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.delay
 import org.maplibre.compose.camera.CameraState
 import org.maplibre.compose.expressions.dsl.asString
+import org.maplibre.compose.expressions.dsl.case
+import org.maplibre.compose.expressions.dsl.convertToColor
 import org.maplibre.spatialk.geojson.Position
 import org.maplibre.compose.expressions.dsl.const
 import org.maplibre.compose.expressions.dsl.eq
@@ -28,6 +34,7 @@ import org.maplibre.compose.expressions.dsl.image
 import org.maplibre.compose.expressions.dsl.not
 import org.maplibre.compose.expressions.dsl.offset
 import org.maplibre.compose.expressions.dsl.span
+import org.maplibre.compose.expressions.dsl.switch
 import org.maplibre.compose.expressions.value.FloatValue
 import org.maplibre.compose.expressions.value.IconRotationAlignment
 import org.maplibre.compose.expressions.value.SymbolAnchor
@@ -46,7 +53,9 @@ import org.maplibre.compose.sources.rememberRasterSource
 import org.maplibre.compose.style.BaseStyle
 import org.maplibre.compose.util.ClickResult
 import org.maplibre.compose.util.PositionQuad
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkColor
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkShape
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
@@ -87,6 +96,8 @@ fun MapLibreLayer(
     selectedOverlays: ImmutableList<OverlayRenderModel> = persistentListOf(),
     geoMarks: ImmutableList<GeoMarkModel> = persistentListOf(),
     pendingMarkPoints: ImmutableList<ru.tcynik.meshtactics.domain.marker.model.GeoPoint> = persistentListOf(),
+    pendingMarkColor: Int = 0,
+    pendingMarkShape: GeoMarkShape = GeoMarkShape.CIRCLE,
     markToolActive: Boolean = false,
     onMapClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
     onMapLongClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit = { _, _, _, _ -> },
@@ -133,6 +144,10 @@ fun MapLibreLayer(
             ClickResult.Pass
         },
     ) {
+        val circleBitmap = remember { createShapeBitmap(64, GeoMarkShape.CIRCLE).asImageBitmap() }
+        val squareBitmap = remember { createShapeBitmap(64, GeoMarkShape.SQUARE).asImageBitmap() }
+        val triangleBitmap = remember { createShapeBitmap(64, GeoMarkShape.TRIANGLE).asImageBitmap() }
+
         val tileSource = rememberRasterSource(
             tiles = listOf(tileUrlTemplate),
             tileSize = 256,
@@ -287,69 +302,92 @@ fun MapLibreLayer(
         )
 
         // ── Geo marks ────────────────────────────────────────────────────────
-        // Draft (unsent) marks — hollow cyan circles + dashed line
+        // Draft (unsent) marks — shape icon in selected color + line
         val draftPointsSource = rememberGeoJsonSource(
             GeoJsonData.JsonString(buildDraftPointsGeoJson(pendingMarkPoints.toList()))
         )
-        CircleLayer(
+        val draftColor = Color(GeoMarkColor.colorAt(pendingMarkColor))
+        val pendingShapeBitmap = when (pendingMarkShape) {
+            GeoMarkShape.CIRCLE   -> circleBitmap
+            GeoMarkShape.SQUARE   -> squareBitmap
+            GeoMarkShape.TRIANGLE -> triangleBitmap
+        }
+        SymbolLayer(
             id = "geo-draft-points",
             source = draftPointsSource,
-            color = const(Color(0x0029B6F6)),      // transparent fill
-            strokeColor = const(Color(0xFF29B6F6)),
-            strokeWidth = const(2.dp),
-            radius = const(8.dp),
+            iconImage = image(pendingShapeBitmap, isSdf = true),
+            iconColor = const(draftColor),
+            iconSize = const(0.5f),
+            iconHaloColor = const(Color.White),
+            iconHaloWidth = const(1.dp),
+            iconAllowOverlap = const(true),
         )
-        if (pendingMarkPoints.size >= 2) {
-            val draftLineSource = rememberGeoJsonSource(
-                GeoJsonData.JsonString(buildDraftLineGeoJson(pendingMarkPoints.toList()))
-            )
-            LineLayer(
-                id = "geo-draft-line",
-                source = draftLineSource,
-                color = const(Color(0xFF29B6F6)),
-                width = const(2.dp),
-            )
-        }
+        val draftLineSource = rememberGeoJsonSource(
+            GeoJsonData.JsonString(buildDraftLineGeoJson(pendingMarkPoints.toList()))
+        )
+        LineLayer(
+            id = "geo-draft-line-outline",
+            source = draftLineSource,
+            color = const(Color(0x80000000)),
+            width = const(4.dp),
+        )
+        LineLayer(
+            id = "geo-draft-line",
+            source = draftLineSource,
+            color = const(draftColor),
+            width = const(2.dp),
+        )
 
-        // Received / confirmed marks — solid blue
         val receivedPoints = geoMarks.filter { it.type == GeoMarkType.POINT }
         val receivedTracks = geoMarks.filter { it.type == GeoMarkType.TRACK }
 
         val receivedPointsSource = rememberGeoJsonSource(
             GeoJsonData.JsonString(buildReceivedPointsGeoJson(receivedPoints))
         )
-        CircleLayer(
+        SymbolLayer(
             id = "geo-received-points",
             source = receivedPointsSource,
-            color = const(Color(0xFF1E88E5)),
-            strokeColor = const(Color.White),
-            strokeWidth = const(2.dp),
-            radius = const(8.dp),
+            iconImage = switch(
+                input = feature["shapeOrdinal"].cast<FloatValue>(),
+                case(GeoMarkShape.SQUARE.ordinal, image(squareBitmap, isSdf = true)),
+                case(GeoMarkShape.TRIANGLE.ordinal, image(triangleBitmap, isSdf = true)),
+                fallback = image(circleBitmap, isSdf = true),
+            ),
+            iconColor = feature["color"].convertToColor(const(Color(0xFF1E88E5))),
+            iconSize = const(0.5f),
+            iconHaloColor = const(Color.White),
+            iconHaloWidth = const(1.dp),
+            iconAllowOverlap = const(true),
         )
 
-        if (receivedTracks.isNotEmpty()) {
-            val receivedTracksSource = rememberGeoJsonSource(
-                GeoJsonData.JsonString(buildReceivedTracksGeoJson(receivedTracks))
-            )
-            LineLayer(
-                id = "geo-received-tracks",
-                source = receivedTracksSource,
-                color = const(Color(0xFF1E88E5)),
-                width = const(3.dp),
-            )
-            // Track endpoint circles
-            val trackAnchorsSource = rememberGeoJsonSource(
-                GeoJsonData.JsonString(buildTrackAnchorsGeoJson(receivedTracks))
-            )
-            CircleLayer(
-                id = "geo-received-track-anchors",
-                source = trackAnchorsSource,
-                color = const(Color(0xFF1E88E5)),
-                strokeColor = const(Color.White),
-                strokeWidth = const(2.dp),
-                radius = const(5.dp),
-            )
-        }
+        val receivedTracksSource = rememberGeoJsonSource(
+            GeoJsonData.JsonString(buildReceivedTracksGeoJson(receivedTracks))
+        )
+        LineLayer(
+            id = "geo-received-tracks-outline",
+            source = receivedTracksSource,
+            color = const(Color(0x80000000)),
+            width = const(5.dp),
+        )
+        LineLayer(
+            id = "geo-received-tracks",
+            source = receivedTracksSource,
+            color = feature["color"].convertToColor(const(Color(0xFFE53935))),
+            width = const(3.dp),
+        )
+        val trackAnchorsSource = rememberGeoJsonSource(
+            GeoJsonData.JsonString(buildTrackAnchorsGeoJson(receivedTracks))
+        )
+        SymbolLayer(
+            id = "geo-received-track-anchors",
+            source = trackAnchorsSource,
+            iconImage = image(circleBitmap, isSdf = true),
+            iconColor = feature["color"].convertToColor(const(Color(0xFF1E88E5))),
+            iconSize = const(0.35f),
+            iconHaloColor = const(Color.White),
+            iconHaloWidth = const(1.dp),
+            iconAllowOverlap = const(true),
+        )
     }
 }
 
@@ -478,17 +516,22 @@ private fun buildReceivedPointsGeoJson(marks: List<GeoMarkModel>): String {
     if (marks.isEmpty()) return """{"type":"FeatureCollection","features":[]}"""
     val features = marks.joinToString(",") { mark ->
         val anchor = mark.points.first()
-        """{"type":"Feature","geometry":{"type":"Point","coordinates":[${anchor.longitude},${anchor.latitude}]},"properties":{}}"""
+        val hex = markColorHex(mark.color)
+        val shapeOrdinal = mark.shape.ordinal
+        """{"type":"Feature","geometry":{"type":"Point","coordinates":[${anchor.longitude},${anchor.latitude}]},"properties":{"color":"$hex","shapeOrdinal":$shapeOrdinal}}"""
     }
     return """{"type":"FeatureCollection","features":[$features]}"""
 }
 
 private fun buildReceivedTracksGeoJson(marks: List<GeoMarkModel>): String {
     if (marks.isEmpty()) return """{"type":"FeatureCollection","features":[]}"""
-    val features = marks.joinToString(",") { mark ->
-        val coords = mark.points.joinToString(",") { "[${it.longitude},${it.latitude}]" }
-        """{"type":"Feature","geometry":{"type":"LineString","coordinates":[$coords]},"properties":{}}"""
-    }
+    val features = marks
+        .filter { it.points.size >= 2 }
+        .joinToString(",") { mark ->
+            val coords = mark.points.joinToString(",") { "[${it.longitude},${it.latitude}]" }
+            val hex = markColorHex(mark.color)
+            """{"type":"Feature","geometry":{"type":"LineString","coordinates":[$coords]},"properties":{"color":"$hex"}}"""
+        }
     return """{"type":"FeatureCollection","features":[$features]}"""
 }
 
@@ -496,10 +539,47 @@ private fun buildReceivedTracksGeoJson(marks: List<GeoMarkModel>): String {
 private fun buildTrackAnchorsGeoJson(marks: List<GeoMarkModel>): String {
     if (marks.isEmpty()) return """{"type":"FeatureCollection","features":[]}"""
     val features = marks.flatMap { mark ->
-        listOfNotNull(mark.points.firstOrNull(), mark.points.lastOrNull()
-            .takeIf { mark.points.size > 1 })
-    }.joinToString(",") { pt ->
-        """{"type":"Feature","geometry":{"type":"Point","coordinates":[${pt.longitude},${pt.latitude}]},"properties":{}}"""
+        val hex = markColorHex(mark.color)
+        listOfNotNull(
+            mark.points.firstOrNull(),
+            mark.points.lastOrNull().takeIf { mark.points.size > 1 },
+        ).map { pt -> Pair(pt, hex) }
+    }.joinToString(",") { (pt, hex) ->
+        """{"type":"Feature","geometry":{"type":"Point","coordinates":[${pt.longitude},${pt.latitude}]},"properties":{"color":"$hex"}}"""
     }
     return """{"type":"FeatureCollection","features":[$features]}"""
+}
+
+private fun markColorHex(colorIndex: Int): String {
+    val argb = GeoMarkColor.colorAt(colorIndex)
+    return "#%02X%02X%02X".format(
+        (argb shr 16) and 0xFF,
+        (argb shr 8) and 0xFF,
+        argb and 0xFF,
+    )
+}
+
+private fun createShapeBitmap(size: Int, shape: GeoMarkShape): Bitmap {
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.WHITE
+        style = Paint.Style.FILL
+    }
+    val f = size.toFloat()
+    val pad = f * 0.05f
+    when (shape) {
+        GeoMarkShape.CIRCLE -> canvas.drawCircle(f / 2f, f / 2f, f / 2f - pad, paint)
+        GeoMarkShape.SQUARE -> canvas.drawRect(pad, pad, f - pad, f - pad, paint)
+        GeoMarkShape.TRIANGLE -> {
+            val path = Path().apply {
+                moveTo(f / 2f, pad)
+                lineTo(f - pad, f - pad)
+                lineTo(pad, f - pad)
+                close()
+            }
+            canvas.drawPath(path, paint)
+        }
+    }
+    return bitmap
 }
