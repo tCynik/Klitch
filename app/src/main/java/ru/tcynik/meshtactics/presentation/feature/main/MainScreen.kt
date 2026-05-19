@@ -139,9 +139,8 @@ fun MainScreen(
     LaunchedEffect(resetBearingEvents) {
         resetBearingEvents.collect {
             val pos = cameraState.position
-            val target = currentLocation?.position ?: pos.target
             cameraState.animateTo(
-                finalPosition = CameraPosition(bearing = 0.0, target = target, zoom = pos.zoom),
+                finalPosition = CameraPosition(bearing = 0.0, target = pos.target, zoom = pos.zoom),
                 duration = 300.milliseconds,
             )
         }
