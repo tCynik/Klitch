@@ -16,7 +16,7 @@ data class GeoMarksSheetUiState(
     val selectedColor: Int = 0,
     val selectedShape: GeoMarkShape = GeoMarkShape.CIRCLE,
     val selectedTrackEndType: TrackEndType = TrackEndType.NONE,
-    val selectedTtlSeconds: Long = 28800L,
+    val selectedTtlSeconds: Long = 900L,
     val markName: String = "",
     val nameCounter: Int = 1,
     val pendingPoints: ImmutableList<GeoPoint> = persistentListOf(),

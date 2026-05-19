@@ -306,7 +306,7 @@ fun MapLibreLayer(
         val draftPointsSource = rememberGeoJsonSource(
             GeoJsonData.JsonString(buildDraftPointsGeoJson(pendingMarkPoints.toList()))
         )
-        val draftColor = GeoMarkColor.colorAt(pendingMarkColor)
+        val draftColor = Color(GeoMarkColor.colorAt(pendingMarkColor))
         val pendingShapeBitmap = when (pendingMarkShape) {
             GeoMarkShape.CIRCLE   -> circleBitmap
             GeoMarkShape.SQUARE   -> squareBitmap
@@ -551,11 +551,11 @@ private fun buildTrackAnchorsGeoJson(marks: List<GeoMarkModel>): String {
 }
 
 private fun markColorHex(colorIndex: Int): String {
-    val c = GeoMarkColor.colorAt(colorIndex)
+    val argb = GeoMarkColor.colorAt(colorIndex)
     return "#%02X%02X%02X".format(
-        (c.red * 255).toInt(),
-        (c.green * 255).toInt(),
-        (c.blue * 255).toInt(),
+        (argb shr 16) and 0xFF,
+        (argb shr 8) and 0xFF,
+        argb and 0xFF,
     )
 }
 

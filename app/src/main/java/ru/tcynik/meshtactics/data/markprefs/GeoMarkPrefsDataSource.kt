@@ -26,7 +26,7 @@ class GeoMarkPrefsDataSource(
                 selectedType        = prefs[KEY_TYPE] ?: GeoMarkType.POINT.name,
                 selectedColor       = prefs[KEY_COLOR] ?: 4,
                 selectedTrackEndType = prefs[KEY_TRACK_END_TYPE] ?: TrackEndType.NONE.ends.toInt(),
-                selectedTtlSeconds  = prefs[KEY_TTL_SECONDS] ?: 28800L,
+                selectedTtlSeconds  = prefs[KEY_TTL_SECONDS] ?: 900L,
                 markName            = prefs[KEY_MARK_NAME] ?: "",
                 nameCounter         = prefs[KEY_NAME_COUNTER] ?: 1,
                 selectedContourId   = prefs[KEY_CONTOUR_ID] ?: "",

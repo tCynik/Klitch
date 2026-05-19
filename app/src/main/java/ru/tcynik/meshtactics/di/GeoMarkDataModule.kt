@@ -9,9 +9,11 @@ import kotlinx.coroutines.SupervisorJob
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
+import ru.tcynik.meshtactics.data.markprefs.GeoMarkPreferencesRepositoryImpl
 import ru.tcynik.meshtactics.data.markprefs.GeoMarkPrefsDataSource
 import ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapter
 import ru.tcynik.meshtactics.data.marker.repository.GeoMarkRepositoryImpl
+import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkPreferencesRepository
 import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkRepository
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
@@ -27,6 +29,7 @@ val geoMarkDataModule = module {
     }
 
     single { GeoMarkPrefsDataSource(get(named("GeoMarkPrefsDataStore"))) }
+    single<GeoMarkPreferencesRepository> { GeoMarkPreferencesRepositoryImpl(get()) }
 
     single { GeoMarkWaypointAdapter() }
     single<GeoMarkRepository> {

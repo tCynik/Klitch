@@ -14,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.wrapContentSize
@@ -49,6 +50,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -123,9 +125,7 @@ fun GeoMarksSheet(state: GeoMarksSheetUiState, modifier: Modifier = Modifier) {
                         TypeAndColorRow(state)
                         TypeSpecificSection(state)
                         HorizontalDivider()
-                        TtlRow(state)
-                        HorizontalDivider()
-                        NameRow(state)
+                        NameAndTtlRow(state)
                         HorizontalDivider()
                         BottomRow(state)
                     }
@@ -153,7 +153,7 @@ private fun SheetHeader(state: GeoMarksSheetUiState) {
         )
         ShapeIcon(
             shape = state.selectedShape,
-            fillColor = GeoMarkColor.colorAt(state.selectedColor),
+            fillColor = Color(GeoMarkColor.colorAt(state.selectedColor)),
             modifier = Modifier
                 .padding(end = 8.dp)
                 .size(24.dp),
@@ -342,17 +342,17 @@ private fun buildSheetHeaderTitle(state: GeoMarksSheetUiState): String {
 private fun formatTtlShort(seconds: Long): String = when (seconds) {
     900L    -> "15мин."
     1800L   -> "30мин."
-    3600L   -> "1ч."
-    7200L   -> "2ч."
-    18000L  -> "5ч."
-    28800L  -> "8ч."
-    43200L  -> "12ч."
-    86400L  -> "24ч."
-    259200L -> "3сут."
+    3600L   -> "1 ч."
+    7200L   -> "2 ч."
+    18000L  -> "5 ч."
+    28800L  -> "8 ч."
+    43200L  -> "12 ч."
+    86400L  -> "24 ч."
+    259200L -> "3 сут."
     else -> when {
         seconds < 3600  -> "${seconds / 60}мин."
-        seconds < 86400 -> "${seconds / 3600}ч."
-        else            -> "${seconds / 86400}сут."
+        seconds < 86400 -> "${seconds / 3600} ч."
+        else            -> "${seconds / 86400} сут."
     }
 }
 
@@ -366,7 +366,7 @@ private val GeoMarkType.headerNameFallback: String
 @Composable
 private fun ColorDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
     var expanded by remember { mutableStateOf(false) }
-    val currentColor = GeoMarkColor.colorAt(state.selectedColor)
+    val currentColor = Color(GeoMarkColor.colorAt(state.selectedColor))
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -400,12 +400,12 @@ private fun ColorDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    rowColors.forEachIndexed { colIndex, color ->
+                    rowColors.forEachIndexed { colIndex, argb ->
                         val index = rowIndex * 4 + colIndex
                         Box(
                             modifier = Modifier
                                 .size(32.dp)
-                                .background(color, RoundedCornerShape(6.dp))
+                                .background(Color(argb), RoundedCornerShape(6.dp))
                                 .clickable { state.onColorSelected(index); expanded = false },
                         )
                     }
@@ -473,67 +473,103 @@ private fun TrackSection(state: GeoMarksSheetUiState) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TtlRow(state: GeoMarksSheetUiState) {
-    var expanded by remember { mutableStateOf(false) }
-    val currentLabel = TTL_OPTIONS.firstOrNull { it.first == state.selectedTtlSeconds }?.second
-        ?: "${state.selectedTtlSeconds / 3600} ч"
+private fun NameAndTtlRow(state: GeoMarksSheetUiState) {
+    var ttlExpanded by remember { mutableStateOf(false) }
+    val ttlShort = formatTtlShort(state.selectedTtlSeconds)
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-    ) {
-        OutlinedTextField(
-            value = currentLabel,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Актуальность") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            TTL_OPTIONS.forEach { (seconds, label) ->
-                DropdownMenuItem(
-                    text = { Text(label) },
-                    onClick = { state.onTtlSelected(seconds); expanded = false },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun NameRow(state: GeoMarksSheetUiState) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.Top,
     ) {
-        OutlinedTextField(
+        MarkNameField(
             value = state.markName,
             onValueChange = state.onMarkNameChanged,
-            label = { Text("Название") },
             modifier = Modifier.weight(1f),
-            singleLine = true,
         )
         OutlinedTextField(
             value = state.nameCounter.toString(),
             onValueChange = { v -> v.toIntOrNull()?.let { state.onNameCounterChanged(it) } },
             label = { Text("№") },
-            modifier = Modifier.width(72.dp),
+            modifier = Modifier.width(64.dp),
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         )
+        ExposedDropdownMenuBox(
+            expanded = ttlExpanded,
+            onExpandedChange = { ttlExpanded = it },
+            modifier = Modifier.width(100.dp),
+        ) {
+            OutlinedTextField(
+                value = ttlShort,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Время") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(ttlExpanded) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                singleLine = true,
+            )
+            ExposedDropdownMenu(expanded = ttlExpanded, onDismissRequest = { ttlExpanded = false }) {
+                TTL_OPTIONS.forEach { (seconds, label) ->
+                    DropdownMenuItem(
+                        text = { Text(label) },
+                        onClick = { state.onTtlSelected(seconds); ttlExpanded = false },
+                    )
+                }
+            }
+        }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MarkNameField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    val showEllipsisOverlay = !isFocused && value.isNotEmpty()
+
+    Box(modifier = modifier) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text("Название") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            interactionSource = interactionSource,
+            textStyle = MaterialTheme.typography.bodyLarge,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = if (showEllipsisOverlay) Color.Transparent
+                else MaterialTheme.colorScheme.onSurface,
+            ),
+        )
+        if (showEllipsisOverlay) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(
+                        start = 16.dp,
+                        end = 16.dp,
+                        bottom = 16.dp,
+                    ),
+            )
+        }
+    }
+}
 
 private val sendLeadingShape = RoundedCornerShape(
     topStart = 20.dp, bottomStart = 20.dp, topEnd = 4.dp, bottomEnd = 4.dp,

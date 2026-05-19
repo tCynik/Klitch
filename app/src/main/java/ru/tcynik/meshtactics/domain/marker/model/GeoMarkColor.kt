@@ -1,7 +1,5 @@
 package ru.tcynik.meshtactics.domain.marker.model
 
-import androidx.compose.ui.graphics.Color
-
 object GeoMarkColor {
 
     val names: List<String> = listOf(
@@ -23,26 +21,27 @@ object GeoMarkColor {
         "Золотой",
     )
 
-    val palette: List<Color> = listOf(
-        Color(0xFFFFFFFF),  // 0  White
-        Color(0xFF9E9E9E),  // 1  Gray
-        Color(0xFF424242),  // 2  Dark gray
-        Color(0xFF212121),  // 3  Black
-        Color(0xFFE53935),  // 4  Red
-        Color(0xFFFF6D00),  // 5  Orange
-        Color(0xFFFFEA00),  // 6  Yellow
-        Color(0xFF76FF03),  // 7  Lime
-        Color(0xFF2E7D32),  // 8  Green
-        Color(0xFF26C6DA),  // 9  Cyan
-        Color(0xFF1565C0),  // 10 Blue
-        Color(0xFF283593),  // 11 Dark blue
-        Color(0xFF7B1FA2),  // 12 Purple
-        Color(0xFFE91E63),  // 13 Pink
-        Color(0xFF6D4C41),  // 14 Brown
-        Color(0xFFFFD600),  // 15 Gold
+    /** ARGB color values (0xAARRGGBB). Use Color(argb) in presentation to get a Compose Color. */
+    val palette: List<Int> = listOf(
+        0xFFFFFFFF.toInt(),  // 0  White
+        0xFF9E9E9E.toInt(),  // 1  Gray
+        0xFF424242.toInt(),  // 2  Dark gray
+        0xFF212121.toInt(),  // 3  Black
+        0xFFE53935.toInt(),  // 4  Red
+        0xFFFF6D00.toInt(),  // 5  Orange
+        0xFFFFEA00.toInt(),  // 6  Yellow
+        0xFF76FF03.toInt(),  // 7  Lime
+        0xFF2E7D32.toInt(),  // 8  Green
+        0xFF26C6DA.toInt(),  // 9  Cyan
+        0xFF1565C0.toInt(),  // 10 Blue
+        0xFF283593.toInt(),  // 11 Dark blue
+        0xFF7B1FA2.toInt(),  // 12 Purple
+        0xFFE91E63.toInt(),  // 13 Pink
+        0xFF6D4C41.toInt(),  // 14 Brown
+        0xFFFFD600.toInt(),  // 15 Gold
     )
 
-    fun colorAt(index: Int): Color = palette.getOrElse(index) { palette[0] }
+    fun colorAt(index: Int): Int = palette.getOrElse(index) { palette[0] }
 
-    fun indexOf(color: Color): Int = palette.indexOf(color).coerceAtLeast(0)
+    fun indexOf(argb: Int): Int = palette.indexOf(argb).coerceAtLeast(0)
 }

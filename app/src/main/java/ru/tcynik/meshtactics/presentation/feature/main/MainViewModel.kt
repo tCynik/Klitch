@@ -60,7 +60,7 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyButtonSlot
 import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyHudColumn
 import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyHudRowConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.emptyInfoSlot
-import ru.tcynik.meshtactics.data.markprefs.GeoMarkPrefsDataSource
+import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkPreferencesRepository
 import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkFormPreferences
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
@@ -127,7 +127,7 @@ class MainViewModel(
     private val rebootStateRepository: RebootStateRepository,
     private val observeCallsignChanges: ObserveCallsignChangesUseCase,
     private val refreshNodePublicKey: RefreshNodePublicKeyUseCase,
-    private val geoMarkPrefsDataSource: GeoMarkPrefsDataSource,
+    private val geoMarkPrefsRepository: GeoMarkPreferencesRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -340,11 +340,11 @@ class MainViewModel(
             }
             .launchIn(viewModelScope)
 
-        geoMarkPrefsDataSource.observePreferences()
+        geoMarkPrefsRepository.observePreferences()
             .onEach { prefs -> applyPrefsToFormState(prefs) }
             .launchIn(viewModelScope)
 
-        geoMarkPrefsDataSource.observePresets()
+        geoMarkPrefsRepository.observePresets()
             .onEach { presets ->
                 _formState.update { it.copy(savedPresets = presets.toImmutableList()) }
             }
@@ -892,7 +892,7 @@ class MainViewModel(
 
     private suspend fun persistFormState() {
         val form = _formState.value
-        geoMarkPrefsDataSource.savePreferences(
+        geoMarkPrefsRepository.savePreferences(
             GeoMarkFormPreferences(
                 selectedType         = form.selectedType.name,
                 selectedColor        = form.selectedColor,
@@ -921,6 +921,6 @@ class MainViewModel(
                 selectedContourId    = form.selectedContourId,
             ),
         )
-        geoMarkPrefsDataSource.addPreset(preset)
+        geoMarkPrefsRepository.addPreset(preset)
     }
 }
