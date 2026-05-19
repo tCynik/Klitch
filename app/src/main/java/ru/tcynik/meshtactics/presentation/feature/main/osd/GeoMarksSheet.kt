@@ -4,6 +4,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -26,6 +28,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -97,15 +101,23 @@ fun GeoMarksSheet(state: GeoMarksSheetUiState, modifier: Modifier = Modifier) {
                     .padding(bottom = 8.dp),
             ) {
                 SheetHeader(state)
-                HorizontalDivider()
-                TypeAndColorRow(state)
-                TypeSpecificSection(state)
-                HorizontalDivider()
-                TtlRow(state)
-                HorizontalDivider()
-                NameRow(state)
-                HorizontalDivider()
-                BottomRow(state)
+                AnimatedVisibility(
+                    visible = !state.isCollapsed,
+                    enter = expandVertically(animationSpec = tween(200)),
+                    exit  = shrinkVertically(animationSpec = tween(200)),
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        HorizontalDivider()
+                        TypeAndColorRow(state)
+                        TypeSpecificSection(state)
+                        HorizontalDivider()
+                        TtlRow(state)
+                        HorizontalDivider()
+                        NameRow(state)
+                        HorizontalDivider()
+                        BottomRow(state)
+                    }
+                }
             }
         }
     }
@@ -118,12 +130,19 @@ private fun SheetHeader(state: GeoMarksSheetUiState) {
             .fillMaxWidth()
             .padding(start = 16.dp, top = 4.dp, end = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
             text = "Создание ${state.selectedType.displayName}",
             style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f),
         )
+        IconButton(onClick = state.onToggleCollapsed) {
+            Icon(
+                imageVector = if (state.isCollapsed) Icons.Default.KeyboardArrowUp
+                              else Icons.Default.KeyboardArrowDown,
+                contentDescription = if (state.isCollapsed) "Развернуть" else "Свернуть",
+            )
+        }
         IconButton(onClick = state.onClose) {
             Icon(Icons.Default.Close, contentDescription = "Закрыть")
         }

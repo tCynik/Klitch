@@ -371,6 +371,10 @@ class MainViewModel(
         }
     }
 
+    fun toggleSheetCollapsed() {
+        _formState.update { it.copy(isCollapsed = !it.isCollapsed) }
+    }
+
     fun closeGeoMarksSheet() {
         _formState.update { it.copy(isSheetVisible = false) }
         if (_uiState.value.markToolActive) {
@@ -803,6 +807,7 @@ class MainViewModel(
     private fun buildGeoMarksSheetUiState(state: MainUiState, form: GeoMarksFormState): GeoMarksSheetUiState =
         GeoMarksSheetUiState(
             isVisible            = form.isSheetVisible,
+            isCollapsed          = form.isCollapsed,
             markToolActive       = state.markToolActive,
             selectedType         = form.selectedType,
             selectedColor        = form.selectedColor,
@@ -815,6 +820,7 @@ class MainViewModel(
             selectedContourId    = form.selectedContourId,
             savedPresets         = form.savedPresets,
             onClose              = ::closeGeoMarksSheet,
+            onToggleCollapsed    = ::toggleSheetCollapsed,
             onToggleMarkTool     = ::toggleMarkTool,
             onMarkTypeSelected   = ::setMarkType,
             onColorSelected      = ::setMarkColor,

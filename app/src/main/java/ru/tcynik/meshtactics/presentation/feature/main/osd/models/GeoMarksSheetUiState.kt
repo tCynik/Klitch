@@ -9,6 +9,7 @@ import ru.tcynik.meshtactics.domain.marker.model.TrackEndType
 
 data class GeoMarksSheetUiState(
     val isVisible: Boolean = false,
+    val isCollapsed: Boolean = false,
     val markToolActive: Boolean = false,
     val selectedType: GeoMarkType = GeoMarkType.POINT,
     val selectedColor: Int = 0,
@@ -22,6 +23,7 @@ data class GeoMarksSheetUiState(
     val savedPresets: ImmutableList<GeoMarkPreset> = persistentListOf(),
     // Callbacks
     val onClose: () -> Unit = {},
+    val onToggleCollapsed: () -> Unit = {},
     val onToggleMarkTool: () -> Unit = {},
     val onMarkTypeSelected: (GeoMarkType) -> Unit = {},
     val onColorSelected: (Int) -> Unit = {},

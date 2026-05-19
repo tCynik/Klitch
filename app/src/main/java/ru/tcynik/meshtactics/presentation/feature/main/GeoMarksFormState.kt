@@ -9,6 +9,7 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkAddress
 
 data class GeoMarksFormState(
     val isSheetVisible: Boolean = false,
+    val isCollapsed: Boolean = false,
     val selectedType: GeoMarkType = GeoMarkType.POINT,
     val selectedColor: Int = 0,
     val selectedTrackEndType: TrackEndType = TrackEndType.NONE,
