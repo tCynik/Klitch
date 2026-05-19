@@ -58,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkColor
@@ -240,15 +241,7 @@ private fun ShapeDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             GeoMarkShape.entries.forEach { shape ->
                 DropdownMenuItem(
-                    text = {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            ShapeIcon(shape = shape, modifier = Modifier.size(20.dp))
-                            Text(shape.displayName)
-                        }
-                    },
+                    text = { ShapeIcon(shape = shape, modifier = Modifier.size(20.dp)) },
                     onClick = { state.onShapeSelected(shape); expanded = false },
                 )
             }
@@ -260,17 +253,28 @@ private fun ShapeDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
 private fun ShapeIcon(shape: GeoMarkShape, modifier: Modifier = Modifier) {
     val color = MaterialTheme.colorScheme.onSurface
     Canvas(modifier = modifier) {
+        val stroke = Stroke(width = size.minDimension * 0.12f)
+        val inset = stroke.width / 2f
         when (shape) {
-            GeoMarkShape.CIRCLE -> drawCircle(color = color)
-            GeoMarkShape.SQUARE -> drawRect(color = color)
+            GeoMarkShape.CIRCLE -> drawCircle(
+                color = color,
+                radius = size.minDimension / 2f - inset,
+                style = stroke,
+            )
+            GeoMarkShape.SQUARE -> drawRect(
+                color = color,
+                topLeft = androidx.compose.ui.geometry.Offset(inset, inset),
+                size = androidx.compose.ui.geometry.Size(size.width - stroke.width, size.height - stroke.width),
+                style = stroke,
+            )
             GeoMarkShape.TRIANGLE -> {
                 val path = Path().apply {
-                    moveTo(size.width / 2f, 0f)
-                    lineTo(size.width, size.height)
-                    lineTo(0f, size.height)
+                    moveTo(size.width / 2f, inset)
+                    lineTo(size.width - inset, size.height - inset)
+                    lineTo(inset, size.height - inset)
                     close()
                 }
-                drawPath(path, color = color)
+                drawPath(path, color = color, style = stroke)
             }
         }
     }
@@ -305,7 +309,10 @@ private fun ColorDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
                 .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
         )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
             GeoMarkColor.palette.chunked(4).forEachIndexed { rowIndex, rowColors ->
                 Row(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
