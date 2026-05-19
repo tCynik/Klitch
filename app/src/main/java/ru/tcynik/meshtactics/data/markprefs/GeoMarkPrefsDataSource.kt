@@ -24,7 +24,7 @@ class GeoMarkPrefsDataSource(
         dataStore.data.map { prefs ->
             GeoMarkFormPreferences(
                 selectedType        = prefs[KEY_TYPE] ?: GeoMarkType.POINT.name,
-                selectedColor       = prefs[KEY_COLOR] ?: 0,
+                selectedColor       = prefs[KEY_COLOR] ?: 4,
                 selectedTrackEndType = prefs[KEY_TRACK_END_TYPE] ?: TrackEndType.NONE.ends.toInt(),
                 selectedTtlSeconds  = prefs[KEY_TTL_SECONDS] ?: 28800L,
                 markName            = prefs[KEY_MARK_NAME] ?: "",

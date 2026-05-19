@@ -177,7 +177,11 @@
       "Bash(rm \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/hud-menu-drawer.md\")",
       "Bash(./gradlew :shared:generateCommonMainAppDatabaseInterface :app:compileDebugKotlin)",
       "Bash(./gradlew :shared:generateCommonMainAppDatabaseInterface --rerun-tasks)",
-      "Bash(./gradlew :app:compileDebugKotlin --rerun-tasks)"
+      "Bash(./gradlew :app:compileDebugKotlin --rerun-tasks)",
+      "Bash(mkdir -p C:/tmp/mljars)",
+      "Read(//c/tmp/**)",
+      "PowerShell(Get-ChildItem -Recurse -Path \"C:\\\\tmp\\\\mljars\" -Filter \"LineLayer.kt\" | ForEach-Object { $_.FullName })",
+      "Read(//c/tmp/mljars/commonMain/org/maplibre/compose/sources/**)"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",

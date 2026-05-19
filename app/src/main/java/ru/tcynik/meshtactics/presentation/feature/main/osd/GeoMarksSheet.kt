@@ -15,6 +15,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,11 +29,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
@@ -373,9 +378,16 @@ private fun NameRow(state: GeoMarksSheetUiState) {
 }
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val sendLeadingShape = RoundedCornerShape(
+    topStart = 20.dp, bottomStart = 20.dp, topEnd = 4.dp, bottomEnd = 4.dp,
+)
+private val sendTrailingShape = RoundedCornerShape(
+    topStart = 4.dp, bottomStart = 4.dp, topEnd = 20.dp, bottomEnd = 20.dp,
+)
+
 @Composable
 private fun BottomRow(state: GeoMarksSheetUiState) {
+    val hasPending = state.pendingPoints.isNotEmpty()
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -383,60 +395,56 @@ private fun BottomRow(state: GeoMarksSheetUiState) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AddresseeDropdown(state, modifier = Modifier.weight(1f))
-        Button(
-            onClick = state.onSendPendingMark,
-            enabled = state.pendingPoints.isNotEmpty(),
+        OutlinedButton(
+            onClick = state.onClearPendingPoints,
+            enabled = hasPending,
         ) {
-            Text(
-                if (state.pendingPoints.isEmpty()) "Отправить"
-                else "Отправить (${state.pendingPoints.size})"
-            )
+            Text("Очистить")
         }
+        SendSplitButton(state = state, modifier = Modifier.weight(1f))
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddresseeDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
-    if (state.availableContours.isEmpty()) {
-        OutlinedTextField(
-            value = "Нет контуров",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Адресат") },
-            modifier = modifier,
-            enabled = false,
-        )
-        return
-    }
-
-    var expanded by remember { mutableStateOf(false) }
+private fun SendSplitButton(state: GeoMarksSheetUiState, modifier: Modifier) {
+    val hasPending = state.pendingPoints.isNotEmpty()
     val selected = state.availableContours.firstOrNull { it.contourId == state.selectedContourId }
-        ?: state.availableContours.first()
+        ?: state.availableContours.firstOrNull()
+    var expanded by remember { mutableStateOf(false) }
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = modifier,
-    ) {
-        OutlinedTextField(
-            value = selected.displayName,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Адресат") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            state.availableContours.forEach { addressee ->
-                DropdownMenuItem(
-                    text = { Text(addressee.displayName) },
-                    onClick = { state.onAddresseeSelected(addressee.contourId); expanded = false },
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        Button(
+            onClick = state.onSendPendingMark,
+            enabled = hasPending,
+            shape = sendLeadingShape,
+            modifier = Modifier.weight(1f),
+        ) {
+            Text("Отправить в", maxLines = 1)
+        }
+
+        Box(modifier = Modifier.wrapContentSize()) {
+            Button(
+                onClick = { expanded = true },
+                enabled = state.availableContours.isNotEmpty(),
+                shape = sendTrailingShape,
+            ) {
+                Text(
+                    text = selected?.displayName ?: "—",
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
+                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+            }
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+            ) {
+                state.availableContours.forEach { addressee ->
+                    DropdownMenuItem(
+                        text = { Text(addressee.displayName) },
+                        onClick = { state.onAddresseeSelected(addressee.contourId); expanded = false },
+                    )
+                }
             }
         }
     }

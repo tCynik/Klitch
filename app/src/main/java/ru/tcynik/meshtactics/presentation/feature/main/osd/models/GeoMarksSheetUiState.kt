@@ -35,4 +35,5 @@ data class GeoMarksSheetUiState(
     val onApplyPreset: (GeoMarkPreset) -> Unit = {},
     val onSendPendingMark: () -> Unit = {},
     val onDeletePendingPoint: (Int) -> Unit = {},
+    val onClearPendingPoints: () -> Unit = {},
 )

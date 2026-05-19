@@ -33,15 +33,34 @@ class GeoMarkRepositoryImpl(
             .mapToList(Dispatchers.Default)
             .map { rows -> rows.map { row -> row.toModel() } }
 
-    override suspend fun sendGeoMark(mark: GeoMarkModel, contourId: ContourId?) {
+    override suspend fun sendGeoMark(mark: GeoMarkModel, contourId: ContourId?, localOnly: Boolean) {
+        val nowSeconds = System.currentTimeMillis() / 1_000
+        val expiresAt = mark.expiresAt ?: (nowSeconds + GeoMarkWaypointAdapter.EXPIRE_TTL_SECONDS)
+
+        if (localOnly) {
+            geoMarkQueries.insert(
+                id = mark.id,
+                waypointId = mark.waypointId.toLong(),
+                type = mark.type.name,
+                pointsJson = adapter.encodePointsJson(mark.points),
+                authorNodeId = "",
+                createdAt = nowSeconds,
+                expiresAt = expiresAt,
+                isSelf = 1L,
+                logicalChannelId = "",
+                color = mark.color.toLong(),
+                name = mark.name,
+                trackEndType = mark.trackEndType.ends.toLong(),
+            )
+            return
+        }
+
         val ourNode = meshNetwork.observeOurNode().first()
         val ourNodeNum = ourNode?.num ?: 0
         val ourNodeId = ourNode?.nodeId ?: ""
-        val nowSeconds = System.currentTimeMillis() / 1_000
 
         val packet = adapter.encode(mark, ourNodeNum, ourNodeId, nowSeconds)
 
-        // Route to the selected contour's slot; default channel 0 if not specified or not found
         if (contourId != null) {
             val contour = channelRepository.observeContours().first()
                 .find { it.id == contourId }
@@ -52,7 +71,6 @@ class GeoMarkRepositoryImpl(
         commandSender.sendData(packet)
 
         val resolvedContourId = contourId?.value ?: resolveContourId(channelIndex = packet.channel)
-        val expiresAt = mark.expiresAt ?: (nowSeconds + GeoMarkWaypointAdapter.EXPIRE_TTL_SECONDS)
         geoMarkQueries.insert(
             id = mark.id,
             waypointId = mark.waypointId.toLong(),

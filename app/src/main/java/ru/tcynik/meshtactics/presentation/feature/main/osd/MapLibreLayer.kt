@@ -19,6 +19,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.delay
 import org.maplibre.compose.camera.CameraState
 import org.maplibre.compose.expressions.dsl.asString
+import org.maplibre.compose.expressions.dsl.convertToColor
 import org.maplibre.spatialk.geojson.Position
 import org.maplibre.compose.expressions.dsl.const
 import org.maplibre.compose.expressions.dsl.eq
@@ -302,19 +303,22 @@ fun MapLibreLayer(
             strokeWidth = const(2.dp),
             radius = const(8.dp),
         )
-        if (pendingMarkPoints.size >= 2) {
-            val draftLineSource = rememberGeoJsonSource(
-                GeoJsonData.JsonString(buildDraftLineGeoJson(pendingMarkPoints.toList()))
-            )
-            LineLayer(
-                id = "geo-draft-line",
-                source = draftLineSource,
-                color = const(draftColor),
-                width = const(2.dp),
-            )
-        }
+        val draftLineSource = rememberGeoJsonSource(
+            GeoJsonData.JsonString(buildDraftLineGeoJson(pendingMarkPoints.toList()))
+        )
+        LineLayer(
+            id = "geo-draft-line-outline",
+            source = draftLineSource,
+            color = const(Color(0x80000000)),
+            width = const(4.dp),
+        )
+        LineLayer(
+            id = "geo-draft-line",
+            source = draftLineSource,
+            color = const(draftColor),
+            width = const(2.dp),
+        )
 
-        // Received / confirmed marks — solid blue
         val receivedPoints = geoMarks.filter { it.type == GeoMarkType.POINT }
         val receivedTracks = geoMarks.filter { it.type == GeoMarkType.TRACK }
 
@@ -324,35 +328,38 @@ fun MapLibreLayer(
         CircleLayer(
             id = "geo-received-points",
             source = receivedPointsSource,
-            color = const(Color(0xFF1E88E5)),
+            color = feature["color"].convertToColor(const(Color(0xFF1E88E5))),
             strokeColor = const(Color.White),
             strokeWidth = const(2.dp),
             radius = const(8.dp),
         )
 
-        if (receivedTracks.isNotEmpty()) {
-            val receivedTracksSource = rememberGeoJsonSource(
-                GeoJsonData.JsonString(buildReceivedTracksGeoJson(receivedTracks))
-            )
-            LineLayer(
-                id = "geo-received-tracks",
-                source = receivedTracksSource,
-                color = const(Color(0xFF1E88E5)),
-                width = const(3.dp),
-            )
-            // Track endpoint circles
-            val trackAnchorsSource = rememberGeoJsonSource(
-                GeoJsonData.JsonString(buildTrackAnchorsGeoJson(receivedTracks))
-            )
-            CircleLayer(
-                id = "geo-received-track-anchors",
-                source = trackAnchorsSource,
-                color = const(Color(0xFF1E88E5)),
-                strokeColor = const(Color.White),
-                strokeWidth = const(2.dp),
-                radius = const(5.dp),
-            )
-        }
+        val receivedTracksSource = rememberGeoJsonSource(
+            GeoJsonData.JsonString(buildReceivedTracksGeoJson(receivedTracks))
+        )
+        LineLayer(
+            id = "geo-received-tracks-outline",
+            source = receivedTracksSource,
+            color = const(Color(0x80000000)),
+            width = const(5.dp),
+        )
+        LineLayer(
+            id = "geo-received-tracks",
+            source = receivedTracksSource,
+            color = feature["color"].convertToColor(const(Color(0xFFE53935))),
+            width = const(3.dp),
+        )
+        val trackAnchorsSource = rememberGeoJsonSource(
+            GeoJsonData.JsonString(buildTrackAnchorsGeoJson(receivedTracks))
+        )
+        CircleLayer(
+            id = "geo-received-track-anchors",
+            source = trackAnchorsSource,
+            color = feature["color"].convertToColor(const(Color(0xFF1E88E5))),
+            strokeColor = const(Color.White),
+            strokeWidth = const(2.dp),
+            radius = const(5.dp),
+        )
     }
 }
 
@@ -481,17 +488,21 @@ private fun buildReceivedPointsGeoJson(marks: List<GeoMarkModel>): String {
     if (marks.isEmpty()) return """{"type":"FeatureCollection","features":[]}"""
     val features = marks.joinToString(",") { mark ->
         val anchor = mark.points.first()
-        """{"type":"Feature","geometry":{"type":"Point","coordinates":[${anchor.longitude},${anchor.latitude}]},"properties":{}}"""
+        val hex = markColorHex(mark.color)
+        """{"type":"Feature","geometry":{"type":"Point","coordinates":[${anchor.longitude},${anchor.latitude}]},"properties":{"color":"$hex"}}"""
     }
     return """{"type":"FeatureCollection","features":[$features]}"""
 }
 
 private fun buildReceivedTracksGeoJson(marks: List<GeoMarkModel>): String {
     if (marks.isEmpty()) return """{"type":"FeatureCollection","features":[]}"""
-    val features = marks.joinToString(",") { mark ->
-        val coords = mark.points.joinToString(",") { "[${it.longitude},${it.latitude}]" }
-        """{"type":"Feature","geometry":{"type":"LineString","coordinates":[$coords]},"properties":{}}"""
-    }
+    val features = marks
+        .filter { it.points.size >= 2 }
+        .joinToString(",") { mark ->
+            val coords = mark.points.joinToString(",") { "[${it.longitude},${it.latitude}]" }
+            val hex = markColorHex(mark.color)
+            """{"type":"Feature","geometry":{"type":"LineString","coordinates":[$coords]},"properties":{"color":"$hex"}}"""
+        }
     return """{"type":"FeatureCollection","features":[$features]}"""
 }
 
@@ -499,10 +510,22 @@ private fun buildReceivedTracksGeoJson(marks: List<GeoMarkModel>): String {
 private fun buildTrackAnchorsGeoJson(marks: List<GeoMarkModel>): String {
     if (marks.isEmpty()) return """{"type":"FeatureCollection","features":[]}"""
     val features = marks.flatMap { mark ->
-        listOfNotNull(mark.points.firstOrNull(), mark.points.lastOrNull()
-            .takeIf { mark.points.size > 1 })
-    }.joinToString(",") { pt ->
-        """{"type":"Feature","geometry":{"type":"Point","coordinates":[${pt.longitude},${pt.latitude}]},"properties":{}}"""
+        val hex = markColorHex(mark.color)
+        listOfNotNull(
+            mark.points.firstOrNull(),
+            mark.points.lastOrNull().takeIf { mark.points.size > 1 },
+        ).map { pt -> Pair(pt, hex) }
+    }.joinToString(",") { (pt, hex) ->
+        """{"type":"Feature","geometry":{"type":"Point","coordinates":[${pt.longitude},${pt.latitude}]},"properties":{"color":"$hex"}}"""
     }
     return """{"type":"FeatureCollection","features":[$features]}"""
+}
+
+private fun markColorHex(colorIndex: Int): String {
+    val c = GeoMarkColor.colorAt(colorIndex)
+    return "#%02X%02X%02X".format(
+        (c.red * 255).toInt(),
+        (c.green * 255).toInt(),
+        (c.blue * 255).toInt(),
+    )
 }

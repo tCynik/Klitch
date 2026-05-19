@@ -19,7 +19,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -86,6 +88,7 @@ import java.util.UUID
 // BLE RSSI threshold separating low signal (red) from medium/high signal (green).
 // Adjust based on field experience; -90 dBm is the standard Meshtastic convention.
 private const val RSSI_LOW_THRESHOLD = -90
+private const val LOCAL_STORAGE_ID = "__local__"
 
 // Double-tap detection window in milliseconds.
 private const val DOUBLE_TAP_WINDOW_MS = 300L
@@ -279,16 +282,31 @@ class MainViewModel(
             }
         }
 
-        observeLogicalChannels(NoParams)
-            .onEach { contours ->
-                val addressees = contours
-                    .filter { it.isActive }
-                    .map { GeoMarkAddressee(it.id.value, it.name) }
-                    .toImmutableList()
+        combine(
+            observeLogicalChannels(NoParams),
+            _uiState.map { it.connectionStatus }.distinctUntilChanged(),
+        ) { contours, connectionStatus ->
+            val isConnected = connectionStatus is MeshConnectionStatus.Connected
+            val active = contours.filter { it.isActive }
+            val storage = GeoMarkAddressee(LOCAL_STORAGE_ID, "Хранилище")
+            val addressees = (active.map { GeoMarkAddressee(it.id.value, it.name) } + listOf(storage))
+                .toImmutableList()
+            Pair(addressees, isConnected)
+        }
+            .onEach { (addressees, isConnected) ->
                 _formState.update { form ->
-                    val defaultId = if (form.selectedContourId.isEmpty() && addressees.isNotEmpty())
-                        addressees.first().contourId else form.selectedContourId
-                    form.copy(availableContours = addressees, selectedContourId = defaultId)
+                    val currentId = form.selectedContourId
+                    val stillInList = addressees.any { it.contourId == currentId }
+                    val newId = when {
+                        form.wasAddresseeExplicitlySelected && stillInList -> currentId
+                        isConnected && addressees.size > 1 -> addressees.first().contourId
+                        else -> LOCAL_STORAGE_ID
+                    }
+                    form.copy(
+                        availableContours = addressees,
+                        selectedContourId = newId,
+                        wasAddresseeExplicitlySelected = form.wasAddresseeExplicitlySelected && stillInList,
+                    )
                 }
             }
             .launchIn(viewModelScope)
@@ -414,7 +432,7 @@ class MainViewModel(
     }
 
     fun setAddressee(contourId: String) {
-        _formState.update { it.copy(selectedContourId = contourId) }
+        _formState.update { it.copy(selectedContourId = contourId, wasAddresseeExplicitlySelected = true) }
         viewModelScope.launch { persistFormState() }
     }
 
@@ -481,10 +499,13 @@ class MainViewModel(
     fun sendPendingMark() {
         val points = _uiState.value.pendingMarkPoints.toList()
         if (points.isEmpty()) return
+        if (_formState.value.selectedType == GeoMarkType.TRACK && points.size < 2) return
         val form = _formState.value
         val nowSeconds = System.currentTimeMillis() / 1_000
         val markLabel = buildMarkLabel(form)
-        val contourId = form.selectedContourId.takeIf { it.isNotEmpty() }?.let { ContourId(it) }
+        val localOnly = form.selectedContourId == LOCAL_STORAGE_ID
+        val contourId = if (localOnly) null
+                        else form.selectedContourId.takeIf { it.isNotEmpty() }?.let { ContourId(it) }
         val mark = GeoMarkModel(
             id           = UUID.randomUUID().toString(),
             waypointId   = 0,
@@ -502,11 +523,15 @@ class MainViewModel(
         _formState.update { it.copy(nameCounter = updatedCounter) }
         _uiState.update { it.copy(pendingMarkPoints = persistentListOf()) }
         viewModelScope.launch {
-            sendGeoMark(SendGeoMarkParams(mark, contourId))
+            sendGeoMark(SendGeoMarkParams(mark, contourId, localOnly))
             val updatedForm = _formState.value
             persistFormState()
             savePreset(updatedForm, markLabel)
         }
+    }
+
+    fun clearPendingPoints() {
+        _uiState.update { it.copy(pendingMarkPoints = persistentListOf()) }
     }
 
     fun deletePendingPoint(index: Int) {
@@ -832,6 +857,7 @@ class MainViewModel(
             onApplyPreset        = ::applyPreset,
             onSendPendingMark    = ::sendPendingMark,
             onDeletePendingPoint = ::deletePendingPoint,
+            onClearPendingPoints = ::clearPendingPoints,
         )
 
     private fun buildMarkLabel(form: GeoMarksFormState): String {
@@ -849,6 +875,7 @@ class MainViewModel(
                 markName             = prefs.markName,
                 nameCounter          = prefs.nameCounter,
                 selectedContourId    = if (form.selectedContourId.isEmpty()) prefs.selectedContourId else form.selectedContourId,
+                wasAddresseeExplicitlySelected = form.wasAddresseeExplicitlySelected || prefs.selectedContourId.isNotEmpty(),
             )
         }
     }
