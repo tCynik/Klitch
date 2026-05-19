@@ -131,7 +131,6 @@ fun MainScreen(
 
     LaunchedEffect(cameraState.moveReason) {
         if (cameraState.moveReason == CameraMoveReason.GESTURE) {
-            onMapGestureDetected()
             if (uiState.isFollowMeActive && !uiState.isCourseUpActive) onFollowMeDeactivated()
             // course-up: scroll disabled, zoom gestures are intentional — never deactivate
         }
@@ -160,6 +159,11 @@ fun MainScreen(
 
     LaunchedEffect(cameraState.position.bearing) {
         onMapBearingChanged(cameraState.position.bearing)
+        // Clear north lock only when bearing changes due to a user rotation gesture —
+        // pan leaves bearing unchanged so this effect won't fire; animations use non-GESTURE reason
+        if (cameraState.moveReason == CameraMoveReason.GESTURE) {
+            onMapGestureDetected()
+        }
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
