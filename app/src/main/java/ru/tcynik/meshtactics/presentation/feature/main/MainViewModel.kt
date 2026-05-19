@@ -129,6 +129,9 @@ class MainViewModel(
     private val _resetBearingEvent = MutableSharedFlow<Unit>()
     val resetBearingEvent: SharedFlow<Unit> = _resetBearingEvent.asSharedFlow()
 
+    private val _restoreZoomEvent = MutableSharedFlow<Double>()
+    val restoreZoomEvent: SharedFlow<Double> = _restoreZoomEvent.asSharedFlow()
+
     // Navigation callbacks provided by NavGraph (has navController access).
     // Updated via provideNavCallbacks() before the first frame renders.
     private val _navCallbacks = MutableStateFlow(HudNavCallbacks())
@@ -312,19 +315,29 @@ class MainViewModel(
     }
 
     fun onCompassTap() {
-        if (_uiState.value.isHeadingUpActive) {
-            _uiState.update { it.copy(isHeadingUpActive = false) }
+        if (_uiState.value.isCourseUpActive) {
+            _uiState.update { it.copy(isCourseUpActive = false, zoomAtCourseUpActivation = null) }
         }
         _uiState.update { it.copy(isNorthLocked = true) }
         viewModelScope.launch { _resetBearingEvent.emit(Unit) }
     }
 
-    fun onCompassLongPress() {
-        _uiState.update { it.copy(isHeadingUpActive = !it.isHeadingUpActive, isNorthLocked = false) }
+    fun onCourseUpToggle(currentZoom: Double) {
+        val current = _uiState.value
+        if (current.isCourseUpActive) {
+            _uiState.update { it.copy(isCourseUpActive = false, zoomAtCourseUpActivation = null) }
+        } else {
+            _uiState.update { it.copy(isCourseUpActive = true, isNorthLocked = false, zoomAtCourseUpActivation = currentZoom) }
+        }
     }
 
-    fun onHeadingUpDeactivated() {
-        _uiState.update { it.copy(isHeadingUpActive = false) }
+    fun onCourseUpDeactivated() {
+        _uiState.update { it.copy(isCourseUpActive = false, zoomAtCourseUpActivation = null) }
+    }
+
+    fun onFollowMeRestoreZoom() {
+        val zoom = _uiState.value.zoomAtCourseUpActivation ?: return
+        viewModelScope.launch { _restoreZoomEvent.emit(zoom) }
     }
 
     fun onMapGestureDetected() {
@@ -588,12 +601,13 @@ class MainViewModel(
             preserveIconColors = rotated,
             iconRotationDegrees = if (rotated) -state.mapBearing - 45f else 0f,
             selected = when {
-                state.isHeadingUpActive -> true
+                state.isCourseUpActive -> true
                 state.isNorthLocked -> false
                 else -> null
             },
             onClick = { onCompassTap() },
-            onLongClick = { onCompassLongPress() },
+            // long-click wired in MainScreen — needs cameraState.position.zoom at press time
+            onLongClick = null,
         )
     }
 

@@ -37,7 +37,8 @@ data class MainUiState(
     val isRebooting: Boolean = false,
     val menuDrawerOpen: Boolean = false,
     val isFollowMeActive: Boolean = false,
-    val isHeadingUpActive: Boolean = false,
+    val isCourseUpActive: Boolean = false,
+    val zoomAtCourseUpActivation: Double? = null,
     // true when map was explicitly snapped to north (compass tap) and not rotated since
     val isNorthLocked: Boolean = true,
     // current map camera bearing in degrees [0, 360); used to rotate compass icon

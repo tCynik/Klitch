@@ -89,6 +89,7 @@ fun MapLibreLayer(
     geoMarks: ImmutableList<GeoMarkModel> = persistentListOf(),
     pendingMarkPoints: ImmutableList<ru.tcynik.meshtactics.domain.marker.model.GeoPoint> = persistentListOf(),
     markToolActive: Boolean = false,
+    isCourseUpActive: Boolean = false,
     onMapClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
     onMapLongClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit = { _, _, _, _ -> },
 ) {
@@ -114,16 +115,16 @@ fun MapLibreLayer(
         modifier = modifier,
         baseStyle = BASE_STYLE_WITH_GLYPHS,
         cameraState = cameraState,
-        options = if (markToolActive) {
-            MapOptions(
-                gestureOptions = GestureOptions(
-                    isDoubleTapEnabled = false,
-                    isQuickZoomEnabled = false,
-                ),
+        options = when {
+            markToolActive -> MapOptions(
+                gestureOptions = GestureOptions(isDoubleTapEnabled = false, isQuickZoomEnabled = false),
                 ornamentOptions = OrnamentOptions(isCompassEnabled = false),
             )
-        } else {
-            MapOptions(ornamentOptions = OrnamentOptions(isCompassEnabled = false))
+            isCourseUpActive -> MapOptions(
+                gestureOptions = GestureOptions.PositionLocked,
+                ornamentOptions = OrnamentOptions(isCompassEnabled = false),
+            )
+            else -> MapOptions(ornamentOptions = OrnamentOptions(isCompassEnabled = false))
         },
         onMapClick = { position, _ ->
             onMapClick(position.latitude, position.longitude)

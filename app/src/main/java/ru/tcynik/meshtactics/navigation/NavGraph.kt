@@ -92,10 +92,12 @@ fun NavGraph() {
                     onDeletePendingPoint = viewModel::deletePendingPoint,
                     menuDrawerUiState = menuDrawerUiState,
                     onFollowMeDeactivated = viewModel::onFollowMeDeactivated,
-                    onHeadingUpDeactivated = viewModel::onHeadingUpDeactivated,
                     onMapGestureDetected = viewModel::onMapGestureDetected,
                     resetBearingEvents = viewModel.resetBearingEvent,
+                    restoreZoomEvents = viewModel.restoreZoomEvent,
                     onMapBearingChanged = viewModel::onMapBearingChanged,
+                    onCourseUpToggle = viewModel::onCourseUpToggle,
+                    onFollowMeRestoreZoom = viewModel::onFollowMeRestoreZoom,
                 )
             }
 
