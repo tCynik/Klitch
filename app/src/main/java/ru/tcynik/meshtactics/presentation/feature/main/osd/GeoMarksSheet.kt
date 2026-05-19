@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -55,9 +56,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkColor
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkShape
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.TrackEndType
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkAddressee
@@ -164,7 +168,8 @@ private fun TypeAndColorRow(state: GeoMarksSheetUiState) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         TypeDropdown(state, modifier = Modifier.weight(1f))
-        ColorDropdown(state, modifier = Modifier.weight(1f))
+        ShapeDropdown(state, modifier = Modifier.width(80.dp))
+        ColorDropdown(state, modifier = Modifier.width(80.dp))
     }
 }
 
@@ -210,6 +215,69 @@ private fun TypeDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun ShapeDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier,
+    ) {
+        OutlinedTextField(
+            value = " ",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Вид") },
+            leadingIcon = {
+                ShapeIcon(shape = state.selectedShape, modifier = Modifier.size(20.dp))
+            },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            GeoMarkShape.entries.forEach { shape ->
+                DropdownMenuItem(
+                    text = {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            ShapeIcon(shape = shape, modifier = Modifier.size(20.dp))
+                            Text(shape.displayName)
+                        }
+                    },
+                    onClick = { state.onShapeSelected(shape); expanded = false },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShapeIcon(shape: GeoMarkShape, modifier: Modifier = Modifier) {
+    val color = MaterialTheme.colorScheme.onSurface
+    Canvas(modifier = modifier) {
+        when (shape) {
+            GeoMarkShape.CIRCLE -> drawCircle(color = color)
+            GeoMarkShape.SQUARE -> drawRect(color = color)
+            GeoMarkShape.TRIANGLE -> {
+                val path = Path().apply {
+                    moveTo(size.width / 2f, 0f)
+                    lineTo(size.width, size.height)
+                    lineTo(0f, size.height)
+                    close()
+                }
+                drawPath(path, color = color)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun ColorDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
     var expanded by remember { mutableStateOf(false) }
     val currentColor = GeoMarkColor.colorAt(state.selectedColor)
@@ -220,7 +288,7 @@ private fun ColorDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
         modifier = modifier,
     ) {
         OutlinedTextField(
-            value = "",
+            value = " ",
             onValueChange = {},
             readOnly = true,
             label = { Text("Цвет") },

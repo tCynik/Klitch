@@ -30,6 +30,7 @@ class GeoMarkPrefsDataSource(
                 markName            = prefs[KEY_MARK_NAME] ?: "",
                 nameCounter         = prefs[KEY_NAME_COUNTER] ?: 1,
                 selectedContourId   = prefs[KEY_CONTOUR_ID] ?: "",
+                selectedShape       = prefs[KEY_SHAPE] ?: ru.tcynik.meshtactics.domain.marker.model.GeoMarkShape.CIRCLE.name,
             )
         }
 
@@ -42,6 +43,7 @@ class GeoMarkPrefsDataSource(
             prefs[KEY_MARK_NAME]        = p.markName
             prefs[KEY_NAME_COUNTER]     = p.nameCounter
             prefs[KEY_CONTOUR_ID]       = p.selectedContourId
+            prefs[KEY_SHAPE]            = p.selectedShape
         }
     }
 
@@ -74,5 +76,6 @@ class GeoMarkPrefsDataSource(
         private val KEY_NAME_COUNTER     = intPreferencesKey("geomark_name_counter")
         private val KEY_CONTOUR_ID       = stringPreferencesKey("geomark_contour_id")
         private val KEY_PRESETS          = stringPreferencesKey("geomark_presets_json")
+        private val KEY_SHAPE            = stringPreferencesKey("geomark_shape")
     }
 }

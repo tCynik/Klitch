@@ -12,6 +12,7 @@ import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkShape
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.TrackEndType
 import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkRepository
@@ -51,6 +52,7 @@ class GeoMarkRepositoryImpl(
                 color = mark.color.toLong(),
                 name = mark.name,
                 trackEndType = mark.trackEndType.ends.toLong(),
+                shape = mark.shape.ordinal.toLong(),
             )
             return
         }
@@ -84,6 +86,7 @@ class GeoMarkRepositoryImpl(
             color = mark.color.toLong(),
             name = mark.name,
             trackEndType = mark.trackEndType.ends.toLong(),
+            shape = mark.shape.ordinal.toLong(),
         )
     }
 
@@ -124,5 +127,6 @@ class GeoMarkRepositoryImpl(
         color = color.toInt(),
         name = name,
         trackEndType = TrackEndType.fromByte(track_end_type.toByte()),
+        shape = GeoMarkShape.entries.getOrElse(shape.toInt()) { GeoMarkShape.CIRCLE },
     )
 }

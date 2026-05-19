@@ -11,4 +11,5 @@ data class GeoMarkFormPreferences(
     val markName: String = "",
     val nameCounter: Int = 1,
     val selectedContourId: String = "",
+    val selectedShape: String = GeoMarkShape.CIRCLE.name,
 )

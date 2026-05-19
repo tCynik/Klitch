@@ -1,5 +1,9 @@
 package ru.tcynik.meshtactics.presentation.feature.main.osd
 
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Path
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -19,6 +23,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.delay
 import org.maplibre.compose.camera.CameraState
 import org.maplibre.compose.expressions.dsl.asString
+import org.maplibre.compose.expressions.dsl.case
 import org.maplibre.compose.expressions.dsl.convertToColor
 import org.maplibre.spatialk.geojson.Position
 import org.maplibre.compose.expressions.dsl.const
@@ -29,6 +34,7 @@ import org.maplibre.compose.expressions.dsl.image
 import org.maplibre.compose.expressions.dsl.not
 import org.maplibre.compose.expressions.dsl.offset
 import org.maplibre.compose.expressions.dsl.span
+import org.maplibre.compose.expressions.dsl.switch
 import org.maplibre.compose.expressions.value.FloatValue
 import org.maplibre.compose.expressions.value.IconRotationAlignment
 import org.maplibre.compose.expressions.value.SymbolAnchor
@@ -49,6 +55,7 @@ import org.maplibre.compose.util.ClickResult
 import org.maplibre.compose.util.PositionQuad
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkColor
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkShape
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
@@ -90,6 +97,7 @@ fun MapLibreLayer(
     geoMarks: ImmutableList<GeoMarkModel> = persistentListOf(),
     pendingMarkPoints: ImmutableList<ru.tcynik.meshtactics.domain.marker.model.GeoPoint> = persistentListOf(),
     pendingMarkColor: Int = 0,
+    pendingMarkShape: GeoMarkShape = GeoMarkShape.CIRCLE,
     markToolActive: Boolean = false,
     onMapClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
     onMapLongClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit = { _, _, _, _ -> },
@@ -136,6 +144,10 @@ fun MapLibreLayer(
             ClickResult.Pass
         },
     ) {
+        val circleBitmap = remember { createShapeBitmap(64, GeoMarkShape.CIRCLE).asImageBitmap() }
+        val squareBitmap = remember { createShapeBitmap(64, GeoMarkShape.SQUARE).asImageBitmap() }
+        val triangleBitmap = remember { createShapeBitmap(64, GeoMarkShape.TRIANGLE).asImageBitmap() }
+
         val tileSource = rememberRasterSource(
             tiles = listOf(tileUrlTemplate),
             tileSize = 256,
@@ -290,18 +302,25 @@ fun MapLibreLayer(
         )
 
         // ── Geo marks ────────────────────────────────────────────────────────
-        // Draft (unsent) marks — hollow cyan circles + dashed line
+        // Draft (unsent) marks — shape icon in selected color + line
         val draftPointsSource = rememberGeoJsonSource(
             GeoJsonData.JsonString(buildDraftPointsGeoJson(pendingMarkPoints.toList()))
         )
         val draftColor = GeoMarkColor.colorAt(pendingMarkColor)
-        CircleLayer(
+        val pendingShapeBitmap = when (pendingMarkShape) {
+            GeoMarkShape.CIRCLE   -> circleBitmap
+            GeoMarkShape.SQUARE   -> squareBitmap
+            GeoMarkShape.TRIANGLE -> triangleBitmap
+        }
+        SymbolLayer(
             id = "geo-draft-points",
             source = draftPointsSource,
-            color = const(draftColor.copy(alpha = 0f)),
-            strokeColor = const(draftColor),
-            strokeWidth = const(2.dp),
-            radius = const(8.dp),
+            iconImage = image(pendingShapeBitmap, isSdf = true),
+            iconColor = const(draftColor),
+            iconSize = const(0.5f),
+            iconHaloColor = const(Color.White),
+            iconHaloWidth = const(1.dp),
+            iconAllowOverlap = const(true),
         )
         val draftLineSource = rememberGeoJsonSource(
             GeoJsonData.JsonString(buildDraftLineGeoJson(pendingMarkPoints.toList()))
@@ -325,13 +344,20 @@ fun MapLibreLayer(
         val receivedPointsSource = rememberGeoJsonSource(
             GeoJsonData.JsonString(buildReceivedPointsGeoJson(receivedPoints))
         )
-        CircleLayer(
+        SymbolLayer(
             id = "geo-received-points",
             source = receivedPointsSource,
-            color = feature["color"].convertToColor(const(Color(0xFF1E88E5))),
-            strokeColor = const(Color.White),
-            strokeWidth = const(2.dp),
-            radius = const(8.dp),
+            iconImage = switch(
+                input = feature["shapeOrdinal"].cast<FloatValue>(),
+                case(GeoMarkShape.SQUARE.ordinal, image(squareBitmap, isSdf = true)),
+                case(GeoMarkShape.TRIANGLE.ordinal, image(triangleBitmap, isSdf = true)),
+                fallback = image(circleBitmap, isSdf = true),
+            ),
+            iconColor = feature["color"].convertToColor(const(Color(0xFF1E88E5))),
+            iconSize = const(0.5f),
+            iconHaloColor = const(Color.White),
+            iconHaloWidth = const(1.dp),
+            iconAllowOverlap = const(true),
         )
 
         val receivedTracksSource = rememberGeoJsonSource(
@@ -352,13 +378,15 @@ fun MapLibreLayer(
         val trackAnchorsSource = rememberGeoJsonSource(
             GeoJsonData.JsonString(buildTrackAnchorsGeoJson(receivedTracks))
         )
-        CircleLayer(
+        SymbolLayer(
             id = "geo-received-track-anchors",
             source = trackAnchorsSource,
-            color = feature["color"].convertToColor(const(Color(0xFF1E88E5))),
-            strokeColor = const(Color.White),
-            strokeWidth = const(2.dp),
-            radius = const(5.dp),
+            iconImage = image(circleBitmap, isSdf = true),
+            iconColor = feature["color"].convertToColor(const(Color(0xFF1E88E5))),
+            iconSize = const(0.35f),
+            iconHaloColor = const(Color.White),
+            iconHaloWidth = const(1.dp),
+            iconAllowOverlap = const(true),
         )
     }
 }
@@ -489,7 +517,8 @@ private fun buildReceivedPointsGeoJson(marks: List<GeoMarkModel>): String {
     val features = marks.joinToString(",") { mark ->
         val anchor = mark.points.first()
         val hex = markColorHex(mark.color)
-        """{"type":"Feature","geometry":{"type":"Point","coordinates":[${anchor.longitude},${anchor.latitude}]},"properties":{"color":"$hex"}}"""
+        val shapeOrdinal = mark.shape.ordinal
+        """{"type":"Feature","geometry":{"type":"Point","coordinates":[${anchor.longitude},${anchor.latitude}]},"properties":{"color":"$hex","shapeOrdinal":$shapeOrdinal}}"""
     }
     return """{"type":"FeatureCollection","features":[$features]}"""
 }
@@ -528,4 +557,29 @@ private fun markColorHex(colorIndex: Int): String {
         (c.green * 255).toInt(),
         (c.blue * 255).toInt(),
     )
+}
+
+private fun createShapeBitmap(size: Int, shape: GeoMarkShape): Bitmap {
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.WHITE
+        style = Paint.Style.FILL
+    }
+    val f = size.toFloat()
+    val pad = f * 0.05f
+    when (shape) {
+        GeoMarkShape.CIRCLE -> canvas.drawCircle(f / 2f, f / 2f, f / 2f - pad, paint)
+        GeoMarkShape.SQUARE -> canvas.drawRect(pad, pad, f - pad, f - pad, paint)
+        GeoMarkShape.TRIANGLE -> {
+            val path = Path().apply {
+                moveTo(f / 2f, pad)
+                lineTo(f - pad, f - pad)
+                lineTo(pad, f - pad)
+                close()
+            }
+            canvas.drawPath(path, paint)
+        }
+    }
+    return bitmap
 }

@@ -22,4 +22,6 @@ data class GeoMarkModel(
     val name: String = "",
     /** Track end marker style. Only relevant for TRACK type. */
     val trackEndType: TrackEndType = TrackEndType.NONE,
+    /** Shape of the point marker. */
+    val shape: GeoMarkShape = GeoMarkShape.CIRCLE,
 )

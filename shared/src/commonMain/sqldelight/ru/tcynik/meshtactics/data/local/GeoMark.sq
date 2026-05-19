@@ -10,7 +10,8 @@ CREATE TABLE geo_mark (
     logical_channel_id TEXT    NOT NULL DEFAULT '',   -- LogicalChannelId.value
     color              INTEGER NOT NULL DEFAULT 0,    -- index into GeoMarkColor.palette (0–15)
     name               TEXT    NOT NULL DEFAULT '',   -- user label; maps to Waypoint.name
-    track_end_type     INTEGER NOT NULL DEFAULT 0     -- TrackEndType.ends byte
+    track_end_type     INTEGER NOT NULL DEFAULT 0,    -- TrackEndType.ends byte
+    shape              INTEGER NOT NULL DEFAULT 0     -- GeoMarkShape ordinal (0=CIRCLE,1=SQUARE,2=TRIANGLE)
 );
 
 selectAll:
@@ -26,12 +27,12 @@ selectAllForChannel:
 SELECT * FROM geo_mark WHERE logical_channel_id = :logicalChannelId ORDER BY created_at DESC;
 
 insert:
-INSERT OR REPLACE INTO geo_mark(id, waypoint_id, type, points_json, author_node_id, created_at, expires_at, is_self, logical_channel_id, color, name, track_end_type)
-VALUES (:id, :waypointId, :type, :pointsJson, :authorNodeId, :createdAt, :expiresAt, :isSelf, :logicalChannelId, :color, :name, :trackEndType);
+INSERT OR REPLACE INTO geo_mark(id, waypoint_id, type, points_json, author_node_id, created_at, expires_at, is_self, logical_channel_id, color, name, track_end_type, shape)
+VALUES (:id, :waypointId, :type, :pointsJson, :authorNodeId, :createdAt, :expiresAt, :isSelf, :logicalChannelId, :color, :name, :trackEndType, :shape);
 
 insertReceived:
-INSERT OR IGNORE INTO geo_mark(id, waypoint_id, type, points_json, author_node_id, created_at, expires_at, is_self, logical_channel_id, color, name, track_end_type)
-VALUES (:id, :waypointId, :type, :pointsJson, :authorNodeId, :createdAt, :expiresAt, 0, :logicalChannelId, :color, :name, :trackEndType);
+INSERT OR IGNORE INTO geo_mark(id, waypoint_id, type, points_json, author_node_id, created_at, expires_at, is_self, logical_channel_id, color, name, track_end_type, shape)
+VALUES (:id, :waypointId, :type, :pointsJson, :authorNodeId, :createdAt, :expiresAt, 0, :logicalChannelId, :color, :name, :trackEndType, 0);
 
 deleteById:
 DELETE FROM geo_mark WHERE id = :id;

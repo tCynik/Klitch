@@ -65,6 +65,7 @@ import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkFormPreferences
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkPreset
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkShape
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import ru.tcynik.meshtactics.domain.marker.model.TrackEndType
@@ -411,6 +412,11 @@ class MainViewModel(
         viewModelScope.launch { persistFormState() }
     }
 
+    fun setMarkShape(shape: GeoMarkShape) {
+        _formState.update { it.copy(selectedShape = shape) }
+        viewModelScope.launch { persistFormState() }
+    }
+
     fun setTrackEndType(endType: TrackEndType) {
         _formState.update { it.copy(selectedTrackEndType = endType) }
         viewModelScope.launch { persistFormState() }
@@ -518,6 +524,7 @@ class MainViewModel(
             color        = form.selectedColor,
             name         = markLabel,
             trackEndType = form.selectedTrackEndType,
+            shape        = form.selectedShape,
         )
         val updatedCounter = form.nameCounter + 1
         _formState.update { it.copy(nameCounter = updatedCounter) }
@@ -836,6 +843,7 @@ class MainViewModel(
             markToolActive       = state.markToolActive,
             selectedType         = form.selectedType,
             selectedColor        = form.selectedColor,
+            selectedShape        = form.selectedShape,
             selectedTrackEndType = form.selectedTrackEndType,
             selectedTtlSeconds   = form.selectedTtlSeconds,
             markName             = form.markName,
@@ -849,6 +857,7 @@ class MainViewModel(
             onToggleMarkTool     = ::toggleMarkTool,
             onMarkTypeSelected   = ::setMarkType,
             onColorSelected      = ::setMarkColor,
+            onShapeSelected      = ::setMarkShape,
             onTrackEndTypeSelected = ::setTrackEndType,
             onTtlSelected        = ::setTtl,
             onMarkNameChanged    = ::setMarkName,
@@ -870,6 +879,7 @@ class MainViewModel(
             form.copy(
                 selectedType         = runCatching { GeoMarkType.valueOf(prefs.selectedType) }.getOrDefault(GeoMarkType.POINT),
                 selectedColor        = prefs.selectedColor,
+                selectedShape        = runCatching { GeoMarkShape.valueOf(prefs.selectedShape) }.getOrDefault(GeoMarkShape.CIRCLE),
                 selectedTrackEndType = TrackEndType.fromByte(prefs.selectedTrackEndType.toByte()),
                 selectedTtlSeconds   = prefs.selectedTtlSeconds,
                 markName             = prefs.markName,
@@ -886,6 +896,7 @@ class MainViewModel(
             GeoMarkFormPreferences(
                 selectedType         = form.selectedType.name,
                 selectedColor        = form.selectedColor,
+                selectedShape        = form.selectedShape.name,
                 selectedTrackEndType = form.selectedTrackEndType.ends.toInt(),
                 selectedTtlSeconds   = form.selectedTtlSeconds,
                 markName             = form.markName,
@@ -902,6 +913,7 @@ class MainViewModel(
             prefs       = GeoMarkFormPreferences(
                 selectedType         = form.selectedType.name,
                 selectedColor        = form.selectedColor,
+                selectedShape        = form.selectedShape.name,
                 selectedTrackEndType = form.selectedTrackEndType.ends.toInt(),
                 selectedTtlSeconds   = form.selectedTtlSeconds,
                 markName             = form.markName,

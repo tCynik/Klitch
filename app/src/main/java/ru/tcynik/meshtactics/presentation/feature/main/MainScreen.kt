@@ -128,6 +128,7 @@ fun MainScreen(
                 geoMarks = uiState.geoMarks,
                 pendingMarkPoints = uiState.pendingMarkPoints,
                 pendingMarkColor = geoMarksSheetUiState.selectedColor,
+                pendingMarkShape = geoMarksSheetUiState.selectedShape,
                 markToolActive = uiState.markToolActive,
                 onMapClick = onMapClick,
                 onMapLongClick = onMapLongClick,
