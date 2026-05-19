@@ -26,12 +26,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
@@ -56,7 +58,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.input.KeyboardType
@@ -138,13 +140,30 @@ private fun SheetHeader(state: GeoMarksSheetUiState) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, top = 4.dp, end = 4.dp, bottom = 4.dp),
+            .padding(start = 4.dp, top = 4.dp, end = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Icon(
+            imageVector = Icons.Default.Edit,
+            contentDescription = null,
+            modifier = Modifier
+                .padding(start = 12.dp, end = 8.dp)
+                .size(24.dp),
+            tint = MaterialTheme.colorScheme.onSurface,
+        )
+        ShapeIcon(
+            shape = state.selectedShape,
+            fillColor = GeoMarkColor.colorAt(state.selectedColor),
+            modifier = Modifier
+                .padding(end = 8.dp)
+                .size(24.dp),
+        )
         Text(
-            text = "Создание ${state.selectedType.displayName}",
+            text = buildSheetHeaderTitle(state),
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
         IconButton(onClick = state.onToggleCollapsed) {
             Icon(
@@ -250,35 +269,98 @@ private fun ShapeDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
 }
 
 @Composable
-private fun ShapeIcon(shape: GeoMarkShape, modifier: Modifier = Modifier) {
-    val color = MaterialTheme.colorScheme.onSurface
-    Canvas(modifier = modifier) {
-        val stroke = Stroke(width = size.minDimension * 0.12f)
-        val inset = stroke.width / 2f
-        when (shape) {
-            GeoMarkShape.CIRCLE -> drawCircle(
-                color = color,
-                radius = size.minDimension / 2f - inset,
-                style = stroke,
-            )
-            GeoMarkShape.SQUARE -> drawRect(
-                color = color,
-                topLeft = androidx.compose.ui.geometry.Offset(inset, inset),
-                size = androidx.compose.ui.geometry.Size(size.width - stroke.width, size.height - stroke.width),
-                style = stroke,
-            )
-            GeoMarkShape.TRIANGLE -> {
-                val path = Path().apply {
-                    moveTo(size.width / 2f, inset)
-                    lineTo(size.width - inset, size.height - inset)
-                    lineTo(inset, size.height - inset)
-                    close()
+private fun ShapeIcon(
+    shape: GeoMarkShape,
+    modifier: Modifier = Modifier,
+    fillColor: Color? = null,
+) {
+    val color = fillColor ?: MaterialTheme.colorScheme.onSurface
+    Canvas(modifier = modifier.aspectRatio(1f)) {
+        val side = size.minDimension
+        val offsetX = (size.width - side) / 2f
+        val offsetY = (size.height - side) / 2f
+        val pad = side * 0.08f
+        val centerX = offsetX + side / 2f
+        val centerY = offsetY + side / 2f
+        if (fillColor != null) {
+            when (shape) {
+                GeoMarkShape.CIRCLE -> drawCircle(
+                    color = color,
+                    radius = side / 2f - pad,
+                    center = androidx.compose.ui.geometry.Offset(centerX, centerY),
+                )
+                GeoMarkShape.SQUARE -> drawRect(
+                    color = color,
+                    topLeft = androidx.compose.ui.geometry.Offset(offsetX + pad, offsetY + pad),
+                    size = androidx.compose.ui.geometry.Size(side - pad * 2f, side - pad * 2f),
+                )
+                GeoMarkShape.TRIANGLE -> {
+                    val path = Path().apply {
+                        moveTo(centerX, offsetY + pad)
+                        lineTo(offsetX + side - pad, offsetY + side - pad)
+                        lineTo(offsetX + pad, offsetY + side - pad)
+                        close()
+                    }
+                    drawPath(path, color = color)
                 }
-                drawPath(path, color = color, style = stroke)
+            }
+        } else {
+            val stroke = Stroke(width = side * 0.12f)
+            val inset = stroke.width / 2f
+            when (shape) {
+                GeoMarkShape.CIRCLE -> drawCircle(
+                    color = color,
+                    radius = side / 2f - inset,
+                    center = androidx.compose.ui.geometry.Offset(centerX, centerY),
+                    style = stroke,
+                )
+                GeoMarkShape.SQUARE -> drawRect(
+                    color = color,
+                    topLeft = androidx.compose.ui.geometry.Offset(offsetX + inset, offsetY + inset),
+                    size = androidx.compose.ui.geometry.Size(side - stroke.width, side - stroke.width),
+                    style = stroke,
+                )
+                GeoMarkShape.TRIANGLE -> {
+                    val path = Path().apply {
+                        moveTo(centerX, offsetY + inset)
+                        lineTo(offsetX + side - inset, offsetY + side - inset)
+                        lineTo(offsetX + inset, offsetY + side - inset)
+                        close()
+                    }
+                    drawPath(path, color = color, style = stroke)
+                }
             }
         }
     }
 }
+
+private fun buildSheetHeaderTitle(state: GeoMarksSheetUiState): String {
+    val name = state.markName.trim().ifEmpty { state.selectedType.headerNameFallback }
+    return "$name ${state.nameCounter}/${formatTtlShort(state.selectedTtlSeconds)}"
+}
+
+private fun formatTtlShort(seconds: Long): String = when (seconds) {
+    900L    -> "15мин."
+    1800L   -> "30мин."
+    3600L   -> "1ч."
+    7200L   -> "2ч."
+    18000L  -> "5ч."
+    28800L  -> "8ч."
+    43200L  -> "12ч."
+    86400L  -> "24ч."
+    259200L -> "3сут."
+    else -> when {
+        seconds < 3600  -> "${seconds / 60}мин."
+        seconds < 86400 -> "${seconds / 3600}ч."
+        else            -> "${seconds / 86400}сут."
+    }
+}
+
+private val GeoMarkType.headerNameFallback: String
+    get() = when (this) {
+        GeoMarkType.POINT -> "точка"
+        GeoMarkType.TRACK -> "трек"
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -29,7 +29,10 @@ DataStore persistence layer — not presentation-only.
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  Создание {Тип метки}                       [X]  │  ← X = close + deactivate tool
+│ [✎] [●] {название} {№}/{актуальность}    [▼][X] │  ← ✎ = Edit (стандартный набор);
+│                                                  │     ● = вид (форма) с заливкой цвета;
+│                                                  │     пример: «ориентир 4/15мин.»;
+│                                                  │     [▼] свернуть/развернуть; [X] закрыть
 ├─────────────────────────────────────────────────┤
 │  [▼ Комбинация: {last used}              ]       │  ← preset dropdown (last 10)
 ├─────────────────────────────────────────────────┤
@@ -263,7 +266,9 @@ additional check needed in the sheet beyond "Emergency is active = show warning 
    - `AnimatedVisibility(slideInVertically { it } + fadeIn)`
    - Inner `Column`: fillMaxWidth, wrapContentHeight, top rounded corners 16dp, surface bg,
      navigationBarsPadding, consume touches
-3. Header: `Text("Создание ${type.label}")` + `IconButton(ic_close / Icons.Default.Close)`
+3. Header: слева `Icons.Default.Edit`, иконка вида (`GeoMarkShape`) с заливкой `GeoMarkColor`;
+   заголовок `{markName} {nameCounter}/{ttlShort}` (пример: `ориентир 4/15мин.`);
+   справа свернуть/развернуть + `Icons.Default.Close` (без изменений)
 4. Preset section: `ExposedDropdownMenuBox`; empty state = "Нет сохранённых"
 5. Type + color row: two `ExposedDropdownMenuBox` side by side; POLYGON/PRIMITIVE = disabled items
 6. Type-specific section: `AnimatedContent(targetState = selectedType)`:
@@ -332,3 +337,4 @@ Phase 10: stage files → propose commit → wait confirmation → git commit
 - 2026-05-18: created (initial plan, presentation-only scope)
 - 2026-05-18: revised — full spec from Obsidian; scope expanded to domain+data+presentation;
   TrackEndType (4 values, MVP=NONE/ARROW), адресат=active contours, presets=10, DataStore layer
+- 2026-05-19: header — Edit + shape/color preview + `{name} {№}/{ttlShort}`; collapse/close unchanged
