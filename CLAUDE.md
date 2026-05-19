@@ -130,6 +130,7 @@
 | HUD Node Status Indicator | `.claude/plans/hud-node-status-indicator.md` | In Progress |
 | Connection Status HUD Info | `.claude/plans/connection-status-hud-info.md` | Approved |
 | Map Orientation Binding | `.claude/archive/map-orientation.md` | Done |
+| Course-Up Mode | `.claude/archive/course-up.md` | Done |
 | Settings Screens Split | `.claude/archive/settings-screens-split.md` | Done |
 | Node PKC Key Management | `.claude/archive/node-key-management.md` | Done |
 | Chat Feature | `.claude/plans/chat-feature-plan.md` | Done |

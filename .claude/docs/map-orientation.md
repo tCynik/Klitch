@@ -1,52 +1,166 @@
 # Map Orientation Binding
 
-## What it does
-Single tap on the compass HUD button resets the map bearing to north (0°) with a 300 ms animation.
-Long-tap toggles **heading-up mode**: the camera bearing continuously follows the device compass
-sensor. The mode auto-deactivates when the user rotates the map via gesture. Follow Me
-(position tracking) is independent and can run simultaneously.
+## Режимы
 
-The compass button reflects the current map state: inactive (dimmed) when north is up, normal when
-the map is rotated, active glow when heading-up mode is on. The built-in MapLibre compass ornament
-is disabled — our button replaces it entirely.
+Карта существует в трёх состояниях:
 
-## Key classes
-- `MainUiState` — `isHeadingUpActive: Boolean`, `isMapNorthUp: Boolean` (presentation layer)
-- `MainViewModel` — `onCompassTap()`, `onCompassLongPress()`, `onHeadingUpDeactivated()`,
-  `onMapBearingChanged(Double)`, `resetBearingEvent: SharedFlow<Unit>`
-- `MainScreen` — four `LaunchedEffect`s: reset-to-north (collect SharedFlow + `animateTo`),
-  heading-up (direct `cameraState.position =` write), gesture deactivation,
-  bearing tracker (`cameraState.position.bearing` → `onMapBearingChanged`)
-- `MapLibreLayer` — native compass disabled via `OrnamentOptions(isCompassEnabled = false)`
-- `MeshIconButton` — added `onLongClick: (() -> Unit)? = null` + `combinedClickable`
-- `HudButtonSlot` — added `onLongClick` field
+| Состояние | `isNorthLocked` | `isCourseUpActive` | Визуал кнопки |
+|---|---|---|---|
+| Север зафиксирован (compass tap) | `true` | `false` | `selected = false` (затушена) |
+| Свободный поворот (пользователь крутил) | `false` | `false` | `selected = null` (нейтральная) |
+| Course-up (long-tap) | `false` | `true` | `selected = true` (активна) |
 
-## Non-obvious decisions
-- **Direct position write for heading-up**: `cameraState.position = CameraPosition(bearing=...)` 
-  (non-animated) is used instead of `animateTo` because `bearing` from `TYPE_ROTATION_VECTOR`
-  updates at sensor frequency. Direct write is responsive without spamming the animation queue.
-- **`animateTo` only for reset-to-north**: the one-shot tap deserves a smooth animated transition
-  (300 ms); the continuous heading-up mode does not.
-- **SharedFlow for reset-to-north event**: tap is a one-shot imperative action, not persistent
-  state. `MutableSharedFlow<Unit>(replay=0)` fires exactly once per tap with no reset bookkeeping.
-  See `/architect` — "One-Shot Event via SharedFlow" pattern.
-- **Compass button `selected` tri-state**:
-  `isHeadingUpActive=true` → `selected=true` (glow); `isMapNorthUp=true` → `selected=false` (dimmed);
-  otherwise → `selected=null` (regular, map is rotated — tap to reset). `isMapNorthUp` is derived
-  from `cameraState.position.bearing` with a 1° threshold to handle floating-point drift after
-  `animateTo(bearing=0.0)`.
-- **Native MapLibre compass disabled**: `OrnamentOptions(isCompassEnabled = false)` in `MapOptions`.
-  The native compass would bypass `onHeadingUpDeactivated` on tap, causing heading-up to immediately
-  re-rotate the map back — visual flicker with no net effect.
-- **`combinedClickable` with `@OptIn(ExperimentalFoundationApi::class)`**: existing `MeshIconButton`
-  used `Modifier.clickable`; switched to `combinedClickable` to add long-press. All callers that
-  don't pass `onLongClick` get `null` (no behaviour change).
+## Иконка компаса
 
-## Known limitations / planned extensions
-- Heading-up continuously updates `cameraState.position` at sensor rate — no throttle.
-  If this causes jank on low-end devices, add a `> 2f` bearing-change threshold.
-- Compass button in landscape HUD (`buildLeftColumn`) is wired but landscape HUD itself is legacy
-  (slot-based `HudControlsLayer`) — functional but visual design deferred.
+`buildCompassButton` (ViewModel):
+- `isNorthLocked = true` → `ic_compass`, статичная, `selected = false`
+- `isNorthLocked = false` → `ic_compass_rotated`, вращается с `mapBearing`, `selected = null / true`
+- `iconRotationDegrees = -mapBearing - 45f` — смещение на 45° компенсирует ориентацию drawable
 
-## Source
-Plan: `.claude/archive/map-orientation.md`
+## Управление `isNorthLocked`
+
+Флаг **не** сбрасывается при любом жесте (это вызывало мигание при pan). Два отдельных пути:
+
+- `onMapBearingChanged(bearing)` — только обновляет `mapBearing`. Вызывается при программном изменении bearing (анимация reset, course-up).
+- `onMapRotatedByUser(bearing)` — обновляет `mapBearing` + сбрасывает `isNorthLocked`. Вызывается только когда bearing изменился **от жеста пользователя**.
+
+В `MainScreen`, `LaunchedEffect(cameraState.position.bearing)`:
+```kotlin
+val b = cameraState.position.bearing
+if (cameraState.moveReason == CameraMoveReason.GESTURE) onMapRotatedByUser(b)
+else onMapBearingChanged(b)
+```
+
+Pan не меняет bearing → `LaunchedEffect` не срабатывает → `isNorthLocked` не затрагивается.  
+Reset-анимация меняет bearing, но `moveReason = DEVELOPER` → `onMapBearingChanged`, `isNorthLocked` остаётся `true`.
+
+## Сброс на север (compass tap)
+
+`onCompassTap()` → `isNorthLocked = true`, emit `resetBearingEvent`.
+
+`LaunchedEffect(resetBearingEvents)` в MainScreen:
+```kotlin
+cameraState.animateTo(
+    CameraPosition(bearing = 0.0, target = pos.target, zoom = pos.zoom),
+    duration = 300.ms,
+)
+```
+
+Используется `pos.target` (текущий центр карты), **не** `currentLocation.position` — compass tap сбрасывает только bearing, без перемещения камеры к пользователю.
+
+## Азимут в info-слоте
+
+Когда `!isNorthLocked` — рядом с кнопкой компаса отображается текущий азимут взгляда:
+```kotlin
+info = if (!state.isNorthLocked)
+    HudInfoSlot(content = "${state.mapBearing.toInt()}°", color = Color.Red)
+else
+    emptyInfoSlot()
+```
+
+Обновляется каждый фрейм через `mapBearing`. В режиме course-up тоже отображается (отражает курс устройства).
+
+## Course-up
+
+Long-tap на компас активирует course-up (только при наличии GPS-фикса).
+
+### Активация
+
+`onCourseUpToggle(currentZoom: Double)` в ViewModel:
+- Сохраняет `zoomAtCourseUpActivation = currentZoom`
+- `isCourseUpActive = true`, `isNorthLocked = false`
+
+Zoom снимается в `MainScreen` — там есть доступ к `cameraState.position.zoom`. ViewModel принимает его параметром: `onCourseUpToggle(cameraState.position.zoom)`.
+
+### Позиционирование камеры (target offset)
+
+Пользователь должен быть в точке `(W/2, H − W/2)` экрана — нижняя треть в портрете. Камера смещается вперёд по курсу:
+
+```kotlin
+private fun metersPerPixel(latRad: Double, zoom: Double): Double =
+    78271.51696 * cos(latRad) / 2.0.pow(zoom)
+// MapLibre использует тайлы 512px, поэтому константа = 40_075_016 / 512 = 78_271, а не 156_543
+// mpp возвращает метры/dp (не метры/физический пиксель)
+
+val mpp = metersPerPixel(userLatRad, zoom)
+val offsetM = (mapHeightDp / 2f - mapWidthDp / 2f) * mpp
+val newLat = userLat + offsetM * cos(bearingRad) / 111320.0
+val newLon = userLon + offsetM * sin(bearingRad) / (111320.0 * cos(userLatRad))
+cameraState.position = CameraPosition(bearing = bearing.toDouble(), target = Position(newLon, newLat), zoom = zoom)
+```
+
+Размеры карты (`mapWidthDp`, `mapHeightDp`) берутся из `BoxWithConstraints.maxWidth.value / maxHeight.value` — они отражают фактический размер composable с учётом insets и multi-window, в отличие от `LocalConfiguration.screenWidthDp`.
+
+### Жесты в course-up
+
+- **Scroll (pan)** — отключён: `GestureOptions(isScrollGesturesEnabled = false)` в `MapOptions`
+- **Pinch-zoom** — работает нативно через MapLibre
+- **Single-finger drag** — перехватывается Compose-оверлеем и конвертируется в zoom:
+
+```kotlin
+if (uiState.isCourseUpActive) {
+    Box(Modifier.fillMaxSize().pointerInput(mapHeightPx) {
+        detectDragGestures { change, dragAmount ->
+            change.consume()
+            val delta = -dragAmount.y / mapHeightPx * 3.0
+            cameraState.position = CameraPosition(
+                target = current.target, zoom = (current.zoom + delta).coerceIn(1.0, 20.0), bearing = current.bearing
+            )
+        }
+    })
+}
+```
+
+Оверлей добавляется **условно** (`if (isCourseUpActive)`), а не через `return@pointerInput` — иначе пустой `Box` с `pointerInput` перехватывает касания даже при раннем выходе из лямбды.
+
+### Follow Me в course-up
+
+В обычном режиме Follow Me — toggle позиции. В course-up Follow Me восстанавливает zoom, сохранённый при активации:
+
+```kotlin
+onFollowMeClick = {
+    if (uiState.isCourseUpActive) onFollowMeRestoreZoom() else hudUiState.target.button.onClick()
+}
+```
+
+`onFollowMeRestoreZoom()` эмитит `zoomAtCourseUpActivation` через `restoreZoomEvent: SharedFlow<Double>`.  
+`LaunchedEffect(restoreZoomEvents)` в MainScreen собирает и анимирует к сохранённому zoom за 300 мс.
+
+## Инфраструктура HUD
+
+### Выравнивание info-слота
+
+`HudInfoSlotItem` принимает `side: HudSide` и прижимает контент к кнопке:
+- `HudSide.Left` → `Alignment.CenterStart`
+- `HudSide.Right` → `Alignment.CenterEnd`
+
+### Long-click на компас (Variant B)
+
+`buildCompassButton` устанавливает `onLongClick = null`. `HudPortraitControlsLayer` принимает `onCompassLongClick: (() -> Unit)?` и подставляет в слот при рендере. `MainScreen` закрывает `cameraState.position.zoom` в лямбде:
+```kotlin
+onCompassLongClick = {
+    if (currentLocation?.position != null) onCourseUpToggle(cameraState.position.zoom)
+}
+```
+
+ViewModel не знает о `cameraState` — zoom передаётся через параметр вызова.
+
+## Ключевые классы
+
+- `MainUiState` — `isCourseUpActive`, `zoomAtCourseUpActivation`, `isNorthLocked`, `mapBearing`
+- `MainViewModel` — `onCompassTap()`, `onCourseUpToggle(Double)`, `onMapBearingChanged(Double)`, `onMapRotatedByUser(Double)`, `onFollowMeRestoreZoom()`, `resetBearingEvent: SharedFlow<Unit>`, `restoreZoomEvent: SharedFlow<Double>`
+- `MainScreen` — шесть `LaunchedEffect`: followMe, gesture/followMe-deactivation, resetBearing, restoreZoom, bearing/northLock, courseUp-positioning; pan-as-zoom overlay
+- `MapLibreLayer` — `isCourseUpActive` → `GestureOptions(isScrollGesturesEnabled = false)`
+- `HudPortraitControlsLayer` — `onCompassLongClick`, `onFollowMeClick`
+- `HudInfoSlotItem` — `side: HudSide` для выравнивания
+
+## Известные ограничения
+
+- Landscape HUD: course-up не протестирован в ландшафтной ориентации (landscape HUD — legacy slot-based, деferred).
+- Чувствительность pan-as-zoom (3.0 zoom/экран) — начальная оценка, может требовать подстройки.
+- `mapBearing.toInt()` — усечение без нормализации; `360.0` → "360°" при float-погрешности (крайне редко).
+
+## Источники
+
+- План (архив): `.claude/archive/course-up.md`
+- Предыдущая версия документа (heading-up): `.claude/archive/map-orientation.md`

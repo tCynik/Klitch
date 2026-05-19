@@ -340,12 +340,12 @@ class MainViewModel(
         viewModelScope.launch { _restoreZoomEvent.emit(zoom) }
     }
 
-    fun onMapGestureDetected() {
-        _uiState.update { it.copy(isNorthLocked = false) }
-    }
-
     fun onMapBearingChanged(bearing: Double) {
         _uiState.update { it.copy(mapBearing = bearing.toFloat()) }
+    }
+
+    fun onMapRotatedByUser(bearing: Double) {
+        _uiState.update { it.copy(mapBearing = bearing.toFloat(), isNorthLocked = false) }
     }
 
     fun toggleMarkTool() {

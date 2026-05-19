@@ -76,10 +76,10 @@ fun MainScreen(
     onDeletePendingPoint: (Int) -> Unit = {},
     menuDrawerUiState: MenuDrawerUiState,
     onFollowMeDeactivated: () -> Unit = {},
-    onMapGestureDetected: () -> Unit = {},
     resetBearingEvents: Flow<Unit> = emptyFlow(),
     restoreZoomEvents: Flow<Double> = emptyFlow(),
     onMapBearingChanged: (Double) -> Unit = {},
+    onMapRotatedByUser: (Double) -> Unit = {},
     onCourseUpToggle: (Double) -> Unit = {},
     onFollowMeRestoreZoom: () -> Unit = {},
 ) {
@@ -157,12 +157,11 @@ fun MainScreen(
     }
 
     LaunchedEffect(cameraState.position.bearing) {
-        onMapBearingChanged(cameraState.position.bearing)
-        // Clear north lock only when bearing changes due to a user rotation gesture —
-        // pan leaves bearing unchanged so this effect won't fire; animations use non-GESTURE reason
-        if (cameraState.moveReason == CameraMoveReason.GESTURE) {
-            onMapGestureDetected()
-        }
+        val b = cameraState.position.bearing
+        // pan leaves bearing unchanged → this effect won't fire for pan
+        // animations (reset bearing, course-up) have non-GESTURE moveReason → don't clear north lock
+        if (cameraState.moveReason == CameraMoveReason.GESTURE) onMapRotatedByUser(b)
+        else onMapBearingChanged(b)
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
