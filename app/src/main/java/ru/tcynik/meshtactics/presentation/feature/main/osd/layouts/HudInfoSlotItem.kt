@@ -8,19 +8,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudInfoSlot
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudSide
 
 // Renders a single info slot.
 // Hidden slot (content = null): invisible placeholder that reserves the same space as a real slot.
 @Composable
-fun HudInfoSlotItem(slot: HudInfoSlot, modifier: Modifier = Modifier) {
+fun HudInfoSlotItem(slot: HudInfoSlot, side: HudSide, modifier: Modifier = Modifier) {
     if (slot.content == null) {
         Box(modifier = modifier)
         return
     }
 
+    val alignment = when (side) {
+        HudSide.Left  -> Alignment.CenterStart
+        HudSide.Right -> Alignment.CenterEnd
+    }
+
     Box(
         modifier = modifier.fillMaxHeight(),
-        contentAlignment = Alignment.Center,
+        contentAlignment = alignment,
     ) {
         Text(
             text = slot.content,

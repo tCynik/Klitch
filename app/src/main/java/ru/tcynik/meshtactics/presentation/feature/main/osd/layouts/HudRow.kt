@@ -26,12 +26,14 @@ fun HudRow(
                 )
                 HudInfoSlotItem(
                     slot = config.info,
+                    side = side,
                     modifier = Modifier.width(100.dp)
                 )
             }
             HudSide.Right -> {
                 HudInfoSlotItem(
                     slot = config.info,
+                    side = side,
                     modifier = Modifier.width(100.dp)
                 )
                 HudButtonSlotItem(

@@ -493,7 +493,10 @@ class MainViewModel(
         menuDrawer = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_menu, label = "меню", onClick = { toggleMenuDrawer() }), info = emptyInfoSlot()),
         compass  = HudRowConfig(
             button = buildCompassButton(state),
-            info = emptyInfoSlot(),
+            info = if (!state.isNorthLocked)
+                HudInfoSlot(content = "${state.mapBearing.toInt()}°", color = Color.Red)
+            else
+                emptyInfoSlot(),
         ),
         target   = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_target, label = "привязка", selected = state.isFollowMeActive, onClick = { onFollowMeToggle() }), info = emptyInfoSlot()),
         markTool = HudRowConfig(
