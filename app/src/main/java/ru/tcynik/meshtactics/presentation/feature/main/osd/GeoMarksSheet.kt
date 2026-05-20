@@ -151,13 +151,23 @@ private fun SheetHeader(state: GeoMarksSheetUiState) {
                 .size(24.dp),
             tint = MaterialTheme.colorScheme.onSurface,
         )
-        ShapeIcon(
-            shape = state.selectedShape,
-            fillColor = Color(GeoMarkColor.colorAt(state.selectedColor)),
-            modifier = Modifier
-                .padding(end = 8.dp)
-                .size(24.dp),
-        )
+        if (state.selectedType == GeoMarkType.TRACK) {
+            TrackEndTypeIcon(
+                endType = state.selectedTrackEndType,
+                color = Color(GeoMarkColor.colorAt(state.selectedColor)),
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .size(24.dp),
+            )
+        } else {
+            ShapeIcon(
+                shape = state.selectedShape,
+                fillColor = Color(GeoMarkColor.colorAt(state.selectedColor)),
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .size(24.dp),
+            )
+        }
         Text(
             text = buildSheetHeaderTitle(state),
             style = MaterialTheme.typography.titleMedium,
