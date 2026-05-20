@@ -317,6 +317,17 @@ Non-modal bottom sheet. `AnimatedVisibility(slideInVertically + fadeIn)` at `Ali
 - Received TRACK marks: `LineLayer` (color from `markColorHex`) + anchor `SymbolLayer`
 - Mark tool active: `GestureOptions(isDoubleTapEnabled = false, isQuickZoomEnabled = false)`
 
+### Course-up + добавление меток (жесты)
+
+Принятые решения по конфликту оверлея course-up и тапов на карту — в `.claude/docs/map-orientation.md`, раздел **«Course-up + добавление геометок — принятые решения»**.
+
+Кратко:
+- Один палец, классификация на **UP** по `max|ΔY|` vs `touchSlop` (только Y): тап → точка, иначе zoom.
+- Координаты: `projection.positionFromScreenLocation` в точке **DOWN** → `onMapClick`.
+- 2+ пальца → точку не ставить; pinch — MapLibre.
+- Long tap в флоу добавления при course-up — не нужен.
+- Double-tap — через существующий `MainViewModel.onMapClick` (отдельная задача по UX).
+
 ### Context menu
 
 Long-tap on draft point within 30m → `GeoMarkContextMenuEvent(pointIndex, screenX, screenY)` via `SharedFlow`. `MainScreen` renders `DropdownMenu` at `Modifier.offset(screenX.dp, screenY.dp)`. "Удалить точку" calls `deletePendingPoint(index)`.
@@ -345,3 +356,6 @@ Long-tap on draft point within 30m → `GeoMarkContextMenuEvent(pointIndex, scre
 | DataStore format for presets | Preferences DataStore, JSON-serialised list in single key |
 | `ic_close` icon | `Icons.Default.Close` used directly |
 | Sheet position | `Alignment.BottomEnd` in `MainScreen` Box; landscape: hidden |
+| Course-up + tap to add point | Единый pointer handler в course-up оверлее; см. `map-orientation.md` (статус: не реализовано) |
+| Long tap при course-up + метки | Не обрабатывать в флоу добавления |
+| 2+ пальца при course-up + метки | Только zoom, точку не ставить |
