@@ -915,8 +915,8 @@ class MainViewModel(
             trackEndType = form.selectedTrackEndType,
             shape        = form.selectedShape,
         )
-        _formState.update { it.copy(nameCounter = form.nameCounter + 1) }
         sendGeoMark(SendGeoMarkParams(mark, contourId, localOnly))
+        _formState.update { it.copy(nameCounter = form.nameCounter + 1) }
         persistFormState()
         savePreset(_formState.value, markLabel)
     }

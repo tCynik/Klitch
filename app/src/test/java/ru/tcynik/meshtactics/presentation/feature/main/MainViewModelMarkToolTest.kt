@@ -262,6 +262,15 @@ class MainViewModelMarkToolTest {
     }
 
     @Test
+    fun `onMapDoubleClick TRACK with no pending points — does not send, tap point stays in draft`() = runTest(testDispatcher) {
+        viewModel.toggleMarkTool()
+        viewModel.setMarkType(GeoMarkType.TRACK)
+        viewModel.onMapDoubleClick(55.750, 37.620)
+        coVerify(exactly = 0) { sendGeoMark(any()) }
+        assertEquals(1, viewModel.uiState.value.pendingMarkPoints.size)
+    }
+
+    @Test
     fun `onMapDoubleClick TRACK with one pending point — adds second and sends`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
         viewModel.setMarkType(GeoMarkType.TRACK)
