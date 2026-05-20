@@ -174,7 +174,16 @@
       "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.main.MainViewModelMarkToolTest\" --no-daemon)",
       "Bash(JAVA_HOME=\"C:/Program Files/Microsoft/jdk-21.0.10.7-hotspot\" ./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.presentation.feature.main.MainViewModelMenuDrawerTest\" --no-daemon)",
       "Bash(cp \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/hud-menu-drawer.md\" \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/archive/hud-menu-drawer.md\")",
-      "Bash(rm \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/hud-menu-drawer.md\")"
+      "Bash(rm \"c:/Users/tcynik/StudioProjects/MeshTactics/.claude/plans/hud-menu-drawer.md\")",
+      "Bash(./gradlew :shared:generateCommonMainAppDatabaseInterface :app:compileDebugKotlin)",
+      "Bash(./gradlew :shared:generateCommonMainAppDatabaseInterface --rerun-tasks)",
+      "Bash(./gradlew :app:compileDebugKotlin --rerun-tasks)",
+      "Bash(mkdir -p C:/tmp/mljars)",
+      "Read(//c/tmp/**)",
+      "PowerShell(Get-ChildItem -Recurse -Path \"C:\\\\tmp\\\\mljars\" -Filter \"LineLayer.kt\" | ForEach-Object { $_.FullName })",
+      "Read(//c/tmp/mljars/commonMain/org/maplibre/compose/sources/**)",
+      "Bash(cp \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\geo-marks-sheet.md\" \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\archive\\\\geo-marks-sheet.md\")",
+      "Bash(Remove-Item \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\geo-marks-sheet.md\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",

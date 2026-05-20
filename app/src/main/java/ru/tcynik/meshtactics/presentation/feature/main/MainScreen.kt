@@ -1,20 +1,12 @@
 package ru.tcynik.meshtactics.presentation.feature.main
 
 import android.content.res.Configuration
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
@@ -48,7 +40,9 @@ import org.maplibre.compose.location.LocationProvider
 import org.maplibre.spatialk.geojson.Position
 import ru.tcynik.meshtactics.di.orientation.DeviceOrientationProvider
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
+import ru.tcynik.meshtactics.presentation.feature.main.osd.GeoMarksSheet
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkContextMenuEvent
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarksSheetUiState
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudUiState
 import ru.tcynik.meshtactics.presentation.feature.main.osd.HudControlsLayer
@@ -71,10 +65,9 @@ fun MainScreen(
     orientationProvider: DeviceOrientationProvider,
     onMapClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
     onMapLongClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit = { _, _, _, _ -> },
-    onSendPendingMark: () -> Unit = {},
     contextMenuEvents: Flow<GeoMarkContextMenuEvent> = emptyFlow(),
-    onDeletePendingPoint: (Int) -> Unit = {},
     menuDrawerUiState: MenuDrawerUiState,
+    geoMarksSheetUiState: GeoMarksSheetUiState,
     onFollowMeDeactivated: () -> Unit = {},
     resetBearingEvents: Flow<Unit> = emptyFlow(),
     restoreZoomEvents: Flow<Double> = emptyFlow(),
@@ -211,6 +204,8 @@ fun MainScreen(
                 selectedOverlays = uiState.selectedOverlays,
                 geoMarks = uiState.geoMarks,
                 pendingMarkPoints = uiState.pendingMarkPoints,
+                pendingMarkColor = geoMarksSheetUiState.selectedColor,
+                pendingMarkShape = geoMarksSheetUiState.selectedShape,
                 markToolActive = uiState.markToolActive,
                 isCourseUpActive = uiState.isCourseUpActive,
                 onMapClick = onMapClick,
@@ -260,23 +255,17 @@ fun MainScreen(
             )
         }
 
-        AnimatedVisibility(
-            visible = uiState.markToolActive && uiState.pendingMarkPoints.isNotEmpty(),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(bottom = 420.dp),
-            enter = fadeIn() + slideInVertically { it },
-            exit  = fadeOut() + slideOutVertically { it },
-        ) {
-            Button(onClick = onSendPendingMark) {
-                Text("Отправить (${uiState.pendingMarkPoints.size})")
-            }
-        }
-
         // z3 — menu drawer overlay (portrait only)
         if (!isLandscape) {
             MenuDrawer(state = menuDrawerUiState)
+        }
+
+        // z4 — geo marks sheet (portrait only)
+        if (!isLandscape) {
+            GeoMarksSheet(
+                state = geoMarksSheetUiState,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
 
         contextMenu?.let { event ->
@@ -288,7 +277,7 @@ fun MainScreen(
                     DropdownMenuItem(
                         text = { Text("Удалить точку") },
                         onClick = {
-                            onDeletePendingPoint(event.pointIndex)
+                            geoMarksSheetUiState.onDeletePendingPoint(event.pointIndex)
                             contextMenu = null
                         },
                     )

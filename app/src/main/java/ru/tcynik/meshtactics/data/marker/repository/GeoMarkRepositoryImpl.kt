@@ -12,7 +12,9 @@ import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkShape
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
+import ru.tcynik.meshtactics.domain.marker.model.TrackEndType
 import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkRepository
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshNetworkRepository
 import ru.tcynik.meshtactics.mesh.repository.CommandSender
@@ -32,16 +34,45 @@ class GeoMarkRepositoryImpl(
             .mapToList(Dispatchers.Default)
             .map { rows -> rows.map { row -> row.toModel() } }
 
-    override suspend fun sendGeoMark(mark: GeoMarkModel) {
+    override suspend fun sendGeoMark(mark: GeoMarkModel, contourId: ContourId?, localOnly: Boolean) {
+        val nowSeconds = System.currentTimeMillis() / 1_000
+        val expiresAt = mark.expiresAt ?: (nowSeconds + GeoMarkWaypointAdapter.EXPIRE_TTL_SECONDS)
+
+        if (localOnly) {
+            geoMarkQueries.insert(
+                id = mark.id,
+                waypointId = mark.waypointId.toLong(),
+                type = mark.type.name,
+                pointsJson = adapter.encodePointsJson(mark.points),
+                authorNodeId = "",
+                createdAt = nowSeconds,
+                expiresAt = expiresAt,
+                isSelf = 1L,
+                logicalChannelId = "",
+                color = mark.color.toLong(),
+                name = mark.name,
+                trackEndType = mark.trackEndType.ends.toLong(),
+                shape = mark.shape.ordinal.toLong(),
+            )
+            return
+        }
+
         val ourNode = meshNetwork.observeOurNode().first()
         val ourNodeNum = ourNode?.num ?: 0
         val ourNodeId = ourNode?.nodeId ?: ""
-        val nowSeconds = System.currentTimeMillis() / 1_000
 
         val packet = adapter.encode(mark, ourNodeNum, ourNodeId, nowSeconds)
+
+        if (contourId != null) {
+            val contour = channelRepository.observeContours().first()
+                .find { it.id == contourId }
+            val slot = contour?.transport?.meshtastic?.channelHash
+                ?.let { hash -> channelSlotResolver.hashToSlot[hash] }
+            if (slot != null) packet.channel = slot
+        }
         commandSender.sendData(packet)
 
-        val contourId = resolveContourId(channelIndex = packet.channel)
+        val resolvedContourId = contourId?.value ?: resolveContourId(channelIndex = packet.channel)
         geoMarkQueries.insert(
             id = mark.id,
             waypointId = mark.waypointId.toLong(),
@@ -49,9 +80,13 @@ class GeoMarkRepositoryImpl(
             pointsJson = adapter.encodePointsJson(mark.points),
             authorNodeId = ourNodeId,
             createdAt = nowSeconds,
-            expiresAt = nowSeconds + GeoMarkWaypointAdapter.EXPIRE_TTL_SECONDS,
+            expiresAt = expiresAt,
             isSelf = 1L,
-            logicalChannelId = contourId,
+            logicalChannelId = resolvedContourId,
+            color = mark.color.toLong(),
+            name = mark.name,
+            trackEndType = mark.trackEndType.ends.toLong(),
+            shape = mark.shape.ordinal.toLong(),
         )
     }
 
@@ -65,6 +100,9 @@ class GeoMarkRepositoryImpl(
             createdAt = mark.createdAt,
             expiresAt = mark.expiresAt,
             logicalChannelId = contourId.value,
+            color = mark.color.toLong(),
+            name = mark.name,
+            trackEndType = mark.trackEndType.ends.toLong(),
         )
     }
 
@@ -86,5 +124,9 @@ class GeoMarkRepositoryImpl(
         createdAt = created_at,
         expiresAt = expires_at,
         isSelf = is_self == 1L,
+        color = color.toInt(),
+        name = name,
+        trackEndType = TrackEndType.fromByte(track_end_type.toByte()),
+        shape = GeoMarkShape.entries.getOrElse(shape.toInt()) { GeoMarkShape.CIRCLE },
     )
 }

@@ -16,4 +16,12 @@ data class GeoMarkModel(
     val expiresAt: Long?,
     /** true if sent by this device. */
     val isSelf: Boolean,
+    /** Index into GeoMarkColor.palette (0–15). Packed into icon field at transport. */
+    val color: Int = 0,
+    /** User-visible label. Packed into Waypoint.name at transport. */
+    val name: String = "",
+    /** Track end marker style. Only relevant for TRACK type. */
+    val trackEndType: TrackEndType = TrackEndType.NONE,
+    /** Shape of the point marker. */
+    val shape: GeoMarkShape = GeoMarkShape.CIRCLE,
 )
