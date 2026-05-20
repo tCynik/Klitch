@@ -87,6 +87,7 @@ fun NavGraph() {
                     locationProvider = locationProvider,
                     orientationProvider = orientationProvider,
                     onMapClick = viewModel::onMapClick,
+                    onMapDoubleClick = viewModel::onMapDoubleClick,
                     onMapLongClick = viewModel::onMapLongClick,
                     contextMenuEvents = viewModel.contextMenuEvent,
                     menuDrawerUiState = menuDrawerUiState,

@@ -31,6 +31,8 @@ import ru.tcynik.meshtactics.domain.map.usecase.GetTileUrlUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveNodeMarkersUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveSelectedOverlaysUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkFormPreferences
+import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkPreferencesRepository
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
@@ -77,6 +79,7 @@ class MainViewModelMenuDrawerTest {
     private val rebootStateRepository: RebootStateRepository = mockk(relaxed = true)
     private val observeCallsignChanges: ObserveCallsignChangesUseCase = mockk()
     private val refreshNodePublicKey: RefreshNodePublicKeyUseCase = mockk(relaxed = true)
+    private val geoMarkPrefsRepository: GeoMarkPreferencesRepository = mockk(relaxed = true)
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var viewModel: MainViewModel
@@ -104,6 +107,8 @@ class MainViewModelMenuDrawerTest {
         every { rebootStateRepository.isRebooting } returns MutableStateFlow(false)
         every { observeCallsignChanges.invoke(any()) } returns flowOf(0)
         coEvery { checkNodeSync.invoke() } returns NodeSyncResult.InSync
+        every { geoMarkPrefsRepository.observePreferences() } returns flowOf(GeoMarkFormPreferences())
+        every { geoMarkPrefsRepository.observePresets() } returns flowOf(emptyList())
         viewModel = MainViewModel(
             getTileUrl = getTileUrl,
             getLastPosition = getLastPosition,
@@ -131,6 +136,7 @@ class MainViewModelMenuDrawerTest {
             rebootStateRepository = rebootStateRepository,
             observeCallsignChanges = observeCallsignChanges,
             refreshNodePublicKey = refreshNodePublicKey,
+            geoMarkPrefsRepository = geoMarkPrefsRepository,
         )
     }
 

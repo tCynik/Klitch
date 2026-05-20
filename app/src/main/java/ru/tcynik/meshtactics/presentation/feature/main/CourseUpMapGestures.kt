@@ -2,11 +2,12 @@ package ru.tcynik.meshtactics.presentation.feature.main
 
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.composed
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.unit.DpOffset
+import android.view.ViewConfiguration
 import kotlin.math.abs
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.CameraState
@@ -26,7 +27,21 @@ fun Modifier.courseUpMapGestures(
     markToolActive: Boolean,
     cameraState: CameraState,
     onMapClick: (lat: Double, lon: Double) -> Unit,
-): Modifier = pointerInput(mapHeightPx, markToolActive, cameraState) {
+    onMapDoubleClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
+): Modifier = composed {
+    val scope = rememberCoroutineScope()
+    Modifier.pointerInput(mapHeightPx, markToolActive, cameraState) {
+    val tapDispatcher = if (markToolActive) {
+        MarkToolTapDispatcher(
+            scope = scope,
+            doubleTapTimeoutMs = ViewConfiguration.getDoubleTapTimeout().toLong(),
+            onSingleTap = onMapClick,
+            onDoubleTap = onMapDoubleClick,
+        )
+    } else {
+        null
+    }
+
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
         if (currentEvent.changes.count { it.pressed } > 1) return@awaitEachGesture
@@ -55,29 +70,30 @@ fun Modifier.courseUpMapGestures(
                 continue
             }
 
-            if (change.positionChange() != Offset.Zero) {
-                val y = change.position.y
-                maxAbsDy = maxOf(maxAbsDy, abs(y - startY))
+            val y = change.position.y
+            maxAbsDy = maxOf(maxAbsDy, abs(y - startY))
 
-                if (maxAbsDy > viewConfiguration.touchSlop) {
-                    isZoomGesture = true
-                    val delta = -(y - lastY) / mapHeightPx * ZOOM_LEVELS_PER_SCREEN_HEIGHT
-                    lastY = y
-                    val current = cameraState.position
-                    cameraState.position = CameraPosition(
-                        target = current.target,
-                        zoom = (current.zoom + delta).coerceIn(MIN_ZOOM, MAX_ZOOM),
-                        bearing = current.bearing,
-                    )
-                    change.consume()
-                }
+            if (maxAbsDy > viewConfiguration.touchSlop) {
+                isZoomGesture = true
+                val delta = -(y - lastY) / mapHeightPx * ZOOM_LEVELS_PER_SCREEN_HEIGHT
+                lastY = y
+                val current = cameraState.position
+                cameraState.position = CameraPosition(
+                    target = current.target,
+                    zoom = (current.zoom + delta).coerceIn(MIN_ZOOM, MAX_ZOOM),
+                    bearing = current.bearing,
+                )
+                change.consume()
             }
         }
 
-        if (!isZoomGesture && markToolActive) {
+        if (isZoomGesture) {
+            tapDispatcher?.reset()
+        } else {
             val projection = cameraState.projection ?: return@awaitEachGesture
             val position = projection.positionFromScreenLocation(downOffset)
-            onMapClick(position.latitude, position.longitude)
+            tapDispatcher?.onTapRelease(position.latitude, position.longitude)
         }
+    }
     }
 }

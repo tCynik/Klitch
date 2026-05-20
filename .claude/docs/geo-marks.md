@@ -268,7 +268,7 @@ Derived StateFlow combining `_uiState + _formState`. All callbacks bundled (Menu
 | `applyPreset(preset)` | restore all form fields from preset |
 | `sendPendingMark()` | build mark from form state; increment counter; persist prefs; save preset |
 | `onMapClick(lat, lon)` | debounce 300ms; single-tap → add pending point (POINT replaces, TRACK appends) |
-| `onMapDoubleClick(lat, lon)` | quick-drop POINT with defaults; bypasses sheet form state |
+| `onMapDoubleClick(lat, lon)` | quick-drop POINT at tap coords; uses current sheet form (color, shape, name, TTL, addressee) |
 | `onMapLongClick(lat, lon, screenX, screenY)` | proximity check (30m); emit `GeoMarkContextMenuEvent` |
 | `clearPendingPoints()` | clear `pendingMarkPoints` from `_uiState` |
 | `deletePendingPoint(index)` | remove by index |
@@ -326,7 +326,7 @@ Non-modal bottom sheet. `AnimatedVisibility(slideInVertically + fadeIn)` at `Ali
 - Координаты: `projection.positionFromScreenLocation` в точке **DOWN** → `onMapClick`.
 - 2+ пальца → точку не ставить; pinch — MapLibre.
 - Long tap в флоу добавления при course-up — не нужен.
-- Double-tap — через существующий `MainViewModel.onMapClick` (отдельная задача по UX).
+- Double-tap: `markToolMapTapGestures` (локальный `doubleTapTimeout`, tap consume) в обычном режиме; `courseUpMapGestures` в course-up. Одиночный тап → `onMapClick` → debounce 300 ms → черновик. MapLibre `onMapClick` при активном инструменте отключён.
 
 ### Context menu
 
@@ -339,7 +339,7 @@ Long-tap on draft point within 30m → `GeoMarkContextMenuEvent(pointIndex, scre
 - `GeoMarkColor` is Compose-free (pure Kotlin `Int` palette). Presentation wraps with `Color(argb)`.
 - `MainViewModel` depends on `GeoMarkPreferencesRepository` interface (domain), not `GeoMarkPrefsDataSource` (data). Koin binds `GeoMarkPreferencesRepositoryImpl`.
 - `sendPendingMark()` uses explicit `formState.selectedType` — not inferred from point count.
-- Double-tap bypass: `onMapDoubleClick` sends POINT with hardcoded defaults, ignoring sheet form state. Intentional quick-drop gesture.
+- Double-tap quick-drop: `onMapDoubleClick` (or second tap within 300ms in `onMapClick`) sends POINT at tap coordinates with the same form fields as `sendPendingMark()`; does not add to `pendingMarkPoints`.
 - Channel routing: `adapter.encode()` returns `channel=0`; `GeoMarkRepositoryImpl` overrides to resolved contour slot.
 
 ---

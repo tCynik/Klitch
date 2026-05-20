@@ -58,6 +58,7 @@ import ru.tcynik.meshtactics.domain.marker.model.GeoMarkColor
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkShape
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
+import ru.tcynik.meshtactics.presentation.feature.main.markToolMapTapGestures
 import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.domain.marker.model.NodeMarkerModel
@@ -102,6 +103,7 @@ fun MapLibreLayer(
     markToolActive: Boolean = false,
     isCourseUpActive: Boolean = false,
     onMapClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
+    onMapDoubleClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
     onMapLongClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit = { _, _, _, _ -> },
 ) {
     var hasUserMoved by remember { mutableStateOf(false) }
@@ -122,8 +124,21 @@ fun MapLibreLayer(
         }
     }
 
+    val mapModifier = modifier.then(
+        if (markToolActive && !isCourseUpActive) {
+            Modifier.markToolMapTapGestures(
+                cameraState = cameraState,
+                onMapClick = onMapClick,
+                onMapDoubleClick = onMapDoubleClick,
+                onMapLongClick = onMapLongClick,
+            )
+        } else {
+            Modifier
+        },
+    )
+
     MaplibreMap(
-        modifier = modifier,
+        modifier = mapModifier,
         baseStyle = BASE_STYLE_WITH_GLYPHS,
         cameraState = cameraState,
         options = when {
@@ -146,14 +161,18 @@ fun MapLibreLayer(
             else -> MapOptions(ornamentOptions = OrnamentOptions(isCompassEnabled = false))
         },
         onMapClick = { position, _ ->
-            onMapClick(position.latitude, position.longitude)
+            if (!markToolActive) {
+                onMapClick(position.latitude, position.longitude)
+            }
             ClickResult.Pass
         },
         onMapLongClick = { position, dpOffset ->
-            onMapLongClick(
-                position.latitude, position.longitude,
-                dpOffset.x.value, dpOffset.y.value,
-            )
+            if (!markToolActive) {
+                onMapLongClick(
+                    position.latitude, position.longitude,
+                    dpOffset.x.value, dpOffset.y.value,
+                )
+            }
             ClickResult.Pass
         },
     ) {

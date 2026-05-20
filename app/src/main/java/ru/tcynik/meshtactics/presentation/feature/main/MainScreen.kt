@@ -63,6 +63,7 @@ fun MainScreen(
     locationProvider: LocationProvider,
     orientationProvider: DeviceOrientationProvider,
     onMapClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
+    onMapDoubleClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
     onMapLongClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit = { _, _, _, _ -> },
     contextMenuEvents: Flow<GeoMarkContextMenuEvent> = emptyFlow(),
     menuDrawerUiState: MenuDrawerUiState,
@@ -208,6 +209,7 @@ fun MainScreen(
                 markToolActive = uiState.markToolActive,
                 isCourseUpActive = uiState.isCourseUpActive,
                 onMapClick = onMapClick,
+                onMapDoubleClick = onMapDoubleClick,
                 onMapLongClick = onMapLongClick,
             )
         }
@@ -221,6 +223,7 @@ fun MainScreen(
                         markToolActive = uiState.markToolActive,
                         cameraState = cameraState,
                         onMapClick = onMapClick,
+                        onMapDoubleClick = onMapDoubleClick,
                     ),
             )
         }
