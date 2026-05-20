@@ -221,8 +221,8 @@ Queries: `selectAll`, `selectById`, `selectSelfIds`, `selectAllForChannel`, `ins
 - `selectedTrackEndType: Int` (TrackEndType.ends byte value — known inconsistency with String approach for other fields)
 - `selectedTtlSeconds: Long`
 - `markName: String`
-- `nameCounter: Int`
 - `selectedContourId: String`
+- **Note**: no counter fields — counters are session-only (reset on restart)
 
 `GeoMarkPreset` (domain, `@Serializable`): `id + displayName + prefs: GeoMarkFormPreferences`
 
@@ -252,7 +252,8 @@ data class GeoMarksFormState(
     val selectedTrackEndType: TrackEndType,
     val selectedTtlSeconds: Long,
     val markName: String,
-    val nameCounter: Int,
+    val pointNameCounter: Int,   // session-only, not persisted
+    val trackNameCounter: Int,   // session-only, not persisted
     val selectedContourId: String,
     val wasAddresseeExplicitlySelected: Boolean,
     val availableContours: ImmutableList<GeoMarkAddressee>,
@@ -283,9 +284,12 @@ Derived StateFlow combining `_uiState + _formState`. All callbacks bundled (Menu
 
 ### Name counter rules
 
-- Resets to 1 on `setMarkName()` (text change)
-- Continues from current on `setNameCounter()` (manual edit)
-- Auto-increments after each successful `sendPendingMark()`
+- Separate counters per type: `pointNameCounter` and `trackNameCounter` in `GeoMarksFormState`
+- Both reset to 1 on `setMarkName()` (text change)
+- `setNameCounter()` updates the counter for the active `selectedType`
+- Auto-increments the counter matching the sent mark type after each successful `sendGeoMarkAtPoints()`
+- Counters are **not persisted** to DataStore — reset to 1 on app restart
+- `GeoMarkFormPreferences` does not contain counter fields
 
 ### Addressee logic
 

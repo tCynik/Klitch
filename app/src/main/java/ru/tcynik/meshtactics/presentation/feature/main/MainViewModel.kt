@@ -462,12 +462,18 @@ class MainViewModel(
     }
 
     fun setMarkName(name: String) {
-        _formState.update { it.copy(markName = name, nameCounter = 1) }
+        _formState.update { it.copy(markName = name, pointNameCounter = 1, trackNameCounter = 1) }
         viewModelScope.launch { persistFormState() }
     }
 
     fun setNameCounter(counter: Int) {
-        _formState.update { it.copy(nameCounter = counter.coerceAtLeast(1)) }
+        val v = counter.coerceAtLeast(1)
+        _formState.update { form ->
+            if (form.selectedType == GeoMarkType.POINT)
+                form.copy(pointNameCounter = v)
+            else
+                form.copy(trackNameCounter = v)
+        }
         viewModelScope.launch { persistFormState() }
     }
 
@@ -872,7 +878,7 @@ class MainViewModel(
             selectedTrackEndType = form.selectedTrackEndType,
             selectedTtlSeconds   = form.selectedTtlSeconds,
             markName             = form.markName,
-            nameCounter          = form.nameCounter,
+            nameCounter          = if (form.selectedType == GeoMarkType.POINT) form.pointNameCounter else form.trackNameCounter,
             pendingPoints        = state.pendingMarkPoints,
             availableContours    = form.availableContours,
             selectedContourId    = form.selectedContourId,
@@ -897,7 +903,7 @@ class MainViewModel(
     private suspend fun sendGeoMarkAtPoints(points: List<GeoPoint>, type: GeoMarkType) {
         val form = _formState.value
         val nowSeconds = System.currentTimeMillis() / 1_000
-        val markLabel = buildMarkLabel(form)
+        val markLabel = buildMarkLabel(form, type)
         val localOnly = form.selectedContourId == LOCAL_STORAGE_ID
         val contourId = if (localOnly) null
                         else form.selectedContourId.takeIf { it.isNotEmpty() }?.let { ContourId(it) }
@@ -916,14 +922,20 @@ class MainViewModel(
             shape        = form.selectedShape,
         )
         sendGeoMark(SendGeoMarkParams(mark, contourId, localOnly))
-        _formState.update { it.copy(nameCounter = form.nameCounter + 1) }
+        _formState.update { s ->
+            if (type == GeoMarkType.POINT)
+                s.copy(pointNameCounter = s.pointNameCounter + 1)
+            else
+                s.copy(trackNameCounter = s.trackNameCounter + 1)
+        }
         persistFormState()
         savePreset(_formState.value, markLabel)
     }
 
-    private fun buildMarkLabel(form: GeoMarksFormState): String {
+    private fun buildMarkLabel(form: GeoMarksFormState, type: GeoMarkType): String {
         val base = form.markName.trim()
-        return if (base.isEmpty()) "${form.nameCounter}" else "$base ${form.nameCounter}"
+        val counter = if (type == GeoMarkType.POINT) form.pointNameCounter else form.trackNameCounter
+        return if (base.isEmpty()) "$counter" else "$base $counter"
     }
 
     private fun applyPrefsToFormState(prefs: GeoMarkFormPreferences) {
@@ -935,7 +947,6 @@ class MainViewModel(
                 selectedTrackEndType = TrackEndType.fromByte(prefs.selectedTrackEndType.toByte()),
                 selectedTtlSeconds   = prefs.selectedTtlSeconds,
                 markName             = prefs.markName,
-                nameCounter          = prefs.nameCounter,
                 selectedContourId    = if (form.selectedContourId.isEmpty()) prefs.selectedContourId else form.selectedContourId,
                 wasAddresseeExplicitlySelected = form.wasAddresseeExplicitlySelected || prefs.selectedContourId.isNotEmpty(),
             )
@@ -952,7 +963,6 @@ class MainViewModel(
                 selectedTrackEndType = form.selectedTrackEndType.ends.toInt(),
                 selectedTtlSeconds   = form.selectedTtlSeconds,
                 markName             = form.markName,
-                nameCounter          = form.nameCounter,
                 selectedContourId    = form.selectedContourId,
             )
         )
@@ -969,7 +979,6 @@ class MainViewModel(
                 selectedTrackEndType = form.selectedTrackEndType.ends.toInt(),
                 selectedTtlSeconds   = form.selectedTtlSeconds,
                 markName             = form.markName,
-                nameCounter          = form.nameCounter,
                 selectedContourId    = form.selectedContourId,
             ),
         )

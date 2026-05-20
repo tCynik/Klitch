@@ -9,7 +9,6 @@ data class GeoMarkFormPreferences(
     val selectedTrackEndType: Int = TrackEndType.NONE.ends.toInt(),
     val selectedTtlSeconds: Long = 900L,
     val markName: String = "",
-    val nameCounter: Int = 1,
     val selectedContourId: String = "",
     val selectedShape: String = GeoMarkShape.CIRCLE.name,
 )

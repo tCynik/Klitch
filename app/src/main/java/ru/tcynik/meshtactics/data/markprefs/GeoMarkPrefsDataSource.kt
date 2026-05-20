@@ -28,7 +28,6 @@ class GeoMarkPrefsDataSource(
                 selectedTrackEndType = prefs[KEY_TRACK_END_TYPE] ?: TrackEndType.NONE.ends.toInt(),
                 selectedTtlSeconds  = prefs[KEY_TTL_SECONDS] ?: 900L,
                 markName            = prefs[KEY_MARK_NAME] ?: "",
-                nameCounter         = prefs[KEY_NAME_COUNTER] ?: 1,
                 selectedContourId   = prefs[KEY_CONTOUR_ID] ?: "",
                 selectedShape       = prefs[KEY_SHAPE] ?: ru.tcynik.meshtactics.domain.marker.model.GeoMarkShape.CIRCLE.name,
             )
@@ -41,7 +40,6 @@ class GeoMarkPrefsDataSource(
             prefs[KEY_TRACK_END_TYPE]   = p.selectedTrackEndType
             prefs[KEY_TTL_SECONDS]      = p.selectedTtlSeconds
             prefs[KEY_MARK_NAME]        = p.markName
-            prefs[KEY_NAME_COUNTER]     = p.nameCounter
             prefs[KEY_CONTOUR_ID]       = p.selectedContourId
             prefs[KEY_SHAPE]            = p.selectedShape
         }
@@ -73,7 +71,6 @@ class GeoMarkPrefsDataSource(
         private val KEY_TRACK_END_TYPE   = intPreferencesKey("geomark_track_end_type")
         private val KEY_TTL_SECONDS      = longPreferencesKey("geomark_ttl_seconds")
         private val KEY_MARK_NAME        = stringPreferencesKey("geomark_name")
-        private val KEY_NAME_COUNTER     = intPreferencesKey("geomark_name_counter")
         private val KEY_CONTOUR_ID       = stringPreferencesKey("geomark_contour_id")
         private val KEY_PRESETS          = stringPreferencesKey("geomark_presets_json")
         private val KEY_SHAPE            = stringPreferencesKey("geomark_shape")

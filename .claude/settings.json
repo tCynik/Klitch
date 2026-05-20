@@ -184,7 +184,9 @@
       "Read(//c/tmp/mljars/commonMain/org/maplibre/compose/sources/**)",
       "Bash(cp \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\geo-marks-sheet.md\" \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\archive\\\\geo-marks-sheet.md\")",
       "Bash(Remove-Item \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\geo-marks-sheet.md\")",
-      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapterTest\")"
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapterTest\")",
+      "Bash(rm \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\track-end-type-visual-picker.md\")",
+      "Bash(./gradlew assembleDebug)"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",
