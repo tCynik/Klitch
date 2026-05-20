@@ -304,10 +304,12 @@ Non-modal bottom sheet. `AnimatedVisibility(slideInVertically + fadeIn)` at `Ali
 
 **Body** (hidden when collapsed):
 - Type dropdown (POINT, TRACK; POLYGON/PRIMITIVE disabled items)
-- Shape + Color dropdowns (side by side with type)
-- Type-specific section: TRACK shows end-type dropdown + `точек: N / 27`; POINT shows nothing
+- **Вид** dropdown + Color dropdown (side by side with type): "Вид" switches content by type — POINT shows `ShapeDropdown` (CIRCLE/SQUARE/TRIANGLE via `ShapeIcon`), TRACK shows `TrackEndTypeDropdown` (NONE/ARROW via `TrackEndTypeIcon`)
+- Type-specific section: TRACK shows `точек: N / 27` text only; POINT shows nothing
 - Name field + counter field + TTL dropdown (9 options: 15m … 3 days)
 - Bottom row: "Очистить" button + split send button (`Отправить в | [addressee ▼]`)
+
+`TrackEndTypeIcon` — Canvas composable (аналог `ShapeIcon`): рисует горизонтальную линию с законцовкой по типу. NONE: линия. ARROW: линия + стрелочная голова (вершина справа, крылья уходят назад-влево). SMALL_FILLED_CIRCLE: линия + заполненный круг. LARGE_EMPTY_CIRCLE: линия + пустой круг (stroke).
 
 `BackHandler` closes sheet on back press.
 

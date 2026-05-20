@@ -188,7 +188,11 @@ private fun TypeAndColorRow(state: GeoMarksSheetUiState) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         TypeDropdown(state, modifier = Modifier.weight(1f))
-        ShapeDropdown(state, modifier = Modifier.width(80.dp))
+        if (state.selectedType == GeoMarkType.TRACK) {
+            TrackEndTypeDropdown(state, modifier = Modifier.width(80.dp))
+        } else {
+            ShapeDropdown(state, modifier = Modifier.width(80.dp))
+        }
         ColorDropdown(state, modifier = Modifier.width(80.dp))
     }
 }
@@ -227,6 +231,41 @@ private fun TypeDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
                     text = { Text(label, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)) },
                     onClick = {},
                     enabled = false,
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TrackEndTypeDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier,
+    ) {
+        OutlinedTextField(
+            value = " ",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Вид") },
+            leadingIcon = {
+                TrackEndTypeIcon(endType = state.selectedTrackEndType, modifier = Modifier.size(20.dp))
+            },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            MVP_TRACK_END_TYPES.forEach { endType ->
+                DropdownMenuItem(
+                    text = { TrackEndTypeIcon(endType = endType, modifier = Modifier.size(24.dp)) },
+                    onClick = { state.onTrackEndTypeSelected(endType); expanded = false },
                 )
             }
         }
@@ -334,6 +373,39 @@ private fun ShapeIcon(
     }
 }
 
+@Composable
+private fun TrackEndTypeIcon(
+    endType: TrackEndType,
+    modifier: Modifier = Modifier,
+    color: Color? = null,
+) {
+    val strokeColor = color ?: MaterialTheme.colorScheme.onSurface
+    Canvas(modifier = modifier.aspectRatio(1f)) {
+        val w = size.width
+        val h = size.height
+        val cy = h / 2f
+        val sw = h * 0.14f
+        when (endType) {
+            TrackEndType.NONE -> {
+                drawLine(strokeColor, androidx.compose.ui.geometry.Offset(w * 0.10f, cy), androidx.compose.ui.geometry.Offset(w * 0.90f, cy), sw)
+            }
+            TrackEndType.ARROW -> {
+                drawLine(strokeColor, androidx.compose.ui.geometry.Offset(w * 0.10f, cy), androidx.compose.ui.geometry.Offset(w * 0.88f, cy), sw)
+                drawLine(strokeColor, androidx.compose.ui.geometry.Offset(w * 0.88f, cy), androidx.compose.ui.geometry.Offset(w * 0.62f, cy - h * 0.28f), sw)
+                drawLine(strokeColor, androidx.compose.ui.geometry.Offset(w * 0.88f, cy), androidx.compose.ui.geometry.Offset(w * 0.62f, cy + h * 0.28f), sw)
+            }
+            TrackEndType.SMALL_FILLED_CIRCLE -> {
+                drawLine(strokeColor, androidx.compose.ui.geometry.Offset(w * 0.10f, cy), androidx.compose.ui.geometry.Offset(w * 0.72f, cy), sw)
+                drawCircle(strokeColor, radius = h * 0.15f, center = androidx.compose.ui.geometry.Offset(w * 0.84f, cy))
+            }
+            TrackEndType.LARGE_EMPTY_CIRCLE -> {
+                drawLine(strokeColor, androidx.compose.ui.geometry.Offset(w * 0.10f, cy), androidx.compose.ui.geometry.Offset(w * 0.65f, cy), sw)
+                drawCircle(strokeColor, radius = h * 0.22f, center = androidx.compose.ui.geometry.Offset(w * 0.80f, cy), style = Stroke(width = sw))
+            }
+        }
+    }
+}
+
 private fun buildSheetHeaderTitle(state: GeoMarksSheetUiState): String {
     val name = state.markName.trim().ifEmpty { state.selectedType.headerNameFallback }
     return "$name ${state.nameCounter}/${formatTtlShort(state.selectedTtlSeconds)}"
@@ -426,49 +498,15 @@ private fun TypeSpecificSection(state: GeoMarksSheetUiState) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TrackSection(state: GeoMarksSheetUiState) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Row(
+    Text(
+        text = "точек: ${state.pendingPoints.size} / 27",
+        style = MaterialTheme.typography.bodyMedium,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = it },
-            modifier = Modifier.weight(1f),
-        ) {
-            OutlinedTextField(
-                value = state.selectedTrackEndType.displayName,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Законцовка") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
-                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-            )
-            ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                MVP_TRACK_END_TYPES.forEach { endType ->
-                    DropdownMenuItem(
-                        text = { Text(endType.displayName) },
-                        onClick = { state.onTrackEndTypeSelected(endType); expanded = false },
-                    )
-                }
-            }
-        }
-        Text(
-            text = "точек: ${state.pendingPoints.size} / 27",
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(start = 8.dp),
-        )
-    }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -648,9 +686,3 @@ private val GeoMarkType.displayName: String get() = when (this) {
     GeoMarkType.TRACK -> "Трек"
 }
 
-private val TrackEndType.displayName: String get() = when (this) {
-    TrackEndType.NONE               -> "Нет"
-    TrackEndType.SMALL_FILLED_CIRCLE -> "Круг малый"
-    TrackEndType.LARGE_EMPTY_CIRCLE  -> "Круг большой"
-    TrackEndType.ARROW               -> "Стрелка"
-}
