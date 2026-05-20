@@ -123,6 +123,7 @@ fun MainScreen(
                 finalPosition = CameraPosition(
                     target = pos,
                     zoom = cameraState.position.zoom,
+                    bearing = cameraState.position.bearing,
                 ),
                 duration = 500.milliseconds,
             )
