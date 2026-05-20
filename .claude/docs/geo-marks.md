@@ -267,8 +267,8 @@ Derived StateFlow combining `_uiState + _formState`. All callbacks bundled (Menu
 | `setMarkType/Color/Shape/TrackEndType/Ttl/MarkName/NameCounter/Addressee()` | update `_formState`, persist to DataStore |
 | `applyPreset(preset)` | restore all form fields from preset |
 | `sendPendingMark()` | build mark from form state; increment counter; persist prefs; save preset |
-| `onMapClick(lat, lon)` | debounce 300ms; single-tap → add pending point (POINT replaces, TRACK appends) |
-| `onMapDoubleClick(lat, lon)` | quick-drop POINT at tap coords; uses current sheet form (color, shape, name, TTL, addressee) |
+| `onMapClick(lat, lon)` | single-tap (after gesture `doubleTapTimeout`) → pending point (POINT replaces, TRACK appends) |
+| `onMapDoubleClick(lat, lon)` | POINT: send at tap coords; TRACK: append tap vertex, then `sendPendingMark()` (≥2 vertices total) |
 | `onMapLongClick(lat, lon, screenX, screenY)` | proximity check (30m); emit `GeoMarkContextMenuEvent` |
 | `clearPendingPoints()` | clear `pendingMarkPoints` from `_uiState` |
 | `deletePendingPoint(index)` | remove by index |
@@ -339,7 +339,7 @@ Long-tap on draft point within 30m → `GeoMarkContextMenuEvent(pointIndex, scre
 - `GeoMarkColor` is Compose-free (pure Kotlin `Int` palette). Presentation wraps with `Color(argb)`.
 - `MainViewModel` depends on `GeoMarkPreferencesRepository` interface (domain), not `GeoMarkPrefsDataSource` (data). Koin binds `GeoMarkPreferencesRepositoryImpl`.
 - `sendPendingMark()` uses explicit `formState.selectedType` — not inferred from point count.
-- Double-tap quick-drop: `onMapDoubleClick` (or second tap within 300ms in `onMapClick`) sends POINT at tap coordinates with the same form fields as `sendPendingMark()`; does not add to `pendingMarkPoints`.
+- Double-tap: `MarkToolTapDispatcher` → `onMapDoubleClick`. POINT: send at tap coords. TRACK: append vertex at tap, then `sendPendingMark()` (minimum 2 vertices after append).
 - Channel routing: `adapter.encode()` returns `channel=0`; `GeoMarkRepositoryImpl` overrides to resolved contour slot.
 
 ---

@@ -134,9 +134,9 @@ DOWN → трекать max|ΔY| от точки DOWN → UP
 
 #### Двойной тап
 
-- Сохранить существующую логику `MainViewModel.onMapClick` (окно 300 ms, второй release → `onMapDoubleClick`).
-- Оверлей на коротком single-finger release вызывает `onMapClick(lat, lon)` — ViewModel **не менять**.
-- Отдельная доработка UX двойного тапа — **следующая задача**; текущий дизайн жеста не должен её ломать.
+- `MarkToolTapDispatcher`: одиночный release → отложенный `onMapClick`; второй release в `doubleTapTimeout` → `onMapDoubleClick`.
+- POINT: `onMapDoubleClick` — отправка точки в координатах тапа.
+- TRACK: `onMapDoubleClick` — вершина в точке тапа, затем `sendPendingMark()` (≥2 вершин суммарно).
 
 #### Long tap
 

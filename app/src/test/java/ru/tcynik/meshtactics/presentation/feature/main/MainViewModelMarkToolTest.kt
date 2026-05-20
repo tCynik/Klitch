@@ -245,6 +245,37 @@ class MainViewModelMarkToolTest {
     }
 
     @Test
+    fun `onMapDoubleClick TRACK — appends tap point then sends all vertices`() = runTest(testDispatcher) {
+        viewModel.toggleMarkTool()
+        viewModel.setMarkType(GeoMarkType.TRACK)
+        viewModel.onMapClick(55.750, 37.620)
+        viewModel.onMapClick(55.751, 37.621)
+        viewModel.onMapDoubleClick(55.752, 37.622)
+        coVerify(exactly = 1) {
+            sendGeoMark(match {
+                it.mark.type == GeoMarkType.TRACK &&
+                    it.mark.points.size == 3 &&
+                    it.mark.points[2].latitude == 55.752
+            })
+        }
+        assertTrue(viewModel.uiState.value.pendingMarkPoints.isEmpty())
+    }
+
+    @Test
+    fun `onMapDoubleClick TRACK with one pending point — adds second and sends`() = runTest(testDispatcher) {
+        viewModel.toggleMarkTool()
+        viewModel.setMarkType(GeoMarkType.TRACK)
+        viewModel.onMapClick(55.750, 37.620)
+        viewModel.onMapDoubleClick(55.751, 37.621)
+        coVerify(exactly = 1) {
+            sendGeoMark(match {
+                it.mark.type == GeoMarkType.TRACK && it.mark.points.size == 2
+            })
+        }
+        assertTrue(viewModel.uiState.value.pendingMarkPoints.isEmpty())
+    }
+
+    @Test
     fun `onMapDoubleClick — uses form color shape and tap coordinates`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
         viewModel.setMarkColor(3)

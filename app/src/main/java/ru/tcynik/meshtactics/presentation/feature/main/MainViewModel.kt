@@ -496,9 +496,22 @@ class MainViewModel(
 
     fun onMapDoubleClick(lat: Double, lon: Double) {
         if (!_uiState.value.markToolActive) return
-        _uiState.update { it.copy(pendingMarkPoints = persistentListOf()) }
-        viewModelScope.launch {
-            sendGeoMarkAtPoints(listOf(GeoPoint(lat, lon)), GeoMarkType.POINT)
+        when (_formState.value.selectedType) {
+            GeoMarkType.POINT -> {
+                _uiState.update { it.copy(pendingMarkPoints = persistentListOf()) }
+                viewModelScope.launch {
+                    sendGeoMarkAtPoints(listOf(GeoPoint(lat, lon)), GeoMarkType.POINT)
+                }
+            }
+            GeoMarkType.TRACK -> {
+                val newPoint = GeoPoint(lat, lon)
+                _uiState.update { state ->
+                    state.copy(
+                        pendingMarkPoints = (state.pendingMarkPoints + newPoint).toImmutableList(),
+                    )
+                }
+                sendPendingMark()
+            }
         }
     }
 
