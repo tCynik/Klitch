@@ -490,6 +490,37 @@ See: `presentation/feature/main/osd/models/MenuDrawerUiState.kt`, `MainViewModel
 
 ---
 
+### One-Shot Event via SharedFlow
+
+When a ViewModel needs to fire a **one-shot imperative action** in the UI (e.g. trigger an animation, show a dialog) that is not persistent state, use `MutableSharedFlow<T>` with no replay.
+
+**Rule:** do NOT model one-shot actions as `Boolean` flags in `UiState` — flags require explicit reset and risk double-firing on recomposition. `SharedFlow(replay=0)` fires exactly once per emit.
+
+```kotlin
+// ViewModel:
+private val _resetBearingEvent = MutableSharedFlow<Unit>()
+val resetBearingEvent: SharedFlow<Unit> = _resetBearingEvent.asSharedFlow()
+
+fun onCompassTap() {
+    viewModelScope.launch { _resetBearingEvent.emit(Unit) }
+}
+```
+
+```kotlin
+// Composable (MainScreen):
+LaunchedEffect(resetBearingEvents) {
+    resetBearingEvents.collect {
+        cameraState.animateTo(CameraPosition(bearing = 0.0, ...), 300.milliseconds)
+    }
+}
+```
+
+**When to use:** camera animations triggered by button tap, snackbar show, context menu open — any action that is imperative and non-persistent.
+
+See: `MainViewModel.kt` (`resetBearingEvent`, `contextMenuEvent`), `MainScreen.kt`
+
+---
+
 ### Transport Repository Abstraction Contract
 
 All transports (Meshtastic, MQTT, WiFi) implement the same domain interfaces. Define in `domain/`; implementations in `data/`:

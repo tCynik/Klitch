@@ -26,7 +26,18 @@ import androidx.compose.foundation.layout.Arrangement
 fun HudPortraitControlsLayer(
     state: HudUiState,
     modifier: Modifier = Modifier,
+    onCompassLongClick: (() -> Unit)? = null,
+    onFollowMeClick: (() -> Unit)? = null,
 ) {
+    val compassConfig = if (onCompassLongClick != null)
+        state.compass.copy(button = state.compass.button.copy(onLongClick = onCompassLongClick))
+    else
+        state.compass
+    val targetConfig = if (onFollowMeClick != null)
+        state.target.copy(button = state.target.button.copy(onClick = onFollowMeClick))
+    else
+        state.target
+
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
@@ -47,9 +58,9 @@ fun HudPortraitControlsLayer(
                 Column(
                     verticalArrangement = Arrangement.Bottom,
                 ) {
-                    HudRow(config = state.compass,  side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
+                    HudRow(config = compassConfig,  side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
                     Spacer(Modifier.height(10.dp))
-                    HudRow(config = state.target,   side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
+                    HudRow(config = targetConfig,   side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
                     Spacer(Modifier.height(10.dp))
                     HudRow(config = state.markTool, side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
                     Spacer(Modifier.height(10.dp))

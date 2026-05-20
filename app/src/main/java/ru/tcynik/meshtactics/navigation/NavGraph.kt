@@ -92,6 +92,12 @@ fun NavGraph() {
                     menuDrawerUiState = menuDrawerUiState,
                     geoMarksSheetUiState = geoMarksSheetUiState,
                     onFollowMeDeactivated = viewModel::onFollowMeDeactivated,
+                    resetBearingEvents = viewModel.resetBearingEvent,
+                    restoreZoomEvents = viewModel.restoreZoomEvent,
+                    onMapBearingChanged = viewModel::onMapBearingChanged,
+                    onMapRotatedByUser = viewModel::onMapRotatedByUser,
+                    onCourseUpToggle = viewModel::onCourseUpToggle,
+                    onFollowMeRestoreZoom = viewModel::onFollowMeRestoreZoom,
                 )
             }
 

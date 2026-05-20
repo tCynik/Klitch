@@ -38,6 +38,7 @@
 | Инжектируемый Logger (MT/<Feature>) | ✅ Done |
 | HUD Menu Drawer (выдвижная шторка навигации) | ✅ Done |
 | Follow Me (слежение за позицией пользователя) | ✅ Done |
+| Привязка ориентации карты (компас + heading-up) | ✅ Done |
 
 ---
 
@@ -118,6 +119,7 @@
 | Node PKC Key Management | `.claude/docs/node-key-management.md` |
 | App Logger | `.claude/docs/logger.md` |
 | HUD Menu Drawer | `.claude/docs/hud-menu-drawer.md` |
+| Map Orientation Binding | `.claude/docs/map-orientation.md` |
 
 ---
 
@@ -127,6 +129,8 @@
 |---|---|---|
 | HUD Node Status Indicator | `.claude/plans/hud-node-status-indicator.md` | In Progress |
 | Connection Status HUD Info | `.claude/plans/connection-status-hud-info.md` | Approved |
+| Map Orientation Binding | `.claude/archive/map-orientation.md` | Done |
+| Course-Up Mode | `.claude/archive/course-up.md` | Done |
 | Settings Screens Split | `.claude/archive/settings-screens-split.md` | Done |
 | Node PKC Key Management | `.claude/archive/node-key-management.md` | Done |
 | Chat Feature | `.claude/plans/chat-feature-plan.md` | Done |

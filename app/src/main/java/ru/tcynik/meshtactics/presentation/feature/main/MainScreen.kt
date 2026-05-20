@@ -1,7 +1,9 @@
 package ru.tcynik.meshtactics.presentation.feature.main
 
 import android.content.res.Configuration
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
@@ -17,12 +19,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlin.math.cos
+import kotlin.math.pow
+import kotlin.math.sin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import org.maplibre.compose.camera.CameraMoveReason
@@ -43,6 +50,11 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.HudPortraitControlsLa
 import ru.tcynik.meshtactics.presentation.feature.main.osd.MapLibreLayer
 import ru.tcynik.meshtactics.presentation.feature.main.osd.MenuDrawer
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MenuDrawerUiState
+
+// MapLibre uses 512 px tiles: mpp = 40_075_016 / (512 * 2^zoom) = 78_271 / 2^zoom
+private fun metersPerPixel(latRad: Double, zoom: Double): Double =
+    78271.51696 * cos(latRad) / 2.0.pow(zoom)
+
 @Composable
 fun MainScreen(
     uiState: MainUiState,
@@ -57,8 +69,15 @@ fun MainScreen(
     menuDrawerUiState: MenuDrawerUiState,
     geoMarksSheetUiState: GeoMarksSheetUiState,
     onFollowMeDeactivated: () -> Unit = {},
+    resetBearingEvents: Flow<Unit> = emptyFlow(),
+    restoreZoomEvents: Flow<Double> = emptyFlow(),
+    onMapBearingChanged: (Double) -> Unit = {},
+    onMapRotatedByUser: (Double) -> Unit = {},
+    onCourseUpToggle: (Double) -> Unit = {},
+    onFollowMeRestoreZoom: () -> Unit = {},
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val density = LocalDensity.current
     var lastKnownPosition by remember { mutableStateOf(uiState.initialCameraPosition) }
     var contextMenu by remember { mutableStateOf<GeoMarkContextMenuEvent?>(null) }
 
@@ -91,12 +110,13 @@ fun MainScreen(
     val currentLocation by locationProvider.location.collectAsStateWithLifecycle()
 
     LaunchedEffect(currentLocation, uiState.isFollowMeActive) {
-        if (uiState.isFollowMeActive) {
+        if (uiState.isFollowMeActive && !uiState.isCourseUpActive) {
             val pos = currentLocation?.position ?: return@LaunchedEffect
             cameraState.animateTo(
                 finalPosition = CameraPosition(
                     target = pos,
                     zoom = cameraState.position.zoom,
+                    bearing = cameraState.position.bearing,
                 ),
                 duration = 500.milliseconds,
             )
@@ -104,12 +124,69 @@ fun MainScreen(
     }
 
     LaunchedEffect(cameraState.moveReason) {
-        if (cameraState.moveReason == CameraMoveReason.GESTURE && uiState.isFollowMeActive) {
-            onFollowMeDeactivated()
+        if (cameraState.moveReason == CameraMoveReason.GESTURE) {
+            if (uiState.isFollowMeActive && !uiState.isCourseUpActive) onFollowMeDeactivated()
+            // course-up: scroll disabled, zoom gestures are intentional — never deactivate
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    LaunchedEffect(resetBearingEvents) {
+        resetBearingEvents.collect {
+            val pos = cameraState.position
+            cameraState.animateTo(
+                finalPosition = CameraPosition(bearing = 0.0, target = pos.target, zoom = pos.zoom),
+                duration = 300.milliseconds,
+            )
+        }
+    }
+
+    LaunchedEffect(restoreZoomEvents) {
+        restoreZoomEvents.collect { zoom ->
+            val pos = cameraState.position
+            cameraState.animateTo(
+                finalPosition = CameraPosition(target = pos.target, zoom = zoom, bearing = pos.bearing),
+                duration = 300.milliseconds,
+            )
+        }
+    }
+
+    LaunchedEffect(cameraState.position.bearing) {
+        val b = cameraState.position.bearing
+        // pan leaves bearing unchanged → this effect won't fire for pan
+        // animations (reset bearing, course-up) have non-GESTURE moveReason → don't clear north lock
+        if (cameraState.moveReason == CameraMoveReason.GESTURE) onMapRotatedByUser(b)
+        else onMapBearingChanged(b)
+    }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        // Actual rendered composable dimensions — more reliable than LocalConfiguration
+        // (accounts for multi-window, foldables, insets not reflected in Configuration)
+        val mapWidthDp  = maxWidth.value   // dp
+        val mapHeightDp = maxHeight.value  // dp
+        val mapHeightPx = with(density) { maxHeight.toPx() }  // physical px, for pan-as-zoom
+
+        // Course-up: map rotates with device bearing; user marker stays at lower-third anchor
+        LaunchedEffect(bearing, uiState.isCourseUpActive, currentLocation, cameraState.position.zoom) {
+            if (!uiState.isCourseUpActive) return@LaunchedEffect
+            val userPos = currentLocation?.position ?: return@LaunchedEffect
+            val zoom = cameraState.position.zoom
+            val userLat = userPos.latitude
+            val userLon = userPos.longitude
+            val userLatRad = Math.toRadians(userLat)
+            val bearingRad = Math.toRadians(bearing.toDouble())
+            val mpp = metersPerPixel(userLatRad, zoom)
+            // offset in metres: anchor (W/2, H − W/2) is (H/2 − W/2) dp below screen centre
+            val offsetM = (mapHeightDp / 2f - mapWidthDp / 2f) * mpp
+            val newLat = userLat + offsetM * cos(bearingRad) / 111320.0
+            val newLon = userLon + offsetM * sin(bearingRad) / (111320.0 * cos(userLatRad))
+            cameraState.position = CameraPosition(
+                bearing = bearing.toDouble(),
+                target  = Position(longitude = newLon, latitude = newLat),
+                zoom    = zoom,
+            )
+        }
+
+        Box(modifier = Modifier.fillMaxSize()) {
         if (uiState.tileUrlTemplate.isNotEmpty()) {
             MapLibreLayer(
                 modifier = Modifier.fillMaxSize(),
@@ -130,8 +207,30 @@ fun MainScreen(
                 pendingMarkColor = geoMarksSheetUiState.selectedColor,
                 pendingMarkShape = geoMarksSheetUiState.selectedShape,
                 markToolActive = uiState.markToolActive,
+                isCourseUpActive = uiState.isCourseUpActive,
                 onMapClick = onMapClick,
                 onMapLongClick = onMapLongClick,
+            )
+        }
+
+        // Pan-as-zoom overlay — only present in course-up mode to avoid stealing touches
+        if (uiState.isCourseUpActive) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(mapHeightPx) {
+                        detectDragGestures { change, dragAmount ->
+                            change.consume()
+                            // drag up = zoom in, drag down = zoom out; 3 zoom levels per screen height
+                            val delta = -dragAmount.y / mapHeightPx * 3.0
+                            val current = cameraState.position
+                            cameraState.position = CameraPosition(
+                                target  = current.target,
+                                zoom    = (current.zoom + delta).coerceIn(1.0, 20.0),
+                                bearing = current.bearing,
+                            )
+                        }
+                    }
             )
         }
 
@@ -145,6 +244,14 @@ fun MainScreen(
             HudPortraitControlsLayer(
                 state = hudUiState,
                 modifier = Modifier.fillMaxSize(),
+                onCompassLongClick = {
+                    if (currentLocation?.position != null) {
+                        onCourseUpToggle(cameraState.position.zoom)
+                    }
+                },
+                onFollowMeClick = {
+                    if (uiState.isCourseUpActive) onFollowMeRestoreZoom() else hudUiState.target.button.onClick()
+                },
             )
         }
 
@@ -177,5 +284,6 @@ fun MainScreen(
                 }
             }
         }
-    }
+        } // Box
+    } // BoxWithConstraints
 }

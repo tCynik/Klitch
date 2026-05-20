@@ -140,6 +140,12 @@ class MainViewModel(
     private val _contextMenuEvent = MutableSharedFlow<GeoMarkContextMenuEvent>()
     val contextMenuEvent: SharedFlow<GeoMarkContextMenuEvent> = _contextMenuEvent.asSharedFlow()
 
+    private val _resetBearingEvent = MutableSharedFlow<Unit>()
+    val resetBearingEvent: SharedFlow<Unit> = _resetBearingEvent.asSharedFlow()
+
+    private val _restoreZoomEvent = MutableSharedFlow<Double>()
+    val restoreZoomEvent: SharedFlow<Double> = _restoreZoomEvent.asSharedFlow()
+
     // Navigation callbacks provided by NavGraph (has navController access).
     // Updated via provideNavCallbacks() before the first frame renders.
     private val _navCallbacks = MutableStateFlow(HudNavCallbacks())
@@ -369,6 +375,40 @@ class MainViewModel(
 
     fun onFollowMeDeactivated() {
         _uiState.update { it.copy(isFollowMeActive = false) }
+    }
+
+    fun onCompassTap() {
+        if (_uiState.value.isCourseUpActive) {
+            _uiState.update { it.copy(isCourseUpActive = false, zoomAtCourseUpActivation = null) }
+        }
+        _uiState.update { it.copy(isNorthLocked = true) }
+        viewModelScope.launch { _resetBearingEvent.emit(Unit) }
+    }
+
+    fun onCourseUpToggle(currentZoom: Double) {
+        val current = _uiState.value
+        if (current.isCourseUpActive) {
+            _uiState.update { it.copy(isCourseUpActive = false, zoomAtCourseUpActivation = null) }
+        } else {
+            _uiState.update { it.copy(isCourseUpActive = true, isNorthLocked = false, zoomAtCourseUpActivation = currentZoom) }
+        }
+    }
+
+    fun onCourseUpDeactivated() {
+        _uiState.update { it.copy(isCourseUpActive = false, zoomAtCourseUpActivation = null) }
+    }
+
+    fun onFollowMeRestoreZoom() {
+        val zoom = _uiState.value.zoomAtCourseUpActivation ?: return
+        viewModelScope.launch { _restoreZoomEvent.emit(zoom) }
+    }
+
+    fun onMapBearingChanged(bearing: Double) {
+        _uiState.update { it.copy(mapBearing = bearing.toFloat()) }
+    }
+
+    fun onMapRotatedByUser(bearing: Double) {
+        _uiState.update { it.copy(mapBearing = bearing.toFloat(), isNorthLocked = false) }
     }
 
     fun toggleMarkTool() {
@@ -604,7 +644,13 @@ class MainViewModel(
 
     private fun buildHudUiState(state: MainUiState, nav: HudNavCallbacks, form: GeoMarksFormState): HudUiState = HudUiState(
         menuDrawer = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_menu, label = "меню", onClick = { toggleMenuDrawer() }), info = emptyInfoSlot()),
-        compass  = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_compass,    label = "направление", onClick = {}), info = emptyInfoSlot()),
+        compass  = HudRowConfig(
+            button = buildCompassButton(state),
+            info = if (!state.isNorthLocked)
+                HudInfoSlot(content = "${state.mapBearing.toInt()}°", color = Color.Red)
+            else
+                emptyInfoSlot(),
+        ),
         target   = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_target, label = "привязка", selected = state.isFollowMeActive, onClick = { onFollowMeToggle() }), info = emptyInfoSlot()),
         markTool = HudRowConfig(
             button = HudButtonSlot(
@@ -703,14 +749,31 @@ class MainViewModel(
         onDismiss = ::toggleMenuDrawer,
     )
 
+    private fun buildCompassButton(state: MainUiState): HudButtonSlot {
+        val rotated = !state.isNorthLocked
+        return HudButtonSlot(
+            iconRes = if (rotated) R.drawable.ic_compass_rotated else R.drawable.ic_compass,
+            label = "направление",
+            preserveIconColors = rotated,
+            iconRotationDegrees = if (rotated) -state.mapBearing - 45f else 0f,
+            selected = when {
+                state.isCourseUpActive -> true
+                state.isNorthLocked -> false
+                else -> null
+            },
+            onClick = { onCompassTap() },
+            // long-click wired in MainScreen — needs cameraState.position.zoom at press time
+            onLongClick = null,
+        )
+    }
+
     // Left column — map tools.
     // Row 5 (bottom): GPS signal indicator — ic_satellite tinted by signal level.
     // onClick stubs: each action will be wired when its feature is implemented.
     private fun buildLeftColumn(state: MainUiState) = HudColumnConfig(
         rows = listOf(
-            // TODO: wire to compass/bearing mode toggle when implemented
             HudRowConfig(
-                button = HudButtonSlot(iconRes = R.drawable.ic_compass,   label = "направление",  onClick = {}),
+                button = buildCompassButton(state),
                 info = emptyInfoSlot(),
             ),
             HudRowConfig(
