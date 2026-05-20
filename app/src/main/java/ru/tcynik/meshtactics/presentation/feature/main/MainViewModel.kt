@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -78,7 +77,7 @@ import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepositor
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
-import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.AutoExpireGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
@@ -91,14 +90,10 @@ import java.util.UUID
 private const val RSSI_LOW_THRESHOLD = -90
 private const val LOCAL_STORAGE_ID = "__local__"
 
-// Double-tap detection window in milliseconds.
-private const val DOUBLE_TAP_WINDOW_MS = 300L
-
 // Proximity threshold for long-tap on a draft point (~30 metres).
 // TODO: replace with dp-based calculation using current camera zoom in Phase 3 refinement.
 private const val DRAFT_POINT_TOUCH_RADIUS_M = 30.0
 private const val METERS_PER_DEG_LAT_APPROX = 111_320.0
-private const val GEO_MARK_CLEANUP_INTERVAL_MS = 3_600_000L
 
 class MainViewModel(
     getTileUrl: GetTileUrlUseCase,
@@ -118,7 +113,7 @@ class MainViewModel(
     observeGeoMarks: ObserveGeoMarksUseCase,
     private val sendGeoMark: SendGeoMarkUseCase,
     ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase,
-    private val deleteExpiredGeoMarks: DeleteExpiredGeoMarksUseCase,
+    autoExpireGeoMarks: AutoExpireGeoMarksUseCase,
     ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase,
     observeLogicalChannels: ObserveContoursUseCase,
     observeNodeChannels: ObserveNodeChannelsUseCase,
@@ -134,7 +129,6 @@ class MainViewModel(
     private val _formState = MutableStateFlow(GeoMarksFormState())
     private var connectedLabelJob: Job? = null
     private var scanJob: Job? = null
-    private var doubleTapJob: Job? = null
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
     private val _contextMenuEvent = MutableSharedFlow<GeoMarkContextMenuEvent>()
@@ -281,13 +275,7 @@ class MainViewModel(
         ingestReceivedChatMessages.observe()
             .launchIn(viewModelScope)
 
-        viewModelScope.launch(Dispatchers.Default) {
-            deleteExpiredGeoMarks(NoParams)
-            while (true) {
-                delay(GEO_MARK_CLEANUP_INTERVAL_MS)
-                deleteExpiredGeoMarks(NoParams)
-            }
-        }
+        autoExpireGeoMarks.observe().launchIn(viewModelScope)
 
         combine(
             observeLogicalChannels(NoParams),
@@ -414,7 +402,6 @@ class MainViewModel(
     fun toggleMarkTool() {
         _uiState.update { state ->
             if (state.markToolActive) {
-                doubleTapJob?.cancel()
                 state.copy(markToolActive = false, pendingMarkPoints = persistentListOf())
             } else {
                 state.copy(markToolActive = true)
@@ -437,7 +424,6 @@ class MainViewModel(
     fun closeGeoMarksSheet() {
         _formState.update { it.copy(isSheetVisible = false) }
         if (_uiState.value.markToolActive) {
-            doubleTapJob?.cancel()
             _uiState.update { it.copy(markToolActive = false, pendingMarkPoints = persistentListOf()) }
         }
     }
@@ -468,12 +454,23 @@ class MainViewModel(
     }
 
     fun setMarkName(name: String) {
-        _formState.update { it.copy(markName = name, nameCounter = 1) }
+        _formState.update { form ->
+            if (form.selectedType == GeoMarkType.POINT)
+                form.copy(pointMarkName = name, pointNameCounter = 1)
+            else
+                form.copy(trackMarkName = name, trackNameCounter = 1)
+        }
         viewModelScope.launch { persistFormState() }
     }
 
     fun setNameCounter(counter: Int) {
-        _formState.update { it.copy(nameCounter = counter.coerceAtLeast(1)) }
+        val v = counter.coerceAtLeast(1)
+        _formState.update { form ->
+            if (form.selectedType == GeoMarkType.POINT)
+                form.copy(pointNameCounter = v)
+            else
+                form.copy(trackNameCounter = v)
+        }
         viewModelScope.launch { persistFormState() }
     }
 
@@ -489,42 +486,36 @@ class MainViewModel(
 
     fun onMapClick(lat: Double, lon: Double) {
         if (!_uiState.value.markToolActive) return
-        if (doubleTapJob?.isActive == true) {
-            // Second tap within the window — treat as double-tap.
-            doubleTapJob?.cancel()
-            doubleTapJob = null
-            onMapDoubleClick(lat, lon)
-            return
-        }
-        doubleTapJob = viewModelScope.launch {
-            delay(DOUBLE_TAP_WINDOW_MS)
-            doubleTapJob = null
-            val newPoint = GeoPoint(lat, lon)
-            _uiState.update { state ->
-                val updatedPoints = if (_formState.value.selectedType == GeoMarkType.POINT) {
-                    persistentListOf(newPoint)
-                } else {
-                    (state.pendingMarkPoints + newPoint).toImmutableList()
-                }
-                state.copy(pendingMarkPoints = updatedPoints)
+        val newPoint = GeoPoint(lat, lon)
+        _uiState.update { state ->
+            val updatedPoints = if (_formState.value.selectedType == GeoMarkType.POINT) {
+                persistentListOf(newPoint)
+            } else {
+                (state.pendingMarkPoints + newPoint).toImmutableList()
             }
+            state.copy(pendingMarkPoints = updatedPoints)
         }
     }
 
     fun onMapDoubleClick(lat: Double, lon: Double) {
         if (!_uiState.value.markToolActive) return
-        doubleTapJob?.cancel()
-        val mark = GeoMarkModel(
-            id           = UUID.randomUUID().toString(),
-            waypointId   = 0,
-            type         = GeoMarkType.POINT,
-            points       = listOf(GeoPoint(lat, lon)),
-            authorNodeId = "",
-            createdAt    = System.currentTimeMillis() / 1_000,
-            expiresAt    = null,
-            isSelf       = true,
-        )
-        viewModelScope.launch { sendGeoMark(SendGeoMarkParams(mark)) }
+        when (_formState.value.selectedType) {
+            GeoMarkType.POINT -> {
+                _uiState.update { it.copy(pendingMarkPoints = persistentListOf()) }
+                viewModelScope.launch {
+                    sendGeoMarkAtPoints(listOf(GeoPoint(lat, lon)), GeoMarkType.POINT)
+                }
+            }
+            GeoMarkType.TRACK -> {
+                val newPoint = GeoPoint(lat, lon)
+                _uiState.update { state ->
+                    state.copy(
+                        pendingMarkPoints = (state.pendingMarkPoints + newPoint).toImmutableList(),
+                    )
+                }
+                sendPendingMark()
+            }
+        }
     }
 
     fun onMapLongClick(lat: Double, lon: Double, screenX: Float, screenY: Float) {
@@ -546,35 +537,9 @@ class MainViewModel(
         val points = _uiState.value.pendingMarkPoints.toList()
         if (points.isEmpty()) return
         if (_formState.value.selectedType == GeoMarkType.TRACK && points.size < 2) return
-        val form = _formState.value
-        val nowSeconds = System.currentTimeMillis() / 1_000
-        val markLabel = buildMarkLabel(form)
-        val localOnly = form.selectedContourId == LOCAL_STORAGE_ID
-        val contourId = if (localOnly) null
-                        else form.selectedContourId.takeIf { it.isNotEmpty() }?.let { ContourId(it) }
-        val mark = GeoMarkModel(
-            id           = UUID.randomUUID().toString(),
-            waypointId   = 0,
-            type         = form.selectedType,
-            points       = points,
-            authorNodeId = "",
-            createdAt    = nowSeconds,
-            expiresAt    = nowSeconds + form.selectedTtlSeconds,
-            isSelf       = true,
-            color        = form.selectedColor,
-            name         = markLabel,
-            trackEndType = form.selectedTrackEndType,
-            shape        = form.selectedShape,
-        )
-        val updatedCounter = form.nameCounter + 1
-        _formState.update { it.copy(nameCounter = updatedCounter) }
+        val type = _formState.value.selectedType
         _uiState.update { it.copy(pendingMarkPoints = persistentListOf()) }
-        viewModelScope.launch {
-            sendGeoMark(SendGeoMarkParams(mark, contourId, localOnly))
-            val updatedForm = _formState.value
-            persistFormState()
-            savePreset(updatedForm, markLabel)
-        }
+        viewModelScope.launch { sendGeoMarkAtPoints(points, type) }
     }
 
     fun clearPendingPoints() {
@@ -909,8 +874,8 @@ class MainViewModel(
             selectedShape        = form.selectedShape,
             selectedTrackEndType = form.selectedTrackEndType,
             selectedTtlSeconds   = form.selectedTtlSeconds,
-            markName             = form.markName,
-            nameCounter          = form.nameCounter,
+            markName             = if (form.selectedType == GeoMarkType.POINT) form.pointMarkName else form.trackMarkName,
+            nameCounter          = if (form.selectedType == GeoMarkType.POINT) form.pointNameCounter else form.trackNameCounter,
             pendingPoints        = state.pendingMarkPoints,
             availableContours    = form.availableContours,
             selectedContourId    = form.selectedContourId,
@@ -932,9 +897,42 @@ class MainViewModel(
             onClearPendingPoints = ::clearPendingPoints,
         )
 
-    private fun buildMarkLabel(form: GeoMarksFormState): String {
-        val base = form.markName.trim()
-        return if (base.isEmpty()) "${form.nameCounter}" else "$base ${form.nameCounter}"
+    private suspend fun sendGeoMarkAtPoints(points: List<GeoPoint>, type: GeoMarkType) {
+        val form = _formState.value
+        val nowSeconds = System.currentTimeMillis() / 1_000
+        val markLabel = buildMarkLabel(form, type)
+        val localOnly = form.selectedContourId == LOCAL_STORAGE_ID
+        val contourId = if (localOnly) null
+                        else form.selectedContourId.takeIf { it.isNotEmpty() }?.let { ContourId(it) }
+        val mark = GeoMarkModel(
+            id           = UUID.randomUUID().toString(),
+            waypointId   = 0,
+            type         = type,
+            points       = points,
+            authorNodeId = "",
+            createdAt    = nowSeconds,
+            expiresAt    = nowSeconds + form.selectedTtlSeconds,
+            isSelf       = true,
+            color        = form.selectedColor,
+            name         = markLabel,
+            trackEndType = form.selectedTrackEndType,
+            shape        = form.selectedShape,
+        )
+        sendGeoMark(SendGeoMarkParams(mark, contourId, localOnly))
+        _formState.update { s ->
+            if (type == GeoMarkType.POINT)
+                s.copy(pointNameCounter = s.pointNameCounter + 1)
+            else
+                s.copy(trackNameCounter = s.trackNameCounter + 1)
+        }
+        persistFormState()
+        savePreset(_formState.value, markLabel)
+    }
+
+    private fun buildMarkLabel(form: GeoMarksFormState, type: GeoMarkType): String {
+        val base = if (type == GeoMarkType.POINT) form.pointMarkName.trim() else form.trackMarkName.trim()
+        val counter = if (type == GeoMarkType.POINT) form.pointNameCounter else form.trackNameCounter
+        return if (base.isEmpty()) "$counter" else "$base $counter"
     }
 
     private fun applyPrefsToFormState(prefs: GeoMarkFormPreferences) {
@@ -945,8 +943,8 @@ class MainViewModel(
                 selectedShape        = runCatching { GeoMarkShape.valueOf(prefs.selectedShape) }.getOrDefault(GeoMarkShape.CIRCLE),
                 selectedTrackEndType = TrackEndType.fromByte(prefs.selectedTrackEndType.toByte()),
                 selectedTtlSeconds   = prefs.selectedTtlSeconds,
-                markName             = prefs.markName,
-                nameCounter          = prefs.nameCounter,
+                pointMarkName        = prefs.pointMarkName,
+                trackMarkName        = prefs.trackMarkName,
                 selectedContourId    = if (form.selectedContourId.isEmpty()) prefs.selectedContourId else form.selectedContourId,
                 wasAddresseeExplicitlySelected = form.wasAddresseeExplicitlySelected || prefs.selectedContourId.isNotEmpty(),
             )
@@ -962,8 +960,8 @@ class MainViewModel(
                 selectedShape        = form.selectedShape.name,
                 selectedTrackEndType = form.selectedTrackEndType.ends.toInt(),
                 selectedTtlSeconds   = form.selectedTtlSeconds,
-                markName             = form.markName,
-                nameCounter          = form.nameCounter,
+                pointMarkName        = form.pointMarkName,
+                trackMarkName        = form.trackMarkName,
                 selectedContourId    = form.selectedContourId,
             )
         )
@@ -979,8 +977,8 @@ class MainViewModel(
                 selectedShape        = form.selectedShape.name,
                 selectedTrackEndType = form.selectedTrackEndType.ends.toInt(),
                 selectedTtlSeconds   = form.selectedTtlSeconds,
-                markName             = form.markName,
-                nameCounter          = form.nameCounter,
+                pointMarkName        = form.pointMarkName,
+                trackMarkName        = form.trackMarkName,
                 selectedContourId    = form.selectedContourId,
             ),
         )

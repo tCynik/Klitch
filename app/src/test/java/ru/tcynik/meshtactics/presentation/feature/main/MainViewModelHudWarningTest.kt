@@ -41,7 +41,9 @@ import ru.tcynik.meshtactics.domain.map.usecase.GetTileUrlUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveNodeMarkersUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveSelectedOverlaysUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
-import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkFormPreferences
+import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkPreferencesRepository
+import ru.tcynik.meshtactics.domain.marker.usecase.AutoExpireGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
@@ -78,7 +80,7 @@ class MainViewModelHudWarningTest {
     private val observeGeoMarks: ObserveGeoMarksUseCase = mockk()
     private val sendGeoMark: SendGeoMarkUseCase = mockk(relaxed = true)
     private val ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase = mockk()
-    private val deleteExpiredGeoMarks: DeleteExpiredGeoMarksUseCase = mockk(relaxed = true)
+    private val autoExpireGeoMarks: AutoExpireGeoMarksUseCase = mockk(relaxed = true)
     private val ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase = mockk()
     private val observeLogicalChannels: ObserveContoursUseCase = mockk()
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
@@ -87,6 +89,7 @@ class MainViewModelHudWarningTest {
     private val rebootStateRepository: RebootStateRepository = mockk(relaxed = true)
     private val observeCallsignChanges: ObserveCallsignChangesUseCase = mockk()
     private val refreshNodePublicKey: RefreshNodePublicKeyUseCase = mockk(relaxed = true)
+    private val geoMarkPrefsRepository: GeoMarkPreferencesRepository = mockk(relaxed = true)
 
     private val channelsFlow = MutableStateFlow<List<Contour>>(emptyList())
     private val nodeChannelsFlow = MutableStateFlow<List<NodeChannelSlot>>(emptyList())
@@ -111,6 +114,7 @@ class MainViewModelHudWarningTest {
         every { getLastConnectedDevice.invoke() } returns null
         every { observeGeoMarks.invoke(any()) } returns flowOf(emptyList())
         every { ingestReceivedGeoMarks.observe() } returns flowOf(Unit)
+        every { autoExpireGeoMarks.observe() } returns flowOf(Unit)
         every { ingestReceivedChatMessages.observe() } returns flowOf(Unit)
         every { observeLogicalChannels.invoke(any()) } returns channelsFlow
         every { observeNodeChannels.invoke(any()) } returns nodeChannelsFlow
@@ -118,6 +122,8 @@ class MainViewModelHudWarningTest {
         every { rebootStateRepository.isRebooting } returns MutableStateFlow(false)
         every { observeCallsignChanges.invoke(any()) } returns flowOf(0)
         coEvery { checkNodeSync.invoke() } returns NodeSyncResult.InSync
+        every { geoMarkPrefsRepository.observePreferences() } returns flowOf(GeoMarkFormPreferences())
+        every { geoMarkPrefsRepository.observePresets() } returns flowOf(emptyList())
         viewModel = MainViewModel(
             getTileUrl = getTileUrl,
             getLastPosition = getLastPosition,
@@ -137,7 +143,7 @@ class MainViewModelHudWarningTest {
             observeGeoMarks = observeGeoMarks,
             sendGeoMark = sendGeoMark,
             ingestReceivedGeoMarks = ingestReceivedGeoMarks,
-            deleteExpiredGeoMarks = deleteExpiredGeoMarks,
+            autoExpireGeoMarks = autoExpireGeoMarks,
             ingestReceivedChatMessages = ingestReceivedChatMessages,
             observeLogicalChannels = observeLogicalChannels,
             observeNodeChannels = observeNodeChannels,
@@ -145,6 +151,7 @@ class MainViewModelHudWarningTest {
             rebootStateRepository = rebootStateRepository,
             observeCallsignChanges = observeCallsignChanges,
             refreshNodePublicKey = refreshNodePublicKey,
+            geoMarkPrefsRepository = geoMarkPrefsRepository,
         )
     }
 

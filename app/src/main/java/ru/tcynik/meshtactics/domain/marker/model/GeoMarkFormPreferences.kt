@@ -8,8 +8,8 @@ data class GeoMarkFormPreferences(
     val selectedColor: Int = 0,
     val selectedTrackEndType: Int = TrackEndType.NONE.ends.toInt(),
     val selectedTtlSeconds: Long = 900L,
-    val markName: String = "",
-    val nameCounter: Int = 1,
+    val pointMarkName: String = "точка",
+    val trackMarkName: String = "Путь",
     val selectedContourId: String = "",
     val selectedShape: String = GeoMarkShape.CIRCLE.name,
 )

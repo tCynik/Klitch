@@ -177,7 +177,8 @@ class GeoMarkWaypointAdapter {
         if (mark.type == GeoMarkType.POINT) return MT1_PREFIX
 
         val anchor = mark.points.first()
-        val extras = mark.points.drop(1)
+        val maxExtras = (MAX_PAYLOAD_BYTES - 2) / 4
+        val extras = mark.points.drop(1).take(maxExtras)
         val buf = ByteBuffer.allocate(2 + extras.size * 4)
         buf.put(extras.size.toByte())       // count: u8
         buf.put(mark.trackEndType.ends)     // ends: u8
@@ -227,7 +228,9 @@ class GeoMarkWaypointAdapter {
     private fun toLocal(anchor: GeoPoint, point: GeoPoint): Pair<Int, Int> {
         val mpdLon = METERS_PER_DEG_LAT * cos(Math.toRadians(anchor.latitude))
         val x = ((point.longitude - anchor.longitude) * mpdLon).roundToInt()
+            .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
         val y = ((point.latitude - anchor.latitude) * METERS_PER_DEG_LAT).roundToInt()
+            .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
         return x to y
     }
 

@@ -30,7 +30,7 @@ import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.ObserveTotalUnreadChatCountUseCase
-import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.AutoExpireGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.location.model.GpsSignalLevel
 import ru.tcynik.meshtactics.domain.location.model.GpsStatusModel
 import ru.tcynik.meshtactics.domain.location.usecase.ObserveGpsStatusUseCase
@@ -39,9 +39,11 @@ import ru.tcynik.meshtactics.domain.map.usecase.GetTileUrlUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveNodeMarkersUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveSelectedOverlaysUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
-import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkFormPreferences
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkShape
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
+import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkPreferencesRepository
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
@@ -81,7 +83,7 @@ class MainViewModelMarkToolTest {
     private val observeGeoMarks: ObserveGeoMarksUseCase = mockk()
     private val sendGeoMark: SendGeoMarkUseCase = mockk(relaxed = true)
     private val ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase = mockk()
-    private val deleteExpiredGeoMarks: DeleteExpiredGeoMarksUseCase = mockk(relaxed = true)
+    private val autoExpireGeoMarks: AutoExpireGeoMarksUseCase = mockk(relaxed = true)
     private val ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase = mockk()
     private val observeLogicalChannels: ObserveContoursUseCase = mockk()
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
@@ -90,6 +92,7 @@ class MainViewModelMarkToolTest {
     private val rebootStateRepository: RebootStateRepository = mockk(relaxed = true)
     private val observeCallsignChanges: ObserveCallsignChangesUseCase = mockk()
     private val refreshNodePublicKey: RefreshNodePublicKeyUseCase = mockk(relaxed = true)
+    private val geoMarkPrefsRepository: GeoMarkPreferencesRepository = mockk(relaxed = true)
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var viewModel: MainViewModel
@@ -110,6 +113,7 @@ class MainViewModelMarkToolTest {
         every { getLastConnectedDevice.invoke() } returns null
         every { observeGeoMarks.invoke(any()) } returns flowOf(emptyList())
         every { ingestReceivedGeoMarks.observe() } returns flowOf(Unit)
+        every { autoExpireGeoMarks.observe() } returns flowOf(Unit)
         every { ingestReceivedChatMessages.observe() } returns flowOf(Unit)
         every { observeLogicalChannels.invoke(any()) } returns flowOf(emptyList())
         every { observeNodeChannels.invoke(any()) } returns flowOf(emptyList())
@@ -117,6 +121,8 @@ class MainViewModelMarkToolTest {
         every { rebootStateRepository.isRebooting } returns MutableStateFlow(false)
         every { observeCallsignChanges.invoke(any()) } returns flowOf(0)
         coEvery { checkNodeSync.invoke() } returns NodeSyncResult.InSync
+        every { geoMarkPrefsRepository.observePreferences() } returns flowOf(GeoMarkFormPreferences())
+        every { geoMarkPrefsRepository.observePresets() } returns flowOf(emptyList())
         viewModel = MainViewModel(
             getTileUrl = getTileUrl,
             getLastPosition = getLastPosition,
@@ -136,7 +142,7 @@ class MainViewModelMarkToolTest {
             observeGeoMarks = observeGeoMarks,
             sendGeoMark = sendGeoMark,
             ingestReceivedGeoMarks = ingestReceivedGeoMarks,
-            deleteExpiredGeoMarks = deleteExpiredGeoMarks,
+            autoExpireGeoMarks = autoExpireGeoMarks,
             ingestReceivedChatMessages = ingestReceivedChatMessages,
             observeLogicalChannels = observeLogicalChannels,
             observeNodeChannels = observeNodeChannels,
@@ -144,6 +150,7 @@ class MainViewModelMarkToolTest {
             rebootStateRepository = rebootStateRepository,
             observeCallsignChanges = observeCallsignChanges,
             refreshNodePublicKey = refreshNodePublicKey,
+            geoMarkPrefsRepository = geoMarkPrefsRepository,
         )
     }
 
@@ -171,7 +178,6 @@ class MainViewModelMarkToolTest {
     fun `toggleMarkTool deactivate — clears pending mark points`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
         viewModel.onMapClick(55.75, 37.62)
-        advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
         assertEquals(1, viewModel.uiState.value.pendingMarkPoints.size)
 
         viewModel.toggleMarkTool()
@@ -189,10 +195,9 @@ class MainViewModelMarkToolTest {
     }
 
     @Test
-    fun `onMapClick when tool active — adds point after debounce`() = runTest(testDispatcher) {
+    fun `onMapClick when tool active — adds pending point`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
         viewModel.onMapClick(55.75, 37.62)
-        advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
         assertEquals(1, viewModel.uiState.value.pendingMarkPoints.size)
     }
 
@@ -200,7 +205,6 @@ class MainViewModelMarkToolTest {
     fun `onMapClick — preserves tap coordinates in pending point`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
         viewModel.onMapClick(55.750, 37.620)
-        advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
         val pt = viewModel.uiState.value.pendingMarkPoints.first()
         assertEquals(55.750, pt.latitude, 1e-9)
         assertEquals(37.620, pt.longitude, 1e-9)
@@ -209,6 +213,7 @@ class MainViewModelMarkToolTest {
     @Test
     fun `onMapClick multiple times — accumulates points after each debounce`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
+        viewModel.setMarkType(GeoMarkType.TRACK)
         viewModel.onMapClick(55.750, 37.620)
         advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
         viewModel.onMapClick(55.751, 37.621)
@@ -226,11 +231,10 @@ class MainViewModelMarkToolTest {
     }
 
     @Test
-    fun `onMapDoubleClick cancels preceding single tap — no pending point added`() = runTest(testDispatcher) {
+    fun `onMapDoubleClick clears draft from preceding single tap`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
-        viewModel.onMapClick(55.75, 37.62)       // starts debounce
-        viewModel.onMapDoubleClick(55.75, 37.62) // cancels debounce, sends immediately
-        advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
+        viewModel.onMapClick(55.75, 37.62)
+        viewModel.onMapDoubleClick(55.75, 37.62)
         assertTrue(viewModel.uiState.value.pendingMarkPoints.isEmpty())
     }
 
@@ -238,7 +242,65 @@ class MainViewModelMarkToolTest {
     fun `onMapDoubleClick sends a POINT mark via sendGeoMark`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
         viewModel.onMapDoubleClick(55.75, 37.62)
-        coVerify(exactly = 1) { sendGeoMark(match { it.type == GeoMarkType.POINT }) }
+        coVerify(exactly = 1) { sendGeoMark(match { it.mark.type == GeoMarkType.POINT }) }
+    }
+
+    @Test
+    fun `onMapDoubleClick TRACK — appends tap point then sends all vertices`() = runTest(testDispatcher) {
+        viewModel.toggleMarkTool()
+        viewModel.setMarkType(GeoMarkType.TRACK)
+        viewModel.onMapClick(55.750, 37.620)
+        viewModel.onMapClick(55.751, 37.621)
+        viewModel.onMapDoubleClick(55.752, 37.622)
+        coVerify(exactly = 1) {
+            sendGeoMark(match {
+                it.mark.type == GeoMarkType.TRACK &&
+                    it.mark.points.size == 3 &&
+                    it.mark.points[2].latitude == 55.752
+            })
+        }
+        assertTrue(viewModel.uiState.value.pendingMarkPoints.isEmpty())
+    }
+
+    @Test
+    fun `onMapDoubleClick TRACK with no pending points — does not send, tap point stays in draft`() = runTest(testDispatcher) {
+        viewModel.toggleMarkTool()
+        viewModel.setMarkType(GeoMarkType.TRACK)
+        viewModel.onMapDoubleClick(55.750, 37.620)
+        coVerify(exactly = 0) { sendGeoMark(any()) }
+        assertEquals(1, viewModel.uiState.value.pendingMarkPoints.size)
+    }
+
+    @Test
+    fun `onMapDoubleClick TRACK with one pending point — adds second and sends`() = runTest(testDispatcher) {
+        viewModel.toggleMarkTool()
+        viewModel.setMarkType(GeoMarkType.TRACK)
+        viewModel.onMapClick(55.750, 37.620)
+        viewModel.onMapDoubleClick(55.751, 37.621)
+        coVerify(exactly = 1) {
+            sendGeoMark(match {
+                it.mark.type == GeoMarkType.TRACK && it.mark.points.size == 2
+            })
+        }
+        assertTrue(viewModel.uiState.value.pendingMarkPoints.isEmpty())
+    }
+
+    @Test
+    fun `onMapDoubleClick — uses form color shape and tap coordinates`() = runTest(testDispatcher) {
+        viewModel.toggleMarkTool()
+        viewModel.setMarkColor(3)
+        viewModel.setMarkShape(GeoMarkShape.TRIANGLE)
+        viewModel.onMapDoubleClick(55.750, 37.620)
+        coVerify(exactly = 1) {
+            sendGeoMark(match {
+                it.mark.type == GeoMarkType.POINT &&
+                    it.mark.color == 3 &&
+                    it.mark.shape == GeoMarkShape.TRIANGLE &&
+                    it.mark.points.single().let { p ->
+                        p.latitude == 55.750 && p.longitude == 37.620
+                    }
+            })
+        }
     }
 
     // ── onMapLongClick ────────────────────────────────────────────────────────
@@ -307,19 +369,20 @@ class MainViewModelMarkToolTest {
         advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
 
         viewModel.sendPendingMark()
-        coVerify(exactly = 1) { sendGeoMark(match { it.type == GeoMarkType.POINT }) }
+        coVerify(exactly = 1) { sendGeoMark(match { it.mark.type == GeoMarkType.POINT }) }
     }
 
     @Test
     fun `sendPendingMark two points — sends TRACK type`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
+        viewModel.setMarkType(GeoMarkType.TRACK)
         viewModel.onMapClick(55.750, 37.620)
         advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
         viewModel.onMapClick(55.751, 37.621)
         advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
 
         viewModel.sendPendingMark()
-        coVerify(exactly = 1) { sendGeoMark(match { it.type == GeoMarkType.TRACK }) }
+        coVerify(exactly = 1) { sendGeoMark(match { it.mark.type == GeoMarkType.TRACK }) }
     }
 
     @Test
@@ -334,6 +397,7 @@ class MainViewModelMarkToolTest {
     @Test
     fun `deletePendingPoint — removes point at specified index`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
+        viewModel.setMarkType(GeoMarkType.TRACK)
         viewModel.onMapClick(55.750, 37.620)
         advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
         viewModel.onMapClick(55.751, 37.621)

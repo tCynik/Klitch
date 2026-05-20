@@ -187,12 +187,14 @@ class GeoMarkRepositoryImplTest {
             pointsJson = """[{"lat":0.0,"lon":0.0}]""",
             authorNodeId = "", createdAt = 100L, expiresAt = 500L, isSelf = 0L,
             logicalChannelId = "ch-1",
+            color = 0L, name = "", trackEndType = 0L, shape = 0L,
         )
         db.geoMarkQueries.insert(
             id = "live", waypointId = 0L, type = "POINT",
             pointsJson = """[{"lat":0.0,"lon":0.0}]""",
             authorNodeId = "", createdAt = 100L, expiresAt = null, isSelf = 0L,
             logicalChannelId = "ch-1",
+            color = 0L, name = "", trackEndType = 0L, shape = 0L,
         )
 
         repo.deleteExpired(nowSeconds = 1000L)

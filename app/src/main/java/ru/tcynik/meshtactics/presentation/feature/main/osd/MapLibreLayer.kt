@@ -58,6 +58,11 @@ import ru.tcynik.meshtactics.domain.marker.model.GeoMarkColor
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkShape
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
+import ru.tcynik.meshtactics.domain.marker.model.TrackEndType
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import ru.tcynik.meshtactics.presentation.feature.main.markToolMapTapGestures
 import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.domain.marker.model.NodeMarkerModel
@@ -102,6 +107,7 @@ fun MapLibreLayer(
     markToolActive: Boolean = false,
     isCourseUpActive: Boolean = false,
     onMapClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
+    onMapDoubleClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
     onMapLongClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit = { _, _, _, _ -> },
 ) {
     var hasUserMoved by remember { mutableStateOf(false) }
@@ -122,11 +128,32 @@ fun MapLibreLayer(
         }
     }
 
+    val mapModifier = modifier.then(
+        if (markToolActive && !isCourseUpActive) {
+            Modifier.markToolMapTapGestures(
+                cameraState = cameraState,
+                onMapClick = onMapClick,
+                onMapDoubleClick = onMapDoubleClick,
+                onMapLongClick = onMapLongClick,
+            )
+        } else {
+            Modifier
+        },
+    )
+
     MaplibreMap(
-        modifier = modifier,
+        modifier = mapModifier,
         baseStyle = BASE_STYLE_WITH_GLYPHS,
         cameraState = cameraState,
         options = when {
+            markToolActive && isCourseUpActive -> MapOptions(
+                gestureOptions = GestureOptions(
+                    isScrollEnabled = false,
+                    isDoubleTapEnabled = false,
+                    isQuickZoomEnabled = false,
+                ),
+                ornamentOptions = OrnamentOptions(isCompassEnabled = false),
+            )
             markToolActive -> MapOptions(
                 gestureOptions = GestureOptions(isDoubleTapEnabled = false, isQuickZoomEnabled = false),
                 ornamentOptions = OrnamentOptions(isCompassEnabled = false),
@@ -138,20 +165,25 @@ fun MapLibreLayer(
             else -> MapOptions(ornamentOptions = OrnamentOptions(isCompassEnabled = false))
         },
         onMapClick = { position, _ ->
-            onMapClick(position.latitude, position.longitude)
+            if (!markToolActive) {
+                onMapClick(position.latitude, position.longitude)
+            }
             ClickResult.Pass
         },
         onMapLongClick = { position, dpOffset ->
-            onMapLongClick(
-                position.latitude, position.longitude,
-                dpOffset.x.value, dpOffset.y.value,
-            )
+            if (!markToolActive) {
+                onMapLongClick(
+                    position.latitude, position.longitude,
+                    dpOffset.x.value, dpOffset.y.value,
+                )
+            }
             ClickResult.Pass
         },
     ) {
         val circleBitmap = remember { createShapeBitmap(64, GeoMarkShape.CIRCLE).asImageBitmap() }
         val squareBitmap = remember { createShapeBitmap(64, GeoMarkShape.SQUARE).asImageBitmap() }
         val triangleBitmap = remember { createShapeBitmap(64, GeoMarkShape.TRIANGLE).asImageBitmap() }
+        val arrowBitmap = remember { createArrowBitmap(64).asImageBitmap() }
 
         val tileSource = rememberRasterSource(
             tiles = listOf(tileUrlTemplate),
@@ -393,6 +425,27 @@ fun MapLibreLayer(
             iconHaloWidth = const(1.dp),
             iconAllowOverlap = const(true),
         )
+
+        val trackEndpointsSource = rememberGeoJsonSource(
+            GeoJsonData.JsonString(buildTrackEndpointsGeoJson(receivedTracks))
+        )
+        SymbolLayer(
+            id = "geo-track-endpoints",
+            source = trackEndpointsSource,
+            iconImage = switch(
+                input = feature["endType"].cast<FloatValue>(),
+                case(TrackEndType.ARROW.ordinal, image(arrowBitmap, isSdf = true)),
+                case(TrackEndType.SMALL_FILLED_CIRCLE.ordinal, image(circleBitmap, isSdf = true)),
+                fallback = image(circleBitmap, isSdf = true),
+            ),
+            iconColor = feature["color"].convertToColor(const(Color(0xFFE53935))),
+            iconSize = const(0.9f),
+            iconRotate = feature["bearing"].cast<FloatValue>(),
+            iconRotationAlignment = const(IconRotationAlignment.Map),
+            iconHaloColor = const(Color.White),
+            iconHaloWidth = const(1.dp),
+            iconAllowOverlap = const(true),
+        )
     }
 }
 
@@ -540,18 +593,41 @@ private fun buildReceivedTracksGeoJson(marks: List<GeoMarkModel>): String {
     return """{"type":"FeatureCollection","features":[$features]}"""
 }
 
-/** Anchor (first) and last point of each track — rendered as endpoint circles. */
+/** Start (anchor) point of each track — rendered as a small circle. */
 private fun buildTrackAnchorsGeoJson(marks: List<GeoMarkModel>): String {
     if (marks.isEmpty()) return """{"type":"FeatureCollection","features":[]}"""
-    val features = marks.flatMap { mark ->
+    val features = marks.mapNotNull { mark ->
         val hex = markColorHex(mark.color)
-        listOfNotNull(
-            mark.points.firstOrNull(),
-            mark.points.lastOrNull().takeIf { mark.points.size > 1 },
-        ).map { pt -> Pair(pt, hex) }
-    }.joinToString(",") { (pt, hex) ->
-        """{"type":"Feature","geometry":{"type":"Point","coordinates":[${pt.longitude},${pt.latitude}]},"properties":{"color":"$hex"}}"""
-    }
+        mark.points.firstOrNull()?.let { pt ->
+            """{"type":"Feature","geometry":{"type":"Point","coordinates":[${pt.longitude},${pt.latitude}]},"properties":{"color":"$hex"}}"""
+        }
+    }.joinToString(",")
+    return """{"type":"FeatureCollection","features":[$features]}"""
+}
+
+private fun bearingDegrees(
+    from: ru.tcynik.meshtactics.domain.marker.model.GeoPoint,
+    to: ru.tcynik.meshtactics.domain.marker.model.GeoPoint,
+): Double {
+    val lat1 = Math.toRadians(from.latitude)
+    val lat2 = Math.toRadians(to.latitude)
+    val dLon = Math.toRadians(to.longitude - from.longitude)
+    val y = sin(dLon) * cos(lat2)
+    val x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon)
+    return (Math.toDegrees(atan2(y, x)) + 360) % 360
+}
+
+private fun buildTrackEndpointsGeoJson(marks: List<GeoMarkModel>): String {
+    if (marks.isEmpty()) return """{"type":"FeatureCollection","features":[]}"""
+    val features = marks
+        .filter { it.trackEndType != TrackEndType.NONE && it.points.size >= 2 }
+        .joinToString(",") { mark ->
+            val last = mark.points.last()
+            val prev = mark.points[mark.points.size - 2]
+            val bearing = bearingDegrees(prev, last)
+            val hex = markColorHex(mark.color)
+            """{"type":"Feature","geometry":{"type":"Point","coordinates":[${last.longitude},${last.latitude}]},"properties":{"color":"$hex","endType":${mark.trackEndType.ordinal},"bearing":$bearing}}"""
+        }
     return """{"type":"FeatureCollection","features":[$features]}"""
 }
 
@@ -562,6 +638,28 @@ private fun markColorHex(colorIndex: Int): String {
         (argb shr 8) and 0xFF,
         argb and 0xFF,
     )
+}
+
+private fun createArrowBitmap(size: Int): Bitmap {
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.WHITE
+        style = Paint.Style.STROKE
+        strokeWidth = size * 0.18f
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+    }
+    val f = size.toFloat()
+    val cx = f / 2f
+    val tipY = f * 0.12f
+    val baseY = f * 0.85f
+    val wingY = f * 0.48f
+    val wingX = f * 0.33f
+    canvas.drawLine(cx, baseY, cx, tipY, paint)
+    canvas.drawLine(cx, tipY, cx - wingX, wingY, paint)
+    canvas.drawLine(cx, tipY, cx + wingX, wingY, paint)
+    return bitmap
 }
 
 private fun createShapeBitmap(size: Int, shape: GeoMarkShape): Bitmap {
