@@ -1,6 +1,6 @@
 # Geo Marks — Points and Tracks
 
-**Date**: 2026-05-19
+**Date**: 2026-05-20 (жесты mark tool: single/double tap, pan)
 **Plan archives**: `.claude/archive/geo-marks-plan.md`, `.claude/archive/geo-marks-sheet.md`
 
 ---
@@ -45,7 +45,10 @@ app/
     ├── GeoMarksFormState.kt             — internal ViewModel form state (not exposed directly)
     ├── MainUiState.kt                   — geoMarks, markToolActive, pendingMarkPoints
     ├── MainViewModel.kt                 — _formState StateFlow, mark tool logic, gesture handlers
-    ├── MainScreen.kt                    — GeoMarksSheet wired at BottomEnd; no floating send panel
+    ├── MainScreen.kt                    — GeoMarksSheet; course-up overlay; wires map callbacks
+    ├── MarkToolTapDispatcher.kt         — deferred single-tap / double-tap classification
+    ├── MarkToolMapTapGestures.kt        — mark-tool taps (non–course-up); pan pass-through
+    ├── CourseUpMapGestures.kt           — course-up: Y-zoom + mark taps via dispatcher
     └── osd/
         ├── GeoMarksSheet.kt             — persistent non-modal bottom sheet composable
         ├── MapLibreLayer.kt             — gesture callbacks + geo mark rendering layers
@@ -156,14 +159,18 @@ Extracts `colorIndex = (icon ushr 8) and 0xF`, `endsByte` from payload byte 1, `
 
 ### Send
 
+**Кнопка «Отправить» в шторке** или **двойной тап на карте** (см. [Map gestures](#map-gestures-mark-tool)):
+
 ```
-ViewModel.sendPendingMark()
+ViewModel.sendPendingMark()  // или onMapDoubleClick → send для POINT / TRACK
+  → sendGeoMarkAtPoints(points, type)
   → builds GeoMarkModel from GeoMarksFormState (type, color, shape, name, ttl, trackEndType)
   → SendGeoMarkUseCase(SendGeoMarkParams(mark, contourId?, localOnly))
   → GeoMarkRepositoryImpl.sendGeoMark()
       → if localOnly: geoMarkQueries.insert() only
       → else: adapter.encode() → packet.channel = resolvedSlot → commandSender.sendData()
               → geoMarkQueries.insert(isSelf=1)
+  → increment nameCounter, persist prefs, save preset
 ```
 
 ### Receive
@@ -266,10 +273,11 @@ Derived StateFlow combining `_uiState + _formState`. All callbacks bundled (Menu
 | `toggleMarkTool()` | direct tool toggle (HUD mark-tool shortcut); does not affect sheet visibility |
 | `setMarkType/Color/Shape/TrackEndType/Ttl/MarkName/NameCounter/Addressee()` | update `_formState`, persist to DataStore |
 | `applyPreset(preset)` | restore all form fields from preset |
-| `sendPendingMark()` | build mark from form state; increment counter; persist prefs; save preset |
-| `onMapClick(lat, lon)` | single-tap (after gesture `doubleTapTimeout`) → pending point (POINT replaces, TRACK appends) |
-| `onMapDoubleClick(lat, lon)` | POINT: send at tap coords; TRACK: append tap vertex, then `sendPendingMark()` (≥2 vertices total) |
-| `onMapLongClick(lat, lon, screenX, screenY)` | proximity check (30m); emit `GeoMarkContextMenuEvent` |
+| `sendPendingMark()` | send from `pendingMarkPoints`; TRACK requires ≥2 vertices; then clear pending |
+| `sendGeoMarkAtPoints(points, type)` | private; shared encode/send path for button and double-tap |
+| `onMapClick(lat, lon)` | add draft vertex immediately (POINT replaces list, TRACK appends); called only after gesture layer confirms single-tap |
+| `onMapDoubleClick(lat, lon)` | POINT: send one mark at tap; TRACK: append tap vertex, then `sendPendingMark()` |
+| `onMapLongClick(...)` | proximity 30m to draft vertex → `GeoMarkContextMenuEvent` (non–course-up only) |
 | `clearPendingPoints()` | clear `pendingMarkPoints` from `_uiState` |
 | `deletePendingPoint(index)` | remove by index |
 
@@ -315,18 +323,79 @@ Non-modal bottom sheet. `AnimatedVisibility(slideInVertically + fadeIn)` at `Ali
 - Draft marks: `SymbolLayer` with shape bitmap (SDF) tinted by selected color; `LineLayer` connecting points
 - Received POINT marks: `SymbolLayer` with shape bitmap tinted by mark color
 - Received TRACK marks: `LineLayer` (color from `markColorHex`) + anchor `SymbolLayer`
-- Mark tool active: `GestureOptions(isDoubleTapEnabled = false, isQuickZoomEnabled = false)`
+- Mark tool active: `GestureOptions(isDoubleTapEnabled = false, isQuickZoomEnabled = false)` — native double-tap zoom off; double-tap handled in Compose
+- `markToolActive && !isCourseUpActive`: modifier `markToolMapTapGestures` on `MaplibreMap`
+- `markToolActive`: `onMapClick` / `onMapLongClick` of MapLibre **not** forwarded (Compose layer owns taps)
 
-### Course-up + добавление меток (жесты)
+### Map gestures (mark tool)
 
-Принятые решения по конфликту оверлея course-up и тапов на карту — в `.claude/docs/map-orientation.md`, раздел **«Course-up + добавление геометок — принятые решения»**.
+Полная спецификация course-up (Y-zoom, без long-tap): `.claude/docs/map-orientation.md` → **Course-up + добавление геометок**.
 
-Кратко:
-- Один палец, классификация на **UP** по `max|ΔY|` vs `touchSlop` (только Y): тап → точка, иначе zoom.
-- Координаты: `projection.positionFromScreenLocation` в точке **DOWN** → `onMapClick`.
-- 2+ пальца → точку не ставить; pinch — MapLibre.
-- Long tap в флоу добавления при course-up — не нужен.
-- Double-tap: `markToolMapTapGestures` (локальный `doubleTapTimeout`, tap consume) в обычном режиме; `courseUpMapGestures` в course-up. Одиночный тап → `onMapClick` → debounce 300 ms → черновик. MapLibre `onMapClick` при активном инструменте отключён.
+#### Общий слой: `MarkToolTapDispatcher`
+
+Используется в `MarkToolMapTapGestures` и `CourseUpMapGestures` (при `markToolActive`).
+
+```
+Первый release (короткий тап)
+  → запуск coroutine delay(ViewConfiguration.getDoubleTapTimeout())
+  → по истечении: onSingleTap → ViewModel.onMapClick
+
+Второй release внутри doubleTapTimeout
+  → отмена отложенного single
+  → onDoubleTap → ViewModel.onMapDoubleClick
+
+Pan / zoom / long-press в оверлее
+  → dispatcher.reset() — сброс окна double-tap
+```
+
+ViewModel **не** дублирует логику double-tap (нет второго `onMapClick` → send).
+
+#### Режим без course-up (`MarkToolMapTapGestures`)
+
+| Жест | Поведение |
+|---|---|
+| Одинарный тап | Черновая вершина (`onMapClick`) после `doubleTapTimeout` |
+| Двойной тап | См. таблицу ниже по типу метки |
+| Перетаскивание (pan) | События **не consume** — MapLibre scroll |
+| Тап (короткий) | `change.consume()` на UP — MapLibre не дублирует клик |
+| Long tap | `onMapLongClick` → контекстное меню черновой точки |
+
+Координаты тапа: `projection.positionFromScreenLocation` в позиции **DOWN** (как в course-up).
+
+#### Режим course-up (`CourseUpMapGestures`)
+
+| Жест | Поведение |
+|---|---|
+| Одинарный тап | То же через `MarkToolTapDispatcher` → `onMapClick` |
+| Двойной тап | То же → `onMapDoubleClick` |
+| Движение по Y > touchSlop | Zoom камеры (не consume до порога; consume при zoom) |
+| 2+ пальца | Точку не ставить; pinch — MapLibre |
+| Long tap | Не обрабатывается |
+
+При `markToolActive && isCourseUpActive`: `isScrollEnabled = false` в MapLibre — pan только через Y-zoom оверлея.
+
+#### Действия по типу метки (double-tap)
+
+| `selectedType` | Одинарный тап | Двойной тап |
+|---|---|---|
+| **POINT** | Одна черновая вершина на карте (заменяет предыдущий черновик POINT) | Отправка **одной** точки в координатах тапа; параметры из шторки; черновик очищается |
+| **TRACK** | Вершина **добавляется** к полилинии черновика | Вершина в точке тапа **добавляется**, затем `sendPendingMark()`; нужно **≥2** вершины суммарно; иначе отправки нет |
+
+Отправка с кнопки «Отправить» эквивалентна `sendPendingMark()` без добавления вершины в месте тапа.
+
+#### Поток данных (жесты)
+
+```
+MainScreen
+  ├─ MapLibreLayer(markToolMapTapGestures?)     // север вверх + markTool
+  └─ Box(courseUpMapGestures?)                  // course-up overlay
+
+MarkToolMapTapGestures / CourseUpMapGestures
+  → MarkToolTapDispatcher
+  → onMapClick / onMapDoubleClick
+
+NavGraph → MainViewModel::onMapClick / onMapDoubleClick
+```
 
 ### Context menu
 
@@ -339,7 +408,8 @@ Long-tap on draft point within 30m → `GeoMarkContextMenuEvent(pointIndex, scre
 - `GeoMarkColor` is Compose-free (pure Kotlin `Int` palette). Presentation wraps with `Color(argb)`.
 - `MainViewModel` depends on `GeoMarkPreferencesRepository` interface (domain), not `GeoMarkPrefsDataSource` (data). Koin binds `GeoMarkPreferencesRepositoryImpl`.
 - `sendPendingMark()` uses explicit `formState.selectedType` — not inferred from point count.
-- Double-tap: `MarkToolTapDispatcher` → `onMapDoubleClick`. POINT: send at tap coords. TRACK: append vertex at tap, then `sendPendingMark()` (minimum 2 vertices after append).
+- Map taps при `markToolActive`: только Compose (`MarkToolMapTapGestures` / `CourseUpMapGestures`); MapLibre `onMapClick` отключён, чтобы не было ложного double-tap и дублирования с pan.
+- `MarkToolTapDispatcher` откладывает single-tap на `ViewConfiguration.getDoubleTapTimeout()`; double-tap не вызывает промежуточный `onMapClick` для второго нажатия.
 - Channel routing: `adapter.encode()` returns `channel=0`; `GeoMarkRepositoryImpl` overrides to resolved contour slot.
 
 ---
@@ -356,6 +426,9 @@ Long-tap on draft point within 30m → `GeoMarkContextMenuEvent(pointIndex, scre
 | DataStore format for presets | Preferences DataStore, JSON-serialised list in single key |
 | `ic_close` icon | `Icons.Default.Close` used directly |
 | Sheet position | `Alignment.BottomEnd` in `MainScreen` Box; landscape: hidden |
-| Course-up + tap to add point | `CourseUpMapGestures.kt`; см. `map-orientation.md` |
-| Long tap при course-up + метки | Не обрабатывать в флоу добавления |
+| Course-up + mark tool gestures | `CourseUpMapGestures.kt` + `MarkToolTapDispatcher`; см. `map-orientation.md` |
+| Mark tool без course-up | `MarkToolMapTapGestures.kt` на `MaplibreMap`; pan не блокируется |
+| Double-tap POINT | Отправка в точке второго тапа |
+| Double-tap TRACK | Вершина в точке тапа + `sendPendingMark()` |
+| Long tap при course-up + метки | Не обрабатывать |
 | 2+ пальца при course-up + метки | Только zoom, точку не ставить |

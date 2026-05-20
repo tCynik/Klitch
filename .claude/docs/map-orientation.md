@@ -111,7 +111,7 @@ cameraState.position = CameraPosition(bearing = bearing.toDouble(), target = Pos
 |---|---|---|
 | Course-up, метки **выкл** | Да | Только zoom по Y (как сейчас, без постановки точек) |
 | Course-up, метки **вкл** (`markToolActive`) | Да | Классификация: тап **или** zoom (см. ниже) |
-| Без course-up, метки вкл | Нет | `MaplibreMap.onMapClick` → `MainViewModel.onMapClick` (без изменений) |
+| Без course-up, метки вкл | `markToolMapTapGestures` на `MaplibreMap` | Pan — MapLibre; тапы — `MarkToolTapDispatcher` → ViewModel (MapLibre `onMapClick` выкл.) |
 
 При `markToolActive && isCourseUpActive` в `MapLibreLayer`: `isScrollEnabled = false` + жесты только через оверлей (ветка `markToolActive` в `when` должна включать блокировку pan, иначе конфликт с MapLibre).
 
@@ -125,7 +125,8 @@ DOWN → трекать max|ΔY| от точки DOWN → UP
 
 - **Мёртвая зона:** `viewConfiguration.touchSlop` (системный slop), только по **Y**.
 - **Координаты точки:** `cameraState.projection.positionFromScreenLocation(offset)` в позиции **DOWN** (не UP), чтобы лёгкое дрожание пальца не смещало метку.
-- **Классификация на UP**, не на DOWN — важно для двойного тапа (следующая задача).
+- **Классификация на UP**, не на DOWN — важно для двойного тапа.
+- **Тапы при метках:** `MarkToolTapDispatcher` (отложенный single / немедленный double) — см. `.claude/docs/geo-marks.md` → Map gestures.
 
 #### Два пальца
 
@@ -169,9 +170,8 @@ awaitEachGesture {
         }
     }
 
-    if (!isZoomGesture && markToolActive) {
-        projection?.positionFromScreenLocation(downOffset)?.let { onMapClick(lat, lon) }
-    }
+    if (isZoomGesture) tapDispatcher?.reset()
+    else tapDispatcher?.onTapRelease(lat, lon)  // MarkToolTapDispatcher
 }
 ```
 
