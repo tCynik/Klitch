@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -78,7 +77,7 @@ import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepositor
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
-import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.AutoExpireGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
@@ -95,7 +94,6 @@ private const val LOCAL_STORAGE_ID = "__local__"
 // TODO: replace with dp-based calculation using current camera zoom in Phase 3 refinement.
 private const val DRAFT_POINT_TOUCH_RADIUS_M = 30.0
 private const val METERS_PER_DEG_LAT_APPROX = 111_320.0
-private const val GEO_MARK_CLEANUP_INTERVAL_MS = 3_600_000L
 
 class MainViewModel(
     getTileUrl: GetTileUrlUseCase,
@@ -115,7 +113,7 @@ class MainViewModel(
     observeGeoMarks: ObserveGeoMarksUseCase,
     private val sendGeoMark: SendGeoMarkUseCase,
     ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase,
-    private val deleteExpiredGeoMarks: DeleteExpiredGeoMarksUseCase,
+    autoExpireGeoMarks: AutoExpireGeoMarksUseCase,
     ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase,
     observeLogicalChannels: ObserveContoursUseCase,
     observeNodeChannels: ObserveNodeChannelsUseCase,
@@ -277,13 +275,7 @@ class MainViewModel(
         ingestReceivedChatMessages.observe()
             .launchIn(viewModelScope)
 
-        viewModelScope.launch(Dispatchers.Default) {
-            deleteExpiredGeoMarks(NoParams)
-            while (true) {
-                delay(GEO_MARK_CLEANUP_INTERVAL_MS)
-                deleteExpiredGeoMarks(NoParams)
-            }
-        }
+        autoExpireGeoMarks.observe().launchIn(viewModelScope)
 
         combine(
             observeLogicalChannels(NoParams),
@@ -462,7 +454,12 @@ class MainViewModel(
     }
 
     fun setMarkName(name: String) {
-        _formState.update { it.copy(markName = name, pointNameCounter = 1, trackNameCounter = 1) }
+        _formState.update { form ->
+            if (form.selectedType == GeoMarkType.POINT)
+                form.copy(pointMarkName = name, pointNameCounter = 1)
+            else
+                form.copy(trackMarkName = name, trackNameCounter = 1)
+        }
         viewModelScope.launch { persistFormState() }
     }
 
@@ -877,7 +874,7 @@ class MainViewModel(
             selectedShape        = form.selectedShape,
             selectedTrackEndType = form.selectedTrackEndType,
             selectedTtlSeconds   = form.selectedTtlSeconds,
-            markName             = form.markName,
+            markName             = if (form.selectedType == GeoMarkType.POINT) form.pointMarkName else form.trackMarkName,
             nameCounter          = if (form.selectedType == GeoMarkType.POINT) form.pointNameCounter else form.trackNameCounter,
             pendingPoints        = state.pendingMarkPoints,
             availableContours    = form.availableContours,
@@ -933,7 +930,7 @@ class MainViewModel(
     }
 
     private fun buildMarkLabel(form: GeoMarksFormState, type: GeoMarkType): String {
-        val base = form.markName.trim()
+        val base = if (type == GeoMarkType.POINT) form.pointMarkName.trim() else form.trackMarkName.trim()
         val counter = if (type == GeoMarkType.POINT) form.pointNameCounter else form.trackNameCounter
         return if (base.isEmpty()) "$counter" else "$base $counter"
     }
@@ -946,7 +943,8 @@ class MainViewModel(
                 selectedShape        = runCatching { GeoMarkShape.valueOf(prefs.selectedShape) }.getOrDefault(GeoMarkShape.CIRCLE),
                 selectedTrackEndType = TrackEndType.fromByte(prefs.selectedTrackEndType.toByte()),
                 selectedTtlSeconds   = prefs.selectedTtlSeconds,
-                markName             = prefs.markName,
+                pointMarkName        = prefs.pointMarkName,
+                trackMarkName        = prefs.trackMarkName,
                 selectedContourId    = if (form.selectedContourId.isEmpty()) prefs.selectedContourId else form.selectedContourId,
                 wasAddresseeExplicitlySelected = form.wasAddresseeExplicitlySelected || prefs.selectedContourId.isNotEmpty(),
             )
@@ -962,7 +960,8 @@ class MainViewModel(
                 selectedShape        = form.selectedShape.name,
                 selectedTrackEndType = form.selectedTrackEndType.ends.toInt(),
                 selectedTtlSeconds   = form.selectedTtlSeconds,
-                markName             = form.markName,
+                pointMarkName        = form.pointMarkName,
+                trackMarkName        = form.trackMarkName,
                 selectedContourId    = form.selectedContourId,
             )
         )
@@ -978,7 +977,8 @@ class MainViewModel(
                 selectedShape        = form.selectedShape.name,
                 selectedTrackEndType = form.selectedTrackEndType.ends.toInt(),
                 selectedTtlSeconds   = form.selectedTtlSeconds,
-                markName             = form.markName,
+                pointMarkName        = form.pointMarkName,
+                trackMarkName        = form.trackMarkName,
                 selectedContourId    = form.selectedContourId,
             ),
         )

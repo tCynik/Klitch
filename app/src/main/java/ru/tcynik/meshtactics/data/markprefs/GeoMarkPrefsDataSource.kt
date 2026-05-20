@@ -23,25 +23,27 @@ class GeoMarkPrefsDataSource(
     fun observePreferences(): Flow<GeoMarkFormPreferences> =
         dataStore.data.map { prefs ->
             GeoMarkFormPreferences(
-                selectedType        = prefs[KEY_TYPE] ?: GeoMarkType.POINT.name,
-                selectedColor       = prefs[KEY_COLOR] ?: 4,
+                selectedType         = prefs[KEY_TYPE] ?: GeoMarkType.POINT.name,
+                selectedColor        = prefs[KEY_COLOR] ?: 4,
                 selectedTrackEndType = prefs[KEY_TRACK_END_TYPE] ?: TrackEndType.NONE.ends.toInt(),
-                selectedTtlSeconds  = prefs[KEY_TTL_SECONDS] ?: 900L,
-                markName            = prefs[KEY_MARK_NAME] ?: "",
-                selectedContourId   = prefs[KEY_CONTOUR_ID] ?: "",
-                selectedShape       = prefs[KEY_SHAPE] ?: ru.tcynik.meshtactics.domain.marker.model.GeoMarkShape.CIRCLE.name,
+                selectedTtlSeconds   = prefs[KEY_TTL_SECONDS] ?: 900L,
+                pointMarkName        = prefs[KEY_POINT_MARK_NAME] ?: "точка",
+                trackMarkName        = prefs[KEY_TRACK_MARK_NAME] ?: "Путь",
+                selectedContourId    = prefs[KEY_CONTOUR_ID] ?: "",
+                selectedShape        = prefs[KEY_SHAPE] ?: ru.tcynik.meshtactics.domain.marker.model.GeoMarkShape.CIRCLE.name,
             )
         }
 
     suspend fun savePreferences(p: GeoMarkFormPreferences) {
         dataStore.edit { prefs ->
-            prefs[KEY_TYPE]             = p.selectedType
-            prefs[KEY_COLOR]            = p.selectedColor
-            prefs[KEY_TRACK_END_TYPE]   = p.selectedTrackEndType
-            prefs[KEY_TTL_SECONDS]      = p.selectedTtlSeconds
-            prefs[KEY_MARK_NAME]        = p.markName
-            prefs[KEY_CONTOUR_ID]       = p.selectedContourId
-            prefs[KEY_SHAPE]            = p.selectedShape
+            prefs[KEY_TYPE]              = p.selectedType
+            prefs[KEY_COLOR]             = p.selectedColor
+            prefs[KEY_TRACK_END_TYPE]    = p.selectedTrackEndType
+            prefs[KEY_TTL_SECONDS]       = p.selectedTtlSeconds
+            prefs[KEY_POINT_MARK_NAME]   = p.pointMarkName
+            prefs[KEY_TRACK_MARK_NAME]   = p.trackMarkName
+            prefs[KEY_CONTOUR_ID]        = p.selectedContourId
+            prefs[KEY_SHAPE]             = p.selectedShape
         }
     }
 
@@ -70,7 +72,8 @@ class GeoMarkPrefsDataSource(
         private val KEY_COLOR            = intPreferencesKey("geomark_color")
         private val KEY_TRACK_END_TYPE   = intPreferencesKey("geomark_track_end_type")
         private val KEY_TTL_SECONDS      = longPreferencesKey("geomark_ttl_seconds")
-        private val KEY_MARK_NAME        = stringPreferencesKey("geomark_name")
+        private val KEY_POINT_MARK_NAME  = stringPreferencesKey("geomark_point_name")
+        private val KEY_TRACK_MARK_NAME  = stringPreferencesKey("geomark_track_name")
         private val KEY_CONTOUR_ID       = stringPreferencesKey("geomark_contour_id")
         private val KEY_PRESETS          = stringPreferencesKey("geomark_presets_json")
         private val KEY_SHAPE            = stringPreferencesKey("geomark_shape")

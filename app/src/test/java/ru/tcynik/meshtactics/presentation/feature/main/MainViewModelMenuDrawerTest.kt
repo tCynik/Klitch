@@ -33,7 +33,7 @@ import ru.tcynik.meshtactics.domain.map.usecase.ObserveSelectedOverlaysUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkFormPreferences
 import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkPreferencesRepository
-import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.AutoExpireGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
@@ -70,7 +70,7 @@ class MainViewModelMenuDrawerTest {
     private val observeGeoMarks: ObserveGeoMarksUseCase = mockk()
     private val sendGeoMark: SendGeoMarkUseCase = mockk(relaxed = true)
     private val ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase = mockk()
-    private val deleteExpiredGeoMarks: DeleteExpiredGeoMarksUseCase = mockk(relaxed = true)
+    private val autoExpireGeoMarks: AutoExpireGeoMarksUseCase = mockk(relaxed = true)
     private val ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase = mockk()
     private val observeLogicalChannels: ObserveContoursUseCase = mockk()
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
@@ -100,6 +100,7 @@ class MainViewModelMenuDrawerTest {
         every { getLastConnectedDevice.invoke() } returns null
         every { observeGeoMarks.invoke(any()) } returns flowOf(emptyList())
         every { ingestReceivedGeoMarks.observe() } returns flowOf(Unit)
+        every { autoExpireGeoMarks.observe() } returns flowOf(Unit)
         every { ingestReceivedChatMessages.observe() } returns flowOf(Unit)
         every { observeLogicalChannels.invoke(any()) } returns flowOf(emptyList())
         every { observeNodeChannels.invoke(any()) } returns flowOf(emptyList())
@@ -128,7 +129,7 @@ class MainViewModelMenuDrawerTest {
             observeGeoMarks = observeGeoMarks,
             sendGeoMark = sendGeoMark,
             ingestReceivedGeoMarks = ingestReceivedGeoMarks,
-            deleteExpiredGeoMarks = deleteExpiredGeoMarks,
+            autoExpireGeoMarks = autoExpireGeoMarks,
             ingestReceivedChatMessages = ingestReceivedChatMessages,
             observeLogicalChannels = observeLogicalChannels,
             observeNodeChannels = observeNodeChannels,
