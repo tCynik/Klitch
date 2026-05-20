@@ -356,6 +356,6 @@ Long-tap on draft point within 30m → `GeoMarkContextMenuEvent(pointIndex, scre
 | DataStore format for presets | Preferences DataStore, JSON-serialised list in single key |
 | `ic_close` icon | `Icons.Default.Close` used directly |
 | Sheet position | `Alignment.BottomEnd` in `MainScreen` Box; landscape: hidden |
-| Course-up + tap to add point | Единый pointer handler в course-up оверлее; см. `map-orientation.md` (статус: не реализовано) |
+| Course-up + tap to add point | `CourseUpMapGestures.kt`; см. `map-orientation.md` |
 | Long tap при course-up + метки | Не обрабатывать в флоу добавления |
 | 2+ пальца при course-up + метки | Только zoom, точку не ставить |

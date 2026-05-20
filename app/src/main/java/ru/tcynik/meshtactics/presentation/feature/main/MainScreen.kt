@@ -1,7 +1,6 @@
 package ru.tcynik.meshtactics.presentation.feature.main
 
 import android.content.res.Configuration
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -213,24 +212,16 @@ fun MainScreen(
             )
         }
 
-        // Pan-as-zoom overlay — only present in course-up mode to avoid stealing touches
         if (uiState.isCourseUpActive) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .pointerInput(mapHeightPx) {
-                        detectDragGestures { change, dragAmount ->
-                            change.consume()
-                            // drag up = zoom in, drag down = zoom out; 3 zoom levels per screen height
-                            val delta = -dragAmount.y / mapHeightPx * 3.0
-                            val current = cameraState.position
-                            cameraState.position = CameraPosition(
-                                target  = current.target,
-                                zoom    = (current.zoom + delta).coerceIn(1.0, 20.0),
-                                bearing = current.bearing,
-                            )
-                        }
-                    }
+                    .courseUpMapGestures(
+                        mapHeightPx = mapHeightPx,
+                        markToolActive = uiState.markToolActive,
+                        cameraState = cameraState,
+                        onMapClick = onMapClick,
+                    ),
             )
         }
 

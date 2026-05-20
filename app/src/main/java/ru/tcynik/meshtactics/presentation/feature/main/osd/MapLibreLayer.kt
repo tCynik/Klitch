@@ -127,6 +127,14 @@ fun MapLibreLayer(
         baseStyle = BASE_STYLE_WITH_GLYPHS,
         cameraState = cameraState,
         options = when {
+            markToolActive && isCourseUpActive -> MapOptions(
+                gestureOptions = GestureOptions(
+                    isScrollEnabled = false,
+                    isDoubleTapEnabled = false,
+                    isQuickZoomEnabled = false,
+                ),
+                ornamentOptions = OrnamentOptions(isCompassEnabled = false),
+            )
             markToolActive -> MapOptions(
                 gestureOptions = GestureOptions(isDoubleTapEnabled = false, isQuickZoomEnabled = false),
                 ornamentOptions = OrnamentOptions(isCompassEnabled = false),
