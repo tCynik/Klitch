@@ -46,7 +46,7 @@ val geoMarkDataModule = module {
     single { ObserveGeoMarksUseCase(get()) }
     single { SendGeoMarkUseCase(get()) }
     single { DeleteExpiredGeoMarksUseCase(get()) }
-    single { AutoExpireGeoMarksUseCase(get(), get()) }
+    single { AutoExpireGeoMarksUseCase(get()) }
     single {
         IngestReceivedGeoMarksUseCase(
             packetRepository    = get(),
