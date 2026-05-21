@@ -21,6 +21,8 @@ import ru.tcynik.meshtactics.presentation.feature.groups.GroupsViewModel
 import ru.tcynik.meshtactics.presentation.feature.main.HudNavCallbacks
 import ru.tcynik.meshtactics.presentation.feature.main.MainScreen
 import ru.tcynik.meshtactics.presentation.feature.main.MainViewModel
+import ru.tcynik.meshtactics.presentation.feature.marks.GeoMarksListScreen
+import ru.tcynik.meshtactics.presentation.feature.marks.GeoMarksListViewModel
 import ru.tcynik.meshtactics.presentation.feature.markers.MarkerManagementScreen
 import ru.tcynik.meshtactics.presentation.feature.markers.MarkersViewModel
 import ru.tcynik.meshtactics.presentation.feature.meshtest.MeshTestScreen
@@ -71,6 +73,7 @@ fun NavGraph() {
                             onMapSettingsClick     = { navController.navigate(Route.MapSettings) },
                             onDisplaySettingsClick = { navController.navigate(Route.DisplaySettings) },
                             onUserSettingsClick    = { navController.navigate(Route.UserSettings) },
+                            onGeoMarksList         = { navController.navigate(Route.GeoMarksList) },
                             onExitApp              = {
                                 context.stopService(GpsService.createIntent(context))
                                 (context as? Activity)?.finishAndRemoveTask()
@@ -168,6 +171,16 @@ fun NavGraph() {
                 MarkerManagementScreen(
                     uiState = uiState,
                     onNavigateBack = { navController.popBackStack() },
+                )
+            }
+
+            composable<Route.GeoMarksList> {
+                val viewModel: GeoMarksListViewModel = koinViewModel()
+                val uiState by viewModel.uiState.collectAsState()
+                GeoMarksListScreen(
+                    uiState = uiState,
+                    onVisibilityToggle = viewModel::onVisibilityToggle,
+                    onBack = { navController.popBackStack() },
                 )
             }
 

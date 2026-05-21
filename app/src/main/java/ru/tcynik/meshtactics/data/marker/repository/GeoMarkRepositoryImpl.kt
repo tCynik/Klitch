@@ -106,6 +106,10 @@ class GeoMarkRepositoryImpl(
         )
     }
 
+    override suspend fun toggleVisibility(id: String, visible: Boolean) {
+        geoMarkQueries.setVisible(isVisible = if (visible) 1L else 0L, id = id)
+    }
+
     override suspend fun deleteExpired(nowSeconds: Long) {
         geoMarkQueries.deleteExpired(nowSeconds)
     }
@@ -128,5 +132,6 @@ class GeoMarkRepositoryImpl(
         name = name,
         trackEndType = TrackEndType.fromByte(track_end_type.toByte()),
         shape = GeoMarkShape.entries.getOrElse(shape.toInt()) { GeoMarkShape.CIRCLE },
+        isVisible = is_visible == 1L,
     )
 }

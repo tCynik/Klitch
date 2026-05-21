@@ -391,8 +391,8 @@ fun MapLibreLayer(
             width = const(2.dp),
         )
 
-        val receivedPoints = geoMarks.filter { it.type == GeoMarkType.POINT }
-        val receivedTracks = geoMarks.filter { it.type == GeoMarkType.TRACK }
+        val receivedPoints = geoMarks.filter { it.type == GeoMarkType.POINT && it.isVisible }
+        val receivedTracks = geoMarks.filter { it.type == GeoMarkType.TRACK && it.isVisible }
 
         val receivedPointsSource = rememberGeoJsonSource(
             GeoJsonData.JsonString(buildReceivedPointsGeoJson(receivedPoints))

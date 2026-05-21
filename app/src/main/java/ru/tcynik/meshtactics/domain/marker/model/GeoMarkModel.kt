@@ -24,4 +24,5 @@ data class GeoMarkModel(
     val trackEndType: TrackEndType = TrackEndType.NONE,
     /** Shape of the point marker. */
     val shape: GeoMarkShape = GeoMarkShape.CIRCLE,
+    val isVisible: Boolean = true,
 )

@@ -10,5 +10,6 @@ data class HudNavCallbacks(
     val onMapSettingsClick: () -> Unit = {},
     val onDisplaySettingsClick: () -> Unit = {},
     val onUserSettingsClick: () -> Unit = {},
+    val onGeoMarksList: () -> Unit = {},
     val onExitApp: () -> Unit = {},
 )

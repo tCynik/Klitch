@@ -8,5 +8,6 @@ interface GeoMarkRepository {
     fun observeGeoMarks(): Flow<List<GeoMarkModel>>
     suspend fun sendGeoMark(mark: GeoMarkModel, contourId: ContourId? = null, localOnly: Boolean = false)
     suspend fun persistReceived(mark: GeoMarkModel, contourId: ContourId)
+    suspend fun toggleVisibility(id: String, visible: Boolean)
     suspend fun deleteExpired(nowSeconds: Long)
 }

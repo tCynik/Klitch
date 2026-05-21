@@ -732,6 +732,11 @@ class MainViewModel(
                 label = "Пользователь",
                 onClick = { nav.onUserSettingsClick(); toggleMenuDrawer() },
             ),
+            DrawerMenuItem(
+                iconRes = R.drawable.ic_marks,
+                label = "Метки",
+                onClick = { nav.onGeoMarksList(); toggleMenuDrawer() },
+            ),
         ),
         onDismiss = ::toggleMenuDrawer,
     )

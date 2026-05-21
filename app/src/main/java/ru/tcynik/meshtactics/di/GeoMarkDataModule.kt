@@ -20,6 +20,7 @@ import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.ToggleGeoMarkVisibilityUseCase
 
 val geoMarkDataModule = module {
     single<androidx.datastore.core.DataStore<androidx.datastore.preferences.core.Preferences>>(named("GeoMarkPrefsDataStore")) {
@@ -44,6 +45,7 @@ val geoMarkDataModule = module {
         )
     }
     single { ObserveGeoMarksUseCase(get()) }
+    single { ToggleGeoMarkVisibilityUseCase(get()) }
     single { SendGeoMarkUseCase(get()) }
     single { DeleteExpiredGeoMarksUseCase(get()) }
     single { AutoExpireGeoMarksUseCase(get()) }

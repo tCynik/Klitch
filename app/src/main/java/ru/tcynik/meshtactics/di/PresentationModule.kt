@@ -6,6 +6,7 @@ import org.koin.dsl.module
 import ru.tcynik.meshtactics.presentation.feature.chat.ChatViewModel
 import ru.tcynik.meshtactics.presentation.feature.groups.GroupsViewModel
 import ru.tcynik.meshtactics.presentation.feature.main.MainViewModel
+import ru.tcynik.meshtactics.presentation.feature.marks.GeoMarksListViewModel
 import ru.tcynik.meshtactics.presentation.feature.markers.MarkersViewModel
 import ru.tcynik.meshtactics.presentation.feature.meshtest.MeshTestViewModel
 import ru.tcynik.meshtactics.presentation.feature.node.NodeSettingsViewModel
@@ -28,6 +29,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.AutoExpireGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.ToggleGeoMarkVisibilityUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
@@ -148,6 +150,13 @@ val presentationModule = module {
     }
     viewModelOf(::NodeStatusViewModel)
     viewModelOf(::MarkersViewModel)
+    viewModel {
+        GeoMarksListViewModel(
+            observeGeoMarks = get(),
+            toggleVisibility = get<ToggleGeoMarkVisibilityUseCase>(),
+            logger = get(),
+        )
+    }
     viewModelOf(::GroupsViewModel)
 
     // ── Legacy / prototype ───────────────────────────────────────────────────
