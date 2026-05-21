@@ -97,6 +97,8 @@ fun MapLibreLayer(
     nodeMarkers: ImmutableList<NodeMarkerModel> = persistentListOf(),
     cameraState: CameraState,
     markerSizeLevel: Int = 5,
+    geoMarkSizeLevel: Int = 5,
+    showGeoMarkNames: Boolean = false,
     userPosition: Position? = null,
     userBearing: Float = 0f,
     selectedOverlays: ImmutableList<OverlayRenderModel> = persistentListOf(),
@@ -339,6 +341,8 @@ fun MapLibreLayer(
         )
 
         // ── Geo marks ────────────────────────────────────────────────────────
+        val geoMarkIconSize = (36 + (geoMarkSizeLevel - 1) * 6) / 64f
+
         // Draft (unsent) marks — shape icon in selected color + line
         val draftPointsSource = rememberGeoJsonSource(
             GeoJsonData.JsonString(buildDraftPointsGeoJson(pendingMarkPoints.toList()))
@@ -354,7 +358,7 @@ fun MapLibreLayer(
             source = draftPointsSource,
             iconImage = image(pendingShapeBitmap, isSdf = true),
             iconColor = const(draftColor),
-            iconSize = const(0.5f),
+            iconSize = const(geoMarkIconSize),
             iconHaloColor = const(Color.White),
             iconHaloWidth = const(1.dp),
             iconAllowOverlap = const(true),
@@ -391,11 +395,26 @@ fun MapLibreLayer(
                 fallback = image(circleBitmap, isSdf = true),
             ),
             iconColor = feature["color"].convertToColor(const(Color(0xFF1E88E5))),
-            iconSize = const(0.5f),
+            iconSize = const(geoMarkIconSize),
             iconHaloColor = const(Color.White),
             iconHaloWidth = const(1.dp),
             iconAllowOverlap = const(true),
         )
+        if (showGeoMarkNames) {
+            SymbolLayer(
+                id = "geo-received-point-labels",
+                source = receivedPointsSource,
+                textField = format(span(feature["name"].asString())),
+                textAnchor = const(SymbolAnchor.Top),
+                textOffset = offset(0f.em, 1.2f.em),
+                textSize = const(11.sp),
+                textColor = const(Color.White),
+                textHaloColor = const(Color.Black),
+                textHaloWidth = const(1.5.dp),
+                textOptional = const(true),
+                textAllowOverlap = const(false),
+            )
+        }
 
         val receivedTracksSource = rememberGeoJsonSource(
             GeoJsonData.JsonString(buildReceivedTracksGeoJson(receivedTracks))
@@ -576,10 +595,13 @@ private fun buildReceivedPointsGeoJson(marks: List<GeoMarkModel>): String {
         val anchor = mark.points.first()
         val hex = markColorHex(mark.color)
         val shapeOrdinal = mark.shape.ordinal
-        """{"type":"Feature","geometry":{"type":"Point","coordinates":[${anchor.longitude},${anchor.latitude}]},"properties":{"color":"$hex","shapeOrdinal":$shapeOrdinal}}"""
+        val name = mark.name.jsonEscape()
+        """{"type":"Feature","geometry":{"type":"Point","coordinates":[${anchor.longitude},${anchor.latitude}]},"properties":{"color":"$hex","shapeOrdinal":$shapeOrdinal,"name":"$name"}}"""
     }
     return """{"type":"FeatureCollection","features":[$features]}"""
 }
+
+private fun String.jsonEscape(): String = replace("\\", "\\\\").replace("\"", "\\\"")
 
 private fun buildReceivedTracksGeoJson(marks: List<GeoMarkModel>): String {
     if (marks.isEmpty()) return """{"type":"FeatureCollection","features":[]}"""

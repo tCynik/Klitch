@@ -34,6 +34,7 @@
 | Контуры (CRUD + isActive + Geo Protection) | ✅ Done |
 | Emergency SOS (кнопка SOS, трансляция геопозиции) | ✅ Done |
 | Настройки кэша тайлов (OkHttp duration modes) | ✅ Done |
+| Настройки экрана (размер маркеров + геоточек, имена точек) | ✅ Done |
 | Настройки ноды | ⬜ Planned |
 | Инжектируемый Logger (MT/<Feature>) | ✅ Done |
 | HUD Menu Drawer (выдвижная шторка навигации) | ✅ Done |
@@ -115,6 +116,7 @@
 | Channel Sync Validation | `.claude/docs/channel-sync-validation.md` |
 | User Settings Write Mechanics | `.claude/docs/user-settings-write-mechanics.md` |
 | Tile Cache Settings | `.claude/docs/tile-cache-settings.md` |
+| Geo Marks Display Settings | `.claude/docs/geo-marks.md` |
 | Autonomous Beacon (concept) | `.claude/docs/autonomous-beacon.md` |
 | Node PKC Key Management | `.claude/docs/node-key-management.md` |
 | App Logger | `.claude/docs/logger.md` |
@@ -151,3 +153,4 @@
 | HUD Menu Drawer | `.claude/archive/hud-menu-drawer.md` | Archived |
 | Follow Me | `.claude/archive/follow-me.md` | Archived |
 | Geo Marks Bottom Sheet | `.claude/archive/geo-marks-sheet.md` | Done |
+| Geo Marks Display Settings | `.claude/archive/geo-marks-display-settings.md` | Done |

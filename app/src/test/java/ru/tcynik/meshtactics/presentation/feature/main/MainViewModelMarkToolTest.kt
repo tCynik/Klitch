@@ -57,8 +57,12 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeyUseCase
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
+import ru.tcynik.meshtactics.domain.settings.usecase.GetGeoMarkSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetMarkerSizeLevelUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.GetShowGeoMarkNamesUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.ObserveGeoMarkSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveMarkerSizeLevelUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.ObserveShowGeoMarkNamesUseCase
 
 private const val DOUBLE_TAP_WINDOW_MS = 300L
 
@@ -74,6 +78,10 @@ class MainViewModelMarkToolTest {
     private val observeGpsStatus: ObserveGpsStatusUseCase = mockk()
     private val getMarkerSizeLevel: GetMarkerSizeLevelUseCase = mockk()
     private val observeMarkerSizeLevel: ObserveMarkerSizeLevelUseCase = mockk()
+    private val getGeoMarkSizeLevel: GetGeoMarkSizeLevelUseCase = mockk()
+    private val observeGeoMarkSizeLevel: ObserveGeoMarkSizeLevelUseCase = mockk()
+    private val getShowGeoMarkNames: GetShowGeoMarkNamesUseCase = mockk()
+    private val observeShowGeoMarkNames: ObserveShowGeoMarkNamesUseCase = mockk()
     private val observeSelectedOverlays: ObserveSelectedOverlaysUseCase = mockk()
     private val observeTotalUnreadChatCount: ObserveTotalUnreadChatCountUseCase = mockk()
     private val scanDevices: ScanMeshDevicesUseCase = mockk()
@@ -107,6 +115,10 @@ class MainViewModelMarkToolTest {
         every { observeGpsStatus.invoke(any()) } returns flowOf(GpsStatusModel.None)
         every { getMarkerSizeLevel.invoke() } returns 5
         every { observeMarkerSizeLevel.invoke(any()) } returns flowOf(5)
+        every { getGeoMarkSizeLevel.invoke() } returns 5
+        every { observeGeoMarkSizeLevel.invoke(any()) } returns flowOf(5)
+        every { getShowGeoMarkNames.invoke() } returns false
+        every { observeShowGeoMarkNames.invoke(any()) } returns flowOf(false)
         every { observeSelectedOverlays.invoke(any()) } returns flowOf(emptyList())
         every { observeTotalUnreadChatCount.invoke(any()) } returns flowOf(0)
         every { scanDevices.invoke(any()) } returns flow { kotlinx.coroutines.awaitCancellation() }
@@ -132,6 +144,10 @@ class MainViewModelMarkToolTest {
             observeGpsStatus = observeGpsStatus,
             getMarkerSizeLevel = getMarkerSizeLevel,
             observeMarkerSizeLevel = observeMarkerSizeLevel,
+            getGeoMarkSizeLevel = getGeoMarkSizeLevel,
+            observeGeoMarkSizeLevel = observeGeoMarkSizeLevel,
+            getShowGeoMarkNames = getShowGeoMarkNames,
+            observeShowGeoMarkNames = observeShowGeoMarkNames,
             observeSelectedOverlays = observeSelectedOverlays,
             observeTotalUnreadChatCount = observeTotalUnreadChatCount,
             scanDevices = scanDevices,

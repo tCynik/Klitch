@@ -38,6 +38,8 @@ class SettingsViewModel(
         SettingsUiState(
             markerSizeLevel = repository.getMarkerSizeLevel(),
             markerSizeLevelPending = repository.getMarkerSizeLevel(),
+            geoMarkSizeLevelPending = repository.getGeoMarkSizeLevel(),
+            showGeoMarkNamesPending = repository.getShowGeoMarkNames(),
             tileCacheMode = getTileCacheMode(),
         )
     )
@@ -70,10 +72,20 @@ class SettingsViewModel(
         _uiState.update { it.copy(markerSizeLevelPending = level) }
     }
 
+    fun onGeoMarkSizeLevelChange(level: Int) {
+        _uiState.update { it.copy(geoMarkSizeLevelPending = level) }
+    }
+
+    fun onShowGeoMarkNamesChange(enabled: Boolean) {
+        _uiState.update { it.copy(showGeoMarkNamesPending = enabled) }
+    }
+
     fun onSave() {
-        val pending = _uiState.value.markerSizeLevelPending
-        repository.setMarkerSizeLevel(pending)
-        _uiState.update { it.copy(markerSizeLevel = pending) }
+        val state = _uiState.value
+        repository.setMarkerSizeLevel(state.markerSizeLevelPending)
+        repository.setGeoMarkSizeLevel(state.geoMarkSizeLevelPending)
+        repository.setShowGeoMarkNames(state.showGeoMarkNamesPending)
+        _uiState.update { it.copy(markerSizeLevel = state.markerSizeLevelPending) }
     }
 
     fun onTileCacheModeSelected(mode: TileCacheMode) {
