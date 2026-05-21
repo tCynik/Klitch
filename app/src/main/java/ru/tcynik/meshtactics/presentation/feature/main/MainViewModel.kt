@@ -34,8 +34,12 @@ import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.location.model.GpsSignalLevel
 import ru.tcynik.meshtactics.domain.location.usecase.ObserveGpsStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
+import ru.tcynik.meshtactics.domain.settings.usecase.GetGeoMarkSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetMarkerSizeLevelUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.GetShowGeoMarkNamesUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.ObserveGeoMarkSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveMarkerSizeLevelUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.ObserveShowGeoMarkNamesUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.ObserveTotalUnreadChatCountUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceParams
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
@@ -104,6 +108,10 @@ class MainViewModel(
     observeGpsStatus: ObserveGpsStatusUseCase,
     getMarkerSizeLevel: GetMarkerSizeLevelUseCase,
     observeMarkerSizeLevel: ObserveMarkerSizeLevelUseCase,
+    getGeoMarkSizeLevel: GetGeoMarkSizeLevelUseCase,
+    observeGeoMarkSizeLevel: ObserveGeoMarkSizeLevelUseCase,
+    getShowGeoMarkNames: GetShowGeoMarkNamesUseCase,
+    observeShowGeoMarkNames: ObserveShowGeoMarkNamesUseCase,
     observeSelectedOverlays: ObserveSelectedOverlaysUseCase,
     observeTotalUnreadChatCount: ObserveTotalUnreadChatCountUseCase,
     private val scanDevices: ScanMeshDevicesUseCase,
@@ -189,6 +197,8 @@ class MainViewModel(
                 tileUrlTemplate = getTileUrl(),
                 initialCameraPosition = getLastPosition() ?: state.initialCameraPosition,
                 markerSizeLevel = getMarkerSizeLevel(),
+                geoMarkSizeLevel = getGeoMarkSizeLevel(),
+                showGeoMarkNames = getShowGeoMarkNames(),
             )
         }
 
@@ -248,6 +258,18 @@ class MainViewModel(
         observeMarkerSizeLevel(NoParams)
             .onEach { level ->
                 _uiState.update { it.copy(markerSizeLevel = level) }
+            }
+            .launchIn(viewModelScope)
+
+        observeGeoMarkSizeLevel(NoParams)
+            .onEach { level ->
+                _uiState.update { it.copy(geoMarkSizeLevel = level) }
+            }
+            .launchIn(viewModelScope)
+
+        observeShowGeoMarkNames(NoParams)
+            .onEach { enabled ->
+                _uiState.update { it.copy(showGeoMarkNames = enabled) }
             }
             .launchIn(viewModelScope)
 

@@ -22,6 +22,8 @@ data class MainUiState(
     val connectionStatus: MeshConnectionStatus = MeshConnectionStatus.Disconnected,
     val gpsStatus: GpsStatusModel = GpsStatusModel.None,
     val markerSizeLevel: Int = 5,
+    val geoMarkSizeLevel: Int = 5,
+    val showGeoMarkNames: Boolean = false,
     val selectedOverlays: ImmutableList<OverlayRenderModel> = persistentListOf(),
     val unreadChatCount: Int = 0,
     val showConnectionLabel: Boolean = false,

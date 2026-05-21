@@ -1,6 +1,8 @@
 package ru.tcynik.meshtactics.presentation.feature.settings.display
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,12 +11,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -62,7 +66,11 @@ fun DisplaySettingsScreen(
         ScreenTabContent(
             modifier = Modifier.padding(padding),
             markerSizeLevel = state.markerSizeLevelPending,
-            onLevelChange = viewModel::onMarkerSizeLevelChange,
+            onMarkerLevelChange = viewModel::onMarkerSizeLevelChange,
+            geoMarkSizeLevel = state.geoMarkSizeLevelPending,
+            onGeoMarkLevelChange = viewModel::onGeoMarkSizeLevelChange,
+            showGeoMarkNames = state.showGeoMarkNamesPending,
+            onShowGeoMarkNamesChange = viewModel::onShowGeoMarkNamesChange,
             onSave = {
                 viewModel.onSave()
                 scope.launch { snackbarHostState.showSnackbar(savedMessage) }
@@ -74,11 +82,16 @@ fun DisplaySettingsScreen(
 @Composable
 private fun ScreenTabContent(
     markerSizeLevel: Int,
-    onLevelChange: (Int) -> Unit,
+    onMarkerLevelChange: (Int) -> Unit,
+    geoMarkSizeLevel: Int,
+    onGeoMarkLevelChange: (Int) -> Unit,
+    showGeoMarkNames: Boolean,
+    onShowGeoMarkNamesChange: (Boolean) -> Unit,
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val sizeDp = MarkerSizeConfig.fromLevel(markerSizeLevel).value.toInt()
+    val markerSizeDp = MarkerSizeConfig.fromLevel(markerSizeLevel).value.toInt()
+    val geoMarkSizeDp = 36 + (geoMarkSizeLevel - 1) * 6
 
     Column(
         modifier = modifier
@@ -86,15 +99,41 @@ private fun ScreenTabContent(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(stringResource(R.string.settings_marker_size_label, sizeDp, markerSizeLevel))
+        Text(stringResource(R.string.settings_marker_size_label, markerSizeDp, markerSizeLevel))
 
         Slider(
             value = markerSizeLevel.toFloat(),
-            onValueChange = { onLevelChange(it.toInt()) },
+            onValueChange = { onMarkerLevelChange(it.toInt()) },
             valueRange = 1f..10f,
             steps = 8,
             modifier = Modifier.fillMaxWidth(),
         )
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+        Text(stringResource(R.string.settings_geo_mark_size_label, geoMarkSizeDp, geoMarkSizeLevel))
+
+        Slider(
+            value = geoMarkSizeLevel.toFloat(),
+            onValueChange = { onGeoMarkLevelChange(it.toInt()) },
+            valueRange = 1f..10f,
+            steps = 8,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(stringResource(R.string.settings_geo_mark_names_label))
+            Switch(
+                checked = showGeoMarkNames,
+                onCheckedChange = onShowGeoMarkNamesChange,
+            )
+        }
 
         Spacer(modifier = Modifier.weight(1f))
 

@@ -22,9 +22,13 @@ import ru.tcynik.meshtactics.domain.map.usecase.ObserveSelectedOverlaysUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ToggleImportedMapSelectionUseCase
 import ru.tcynik.meshtactics.domain.settings.repository.MapCacheSettingsRepository
+import ru.tcynik.meshtactics.domain.settings.usecase.GetGeoMarkSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetMarkerSizeLevelUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.GetShowGeoMarkNamesUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetTileCacheModeUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.ObserveGeoMarkSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveMarkerSizeLevelUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.ObserveShowGeoMarkNamesUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveTileCacheModeUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.SetTileCacheModeUseCase
 
@@ -44,6 +48,10 @@ val mapDataModule = module {
     // Marker size level — MarkerSettingsRepository resolved from commonModule
     single { GetMarkerSizeLevelUseCase(get()) }
     single { ObserveMarkerSizeLevelUseCase(get()) }
+    single { GetGeoMarkSizeLevelUseCase(get()) }
+    single { ObserveGeoMarkSizeLevelUseCase(get()) }
+    single { GetShowGeoMarkNamesUseCase(get()) }
+    single { ObserveShowGeoMarkNamesUseCase(get()) }
 
     // Tile cache — MapCacheSettingsRepository resolved from commonModule
     single { TileCacheOkHttpConfigurator(androidContext().cacheDir, get<MapCacheSettingsRepository>().getTileCacheMode()) }

@@ -199,6 +199,8 @@ fun MainScreen(
                 nodeMarkers = uiState.nodeMarkers,
                 cameraState = cameraState,
                 markerSizeLevel = uiState.markerSizeLevel,
+                geoMarkSizeLevel = uiState.geoMarkSizeLevel,
+                showGeoMarkNames = uiState.showGeoMarkNames,
                 userPosition = currentLocation?.position,
                 userBearing = bearing,
                 selectedOverlays = uiState.selectedOverlays,

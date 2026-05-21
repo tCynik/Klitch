@@ -1,7 +1,7 @@
 # Geo Marks — Points and Tracks
 
-**Date**: 2026-05-20 (жесты mark tool: single/double tap, pan)
-**Plan archives**: `.claude/archive/geo-marks-plan.md`, `.claude/archive/geo-marks-sheet.md`
+**Date**: 2026-05-21 (display settings: geo mark size + name labels)
+**Plan archives**: `.claude/archive/geo-marks-plan.md`, `.claude/archive/geo-marks-sheet.md`, `.claude/archive/geo-marks-display-settings.md`
 
 ---
 
@@ -326,9 +326,12 @@ Non-modal bottom sheet. `AnimatedVisibility(slideInVertically + fadeIn)` at `Ali
 
 ### MapLibreLayer — mark rendering
 
-- Draft marks: `SymbolLayer` with shape bitmap (SDF) tinted by selected color; `LineLayer` connecting points
-- Received POINT marks: `SymbolLayer` with shape bitmap tinted by mark color
+- Draft marks: `SymbolLayer` (`geo-draft-points`) with shape bitmap (SDF) tinted by selected color; `LineLayer` connecting points
+- Received POINT marks: `SymbolLayer` (`geo-received-points`) with shape bitmap tinted by mark color
+- Received POINT name labels: separate `SymbolLayer` (`geo-received-point-labels`), same source as points, added only when `showGeoMarkNames = true`. Two layers necessary — single layer with conditional text params causes MapLibre layer ID conflict on recomposition.
 - Received TRACK marks: `LineLayer` (color from `markColorHex`) + anchor `SymbolLayer`
+- `geoMarkSizeLevel` (1–10) controls `iconSize` of point/draft layers: `(36 + (level-1) * 6) / 64f` → range [0.5625, 1.406]. Track anchor scaled at 70% of point size.
+- `buildReceivedPointsGeoJson` includes `"name"` property; empty names render no label (`textOptional = true`).
 - Mark tool active: `GestureOptions(isDoubleTapEnabled = false, isQuickZoomEnabled = false)` — native double-tap zoom off; double-tap handled in Compose
 - `markToolActive && !isCourseUpActive`: modifier `markToolMapTapGestures` on `MaplibreMap`
 - `markToolActive`: `onMapClick` / `onMapLongClick` of MapLibre **not** forwarded (Compose layer owns taps)
@@ -438,3 +441,5 @@ Long-tap on draft point within 30m → `GeoMarkContextMenuEvent(pointIndex, scre
 | Double-tap TRACK | Вершина в точке тапа + `sendPendingMark()` |
 | Long tap при course-up + метки | Не обрабатывать |
 | 2+ пальца при course-up + метки | Только zoom, точку не ставить |
+| Name labels layer separation | Отдельный слой `geo-received-point-labels` вместо if/else на одном id — MapLibre не обновляет свойства слоя при смене ветки Compose с одинаковым id |
+| Geo mark icon size formula | `(36 + (level-1)*6) / 64f`; диапазон 36–90dp в настройках; 64 = размер bitmap в px |
