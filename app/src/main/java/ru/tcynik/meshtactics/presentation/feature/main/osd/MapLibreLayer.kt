@@ -353,6 +353,18 @@ fun MapLibreLayer(
             GeoMarkShape.SQUARE   -> squareBitmap
             GeoMarkShape.TRIANGLE -> triangleBitmap
         }
+        val draftLastPointSource = rememberGeoJsonSource(
+            GeoJsonData.JsonString(buildDraftLastPointGeoJson(pendingMarkPoints.toList()))
+        )
+        val draftRingRadius = ((36 + (geoMarkSizeLevel - 1) * 6) / 4).dp
+        CircleLayer(
+            id = "geo-draft-points-ring",
+            source = draftLastPointSource,
+            color = const(Color(0x00000000)),
+            radius = const(draftRingRadius),
+            strokeColor = const(Color.Red),
+            strokeWidth = const(3.dp),
+        )
         SymbolLayer(
             id = "geo-draft-points",
             source = draftPointsSource,
@@ -579,6 +591,13 @@ private fun buildDraftPointsGeoJson(
         """{"type":"Feature","geometry":{"type":"Point","coordinates":[${pt.longitude},${pt.latitude}]},"properties":{}}"""
     }
     return """{"type":"FeatureCollection","features":[$features]}"""
+}
+
+private fun buildDraftLastPointGeoJson(
+    points: List<ru.tcynik.meshtactics.domain.marker.model.GeoPoint>,
+): String {
+    val last = points.lastOrNull() ?: return """{"type":"FeatureCollection","features":[]}"""
+    return """{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[${last.longitude},${last.latitude}]},"properties":{}}]}"""
 }
 
 private fun buildDraftLineGeoJson(
