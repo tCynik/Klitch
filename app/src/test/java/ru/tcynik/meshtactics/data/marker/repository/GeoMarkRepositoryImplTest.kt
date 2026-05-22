@@ -120,6 +120,32 @@ class GeoMarkRepositoryImplTest {
     }
 
     @Test
+    fun `observeGeoMarks — local send has empty logicalChannelId`() = runTest {
+        val mark = makePointMark(id = "local-only")
+        repo.sendGeoMark(mark, contourId = null, localOnly = true)
+
+        repo.observeGeoMarks().test {
+            val item = awaitItem().single()
+            assertEquals("", item.logicalChannelId)
+            assertEquals(true, item.isSelf)
+            cancel()
+        }
+    }
+
+    @Test
+    fun `observeGeoMarks — network send sets authorNodeId`() = runTest {
+        repo.sendGeoMark(makePointMark(id = "sent-net"))
+
+        repo.observeGeoMarks().test {
+            awaitItem()
+            val item = awaitItem().single { it.id == "sent-net" }
+            assertEquals(true, item.isSelf)
+            assertEquals("!00001234", item.authorNodeId)
+            cancel()
+        }
+    }
+
+    @Test
     fun `observeGeoMarks — isSelf=false for persistReceived`() = runTest {
         repo.persistReceived(makePointMark("rcv-self"), ContourId("ch-1"))
 

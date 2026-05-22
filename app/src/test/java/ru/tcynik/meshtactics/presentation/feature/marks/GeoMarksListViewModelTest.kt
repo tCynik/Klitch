@@ -25,6 +25,7 @@ import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ToggleGeoMarkVisibilityUseCase
 import ru.tcynik.meshtactics.logger.NoOpLogger
+import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliveryState
 
 class GeoMarksListViewModelTest {
 
@@ -108,6 +109,24 @@ class GeoMarksListViewModelTest {
     }
 
     @Test
+    fun `maps delivery state from isSelf and logicalChannelId`() = runTest {
+        marksFlow.value = listOf(
+            makeMark(id = "local", isSelf = true, logicalChannelId = "", authorNodeId = ""),
+            makeMark(id = "sent", isSelf = true, logicalChannelId = "ch-1", authorNodeId = "!aaaa1111"),
+            makeMark(id = "rcv", isSelf = false, logicalChannelId = "ch-2", authorNodeId = "!bbbb2222"),
+        )
+
+        viewModel.uiState.test {
+            awaitItem()
+            val state = awaitItem()
+            assertEquals(GeoMarkDeliveryState.LOCAL, state.items.find { it.id == "local" }?.deliveryState)
+            assertEquals(GeoMarkDeliveryState.SENT, state.items.find { it.id == "sent" }?.deliveryState)
+            assertEquals(GeoMarkDeliveryState.RECEIVED, state.items.find { it.id == "rcv" }?.deliveryState)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `reflects isVisible from domain model`() = runTest {
         marksFlow.value = listOf(
             makeMark(id = "hidden", isVisible = false),
@@ -129,6 +148,7 @@ class GeoMarksListViewModelTest {
         name: String = "Test",
         isSelf: Boolean = false,
         authorNodeId: String = "",
+        logicalChannelId: String = "",
         isVisible: Boolean = true,
     ) = GeoMarkModel(
         id = id,
@@ -136,6 +156,7 @@ class GeoMarksListViewModelTest {
         type = GeoMarkType.POINT,
         points = listOf(GeoPoint(55.0, 37.0)),
         authorNodeId = authorNodeId,
+        logicalChannelId = logicalChannelId,
         createdAt = createdAt,
         expiresAt = null,
         isSelf = isSelf,

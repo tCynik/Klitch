@@ -17,6 +17,7 @@ import ru.tcynik.meshtactics.domain.marker.usecase.ToggleGeoMarkVisibilityUseCas
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkListItemUiModel
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarksListUiState
+import ru.tcynik.meshtactics.presentation.feature.marks.models.resolveGeoMarkDeliveryState
 
 class GeoMarksListViewModel(
     private val observeGeoMarks: ObserveGeoMarksUseCase,
@@ -62,10 +63,16 @@ class GeoMarksListViewModel(
                     id = mark.id,
                     colorArgb = GeoMarkColor.colorAt(mark.color),
                     shape = mark.shape,
+                    trackEndType = mark.trackEndType,
                     type = mark.type,
                     name = mark.name.ifBlank { "—" },
                     ttlLabel = GeoMarkTtlFormatter.format(mark.expiresAt, now),
                     authorLabel = if (mark.isSelf) "Я" else mark.authorNodeId.take(6),
+                    deliveryState = resolveGeoMarkDeliveryState(
+                        isSelf = mark.isSelf,
+                        logicalChannelId = mark.logicalChannelId,
+                        authorNodeId = mark.authorNodeId,
+                    ),
                     isVisible = mark.isVisible,
                 )
             }

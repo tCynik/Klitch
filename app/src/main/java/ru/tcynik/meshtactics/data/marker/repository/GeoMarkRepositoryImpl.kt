@@ -128,6 +128,7 @@ class GeoMarkRepositoryImpl(
         createdAt = created_at,
         expiresAt = expires_at,
         isSelf = is_self == 1L,
+        logicalChannelId = logical_channel_id,
         color = color.toInt(),
         name = name,
         trackEndType = TrackEndType.fromByte(track_end_type.toByte()),
