@@ -8,10 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Email
-import androidx.compose.material.icons.outlined.MoveToInbox
-import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -96,17 +92,7 @@ fun GeoMarkListItem(
 
 @Composable
 private fun DeliveryStateIcon(state: GeoMarkDeliveryState, modifier: Modifier = Modifier) {
-    val (icon, description) = when (state) {
-        GeoMarkDeliveryState.LOCAL -> Icons.Outlined.Save to "Сохранено в базу"
-        GeoMarkDeliveryState.SENT -> Icons.Outlined.Email to "Отправлено"
-        GeoMarkDeliveryState.RECEIVED -> Icons.Outlined.MoveToInbox to "Принято из сети"
-    }
-    Icon(
-        imageVector = icon,
-        contentDescription = description,
-        modifier = modifier.size(16.dp),
-        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+    GeoMarkDeliveryIcon(state = state, modifier = modifier.size(16.dp))
 }
 
 @Composable

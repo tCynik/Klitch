@@ -25,7 +25,9 @@ import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ToggleGeoMarkVisibilityUseCase
 import ru.tcynik.meshtactics.logger.NoOpLogger
+import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliveryFilterStatus
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliveryState
+import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarksListUiState
 
 class GeoMarksListViewModelTest {
 
@@ -127,6 +129,64 @@ class GeoMarksListViewModelTest {
     }
 
     @Test
+    fun `delivery filters selected for present types on load`() = runTest {
+        marksFlow.value = listOf(
+            makeMark(id = "local", isSelf = true, logicalChannelId = "", authorNodeId = ""),
+            makeMark(id = "rcv", isSelf = false, authorNodeId = "!bbbb2222"),
+        )
+
+        viewModel.uiState.test {
+            awaitItem()
+            val state = awaitItem()
+            assertEquals(GeoMarkDeliveryFilterStatus.SELECTED, filterStatus(state, GeoMarkDeliveryState.LOCAL))
+            assertEquals(GeoMarkDeliveryFilterStatus.INACTIVE, filterStatus(state, GeoMarkDeliveryState.SENT))
+            assertEquals(GeoMarkDeliveryFilterStatus.SELECTED, filterStatus(state, GeoMarkDeliveryState.RECEIVED))
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `toggling delivery filter hides marks of that type`() = runTest {
+        marksFlow.value = listOf(
+            makeMark(id = "local", isSelf = true, logicalChannelId = "", authorNodeId = ""),
+            makeMark(id = "rcv", isSelf = false, authorNodeId = "!bbbb2222"),
+        )
+
+        viewModel.uiState.test {
+            awaitItem()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        viewModel.onDeliveryFilterToggle(GeoMarkDeliveryState.LOCAL)
+
+        val state = viewModel.uiState.value
+        assertEquals(1, state.items.size)
+        assertEquals("rcv", state.items.single().id)
+        assertEquals(GeoMarkDeliveryFilterStatus.UNSELECTED, filterStatus(state, GeoMarkDeliveryState.LOCAL))
+        assertEquals(GeoMarkDeliveryFilterStatus.SELECTED, filterStatus(state, GeoMarkDeliveryState.RECEIVED))
+    }
+
+    @Test
+    fun `hasMarks true when filters hide all items`() = runTest {
+        marksFlow.value = listOf(
+            makeMark(id = "local", isSelf = true, logicalChannelId = "", authorNodeId = ""),
+        )
+
+        viewModel.uiState.test {
+            awaitItem()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        viewModel.onDeliveryFilterToggle(GeoMarkDeliveryState.LOCAL)
+
+        val state = viewModel.uiState.value
+        assertTrue(state.hasMarks)
+        assertTrue(state.items.isEmpty())
+    }
+
+    @Test
     fun `reflects isVisible from domain model`() = runTest {
         marksFlow.value = listOf(
             makeMark(id = "hidden", isVisible = false),
@@ -141,6 +201,9 @@ class GeoMarksListViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    private fun filterStatus(state: GeoMarksListUiState, type: GeoMarkDeliveryState): GeoMarkDeliveryFilterStatus =
+        state.deliveryFilters.first { it.deliveryState == type }.status
 
     private fun makeMark(
         id: String,

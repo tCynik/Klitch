@@ -5,4 +5,6 @@ import kotlinx.collections.immutable.persistentListOf
 
 data class GeoMarksListUiState(
     val items: ImmutableList<GeoMarkListItemUiModel> = persistentListOf(),
+    val hasMarks: Boolean = false,
+    val deliveryFilters: ImmutableList<GeoMarkDeliveryFilterButtonUi> = persistentListOf(),
 )

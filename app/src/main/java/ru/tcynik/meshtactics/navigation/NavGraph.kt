@@ -180,6 +180,7 @@ fun NavGraph() {
                 GeoMarksListScreen(
                     uiState = uiState,
                     onVisibilityToggle = viewModel::onVisibilityToggle,
+                    onDeliveryFilterToggle = viewModel::onDeliveryFilterToggle,
                     onBack = { navController.popBackStack() },
                 )
             }
