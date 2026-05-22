@@ -40,8 +40,21 @@ fun GeoMarksListScreen(
     onDeleteClick: () -> Unit,
     onConfirmDelete: () -> Unit,
     onDismissDeleteDialog: () -> Unit,
+    onItemDeleteClick: (String) -> Unit,
+    onItemExtendClick: (String) -> Unit,
+    onItemSendClick: (String) -> Unit,
+    onSendContourSelected: (String) -> Unit,
+    onDismissSendContourPicker: () -> Unit,
     onBack: () -> Unit,
 ) {
+    uiState.sendContourPicker?.let { picker ->
+        GeoMarksSendContourDialog(
+            picker = picker,
+            onContourSelected = onSendContourSelected,
+            onDismiss = onDismissSendContourPicker,
+        )
+    }
+
     uiState.deleteConfirm?.let { confirm ->
         GeoMarksDeleteConfirmDialog(
             confirm = confirm,
@@ -126,6 +139,9 @@ fun GeoMarksListScreen(
                     GeoMarkListItem(
                         item = item,
                         onVisibilityToggle = onVisibilityToggle,
+                        onMenuDelete = { onItemDeleteClick(item.id) },
+                        onMenuExtend = { onItemExtendClick(item.id) },
+                        onMenuSend = { onItemSendClick(item.id) },
                     )
                     HorizontalDivider()
                 }

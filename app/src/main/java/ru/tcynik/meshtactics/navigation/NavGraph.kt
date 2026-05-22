@@ -185,6 +185,11 @@ fun NavGraph() {
                     onDeleteClick = viewModel::onDeleteClick,
                     onConfirmDelete = viewModel::onConfirmDelete,
                     onDismissDeleteDialog = viewModel::onDismissDeleteDialog,
+                    onItemDeleteClick = viewModel::onItemDeleteClick,
+                    onItemExtendClick = viewModel::onItemExtendClick,
+                    onItemSendClick = viewModel::onItemSendClick,
+                    onSendContourSelected = viewModel::onSendContourSelected,
+                    onDismissSendContourPicker = viewModel::onDismissSendContourPicker,
                     onBack = { navController.popBackStack() },
                 )
             }

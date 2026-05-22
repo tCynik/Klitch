@@ -23,8 +23,17 @@ import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkShape
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
+import ru.tcynik.meshtactics.domain.channel.model.Contour
+import ru.tcynik.meshtactics.domain.channel.model.ContourId
+import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
+import ru.tcynik.meshtactics.domain.channel.model.ContourHash
+import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteGeoMarksUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.ExtendGeoMarkUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkParams
+import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ToggleGeoMarkVisibilityUseCase
 import ru.tcynik.meshtactics.logger.NoOpLogger
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliveryFilterStatus
@@ -34,9 +43,13 @@ import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarksListUiSta
 class GeoMarksListViewModelTest {
 
     private val marksFlow = MutableStateFlow<List<GeoMarkModel>>(emptyList())
+    private val contoursFlow = MutableStateFlow<List<Contour>>(emptyList())
     private val observeGeoMarks: ObserveGeoMarksUseCase = mockk()
+    private val observeContours: ObserveContoursUseCase = mockk()
     private val toggleVisibility: ToggleGeoMarkVisibilityUseCase = mockk(relaxed = true)
     private val deleteGeoMarks: DeleteGeoMarksUseCase = mockk(relaxed = true)
+    private val extendGeoMark: ExtendGeoMarkUseCase = mockk(relaxed = true)
+    private val sendGeoMark: SendGeoMarkUseCase = mockk(relaxed = true)
     private val logger: Logger = NoOpLogger()
 
     private val testDispatcher = UnconfinedTestDispatcher()
@@ -46,10 +59,14 @@ class GeoMarksListViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         every { observeGeoMarks.invoke(any()) } returns marksFlow
+        every { observeContours.invoke(any()) } returns contoursFlow
         viewModel = GeoMarksListViewModel(
             observeGeoMarks = observeGeoMarks,
+            observeContours = observeContours,
             toggleVisibility = toggleVisibility,
             deleteGeoMarks = deleteGeoMarks,
+            extendGeoMark = extendGeoMark,
+            sendGeoMark = sendGeoMark,
             logger = logger,
         )
     }
@@ -312,6 +329,83 @@ class GeoMarksListViewModelTest {
     }
 
     @Test
+    fun `onItemDeleteClick — single mark confirmation`() = runTest {
+        marksFlow.value = listOf(makeMark(id = "one", name = "Alpha", isSelf = true, authorNodeId = ""))
+
+        viewModel.uiState.test {
+            awaitItem()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        viewModel.onItemDeleteClick("one")
+
+        val confirm = viewModel.uiState.value.deleteConfirm
+        assertEquals("Удалить метку Alpha(Я)?", confirm?.message)
+        assertEquals(listOf("one"), confirm?.markIds)
+    }
+
+    @Test
+    fun `onItemExtendClick — delegates to use case`() = runTest {
+        marksFlow.value = listOf(makeMark(id = "ext"))
+
+        viewModel.uiState.test {
+            awaitItem()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        viewModel.onItemExtendClick("ext")
+
+        coVerify { extendGeoMark("ext") }
+    }
+
+    @Test
+    fun `onItemSendClick — opens contour picker with active contours`() = runTest {
+        marksFlow.value = listOf(makeMark(id = "send", name = "SendMe"))
+        contoursFlow.value = listOf(
+            makeContour(id = "ch-1", name = "Alpha"),
+            makeContour(id = "ch-2", name = "Beta", isActive = false),
+        )
+
+        viewModel.uiState.test {
+            awaitItem()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        viewModel.onItemSendClick("send")
+
+        val picker = viewModel.uiState.value.sendContourPicker
+        assertEquals("send", picker?.markId)
+        assertEquals("SendMe", picker?.markName)
+        assertEquals(listOf("ch-1", "__local__"), picker?.contours?.map { it.contourId })
+    }
+
+    @Test
+    fun `onSendContourSelected — sends mark to contour`() = runTest {
+        val mark = makeMark(id = "send", isSelf = true)
+        marksFlow.value = listOf(mark)
+        contoursFlow.value = listOf(makeContour(id = "ch-1", name = "Alpha"))
+
+        viewModel.uiState.test {
+            awaitItem()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        viewModel.onItemSendClick("send")
+        viewModel.onSendContourSelected("ch-1")
+
+        coVerify {
+            sendGeoMark(match { params ->
+                params.mark.id == "send" && params.contourId == ContourId("ch-1") && !params.localOnly
+            })
+        }
+        assertNull(viewModel.uiState.value.sendContourPicker)
+    }
+
+    @Test
     fun `reflects isVisible from domain model`() = runTest {
         marksFlow.value = listOf(
             makeMark(id = "hidden", isVisible = false),
@@ -329,6 +423,20 @@ class GeoMarksListViewModelTest {
 
     private fun filterStatus(state: GeoMarksListUiState, type: GeoMarkDeliveryState): GeoMarkDeliveryFilterStatus =
         state.deliveryFilters.first { it.deliveryState == type }.status
+
+    private fun makeContour(
+        id: String,
+        name: String,
+        isActive: Boolean = true,
+    ) = Contour(
+        id = ContourId(id),
+        name = name,
+        description = null,
+        expiration = null,
+        exclusivityTime = null,
+        isActive = isActive,
+        transport = ContourTransport(meshtastic = MeshtasticChannel(psk = "", channelHash = ContourHash("hash-$id"))),
+    )
 
     private fun makeMark(
         id: String,

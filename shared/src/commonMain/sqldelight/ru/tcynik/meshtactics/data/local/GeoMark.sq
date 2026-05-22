@@ -41,5 +41,8 @@ DELETE FROM geo_mark WHERE id = :id;
 setVisible:
 UPDATE geo_mark SET is_visible = :isVisible WHERE id = :id;
 
+updateExpiresAt:
+UPDATE geo_mark SET expires_at = :expiresAt WHERE id = :id;
+
 deleteExpired:
 DELETE FROM geo_mark WHERE expires_at IS NOT NULL AND expires_at < :nowSeconds;

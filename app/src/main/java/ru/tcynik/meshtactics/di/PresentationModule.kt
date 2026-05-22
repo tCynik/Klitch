@@ -153,8 +153,11 @@ val presentationModule = module {
     viewModel {
         GeoMarksListViewModel(
             observeGeoMarks = get(),
+            observeContours = get(),
             toggleVisibility = get<ToggleGeoMarkVisibilityUseCase>(),
             deleteGeoMarks = get(),
+            extendGeoMark = get(),
+            sendGeoMark = get(),
             logger = get(),
         )
     }

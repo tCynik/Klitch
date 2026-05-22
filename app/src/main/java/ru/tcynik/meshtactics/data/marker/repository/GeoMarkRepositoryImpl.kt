@@ -110,6 +110,10 @@ class GeoMarkRepositoryImpl(
         geoMarkQueries.setVisible(isVisible = if (visible) 1L else 0L, id = id)
     }
 
+    override suspend fun updateExpiresAt(id: String, expiresAt: Long) {
+        geoMarkQueries.updateExpiresAt(expiresAt = expiresAt, id = id)
+    }
+
     override suspend fun deleteById(id: String) {
         geoMarkQueries.deleteById(id)
     }

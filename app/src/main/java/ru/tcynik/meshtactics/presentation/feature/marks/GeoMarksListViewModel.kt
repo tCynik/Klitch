@@ -9,25 +9,35 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import ru.tcynik.meshtactics.domain.channel.model.ContourId
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.logger.Logger
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkColor
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteGeoMarksUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.ExtendGeoMarkUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkParams
+import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ToggleGeoMarkVisibilityUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
+import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkContourOptionUi
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliveryFilterButtonUi
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliveryFilterStatus
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliveryState
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkListItemUiModel
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarksDeleteConfirmUi
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarksListUiState
+import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarksSendContourPickerUi
 import ru.tcynik.meshtactics.presentation.feature.marks.models.resolveGeoMarkDeliveryState
 
 class GeoMarksListViewModel(
     private val observeGeoMarks: ObserveGeoMarksUseCase,
+    private val observeContours: ObserveContoursUseCase,
     private val toggleVisibility: ToggleGeoMarkVisibilityUseCase,
     private val deleteGeoMarks: DeleteGeoMarksUseCase,
+    private val extendGeoMark: ExtendGeoMarkUseCase,
+    private val sendGeoMark: SendGeoMarkUseCase,
     private val logger: Logger,
 ) : ViewModel() {
 
@@ -35,6 +45,7 @@ class GeoMarksListViewModel(
     val uiState: StateFlow<GeoMarksListUiState> = _uiState.asStateFlow()
 
     private var cachedMarks: List<GeoMarkModel> = emptyList()
+    private var sendContourOptions: List<GeoMarkContourOptionUi> = emptyList()
     private var nowSeconds: Long = System.currentTimeMillis() / 1000
     private val visibleDeliveryFilters = mutableSetOf<GeoMarkDeliveryState>()
     private var knownPresentTypes = emptySet<GeoMarkDeliveryState>()
@@ -45,6 +56,14 @@ class GeoMarksListViewModel(
                 cachedMarks = marks
                 syncVisibleDeliveryFiltersOnMarksChange()
                 rebuildItems()
+            }
+        }
+        viewModelScope.launch {
+            observeContours(NoParams).collect { contours ->
+                val active = contours.filter { it.isActive }
+                val storage = GeoMarkContourOptionUi(LOCAL_STORAGE_ID, "Хранилище")
+                sendContourOptions = (active.map { GeoMarkContourOptionUi(it.id.value, it.name) } + storage)
+                    .toImmutableList()
             }
         }
         viewModelScope.launch {
@@ -76,21 +95,48 @@ class GeoMarksListViewModel(
     fun onDeleteClick() {
         val selected = _uiState.value.items.filter { it.isVisible }
         if (selected.isEmpty()) return
+        showDeleteConfirm(selected.map { it.id }, selected)
+    }
 
-        val message = when (selected.size) {
-            1 -> {
-                val item = selected.single()
-                "Удалить метку ${item.name}(от ${item.authorLabel})?"
-            }
-            else -> "Удалить выбранные метки(${selected.size})?"
+    fun onItemDeleteClick(markId: String) {
+        val item = findItem(markId) ?: return
+        showDeleteConfirm(listOf(item.id), listOf(item))
+    }
+
+    fun onItemExtendClick(markId: String) {
+        viewModelScope.launch {
+            extendGeoMark(markId)
+            logger.d("Marks", "extended mark ttl: id=$markId")
         }
+    }
+
+    fun onItemSendClick(markId: String) {
+        val item = findItem(markId) ?: return
+        if (sendContourOptions.isEmpty()) return
         _uiState.update {
             it.copy(
-                deleteConfirm = GeoMarksDeleteConfirmUi(
-                    message = message,
-                    markIds = selected.map { item -> item.id }.toImmutableList(),
+                sendContourPicker = GeoMarksSendContourPickerUi(
+                    markId = markId,
+                    markName = item.name,
+                    contours = sendContourOptions.toImmutableList(),
                 ),
             )
+        }
+    }
+
+    fun onDismissSendContourPicker() {
+        _uiState.update { it.copy(sendContourPicker = null) }
+    }
+
+    fun onSendContourSelected(contourId: String) {
+        val picker = _uiState.value.sendContourPicker ?: return
+        val mark = cachedMarks.find { it.id == picker.markId } ?: return
+        val localOnly = contourId == LOCAL_STORAGE_ID
+        val contour = if (localOnly) null else ContourId(contourId)
+        viewModelScope.launch {
+            sendGeoMark(SendGeoMarkParams(mark, contour, localOnly))
+            logger.d("Marks", "resent mark: id=${mark.id} contour=$contourId localOnly=$localOnly")
+            _uiState.update { it.copy(sendContourPicker = null) }
         }
     }
 
@@ -120,6 +166,30 @@ class GeoMarksListViewModel(
             logger.d("Marks", "bulk visibility: targetVisible=$targetVisible count=${filteredItems.size}")
         }
     }
+
+    private fun showDeleteConfirm(
+        markIds: List<String>,
+        items: List<GeoMarkListItemUiModel>,
+    ) {
+        val message = when (items.size) {
+            1 -> {
+                val item = items.single()
+                "Удалить метку ${item.name}(от ${item.authorLabel})?"
+            }
+            else -> "Удалить выбранные метки(${items.size})?"
+        }
+        _uiState.update {
+            it.copy(
+                deleteConfirm = GeoMarksDeleteConfirmUi(
+                    message = message,
+                    markIds = markIds.toImmutableList(),
+                ),
+            )
+        }
+    }
+
+    private fun findItem(markId: String): GeoMarkListItemUiModel? =
+        _uiState.value.items.find { it.id == markId }
 
     private fun rebuildItems() {
         val now = nowSeconds
@@ -164,6 +234,7 @@ class GeoMarksListViewModel(
                 bulkVisibilityEnabled = visibleItems.isNotEmpty(),
                 deleteEnabled = visibleItems.any { item -> item.isVisible },
                 deleteConfirm = it.deleteConfirm,
+                sendContourPicker = it.sendContourPicker,
             )
         }
     }
@@ -199,5 +270,9 @@ class GeoMarksListViewModel(
         type !in presentTypes -> GeoMarkDeliveryFilterStatus.INACTIVE
         type in visibleDeliveryFilters -> GeoMarkDeliveryFilterStatus.SELECTED
         else -> GeoMarkDeliveryFilterStatus.UNSELECTED
+    }
+
+    companion object {
+        private const val LOCAL_STORAGE_ID = "__local__"
     }
 }

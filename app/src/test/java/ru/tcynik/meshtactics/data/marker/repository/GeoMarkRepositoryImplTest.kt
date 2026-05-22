@@ -238,6 +238,18 @@ class GeoMarkRepositoryImplTest {
     }
 
     @Test
+    fun `updateExpiresAt — updates expiry in observeGeoMarks`() = runTest {
+        repo.persistReceived(makePointMark("ttl-1"), ContourId("ch-1"))
+
+        repo.updateExpiresAt("ttl-1", 9_999L)
+
+        repo.observeGeoMarks().test {
+            assertEquals(9_999L, awaitItem().single().expiresAt)
+            cancel()
+        }
+    }
+
+    @Test
     fun `deleteExpired — removes expired marks`() = runTest {
         db.geoMarkQueries.insert(
             id = "expired", waypointId = 0L, type = "POINT",

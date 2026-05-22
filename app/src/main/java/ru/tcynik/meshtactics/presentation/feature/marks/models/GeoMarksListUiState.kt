@@ -14,4 +14,5 @@ data class GeoMarksListUiState(
     /** Есть отмеченные чекбоксом метки в текущем фильтре. */
     val deleteEnabled: Boolean = false,
     val deleteConfirm: GeoMarksDeleteConfirmUi? = null,
+    val sendContourPicker: GeoMarksSendContourPickerUi? = null,
 )
