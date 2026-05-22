@@ -74,7 +74,7 @@ fun GeoMarkListItem(
         IconButton(onClick = { /* TODO: контекстное меню */ }) {
             Icon(
                 painter = painterResource(R.drawable.ic_more_vert),
-                contentDescription = null,
+                contentDescription = "Меню",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

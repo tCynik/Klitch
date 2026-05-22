@@ -186,7 +186,9 @@
       "Bash(Remove-Item \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\geo-marks-sheet.md\")",
       "Bash(./gradlew :app:testDebugUnitTest --tests \"ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapterTest\")",
       "Bash(rm \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\track-end-type-visual-picker.md\")",
-      "Bash(./gradlew assembleDebug)"
+      "Bash(./gradlew assembleDebug)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",

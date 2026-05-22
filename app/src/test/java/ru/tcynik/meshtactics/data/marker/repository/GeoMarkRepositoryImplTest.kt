@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -179,6 +180,24 @@ class GeoMarkRepositoryImplTest {
     }
 
     // ── deleteExpired ─────────────────────────────────────────────────────────
+
+    @Test
+    fun `toggleVisibility — updates is_visible and observeGeoMarks reflects change`() = runTest {
+        repo.persistReceived(makePointMark("vis-1"), ContourId("ch-1"))
+
+        repo.observeGeoMarks().test {
+            assertTrue(awaitItem().single().isVisible)
+
+            repo.toggleVisibility("vis-1", false)
+
+            assertFalse(awaitItem().single().isVisible)
+
+            repo.toggleVisibility("vis-1", true)
+
+            assertTrue(awaitItem().single().isVisible)
+            cancel()
+        }
+    }
 
     @Test
     fun `deleteExpired — removes expired marks`() = runTest {

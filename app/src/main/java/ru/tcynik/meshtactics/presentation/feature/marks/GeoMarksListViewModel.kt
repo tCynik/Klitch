@@ -17,7 +17,6 @@ import ru.tcynik.meshtactics.domain.marker.usecase.ToggleGeoMarkVisibilityUseCas
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkListItemUiModel
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarksListUiState
-import kotlin.math.ceil
 
 class GeoMarksListViewModel(
     private val observeGeoMarks: ObserveGeoMarksUseCase,
@@ -56,30 +55,20 @@ class GeoMarksListViewModel(
 
     private fun rebuildItems() {
         val now = nowSeconds
-        val items = cachedMarks.map { mark ->
-            GeoMarkListItemUiModel(
-                id = mark.id,
-                colorArgb = GeoMarkColor.colorAt(mark.color),
-                shape = mark.shape,
-                type = mark.type,
-                name = mark.name.ifBlank { "—" },
-                ttlLabel = formatTtl(mark.expiresAt, now),
-                authorLabel = if (mark.isSelf) "Я" else mark.authorNodeId.take(6),
-                isVisible = mark.isVisible,
-            )
-        }
+        val items = cachedMarks
+            .sortedByDescending { it.createdAt }
+            .map { mark ->
+                GeoMarkListItemUiModel(
+                    id = mark.id,
+                    colorArgb = GeoMarkColor.colorAt(mark.color),
+                    shape = mark.shape,
+                    type = mark.type,
+                    name = mark.name.ifBlank { "—" },
+                    ttlLabel = GeoMarkTtlFormatter.format(mark.expiresAt, now),
+                    authorLabel = if (mark.isSelf) "Я" else mark.authorNodeId.take(6),
+                    isVisible = mark.isVisible,
+                )
+            }
         _uiState.update { it.copy(items = items.toImmutableList()) }
-    }
-
-    private fun formatTtl(expiresAt: Long?, now: Long): String {
-        if (expiresAt == null) return "—"
-        val remaining = expiresAt - now
-        if (remaining <= 0) return "истёк"
-        if (remaining < 60) return "<1 мин."
-        val minutes = ceil(remaining / 60.0).toInt()
-        if (minutes < 60) return "$minutes мин."
-        val hours = minutes / 60
-        val mins = minutes % 60
-        return if (mins == 0) "${hours}ч" else "${hours}ч ${mins}м"
     }
 }
