@@ -182,6 +182,9 @@ fun NavGraph() {
                     onVisibilityToggle = viewModel::onVisibilityToggle,
                     onDeliveryFilterToggle = viewModel::onDeliveryFilterToggle,
                     onToggleAllFilteredVisibility = viewModel::onToggleAllFilteredVisibility,
+                    onDeleteClick = viewModel::onDeleteClick,
+                    onConfirmDelete = viewModel::onConfirmDelete,
+                    onDismissDeleteDialog = viewModel::onDismissDeleteDialog,
                     onBack = { navController.popBackStack() },
                 )
             }

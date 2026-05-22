@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import ru.tcynik.meshtactics.domain.logger.Logger
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkColor
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
+import ru.tcynik.meshtactics.domain.marker.usecase.DeleteGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ToggleGeoMarkVisibilityUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
@@ -19,12 +20,14 @@ import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliveryFi
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliveryFilterStatus
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliveryState
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkListItemUiModel
+import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarksDeleteConfirmUi
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarksListUiState
 import ru.tcynik.meshtactics.presentation.feature.marks.models.resolveGeoMarkDeliveryState
 
 class GeoMarksListViewModel(
     private val observeGeoMarks: ObserveGeoMarksUseCase,
     private val toggleVisibility: ToggleGeoMarkVisibilityUseCase,
+    private val deleteGeoMarks: DeleteGeoMarksUseCase,
     private val logger: Logger,
 ) : ViewModel() {
 
@@ -68,6 +71,41 @@ class GeoMarksListViewModel(
         }
         rebuildItems()
         logger.d("Marks", "delivery filter toggled: $deliveryState visible=${deliveryState in visibleDeliveryFilters}")
+    }
+
+    fun onDeleteClick() {
+        val selected = _uiState.value.items.filter { it.isVisible }
+        if (selected.isEmpty()) return
+
+        val message = when (selected.size) {
+            1 -> {
+                val item = selected.single()
+                "Удалить метку ${item.name}(от ${item.authorLabel})?"
+            }
+            else -> "Удалить выбранные метки(${selected.size})?"
+        }
+        _uiState.update {
+            it.copy(
+                deleteConfirm = GeoMarksDeleteConfirmUi(
+                    message = message,
+                    markIds = selected.map { item -> item.id }.toImmutableList(),
+                ),
+            )
+        }
+    }
+
+    fun onDismissDeleteDialog() {
+        _uiState.update { it.copy(deleteConfirm = null) }
+    }
+
+    fun onConfirmDelete() {
+        val confirm = _uiState.value.deleteConfirm ?: return
+        val ids = confirm.markIds
+        viewModelScope.launch {
+            deleteGeoMarks(ids)
+            logger.d("Marks", "deleted marks: count=${ids.size}")
+            _uiState.update { it.copy(deleteConfirm = null) }
+        }
     }
 
     fun onToggleAllFilteredVisibility() {
@@ -124,6 +162,8 @@ class GeoMarksListViewModel(
                 deliveryFilters = deliveryFilters.toImmutableList(),
                 allFilteredVisible = visibleItems.isNotEmpty() && visibleItems.all { item -> item.isVisible },
                 bulkVisibilityEnabled = visibleItems.isNotEmpty(),
+                deleteEnabled = visibleItems.any { item -> item.isVisible },
+                deleteConfirm = it.deleteConfirm,
             )
         }
     }

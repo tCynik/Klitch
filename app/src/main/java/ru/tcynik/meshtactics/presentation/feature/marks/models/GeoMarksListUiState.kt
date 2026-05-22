@@ -11,4 +11,7 @@ data class GeoMarksListUiState(
     val allFilteredVisible: Boolean = false,
     /** Есть метки в текущем фильтре — кнопка «все/снять» активна. */
     val bulkVisibilityEnabled: Boolean = false,
+    /** Есть отмеченные чекбоксом метки в текущем фильтре. */
+    val deleteEnabled: Boolean = false,
+    val deleteConfirm: GeoMarksDeleteConfirmUi? = null,
 )

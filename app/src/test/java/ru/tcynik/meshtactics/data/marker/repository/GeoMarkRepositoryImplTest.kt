@@ -226,6 +226,18 @@ class GeoMarkRepositoryImplTest {
     }
 
     @Test
+    fun `deleteById — removes mark from observeGeoMarks`() = runTest {
+        repo.persistReceived(makePointMark("del-1"), ContourId("ch-1"))
+
+        repo.deleteById("del-1")
+
+        repo.observeGeoMarks().test {
+            assertTrue(awaitItem().isEmpty())
+            cancel()
+        }
+    }
+
+    @Test
     fun `deleteExpired — removes expired marks`() = runTest {
         db.geoMarkQueries.insert(
             id = "expired", waypointId = 0L, type = "POINT",

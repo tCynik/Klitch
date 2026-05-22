@@ -17,6 +17,7 @@ import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkPreferencesReposito
 import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkRepository
 import ru.tcynik.meshtactics.domain.marker.usecase.AutoExpireGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.DeleteGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
@@ -46,6 +47,7 @@ val geoMarkDataModule = module {
     }
     single { ObserveGeoMarksUseCase(get()) }
     single { ToggleGeoMarkVisibilityUseCase(get()) }
+    single { DeleteGeoMarksUseCase(get()) }
     single { SendGeoMarkUseCase(get()) }
     single { DeleteExpiredGeoMarksUseCase(get()) }
     single { AutoExpireGeoMarksUseCase(get()) }

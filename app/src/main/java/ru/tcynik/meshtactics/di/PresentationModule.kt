@@ -154,6 +154,7 @@ val presentationModule = module {
         GeoMarksListViewModel(
             observeGeoMarks = get(),
             toggleVisibility = get<ToggleGeoMarkVisibilityUseCase>(),
+            deleteGeoMarks = get(),
             logger = get(),
         )
     }

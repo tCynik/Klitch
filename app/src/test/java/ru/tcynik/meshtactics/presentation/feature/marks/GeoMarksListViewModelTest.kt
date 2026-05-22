@@ -14,6 +14,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -22,6 +23,7 @@ import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkShape
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
+import ru.tcynik.meshtactics.domain.marker.usecase.DeleteGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ToggleGeoMarkVisibilityUseCase
 import ru.tcynik.meshtactics.logger.NoOpLogger
@@ -34,6 +36,7 @@ class GeoMarksListViewModelTest {
     private val marksFlow = MutableStateFlow<List<GeoMarkModel>>(emptyList())
     private val observeGeoMarks: ObserveGeoMarksUseCase = mockk()
     private val toggleVisibility: ToggleGeoMarkVisibilityUseCase = mockk(relaxed = true)
+    private val deleteGeoMarks: DeleteGeoMarksUseCase = mockk(relaxed = true)
     private val logger: Logger = NoOpLogger()
 
     private val testDispatcher = UnconfinedTestDispatcher()
@@ -46,6 +49,7 @@ class GeoMarksListViewModelTest {
         viewModel = GeoMarksListViewModel(
             observeGeoMarks = observeGeoMarks,
             toggleVisibility = toggleVisibility,
+            deleteGeoMarks = deleteGeoMarks,
             logger = logger,
         )
     }
@@ -219,6 +223,73 @@ class GeoMarksListViewModelTest {
             assertTrue(state.bulkVisibilityEnabled)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `deleteEnabled when at least one visible mark in filter`() = runTest {
+        marksFlow.value = listOf(
+            makeMark(id = "on", isVisible = true),
+            makeMark(id = "off", isVisible = false),
+        )
+
+        viewModel.uiState.test {
+            awaitItem()
+            val state = awaitItem()
+            assertTrue(state.deleteEnabled)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `onDeleteClick — single mark confirmation message`() = runTest {
+        marksFlow.value = listOf(makeMark(id = "one", name = "Alpha", isSelf = true, authorNodeId = ""))
+
+        viewModel.uiState.test {
+            awaitItem()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        viewModel.onDeleteClick()
+
+        val confirm = viewModel.uiState.value.deleteConfirm
+        assertEquals("Удалить метку Alpha(Я)?", confirm?.message)
+        assertEquals(listOf("one"), confirm?.markIds)
+    }
+
+    @Test
+    fun `onDeleteClick — multiple marks confirmation message`() = runTest {
+        marksFlow.value = listOf(
+            makeMark(id = "a", isVisible = true),
+            makeMark(id = "b", isVisible = true),
+        )
+
+        viewModel.uiState.test {
+            awaitItem()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        viewModel.onDeleteClick()
+
+        assertEquals("Удалить выбранные метки(2)?", viewModel.uiState.value.deleteConfirm?.message)
+    }
+
+    @Test
+    fun `onConfirmDelete — invokes use case and closes dialog`() = runTest {
+        marksFlow.value = listOf(makeMark(id = "del", isVisible = true))
+
+        viewModel.uiState.test {
+            awaitItem()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        viewModel.onDeleteClick()
+        viewModel.onConfirmDelete()
+
+        coVerify { deleteGeoMarks(listOf("del")) }
+        assertNull(viewModel.uiState.value.deleteConfirm)
     }
 
     @Test
