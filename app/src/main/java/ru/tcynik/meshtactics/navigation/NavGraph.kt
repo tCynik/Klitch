@@ -181,6 +181,7 @@ fun NavGraph() {
                     uiState = uiState,
                     onVisibilityToggle = viewModel::onVisibilityToggle,
                     onDeliveryFilterToggle = viewModel::onDeliveryFilterToggle,
+                    onToggleAllFilteredVisibility = viewModel::onToggleAllFilteredVisibility,
                     onBack = { navController.popBackStack() },
                 )
             }

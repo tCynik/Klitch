@@ -70,6 +70,19 @@ class GeoMarksListViewModel(
         logger.d("Marks", "delivery filter toggled: $deliveryState visible=${deliveryState in visibleDeliveryFilters}")
     }
 
+    fun onToggleAllFilteredVisibility() {
+        val filteredItems = _uiState.value.items
+        if (filteredItems.isEmpty()) return
+
+        val targetVisible = !filteredItems.all { it.isVisible }
+        viewModelScope.launch {
+            filteredItems
+                .filter { it.isVisible != targetVisible }
+                .forEach { item -> toggleVisibility(item.id, targetVisible) }
+            logger.d("Marks", "bulk visibility: targetVisible=$targetVisible count=${filteredItems.size}")
+        }
+    }
+
     private fun rebuildItems() {
         val now = nowSeconds
         val allItems = cachedMarks
@@ -109,6 +122,8 @@ class GeoMarksListViewModel(
                 items = visibleItems.toImmutableList(),
                 hasMarks = allItems.isNotEmpty(),
                 deliveryFilters = deliveryFilters.toImmutableList(),
+                allFilteredVisible = visibleItems.isNotEmpty() && visibleItems.all { item -> item.isVisible },
+                bulkVisibilityEnabled = visibleItems.isNotEmpty(),
             )
         }
     }

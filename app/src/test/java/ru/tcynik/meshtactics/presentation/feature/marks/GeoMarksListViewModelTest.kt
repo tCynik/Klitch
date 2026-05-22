@@ -168,6 +168,60 @@ class GeoMarksListViewModelTest {
     }
 
     @Test
+    fun `bulk visibility selects all filtered marks when not all visible`() = runTest {
+        marksFlow.value = listOf(
+            makeMark(id = "a", isVisible = true),
+            makeMark(id = "b", isVisible = false),
+        )
+
+        viewModel.uiState.test {
+            awaitItem()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        viewModel.onToggleAllFilteredVisibility()
+
+        coVerify { toggleVisibility("b", true) }
+        coVerify(exactly = 0) { toggleVisibility("a", any()) }
+    }
+
+    @Test
+    fun `bulk visibility hides all filtered marks when all visible`() = runTest {
+        marksFlow.value = listOf(
+            makeMark(id = "a", isVisible = true),
+            makeMark(id = "b", isVisible = true),
+        )
+
+        viewModel.uiState.test {
+            awaitItem()
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        viewModel.onToggleAllFilteredVisibility()
+
+        coVerify { toggleVisibility("a", false) }
+        coVerify { toggleVisibility("b", false) }
+    }
+
+    @Test
+    fun `allFilteredVisible reflects checkbox state of filtered items`() = runTest {
+        marksFlow.value = listOf(
+            makeMark(id = "a", isVisible = true),
+            makeMark(id = "b", isVisible = false),
+        )
+
+        viewModel.uiState.test {
+            awaitItem()
+            val state = awaitItem()
+            assertFalse(state.allFilteredVisible)
+            assertTrue(state.bulkVisibilityEnabled)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `hasMarks true when filters hide all items`() = runTest {
         marksFlow.value = listOf(
             makeMark(id = "local", isSelf = true, logicalChannelId = "", authorNodeId = ""),
