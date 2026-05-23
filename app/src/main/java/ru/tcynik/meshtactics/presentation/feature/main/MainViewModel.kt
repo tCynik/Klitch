@@ -320,14 +320,17 @@ class MainViewModel(
                 _formState.update { form ->
                     val currentId = form.selectedContourId
                     val stillInList = addressees.any { it.contourId == currentId }
+                    val explicitChoice = form.wasAddresseeExplicitlySelected
+                        || isPersistedGeoMarkAddresseeChoice(currentId)
                     val newId = when {
-                        form.wasAddresseeExplicitlySelected && stillInList -> currentId
+                        explicitChoice && stillInList -> currentId
+                        explicitChoice && active.isEmpty() -> currentId
                         else -> resolveDefaultGeoMarkAddresseeId(active, isConnected, LOCAL_STORAGE_ID)
                     }
                     form.copy(
                         availableContours = addressees,
                         selectedContourId = newId,
-                        wasAddresseeExplicitlySelected = form.wasAddresseeExplicitlySelected && stillInList,
+                        wasAddresseeExplicitlySelected = explicitChoice && (stillInList || active.isEmpty()),
                     )
                 }
             }
@@ -996,6 +999,7 @@ class MainViewModel(
             .getOrDefault(GeoMarkType.POINT)
         _formState.update { form ->
             val preserveType = _uiState.value.pendingMarkPoints.isNotEmpty()
+            val persistedAddressee = isPersistedGeoMarkAddresseeChoice(prefs.selectedContourId)
             form.copy(
                 selectedType         = if (preserveType) form.selectedType else prefsType,
                 selectedColor        = prefs.selectedColor,
@@ -1005,12 +1009,13 @@ class MainViewModel(
                 pointMarkName        = prefs.pointMarkName,
                 trackMarkName        = prefs.trackMarkName,
                 selectedContourId    = when {
+                    form.wasAddresseeExplicitlySelected && form.selectedContourId.isNotEmpty() ->
+                        form.selectedContourId
+                    persistedAddressee -> prefs.selectedContourId
                     form.selectedContourId.isNotEmpty() -> form.selectedContourId
-                    isPersistedGeoMarkAddresseeChoice(prefs.selectedContourId) -> prefs.selectedContourId
                     else -> ""
                 },
-                wasAddresseeExplicitlySelected = form.wasAddresseeExplicitlySelected
-                    || isPersistedGeoMarkAddresseeChoice(prefs.selectedContourId),
+                wasAddresseeExplicitlySelected = form.wasAddresseeExplicitlySelected || persistedAddressee,
             )
         }
     }

@@ -1,10 +1,13 @@
 package ru.tcynik.meshtactics.presentation.feature.main
 
+import android.os.SystemClock
 import app.cash.turbine.test
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,7 +15,6 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -64,7 +66,8 @@ import ru.tcynik.meshtactics.domain.settings.usecase.ObserveGeoMarkSizeLevelUseC
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveMarkerSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveShowGeoMarkNamesUseCase
 
-private const val DOUBLE_TAP_WINDOW_MS = 300L
+/** Step between [SystemClock.uptimeMillis] calls — must exceed [MainViewModel] 80 ms tap dedupe. */
+private const val MOCK_UPTIME_STEP_MS = 100L
 
 class MainViewModelMarkToolTest {
 
@@ -104,9 +107,16 @@ class MainViewModelMarkToolTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var viewModel: MainViewModel
+    private var mockUptimeMs = 0L
 
     @Before
     fun setUp() {
+        mockkStatic(SystemClock::class)
+        mockUptimeMs = 0L
+        every { SystemClock.uptimeMillis() } answers {
+            mockUptimeMs += MOCK_UPTIME_STEP_MS
+            mockUptimeMs
+        }
         Dispatchers.setMain(testDispatcher)
         every { getTileUrl.invoke() } returns ""
         every { getLastPosition.invoke() } returns null
@@ -172,6 +182,7 @@ class MainViewModelMarkToolTest {
 
     @After
     fun tearDown() {
+        unmockkStatic(SystemClock::class)
         Dispatchers.resetMain()
     }
 
@@ -206,7 +217,6 @@ class MainViewModelMarkToolTest {
     fun `onMapClick when tool inactive — does not add pending point`() = runTest(testDispatcher) {
         assertFalse(viewModel.uiState.value.markToolActive)
         viewModel.onMapClick(55.75, 37.62)
-        advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
         assertTrue(viewModel.uiState.value.pendingMarkPoints.isEmpty())
     }
 
@@ -227,13 +237,11 @@ class MainViewModelMarkToolTest {
     }
 
     @Test
-    fun `onMapClick multiple times — accumulates points after each debounce`() = runTest(testDispatcher) {
+    fun `onMapClick multiple times — accumulates points after each tap`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
         viewModel.setMarkType(GeoMarkType.TRACK)
         viewModel.onMapClick(55.750, 37.620)
-        advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
         viewModel.onMapClick(55.751, 37.621)
-        advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
         assertEquals(2, viewModel.uiState.value.pendingMarkPoints.size)
     }
 
@@ -362,7 +370,6 @@ class MainViewModelMarkToolTest {
         runTest(testDispatcher) {
             viewModel.toggleMarkTool()
             viewModel.onMapClick(55.750, 37.620)
-            advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
 
             viewModel.contextMenuEvent.test {
                 // Long-tap within ~10m of the pending point
@@ -380,7 +387,6 @@ class MainViewModelMarkToolTest {
         runTest(testDispatcher) {
             viewModel.toggleMarkTool()
             viewModel.onMapClick(55.750, 37.620)
-            advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
 
             var received = false
             val collectJob = backgroundScope.launch {
@@ -398,7 +404,6 @@ class MainViewModelMarkToolTest {
     fun `sendPendingMark — clears pending points`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
         viewModel.onMapClick(55.750, 37.620)
-        advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
         assertEquals(1, viewModel.uiState.value.pendingMarkPoints.size)
 
         viewModel.sendPendingMark()
@@ -409,7 +414,6 @@ class MainViewModelMarkToolTest {
     fun `sendPendingMark single point — sends POINT type`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
         viewModel.onMapClick(55.750, 37.620)
-        advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
 
         viewModel.sendPendingMark()
         coVerify(exactly = 1) { sendGeoMark(match { it.mark.type == GeoMarkType.POINT }) }
@@ -420,9 +424,7 @@ class MainViewModelMarkToolTest {
         viewModel.toggleMarkTool()
         viewModel.setMarkType(GeoMarkType.TRACK)
         viewModel.onMapClick(55.750, 37.620)
-        advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
         viewModel.onMapClick(55.751, 37.621)
-        advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
 
         viewModel.sendPendingMark()
         coVerify(exactly = 1) { sendGeoMark(match { it.mark.type == GeoMarkType.TRACK }) }
@@ -442,9 +444,7 @@ class MainViewModelMarkToolTest {
         viewModel.toggleMarkTool()
         viewModel.setMarkType(GeoMarkType.TRACK)
         viewModel.onMapClick(55.750, 37.620)
-        advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
         viewModel.onMapClick(55.751, 37.621)
-        advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
         assertEquals(2, viewModel.uiState.value.pendingMarkPoints.size)
 
         viewModel.deletePendingPoint(0)
@@ -458,7 +458,6 @@ class MainViewModelMarkToolTest {
     fun `deletePendingPoint last point — list becomes empty`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
         viewModel.onMapClick(55.750, 37.620)
-        advanceTimeBy(DOUBLE_TAP_WINDOW_MS + 10)
 
         viewModel.deletePendingPoint(0)
         assertTrue(viewModel.uiState.value.pendingMarkPoints.isEmpty())
