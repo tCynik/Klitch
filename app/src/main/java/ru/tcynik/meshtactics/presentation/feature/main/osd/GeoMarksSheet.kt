@@ -120,7 +120,11 @@ fun GeoMarksSheet(
                     .navigationBarsPadding()
                     .padding(bottom = 8.dp),
             ) {
-                SheetHeader(state)
+                SheetHeader(
+                    state = state,
+                    pendingPoints = pendingPoints,
+                    trackDistanceLabel = trackDistanceLabel,
+                )
                 AnimatedVisibility(
                     visible = !state.isCollapsed,
                     enter = expandVertically(animationSpec = tween(200)),
@@ -146,7 +150,11 @@ fun GeoMarksSheet(
 }
 
 @Composable
-private fun SheetHeader(state: GeoMarksSheetUiState) {
+private fun SheetHeader(
+    state: GeoMarksSheetUiState,
+    pendingPoints: ImmutableList<GeoPoint>,
+    trackDistanceLabel: String,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -185,6 +193,15 @@ private fun SheetHeader(state: GeoMarksSheetUiState) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        if (state.isCollapsed && state.selectedType == GeoMarkType.TRACK) {
+            Text(
+                text = trackDistanceLabel,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                modifier = Modifier.padding(end = 4.dp),
+            )
+        }
         IconButton(onClick = state.onToggleCollapsed) {
             Icon(
                 imageVector = if (state.isCollapsed) Icons.Default.KeyboardArrowUp
