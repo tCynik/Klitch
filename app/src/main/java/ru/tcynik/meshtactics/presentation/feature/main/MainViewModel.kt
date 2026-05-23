@@ -93,7 +93,7 @@ import java.util.UUID
 // BLE RSSI threshold separating low signal (red) from medium/high signal (green).
 // Adjust based on field experience; -90 dBm is the standard Meshtastic convention.
 private const val RSSI_LOW_THRESHOLD = -90
-private const val LOCAL_STORAGE_ID = "__local__"
+private const val LOCAL_STORAGE_ID = GEO_MARK_LOCAL_STORAGE_ID
 
 // Proximity threshold for long-tap on a draft point (~30 metres).
 // TODO: replace with dp-based calculation using current camera zoom in Phase 3 refinement.
@@ -309,16 +309,15 @@ class MainViewModel(
             val storage = GeoMarkAddressee(LOCAL_STORAGE_ID, "Хранилище")
             val addressees = (active.map { GeoMarkAddressee(it.id.value, it.name) } + listOf(storage))
                 .toImmutableList()
-            Pair(addressees, isConnected)
+            Triple(addressees, isConnected, active)
         }
-            .onEach { (addressees, isConnected) ->
+            .onEach { (addressees, isConnected, active) ->
                 _formState.update { form ->
                     val currentId = form.selectedContourId
                     val stillInList = addressees.any { it.contourId == currentId }
                     val newId = when {
                         form.wasAddresseeExplicitlySelected && stillInList -> currentId
-                        isConnected && addressees.size > 1 -> addressees.first().contourId
-                        else -> LOCAL_STORAGE_ID
+                        else -> resolveDefaultGeoMarkAddresseeId(active, isConnected, LOCAL_STORAGE_ID)
                     }
                     form.copy(
                         availableContours = addressees,
@@ -974,8 +973,13 @@ class MainViewModel(
                 selectedTtlSeconds   = prefs.selectedTtlSeconds,
                 pointMarkName        = prefs.pointMarkName,
                 trackMarkName        = prefs.trackMarkName,
-                selectedContourId    = if (form.selectedContourId.isEmpty()) prefs.selectedContourId else form.selectedContourId,
-                wasAddresseeExplicitlySelected = form.wasAddresseeExplicitlySelected || prefs.selectedContourId.isNotEmpty(),
+                selectedContourId    = when {
+                    form.selectedContourId.isNotEmpty() -> form.selectedContourId
+                    isPersistedGeoMarkAddresseeChoice(prefs.selectedContourId) -> prefs.selectedContourId
+                    else -> ""
+                },
+                wasAddresseeExplicitlySelected = form.wasAddresseeExplicitlySelected
+                    || isPersistedGeoMarkAddresseeChoice(prefs.selectedContourId),
             )
         }
     }

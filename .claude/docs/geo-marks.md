@@ -43,6 +43,7 @@ app/
 │   └── GeoMarkPreferencesRepositoryImpl.kt — implements GeoMarkPreferencesRepository
 └── presentation/feature/main/
     ├── GeoMarksFormState.kt             — internal ViewModel form state (not exposed directly)
+    ├── GeoMarkAddresseeDefaults.kt      — default addressee resolver (Basic vs storage)
     ├── MainUiState.kt                   — geoMarks, markToolActive, pendingMarkPoints
     ├── MainViewModel.kt                 — _formState StateFlow, mark tool logic, gesture handlers
     ├── MainScreen.kt                    — GeoMarksSheet; course-up overlay; wires map callbacks
@@ -307,10 +308,16 @@ Derived StateFlow combining `_uiState + _formState`. All callbacks bundled (Menu
 
 `availableContours` = active contours via `ObserveContoursUseCase` + `GeoMarkAddressee("__local__", "Хранилище")`.
 
+Default resolution lives in `GeoMarkAddresseeDefaults.kt` (`resolveDefaultGeoMarkAddresseeId`).
+
 Selection priority:
-1. Previously explicit selection still in list → keep it
-2. Connected + contours present → first active contour
-3. Fallback → Хранилище (local only)
+1. User explicitly chose addressee in session (`setAddressee`) and id still in list → keep it
+2. Dynamic default via `resolveDefaultGeoMarkAddresseeId`:
+   - **Connected** + at least one active non-Emergency contour → **Basic** (`DefaultActiveContour`) if active, else first active non-Emergency contour
+   - **Disconnected** or no eligible contours → **Хранилище** (`__local__`, local only)
+3. DataStore `geomark_contour_id`: only a real contour UUID restores explicit choice on startup; `__local__` or empty does **not** block auto-switch when node connects
+
+Emergency (`DefaultContour`) is never used as dynamic default even if `isActive`.
 
 ### GeoMarksSheet composable
 
@@ -442,7 +449,7 @@ Long-tap on draft point within 30m → `GeoMarkContextMenuEvent(pointIndex, scre
 | TTL default | 8 hours (matches `EXPIRE_TTL_SECONDS`); added as 9th option in UI list |
 | TrackEndType MVP variants | NONE, ARROW (enum has all 4 for future) |
 | Color palette | 16 ARGB Int values indexed 0–15; default color index 4 (Red) |
-| Адресат source | Active contours via `ObserveContoursUseCase` + Хранилище (local-only) |
+| Адресат source | Active contours via `ObserveContoursUseCase` + Хранилище (local-only); default: Basic when connected, storage when not |
 | Preset limit | 10; oldest evicted on overflow |
 | DataStore format for presets | Preferences DataStore, JSON-serialised list in single key |
 | `ic_close` icon | `Icons.Default.Close` used directly |
