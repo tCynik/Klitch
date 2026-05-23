@@ -85,6 +85,7 @@ import ru.tcynik.meshtactics.domain.marker.usecase.AutoExpireGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
+import ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapter
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkContextMenuEvent
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MenuDrawerUiState
 import java.util.UUID
@@ -931,9 +932,10 @@ class MainViewModel(
         val localOnly = form.selectedContourId == LOCAL_STORAGE_ID
         val contourId = if (localOnly) null
                         else form.selectedContourId.takeIf { it.isNotEmpty() }?.let { ContourId(it) }
+        val markId = UUID.randomUUID().toString()
         val mark = GeoMarkModel(
-            id           = UUID.randomUUID().toString(),
-            waypointId   = 0,
+            id           = markId,
+            waypointId   = GeoMarkWaypointAdapter.waypointIdFromMarkId(markId),
             type         = type,
             points       = points,
             authorNodeId = "",

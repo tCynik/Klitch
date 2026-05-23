@@ -139,11 +139,17 @@ icon = (0x4D << 24) | (typeCode << 16) | (color << 8) | variant
 
 ### `encode(mark, ourNodeNum, ourNodeId, nowSeconds): DataPacket`
 
-Uses `mark.color`, `mark.name`, `mark.trackEndType.ends`, `mark.expiresAt`. Returns `DataPacket(channel=0)` — channel override is a repo concern.
+Uses `mark.color`, `mark.name`, `mark.trackEndType.ends`, `mark.expiresAt`. Sets `Waypoint.id` from `mark.waypointId` or `waypointIdFromMarkId(mark.id)` — **never 0** on the wire (Meshtastic treats `id=0` as one shared slot; duplicate sends overwrite each other). Returns `DataPacket(channel=0)` — channel override is a repo concern.
 
 ### `decode(packet, selfIds): GeoMarkModel?`
 
 Extracts `colorIndex = (icon ushr 8) and 0xF`, `endsByte` from payload byte 1, `name` from `waypoint.name`. Populates `GeoMarkModel.color`, `.name`, `.trackEndType`.
+
+**Stable SQLDelight key** (`resolveMarkId`): `wp-{waypoint.id}` when `waypoint.id != 0`; else `pkt-{packet.id}`; else content fingerprint `mt1-…`. No random UUID — repeated ingest of the same packet must not create duplicates.
+
+### `waypointIdFromMarkId(markId: String): Int`
+
+Deterministic non-zero `Waypoint.id` from app mark UUID (xor of UUID bits). Used in `MainViewModel.sendGeoMarkAtPoints` and `encode`.
 
 ### Constants
 
@@ -178,9 +184,9 @@ ViewModel.sendPendingMark()  // или onMapDoubleClick → send для POINT / 
 ```
 IngestReceivedGeoMarksUseCase (launched in ViewModel.init)
   PacketRepository.getWaypoints(): Flow<DataPacket>
-  + geoMarkQueries.selectSelfIds()
+  → skip packets with from == ID_LOCAL (own sends already in geo_mark via sendGeoMark)
   → GeoMarkWaypointAdapter.decode()
-  → geoMarkQueries.insertReceived()
+  → geoMarkQueries.insertReceived()  // upsert by stable wp-* id
   → ObserveGeoMarksUseCase → MainUiState.geoMarks → MapLibreLayer
 ```
 
@@ -206,7 +212,7 @@ CREATE TABLE geo_mark (
 );
 ```
 
-Queries: `selectAll`, `selectById`, `selectSelfIds`, `selectAllForChannel`, `insert`, `insertReceived`, `deleteById`, `deleteExpired`.
+Queries: `selectAll`, `selectById`, `selectSelfIds`, `selectAllForChannel`, `insert`, `insertReceived` (`INSERT OR REPLACE` — same `wp-*` id updates coords/color), `deleteById`, `deleteExpired`.
 
 ---
 

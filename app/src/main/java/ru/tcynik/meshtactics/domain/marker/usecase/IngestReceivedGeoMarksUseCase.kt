@@ -9,6 +9,7 @@ import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkRepository
+import ru.tcynik.meshtactics.mesh.model.DataPacket
 import ru.tcynik.meshtactics.mesh.repository.PacketRepository
 
 class IngestReceivedGeoMarksUseCase(
@@ -28,6 +29,8 @@ class IngestReceivedGeoMarksUseCase(
         val nowSeconds = System.currentTimeMillis() / 1_000
 
         packets.forEach { packet ->
+            if (packet.from == DataPacket.ID_LOCAL) return@forEach
+
             val contour = when (packet.channel) {
                 0 -> contours.find { it.id == DefaultContour.ID }?.takeIf { it.isActive }
                 else -> {

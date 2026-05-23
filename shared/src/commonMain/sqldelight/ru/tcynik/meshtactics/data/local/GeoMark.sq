@@ -32,7 +32,7 @@ INSERT OR REPLACE INTO geo_mark(id, waypoint_id, type, points_json, author_node_
 VALUES (:id, :waypointId, :type, :pointsJson, :authorNodeId, :createdAt, :expiresAt, :isSelf, :logicalChannelId, :color, :name, :trackEndType, :shape);
 
 insertReceived:
-INSERT OR IGNORE INTO geo_mark(id, waypoint_id, type, points_json, author_node_id, created_at, expires_at, is_self, logical_channel_id, color, name, track_end_type, shape)
+INSERT OR REPLACE INTO geo_mark(id, waypoint_id, type, points_json, author_node_id, created_at, expires_at, is_self, logical_channel_id, color, name, track_end_type, shape)
 VALUES (:id, :waypointId, :type, :pointsJson, :authorNodeId, :createdAt, :expiresAt, 0, :logicalChannelId, :color, :name, :trackEndType, 0);
 
 deleteById:

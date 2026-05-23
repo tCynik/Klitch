@@ -159,14 +159,15 @@ class GeoMarkRepositoryImplTest {
     // ── persistReceived ───────────────────────────────────────────────────────
 
     @Test
-    fun `persistReceived — INSERT OR IGNORE does not overwrite existing mark`() = runTest {
+    fun `persistReceived — INSERT OR REPLACE updates existing mark`() = runTest {
         val mark = makePointMark("dup-mark")
         repo.persistReceived(mark, ContourId("ch-1"))
-        repo.persistReceived(mark.copy(authorNodeId = "other"), ContourId("ch-2"))
+        repo.persistReceived(mark.copy(authorNodeId = "!updated"), ContourId("ch-2"))
 
         val rows = db.geoMarkQueries.selectAll().executeAsList()
         assertEquals(1, rows.size)
-        assertEquals("", rows[0].author_node_id) // first insert wins
+        assertEquals("!updated", rows[0].author_node_id)
+        assertEquals("ch-2", rows[0].logical_channel_id)
     }
 
     // ── sendGeoMark ───────────────────────────────────────────────────────────
