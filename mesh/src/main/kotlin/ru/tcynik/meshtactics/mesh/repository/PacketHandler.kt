@@ -20,6 +20,8 @@ import kotlinx.coroutines.CoroutineScope
 import org.meshtastic.proto.MeshPacket
 import org.meshtastic.proto.QueueStatus
 import org.meshtastic.proto.ToRadio
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /** Interface for handling the transmission of packets to the radio and managing the packet queue. */
 interface PacketHandler {
@@ -40,4 +42,10 @@ interface PacketHandler {
 
     /** Stops the packet queue. */
     fun stopPacketQueue()
+
+    /**
+     * Waits until [packetId] is handed off to the radio (QueueStatus) or the send job finishes.
+     * Call after the packet has been queued via [sendToRadio].
+     */
+    suspend fun awaitPacketSendResult(packetId: Int, timeout: Duration = 5.seconds): Boolean
 }

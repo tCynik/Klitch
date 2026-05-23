@@ -58,6 +58,9 @@ SELECT COUNT(*) > 0 FROM geo_mark_dismissed WHERE id = :id;
 insertDismissed:
 INSERT OR IGNORE INTO geo_mark_dismissed(id) VALUES (:id);
 
+updateMeshSentAuthor:
+UPDATE geo_mark SET author_node_id = :authorNodeId WHERE id = :id;
+
 setVisible:
 UPDATE geo_mark SET is_visible = :isVisible WHERE id = :id;
 

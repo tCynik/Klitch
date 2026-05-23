@@ -32,10 +32,18 @@ class GeoMarkDeliveryStateTest {
     }
 
     @Test
-    fun `self with channel — sent`() {
+    fun `self with channel and no author — queued`() {
+        assertEquals(
+            GeoMarkDeliveryState.QUEUED,
+            resolveGeoMarkDeliveryState(isSelf = true, logicalChannelId = "ch-1", authorNodeId = ""),
+        )
+    }
+
+    @Test
+    fun `self with channel and author — sent`() {
         assertEquals(
             GeoMarkDeliveryState.SENT,
-            resolveGeoMarkDeliveryState(isSelf = true, logicalChannelId = "ch-1", authorNodeId = ""),
+            resolveGeoMarkDeliveryState(isSelf = true, logicalChannelId = "ch-1", authorNodeId = "!abc"),
         )
     }
 }

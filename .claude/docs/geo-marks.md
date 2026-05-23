@@ -141,7 +141,7 @@ icon = (0x4D << 24) | (typeCode << 16) | (color << 8) | variant
 
 Uses `mark.color`, `mark.name`, `mark.trackEndType.ends`, `mark.expiresAt`. Sets `Waypoint.id` from `mark.waypointId` or `waypointIdFromMarkId(mark.id)` — **never 0** on the wire (Meshtastic treats `id=0` as one shared slot; duplicate sends overwrite each other). Sets `wantAck = false` (broadcast waypoints do not get ACKs; `want_ack=true` blocks the radio queue ~5s per packet). Returns `DataPacket(channel=0)` — channel override is a repo concern.
 
-**Rapid sends**: `GeoMarkRepositoryImpl.sendGeoMark` serializes mesh sends with a `Mutex` and routes through `MeshActionHandler.handleSend`. Waypoints use `wantAck = false`; `PacketHandlerImpl` must not block the radio queue for ~5s on no-ack packets (completes immediately after handoff, and on `QueueStatus` success+full).
+**Rapid sends**: `sendGeoMark` writes to SQLDelight **immediately** (map + list, delivery state `QUEUED`); `GeoMarkSendQueue` transmits to mesh in the background. Minimum **10.5 s** between radio sends (`MIN_SEND_INTERVAL_MS`) — Meshtastic firmware rate limit for `WAYPOINT_APP` (~10 s). After `handleSend`, `author_node_id` is set → state `SENT`. Faster taps are visible at once; mesh sends are paced.
 
 ### `decode(packet, selfIds): GeoMarkModel?`
 

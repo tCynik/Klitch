@@ -3,6 +3,7 @@ package ru.tcynik.meshtactics.presentation.feature.marks
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.outlined.MoveToInbox
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -13,6 +14,7 @@ import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliverySt
 
 fun geoMarkDeliveryIconSpec(state: GeoMarkDeliveryState): Pair<ImageVector, String> = when (state) {
     GeoMarkDeliveryState.LOCAL -> Icons.Outlined.Save to "Сохранено в базу"
+    GeoMarkDeliveryState.QUEUED -> Icons.Outlined.Schedule to "В очереди на отправку"
     GeoMarkDeliveryState.SENT -> Icons.Outlined.Email to "Отправлено"
     GeoMarkDeliveryState.RECEIVED -> Icons.Outlined.MoveToInbox to "Принято из сети"
 }

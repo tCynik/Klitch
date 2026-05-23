@@ -50,6 +50,7 @@ import org.meshtastic.proto.FromRadio
 import org.meshtastic.proto.MeshPacket
 import org.meshtastic.proto.QueueStatus
 import org.meshtastic.proto.ToRadio
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
@@ -152,6 +153,22 @@ class PacketHandlerImpl(
         scope.launch { responseMutex.withLock { queueResponse.remove(dataRequestId)?.complete(complete) } }
     }
 
+    override suspend fun awaitPacketSendResult(packetId: Int, timeout: Duration): Boolean {
+        if (packetId == 0) return false
+        return try {
+            withTimeout(timeout) {
+                while (true) {
+                    val deferred = responseMutex.withLock { queueResponse[packetId] }
+                    if (deferred != null) break
+                    delay(50.milliseconds)
+                }
+                responseMutex.withLock { queueResponse[packetId] }?.await() ?: false
+            }
+        } catch (_: TimeoutCancellationException) {
+            false
+        }
+    }
+
     private fun startPacketQueue() {
         if (queueJob?.isActive == true) return
         queueJob = scope.handledLaunch {
@@ -209,8 +226,8 @@ class PacketHandlerImpl(
                 throw RadioNotConnectedException()
             }
             sendToRadio(ToRadio(packet = packet))
-            // Broadcast / no-ack packets never get a routing ACK; waiting for QueueStatus
-            // otherwise blocks the queue for TIMEOUT (~5s) and drops rapid consecutive sends.
+            // No-ack packets (incl. broadcast waypoints) do not get routing ACKs; pacing for
+            // geo-marks is handled in GeoMarkSendQueue, not by blocking here on QueueStatus.
             if (packet.want_ack != true) {
                 deferred.complete(true)
             }

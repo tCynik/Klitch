@@ -3,13 +3,19 @@ package ru.tcynik.meshtactics.data.marker.repository
 import android.util.Base64
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import app.cash.turbine.test
+import io.mockk.clearMocks
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.coVerify
 import io.mockk.verify
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -29,6 +35,7 @@ import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import ru.tcynik.meshtactics.domain.mesh.model.MeshNodeModel
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshNetworkRepository
+import ru.tcynik.meshtactics.mesh.model.DataPacket
 import ru.tcynik.meshtactics.mesh.repository.MeshActionHandler
 import ru.tcynik.meshtactics.mesh.repository.MeshRouter
 import ru.tcynik.meshtactics.mesh.repository.PacketRepository
@@ -49,6 +56,7 @@ class GeoMarkRepositoryImplTest {
         every { mapsFlow } returns MutableStateFlow(ChannelSlotMaps())
     }
     private val adapter = GeoMarkWaypointAdapter()
+    private val sendDispatcher = StandardTestDispatcher()
 
     private val ourNode = MeshNodeModel(
         num = 0x1234, nodeId = "!00001234", shortName = "TEST", longName = "Test Node",
@@ -73,9 +81,12 @@ class GeoMarkRepositoryImplTest {
         db = AppDatabase(driver)
 
         every { meshRouter.actionHandler } returns meshActionHandler
+        every { meshActionHandler.handleSend(any<DataPacket>(), any()) } answers {
+            val packet = firstArg<DataPacket>()
+            if (packet.id == 0) packet.id = 42
+        }
         every { meshNetwork.observeOurNode() } returns flowOf(ourNode)
         every { channelRepository.observeContours() } returns flowOf(emptyList())
-
         repo = GeoMarkRepositoryImpl(
             meshRouter         = meshRouter,
             meshNetwork        = meshNetwork,
@@ -84,11 +95,13 @@ class GeoMarkRepositoryImplTest {
             adapter            = adapter,
             geoMarkQueries     = db.geoMarkQueries,
             packetRepository   = packetRepository,
+            sendScope          = CoroutineScope(sendDispatcher + SupervisorJob()),
         )
     }
 
     @After
     fun tearDown() {
+        clearMocks(meshActionHandler, answers = false, recordedCalls = true)
         unmockkStatic(Base64::class)
     }
 
@@ -103,7 +116,7 @@ class GeoMarkRepositoryImplTest {
     // ── observeGeoMarks ───────────────────────────────────────────────────────
 
     @Test
-    fun `observeGeoMarks — emits empty list when no marks in SQLDelight`() = runTest {
+    fun `observeGeoMarks — emits empty list when no marks in SQLDelight`() = runTest(sendDispatcher) {
         repo.observeGeoMarks().test {
             val marks = awaitItem()
             assertTrue(marks.isEmpty())
@@ -112,7 +125,7 @@ class GeoMarkRepositoryImplTest {
     }
 
     @Test
-    fun `observeGeoMarks — emits mark after persistReceived`() = runTest {
+    fun `observeGeoMarks — emits mark after persistReceived`() = runTest(sendDispatcher) {
         repo.observeGeoMarks().test {
             awaitItem() // initial empty
 
@@ -127,7 +140,7 @@ class GeoMarkRepositoryImplTest {
     }
 
     @Test
-    fun `observeGeoMarks — local send has empty logicalChannelId`() = runTest {
+    fun `observeGeoMarks — local send has empty logicalChannelId`() = runTest(sendDispatcher) {
         val mark = makePointMark(id = "local-only")
         repo.sendGeoMark(mark, contourId = null, localOnly = true)
 
@@ -140,19 +153,22 @@ class GeoMarkRepositoryImplTest {
     }
 
     @Test
-    fun `observeGeoMarks — network send sets authorNodeId`() = runTest {
-        repo.sendGeoMark(makePointMark(id = "sent-net"))
+    fun `observeGeoMarks — network send appears immediately before mesh transmit`() = runTest(sendDispatcher) {
+        val mark = makePointMark(id = "sent-net").copy(logicalChannelId = "ch-1")
+        repo.sendGeoMark(mark, contourId = ContourId("ch-1"))
 
-        repo.observeGeoMarks().test {
-            val item = awaitItem().single { it.id == "sent-net" }
-            assertEquals(true, item.isSelf)
-            assertEquals("!00001234", item.authorNodeId)
-            cancel()
-        }
+        val rowBefore = db.geoMarkQueries.selectById("sent-net").executeAsOneOrNull()
+        assertEquals("", rowBefore?.author_node_id)
+        assertEquals("ch-1", rowBefore?.logical_channel_id)
+
+        advanceUntilIdle()
+
+        val rowAfter = db.geoMarkQueries.selectById("sent-net").executeAsOneOrNull()
+        assertEquals("!00001234", rowAfter?.author_node_id)
     }
 
     @Test
-    fun `observeGeoMarks — isSelf=false for persistReceived`() = runTest {
+    fun `observeGeoMarks — isSelf=false for persistReceived`() = runTest(sendDispatcher) {
         repo.persistReceived(makePointMark("rcv-self"), ContourId("ch-1"))
 
         repo.observeGeoMarks().test {
@@ -165,7 +181,7 @@ class GeoMarkRepositoryImplTest {
     // ── persistReceived ───────────────────────────────────────────────────────
 
     @Test
-    fun `persistReceived — INSERT OR REPLACE updates existing mark`() = runTest {
+    fun `persistReceived — INSERT OR REPLACE updates existing mark`() = runTest(sendDispatcher) {
         val mark = makePointMark("dup-mark")
         repo.persistReceived(mark, ContourId("ch-1"))
         repo.persistReceived(mark.copy(authorNodeId = "!updated"), ContourId("ch-2"))
@@ -179,13 +195,14 @@ class GeoMarkRepositoryImplTest {
     // ── sendGeoMark ───────────────────────────────────────────────────────────
 
     @Test
-    fun `sendGeoMark — calls mesh actionHandler handleSend`() = runTest {
-        repo.sendGeoMark(makePointMark())
+    fun `sendGeoMark — calls mesh actionHandler handleSend`() = runTest(sendDispatcher) {
+        repo.sendGeoMark(makePointMark(), contourId = ContourId("ch-1"))
+        advanceUntilIdle()
         verify(exactly = 1) { meshActionHandler.handleSend(any(), ourNode.num) }
     }
 
     @Test
-    fun `sendGeoMark — inserts mark into SQLDelight with is_self=1`() = runTest {
+    fun `sendGeoMark — inserts mark into SQLDelight with is_self=1`() = runTest(sendDispatcher) {
         val mark = makePointMark(id = "sent-mark")
         repo.sendGeoMark(mark)
 
@@ -195,7 +212,7 @@ class GeoMarkRepositoryImplTest {
     }
 
     @Test
-    fun `sendGeoMark — persists correct type in SQLDelight`() = runTest {
+    fun `sendGeoMark — persists correct type in SQLDelight`() = runTest(sendDispatcher) {
         val mark = makePointMark(id = "type-check")
         repo.sendGeoMark(mark)
 
@@ -204,7 +221,7 @@ class GeoMarkRepositoryImplTest {
     }
 
     @Test
-    fun `sendGeoMark — selectAll returns inserted mark`() = runTest {
+    fun `sendGeoMark — selectAll returns inserted mark`() = runTest(sendDispatcher) {
         repo.sendGeoMark(makePointMark(id = "list-mark"))
 
         val rows = db.geoMarkQueries.selectAll().executeAsList()
@@ -215,7 +232,7 @@ class GeoMarkRepositoryImplTest {
     // ── deleteExpired ─────────────────────────────────────────────────────────
 
     @Test
-    fun `toggleVisibility — updates is_visible and observeGeoMarks reflects change`() = runTest {
+    fun `toggleVisibility — updates is_visible and observeGeoMarks reflects change`() = runTest(sendDispatcher) {
         repo.persistReceived(makePointMark("vis-1"), ContourId("ch-1"))
 
         repo.observeGeoMarks().test {
@@ -233,7 +250,7 @@ class GeoMarkRepositoryImplTest {
     }
 
     @Test
-    fun `deleteById — removes mark from observeGeoMarks`() = runTest {
+    fun `deleteById — removes mark from observeGeoMarks`() = runTest(sendDispatcher) {
         repo.persistReceived(makePointMark("del-1"), ContourId("ch-1"))
 
         repo.deleteById("del-1")
@@ -245,7 +262,7 @@ class GeoMarkRepositoryImplTest {
     }
 
     @Test
-    fun `deleteById — records dismissed and clears mesh waypoint packets`() = runTest {
+    fun `deleteById — records dismissed and clears mesh waypoint packets`() = runTest(sendDispatcher) {
         val mark = makePointMark(id = "wp-99").copy(waypointId = 99)
         repo.persistReceived(mark, ContourId("ch-1"))
 
@@ -256,7 +273,7 @@ class GeoMarkRepositoryImplTest {
     }
 
     @Test
-    fun `deleteById — dismisses wp alias for UUID mark id`() = runTest {
+    fun `deleteById — dismisses wp alias for UUID mark id`() = runTest(sendDispatcher) {
         val uuid = "550e8400-e29b-41d4-a716-446655440000"
         val waypointId = GeoMarkWaypointAdapter.waypointIdFromMarkId(uuid)
         val mark = makePointMark(id = uuid).copy(waypointId = waypointId)
@@ -270,7 +287,7 @@ class GeoMarkRepositoryImplTest {
     }
 
     @Test
-    fun `updateExpiresAt — updates expiry in observeGeoMarks`() = runTest {
+    fun `updateExpiresAt — updates expiry in observeGeoMarks`() = runTest(sendDispatcher) {
         repo.persistReceived(makePointMark("ttl-1"), ContourId("ch-1"))
 
         repo.updateExpiresAt("ttl-1", 9_999L)
@@ -282,7 +299,7 @@ class GeoMarkRepositoryImplTest {
     }
 
     @Test
-    fun `deleteExpired — removes expired marks`() = runTest {
+    fun `deleteExpired — removes expired marks`() = runTest(sendDispatcher) {
         db.geoMarkQueries.insert(
             id = "expired", waypointId = 0L, type = "POINT",
             pointsJson = """[{"lat":0.0,"lon":0.0}]""",

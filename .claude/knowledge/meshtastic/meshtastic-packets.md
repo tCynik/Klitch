@@ -155,6 +155,8 @@ Waypoint(
 
 Waypoint отправляется через `DataPacket(to, channel, waypoint)` с `PortNum.WAYPOINT_APP`.
 
+**Rate limit (прошивка):** пакеты `WAYPOINT_APP` (и `ALERT_APP`) с телефона через PhoneAPI не чаще **1 раз в 10 секунд** — более частая отправка отбрасывается на узле. В MeshTactics `GeoMarkRepositoryImpl.MIN_SEND_INTERVAL_MS = 10_500`.
+
 ---
 
 ## Admin-команды (примеры)

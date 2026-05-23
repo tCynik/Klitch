@@ -2,12 +2,12 @@ package ru.tcynik.meshtactics.data.marker.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import ru.tcynik.meshtactics.data.local.GeoMarkQueries
 import ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapter
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
@@ -30,9 +30,14 @@ class GeoMarkRepositoryImpl(
     private val adapter: GeoMarkWaypointAdapter,
     private val geoMarkQueries: GeoMarkQueries,
     private val packetRepository: PacketRepository,
+    sendScope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
 ) : GeoMarkRepository {
 
-    private val sendMutex = Mutex()
+    private val sendQueue = GeoMarkSendQueue(
+        scope = sendScope,
+        minIntervalMs = MIN_SEND_INTERVAL_MS,
+        sendBlock = { mark, contourId -> transmitMeshMark(mark, contourId) },
+    )
 
     override fun observeGeoMarks(): Flow<List<GeoMarkModel>> =
         geoMarkQueries.selectAll()
@@ -45,48 +50,80 @@ class GeoMarkRepositoryImpl(
         val expiresAt = mark.expiresAt ?: (nowSeconds + GeoMarkWaypointAdapter.EXPIRE_TTL_SECONDS)
 
         if (localOnly) {
-            geoMarkQueries.insert(
-                id = mark.id,
-                waypointId = mark.waypointId.toLong(),
-                type = mark.type.name,
-                pointsJson = adapter.encodePointsJson(mark.points),
-                authorNodeId = "",
+            insertSelfMark(
+                mark = mark,
                 createdAt = nowSeconds,
                 expiresAt = expiresAt,
-                isSelf = 1L,
+                authorNodeId = "",
                 logicalChannelId = "",
-                color = mark.color.toLong(),
-                name = mark.name,
-                trackEndType = mark.trackEndType.ends.toLong(),
-                shape = mark.shape.ordinal.toLong(),
             )
             return
         }
 
-        sendMutex.withLock {
-            val ourNode = meshNetwork.observeOurNode().first()
-            val ourNodeNum = ourNode?.num ?: 0
-            val ourNodeId = ourNode?.nodeId ?: ""
+        insertSelfMark(
+            mark = mark,
+            createdAt = nowSeconds,
+            expiresAt = expiresAt,
+            authorNodeId = "",
+            logicalChannelId = contourId?.value.orEmpty(),
+        )
+        sendQueue.schedule(mark, contourId)
+    }
 
-            val packet = adapter.encode(mark, ourNodeNum, ourNodeId, nowSeconds)
+    private suspend fun insertSelfMark(
+        mark: GeoMarkModel,
+        createdAt: Long,
+        expiresAt: Long,
+        authorNodeId: String,
+        logicalChannelId: String,
+    ) {
+        geoMarkQueries.insert(
+            id = mark.id,
+            waypointId = mark.waypointId.toLong(),
+            type = mark.type.name,
+            pointsJson = adapter.encodePointsJson(mark.points),
+            authorNodeId = authorNodeId,
+            createdAt = createdAt,
+            expiresAt = expiresAt,
+            isSelf = 1L,
+            logicalChannelId = logicalChannelId,
+            color = mark.color.toLong(),
+            name = mark.name,
+            trackEndType = mark.trackEndType.ends.toLong(),
+            shape = mark.shape.ordinal.toLong(),
+        )
+    }
 
-            if (contourId != null) {
-                val contour = channelRepository.observeContours().first()
-                    .find { it.id == contourId }
-                val slot = contour?.transport?.meshtastic?.channelHash
-                    ?.let { hash -> channelSlotResolver.hashToSlot[hash] }
-                if (slot != null) packet.channel = slot
-            }
-            meshRouter.actionHandler.handleSend(packet, ourNodeNum)
+    private suspend fun transmitMeshMark(mark: GeoMarkModel, contourId: ContourId?) {
+        val nowSeconds = System.currentTimeMillis() / 1_000
 
-            val resolvedContourId = contourId?.value ?: resolveContourId(channelIndex = packet.channel)
+        val ourNode = meshNetwork.observeOurNode().first()
+        val ourNodeNum = ourNode?.num ?: 0
+        val ourNodeId = ourNode?.nodeId ?: ""
+
+        val packet = adapter.encode(mark, ourNodeNum, ourNodeId, nowSeconds)
+
+        if (contourId != null) {
+            val contour = channelRepository.observeContours().first()
+                .find { it.id == contourId }
+            val slot = contour?.transport?.meshtastic?.channelHash
+                ?.let { hash -> channelSlotResolver.hashToSlot[hash] }
+            if (slot != null) packet.channel = slot
+        }
+
+        meshRouter.actionHandler.handleSend(packet, ourNodeNum)
+
+        val resolvedContourId = contourId?.value ?: resolveContourId(channelIndex = packet.channel)
+        if (resolvedContourId.isNotEmpty() && resolvedContourId != mark.logicalChannelId) {
+            val expiresAt = mark.expiresAt
+                ?: (nowSeconds + GeoMarkWaypointAdapter.EXPIRE_TTL_SECONDS)
             geoMarkQueries.insert(
                 id = mark.id,
                 waypointId = mark.waypointId.toLong(),
                 type = mark.type.name,
                 pointsJson = adapter.encodePointsJson(mark.points),
                 authorNodeId = ourNodeId,
-                createdAt = nowSeconds,
+                createdAt = mark.createdAt,
                 expiresAt = expiresAt,
                 isSelf = 1L,
                 logicalChannelId = resolvedContourId,
@@ -95,6 +132,8 @@ class GeoMarkRepositoryImpl(
                 trackEndType = mark.trackEndType.ends.toLong(),
                 shape = mark.shape.ordinal.toLong(),
             )
+        } else {
+            geoMarkQueries.updateMeshSentAuthor(authorNodeId = ourNodeId, id = mark.id)
         }
     }
 
@@ -173,6 +212,12 @@ class GeoMarkRepositoryImpl(
     companion object {
         private const val WP_ID_PREFIX = "wp-"
         private const val PKT_ID_PREFIX = "pkt-"
+        /**
+         * Min gap between consecutive mesh geo-mark sends.
+         * Meshtastic firmware rate-limits phone WAYPOINT_APP to one packet per 10 s (PhoneAPI);
+         * shorter intervals are dropped on the radio — see meshtastic/firmware PR #6699.
+         */
+        const val MIN_SEND_INTERVAL_MS = 10_500L
     }
 
     private suspend fun resolveContourId(channelIndex: Int): String {
