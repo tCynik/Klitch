@@ -237,6 +237,17 @@ class MainViewModelMarkToolTest {
         assertEquals(2, viewModel.uiState.value.pendingMarkPoints.size)
     }
 
+    @Test
+    fun `onMapClick — track draft with 2+ points keeps appending if type flips to POINT`() = runTest(testDispatcher) {
+        viewModel.toggleMarkTool()
+        viewModel.setMarkType(GeoMarkType.TRACK)
+        viewModel.onMapClick(55.750, 37.620)
+        viewModel.onMapClick(55.751, 37.621)
+        viewModel.setMarkType(GeoMarkType.POINT)
+        viewModel.onMapClick(55.752, 37.622)
+        assertEquals(3, viewModel.uiState.value.pendingMarkPoints.size)
+    }
+
     // ── onMapDoubleClick ──────────────────────────────────────────────────────
 
     @Test

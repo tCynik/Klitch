@@ -260,6 +260,8 @@ fun MainScreen(
         if (!isLandscape) {
             GeoMarksSheet(
                 state = geoMarksSheetUiState,
+                pendingPoints = uiState.pendingMarkPoints,
+                trackDistanceLabel = uiState.trackDraftDistanceLabel,
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }

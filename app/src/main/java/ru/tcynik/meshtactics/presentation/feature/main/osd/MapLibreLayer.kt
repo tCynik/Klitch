@@ -62,11 +62,19 @@ import ru.tcynik.meshtactics.domain.marker.model.TrackEndType
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
-import ru.tcynik.meshtactics.presentation.feature.main.markToolMapTapGestures
 import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.domain.marker.model.NodeMarkerModel
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MarkerSizeConfig
+import android.view.ViewConfiguration
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import ru.tcynik.meshtactics.presentation.feature.main.MarkToolTapDispatcher
+import ru.tcynik.meshtactics.presentation.feature.main.markToolMapTapGestures
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.OverlayRenderModel
 
 // BaseStyle.Empty has no `glyphs` URL — SymbolLayer text rendering fails without it and breaks
@@ -114,6 +122,41 @@ fun MapLibreLayer(
 ) {
     var hasUserMoved by remember { mutableStateOf(false) }
 
+    val scope = rememberCoroutineScope()
+    val markToolTapDispatcher = remember(markToolActive, isCourseUpActive, onMapClick, onMapDoubleClick) {
+        if (markToolActive && !isCourseUpActive) {
+            MarkToolTapDispatcher(
+                scope = scope,
+                doubleTapTimeoutMs = ViewConfiguration.getDoubleTapTimeout().toLong(),
+                onSingleTap = onMapClick,
+                onDoubleTap = onMapDoubleClick,
+            )
+        } else {
+            null
+        }
+    }
+
+    var composeMapGesturesReady by remember { mutableStateOf(cameraState.projection != null) }
+    LaunchedEffect(cameraState.projection) {
+        composeMapGesturesReady = cameraState.projection != null
+    }
+
+    val useComposeMarkGestures = markToolActive && !isCourseUpActive &&
+        markToolTapDispatcher != null && composeMapGesturesReady
+
+    val mapModifier = modifier.then(
+        if (useComposeMarkGestures) {
+            Modifier.markToolMapTapGestures(
+                cameraState = cameraState,
+                onMapClick = onMapClick,
+                onMapDoubleClick = onMapDoubleClick,
+                onMapLongClick = onMapLongClick,
+            )
+        } else {
+            Modifier
+        },
+    )
+
     LaunchedEffect(cameraState.isCameraMoving) {
         if (cameraState.isCameraMoving) {
             hasUserMoved = true
@@ -129,19 +172,6 @@ fun MapLibreLayer(
             )
         }
     }
-
-    val mapModifier = modifier.then(
-        if (markToolActive && !isCourseUpActive) {
-            Modifier.markToolMapTapGestures(
-                cameraState = cameraState,
-                onMapClick = onMapClick,
-                onMapDoubleClick = onMapDoubleClick,
-                onMapLongClick = onMapLongClick,
-            )
-        } else {
-            Modifier
-        },
-    )
 
     MaplibreMap(
         modifier = mapModifier,
@@ -167,17 +197,30 @@ fun MapLibreLayer(
             else -> MapOptions(ornamentOptions = OrnamentOptions(isCompassEnabled = false))
         },
         onMapClick = { position, _ ->
-            if (!markToolActive) {
-                onMapClick(position.latitude, position.longitude)
+            when {
+                markToolActive && !isCourseUpActive && !useComposeMarkGestures ->
+                    markToolTapDispatcher?.onTapRelease(position.latitude, position.longitude)
+                !markToolActive ->
+                    onMapClick(position.latitude, position.longitude)
             }
             ClickResult.Pass
         },
         onMapLongClick = { position, dpOffset ->
-            if (!markToolActive) {
-                onMapLongClick(
-                    position.latitude, position.longitude,
-                    dpOffset.x.value, dpOffset.y.value,
-                )
+            when {
+                markToolActive && !isCourseUpActive && !useComposeMarkGestures ->
+                    onMapLongClick(
+                        position.latitude,
+                        position.longitude,
+                        dpOffset.x.value,
+                        dpOffset.y.value,
+                    )
+                !markToolActive ->
+                    onMapLongClick(
+                        position.latitude,
+                        position.longitude,
+                        dpOffset.x.value,
+                        dpOffset.y.value,
+                    )
             }
             ClickResult.Pass
         },

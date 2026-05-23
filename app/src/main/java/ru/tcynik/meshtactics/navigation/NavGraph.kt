@@ -64,6 +64,7 @@ fun NavGraph() {
                 // Provide navigation callbacks to ViewModel once navController is available.
                 // Unit key — callbacks are stable for the lifetime of this destination.
                 LaunchedEffect(Unit) {
+                    viewModel.onMainDestinationVisible()
                     viewModel.provideNavCallbacks(
                         HudNavCallbacks(
                             onRadioClick           = { navController.navigate(Route.MeshTest()) },

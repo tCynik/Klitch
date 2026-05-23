@@ -2,6 +2,7 @@ package ru.tcynik.meshtactics.presentation.feature.main
 
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -30,20 +31,21 @@ fun Modifier.courseUpMapGestures(
     onMapDoubleClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
 ): Modifier = composed {
     val scope = rememberCoroutineScope()
-    Modifier.pointerInput(mapHeightPx, markToolActive, cameraState) {
-    val tapDispatcher = if (markToolActive) {
-        MarkToolTapDispatcher(
-            scope = scope,
-            doubleTapTimeoutMs = ViewConfiguration.getDoubleTapTimeout().toLong(),
-            onSingleTap = onMapClick,
-            onDoubleTap = onMapDoubleClick,
-        )
-    } else {
-        null
+    val tapDispatcher = remember(markToolActive, onMapClick, onMapDoubleClick) {
+        if (markToolActive) {
+            MarkToolTapDispatcher(
+                scope = scope,
+                doubleTapTimeoutMs = ViewConfiguration.getDoubleTapTimeout().toLong(),
+                onSingleTap = onMapClick,
+                onDoubleTap = onMapDoubleClick,
+            )
+        } else {
+            null
+        }
     }
-
+    Modifier.pointerInput(mapHeightPx, tapDispatcher) {
     awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false)
+        val down = awaitFirstDown(requireUnconsumed = true)
         if (currentEvent.changes.count { it.pressed } > 1) return@awaitEachGesture
 
         val pointerId = down.id
