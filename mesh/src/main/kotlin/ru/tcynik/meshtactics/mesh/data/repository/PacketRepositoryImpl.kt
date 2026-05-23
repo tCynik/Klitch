@@ -402,6 +402,11 @@ class PacketRepositoryImpl(private val dbManager: DatabaseProvider, private val 
     override suspend fun deleteWaypoint(id: Int) =
         withContext(dispatchers.io) { dbManager.currentDb.value.packetDao().deleteWaypoint(id) }
 
+    override suspend fun deleteWaypointByMeshPacketId(packetId: Int) =
+        withContext(dispatchers.io) {
+            dbManager.currentDb.value.packetDao().deleteWaypointByMeshPacketId(packetId)
+        }
+
     suspend fun delete(packet: RoomPacket) =
         withContext(dispatchers.io) { dbManager.currentDb.value.packetDao().delete(packet) }
 

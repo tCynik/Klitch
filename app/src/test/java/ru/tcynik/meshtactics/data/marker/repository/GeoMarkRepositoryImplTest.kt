@@ -4,6 +4,7 @@ import android.util.Base64
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import app.cash.turbine.test
 import io.mockk.every
+import io.mockk.coVerify
 import io.mockk.verify
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -28,14 +29,18 @@ import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import ru.tcynik.meshtactics.domain.mesh.model.MeshNodeModel
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshNetworkRepository
-import ru.tcynik.meshtactics.mesh.repository.CommandSender
+import ru.tcynik.meshtactics.mesh.repository.MeshActionHandler
+import ru.tcynik.meshtactics.mesh.repository.MeshRouter
+import ru.tcynik.meshtactics.mesh.repository.PacketRepository
 
 class GeoMarkRepositoryImplTest {
 
     private lateinit var repo: GeoMarkRepositoryImpl
     private lateinit var db: AppDatabase
 
-    private val commandSender: CommandSender = mockk(relaxed = true)
+    private val meshActionHandler: MeshActionHandler = mockk(relaxed = true)
+    private val meshRouter: MeshRouter = mockk(relaxed = true)
+    private val packetRepository: PacketRepository = mockk(relaxed = true)
     private val meshNetwork: MeshNetworkRepository = mockk()
     private val channelRepository: ContourRepository = mockk()
     private val channelSlotResolver: ChannelSlotResolver = mockk {
@@ -67,16 +72,18 @@ class GeoMarkRepositoryImplTest {
         AppDatabase.Schema.create(driver)
         db = AppDatabase(driver)
 
+        every { meshRouter.actionHandler } returns meshActionHandler
         every { meshNetwork.observeOurNode() } returns flowOf(ourNode)
         every { channelRepository.observeContours() } returns flowOf(emptyList())
 
         repo = GeoMarkRepositoryImpl(
-            commandSender      = commandSender,
+            meshRouter         = meshRouter,
             meshNetwork        = meshNetwork,
             channelRepository  = channelRepository,
             channelSlotResolver = channelSlotResolver,
             adapter            = adapter,
             geoMarkQueries     = db.geoMarkQueries,
+            packetRepository   = packetRepository,
         )
     }
 
@@ -137,7 +144,6 @@ class GeoMarkRepositoryImplTest {
         repo.sendGeoMark(makePointMark(id = "sent-net"))
 
         repo.observeGeoMarks().test {
-            awaitItem()
             val item = awaitItem().single { it.id == "sent-net" }
             assertEquals(true, item.isSelf)
             assertEquals("!00001234", item.authorNodeId)
@@ -173,9 +179,9 @@ class GeoMarkRepositoryImplTest {
     // ── sendGeoMark ───────────────────────────────────────────────────────────
 
     @Test
-    fun `sendGeoMark — calls commandSender sendData`() = runTest {
+    fun `sendGeoMark — calls mesh actionHandler handleSend`() = runTest {
         repo.sendGeoMark(makePointMark())
-        verify(exactly = 1) { commandSender.sendData(any()) }
+        verify(exactly = 1) { meshActionHandler.handleSend(any(), ourNode.num) }
     }
 
     @Test
@@ -236,6 +242,31 @@ class GeoMarkRepositoryImplTest {
             assertTrue(awaitItem().isEmpty())
             cancel()
         }
+    }
+
+    @Test
+    fun `deleteById — records dismissed and clears mesh waypoint packets`() = runTest {
+        val mark = makePointMark(id = "wp-99").copy(waypointId = 99)
+        repo.persistReceived(mark, ContourId("ch-1"))
+
+        repo.deleteById("wp-99")
+
+        assertTrue(db.geoMarkQueries.isDismissed("wp-99").executeAsOne())
+        coVerify(exactly = 1) { packetRepository.deleteWaypoint(99) }
+    }
+
+    @Test
+    fun `deleteById — dismisses wp alias for UUID mark id`() = runTest {
+        val uuid = "550e8400-e29b-41d4-a716-446655440000"
+        val waypointId = GeoMarkWaypointAdapter.waypointIdFromMarkId(uuid)
+        val mark = makePointMark(id = uuid).copy(waypointId = waypointId)
+        repo.persistReceived(mark, ContourId("ch-1"))
+
+        repo.deleteById(uuid)
+
+        assertTrue(db.geoMarkQueries.isDismissed(uuid).executeAsOne())
+        assertTrue(db.geoMarkQueries.isDismissed("wp-$waypointId").executeAsOne())
+        coVerify(exactly = 1) { packetRepository.deleteWaypoint(waypointId) }
     }
 
     @Test

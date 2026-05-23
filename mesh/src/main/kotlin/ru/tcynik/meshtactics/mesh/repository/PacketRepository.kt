@@ -135,6 +135,9 @@ interface PacketRepository {
     /** Deletes a waypoint by its ID. */
     suspend fun deleteWaypoint(id: Int)
 
+    /** Deletes waypoint packets by mesh packet id ([DataPacket.id]). */
+    suspend fun deleteWaypointByMeshPacketId(packetId: Int)
+
     /** Reactive flow of all contact settings (e.g., mute status). */
     fun getContactSettings(): Flow<Map<String, ContactSettings>>
 

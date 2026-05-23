@@ -139,7 +139,9 @@ icon = (0x4D << 24) | (typeCode << 16) | (color << 8) | variant
 
 ### `encode(mark, ourNodeNum, ourNodeId, nowSeconds): DataPacket`
 
-Uses `mark.color`, `mark.name`, `mark.trackEndType.ends`, `mark.expiresAt`. Sets `Waypoint.id` from `mark.waypointId` or `waypointIdFromMarkId(mark.id)` — **never 0** on the wire (Meshtastic treats `id=0` as one shared slot; duplicate sends overwrite each other). Returns `DataPacket(channel=0)` — channel override is a repo concern.
+Uses `mark.color`, `mark.name`, `mark.trackEndType.ends`, `mark.expiresAt`. Sets `Waypoint.id` from `mark.waypointId` or `waypointIdFromMarkId(mark.id)` — **never 0** on the wire (Meshtastic treats `id=0` as one shared slot; duplicate sends overwrite each other). Sets `wantAck = false` (broadcast waypoints do not get ACKs; `want_ack=true` blocks the radio queue ~5s per packet). Returns `DataPacket(channel=0)` — channel override is a repo concern.
+
+**Rapid sends**: `GeoMarkRepositoryImpl.sendGeoMark` serializes mesh sends with a `Mutex` and routes through `MeshActionHandler.handleSend`. Waypoints use `wantAck = false`; `PacketHandlerImpl` must not block the radio queue for ~5s on no-ack packets (completes immediately after handoff, and on `QueueStatus` success+full).
 
 ### `decode(packet, selfIds): GeoMarkModel?`
 
@@ -185,8 +187,12 @@ ViewModel.sendPendingMark()  // или onMapDoubleClick → send для POINT / 
 IngestReceivedGeoMarksUseCase (launched in ViewModel.init)
   PacketRepository.getWaypoints(): Flow<DataPacket>
   → skip packets with from == ID_LOCAL (own sends already in geo_mark via sendGeoMark)
+  → skip ids already in geo_mark or geo_mark_dismissed (user delete must not resurrect)
+  → skip when waypoint_id is active or wp-{waypointId} is dismissed (UUID vs wp-* id alias)
   → GeoMarkWaypointAdapter.decode()
   → geoMarkQueries.insertReceived()  // upsert by stable wp-* id
+
+**Delete**: `deleteById` removes row, dismisses both mark id and `wp-{waypointId}` alias, purges mesh history via `deleteWaypoint` / `deleteWaypointByMeshPacketId` (`pkt-*` ids).
   → ObserveGeoMarksUseCase → MainUiState.geoMarks → MapLibreLayer
 ```
 

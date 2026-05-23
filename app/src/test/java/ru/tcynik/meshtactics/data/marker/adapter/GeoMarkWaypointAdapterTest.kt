@@ -7,6 +7,7 @@ import io.mockk.unmockkStatic
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -271,6 +272,12 @@ class GeoMarkWaypointAdapterTest {
         val packet = adapter.encode(pointMark(), 0, "", 1000L)
         val decoded = adapter.decode(packet, selfIds = emptySet())!!
         assertFalse(decoded.isSelf)
+    }
+
+    @Test
+    fun `encode point — wantAck is false for broadcast queue`() {
+        val packet = adapter.encode(pointMark(), 0, "", 1000L)
+        assertFalse(packet.wantAck)
     }
 
     @Test

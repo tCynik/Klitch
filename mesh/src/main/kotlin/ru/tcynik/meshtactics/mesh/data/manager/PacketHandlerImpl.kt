@@ -129,16 +129,22 @@ class PacketHandlerImpl(
     override fun handleQueueStatus(queueStatus: QueueStatus) {
         Logger.d { "[queueStatus] ${queueStatus.toOneLineString()}" }
         val (success, isFull, requestId) = with(queueStatus) { Triple(res == 0, free == 0, mesh_packet_id) }
-        if (success && isFull) return
+        // Packet accepted into the device queue (queue full afterwards) — unblock the send job.
+        if (success && isFull) {
+            scope.launch { responseMutex.withLock { completeQueueResponse(requestId, success = true) } }
+            return
+        }
 
         scope.launch {
-            responseMutex.withLock {
-                if (requestId != 0) {
-                    queueResponse.remove(requestId)?.complete(success)
-                } else {
-                    queueResponse.values.firstOrNull { !it.isCompleted }?.complete(success)
-                }
-            }
+            responseMutex.withLock { completeQueueResponse(requestId, success) }
+        }
+    }
+
+    private fun completeQueueResponse(requestId: Int, success: Boolean) {
+        if (requestId != 0) {
+            queueResponse.remove(requestId)?.complete(success)
+        } else {
+            queueResponse.values.firstOrNull { !it.isCompleted }?.complete(success)
         }
     }
 
@@ -203,6 +209,11 @@ class PacketHandlerImpl(
                 throw RadioNotConnectedException()
             }
             sendToRadio(ToRadio(packet = packet))
+            // Broadcast / no-ack packets never get a routing ACK; waiting for QueueStatus
+            // otherwise blocks the queue for TIMEOUT (~5s) and drops rapid consecutive sends.
+            if (packet.want_ack != true) {
+                deferred.complete(true)
+            }
         } catch (ex: RadioNotConnectedException) {
             Logger.w(ex) { "sendToRadio skipped: Not connected to radio" }
             deferred.complete(false)

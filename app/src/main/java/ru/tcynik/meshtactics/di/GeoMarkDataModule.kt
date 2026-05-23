@@ -38,12 +38,13 @@ val geoMarkDataModule = module {
     single { GeoMarkWaypointAdapter() }
     single<GeoMarkRepository> {
         GeoMarkRepositoryImpl(
-            commandSender       = get(),
+            meshRouter          = get(),
             meshNetwork         = get(),
             channelRepository   = get(),
             channelSlotResolver = get(),
             adapter             = get(),
             geoMarkQueries      = get(),
+            packetRepository    = get(),
         )
     }
     single { ObserveGeoMarksUseCase(get()) }

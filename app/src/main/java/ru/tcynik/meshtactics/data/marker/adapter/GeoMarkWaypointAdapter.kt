@@ -9,7 +9,6 @@ import ru.tcynik.meshtactics.domain.marker.model.TrackEndType
 import ru.tcynik.meshtactics.mesh.model.DataPacket
 import java.nio.ByteBuffer
 import java.util.UUID
-import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.roundToInt
 
@@ -41,13 +40,11 @@ class GeoMarkWaypointAdapter {
         /** Derives a non-zero Meshtastic waypoint id from the app mark UUID. */
         fun waypointIdFromMarkId(markId: String): Int {
             val raw = try {
-                val uuid = UUID.fromString(markId)
-                (uuid.mostSignificantBits xor uuid.leastSignificantBits).toInt()
+                (UUID.fromString(markId).leastSignificantBits and 0x7FFF_FFFFL).toInt()
             } catch (_: IllegalArgumentException) {
-                markId.hashCode()
+                markId.hashCode() and 0x7FFF_FFFF
             }
-            val positive = abs(raw)
-            return if (positive == 0) 1 else positive
+            return if (raw == 0) 1 else raw
         }
     }
 
@@ -101,7 +98,11 @@ class GeoMarkWaypointAdapter {
             to = DataPacket.ID_BROADCAST,
             channel = 0,
             waypoint = waypoint,
-        )
+        ).apply {
+            // Broadcast waypoints do not get per-hop ACKs; want_ack=true blocks the radio
+            // send queue (~5s timeout per packet) and drops rapid consecutive sends.
+            wantAck = false
+        }
     }
 
     /**

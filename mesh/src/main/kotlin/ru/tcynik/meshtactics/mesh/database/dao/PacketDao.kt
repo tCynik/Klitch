@@ -357,6 +357,14 @@ interface PacketDao {
         deleteMessages(uuidList)
     }
 
+    @Transaction
+    suspend fun deleteWaypointByMeshPacketId(packetId: Int) {
+        val uuidList = getAllWaypoints()
+            .filter { it.packetId == packetId || it.data.id == packetId }
+            .map { it.uuid }
+        deleteMessages(uuidList)
+    }
+
     @Query("SELECT * FROM contact_settings")
     fun getContactSettings(): Flow<
         Map<

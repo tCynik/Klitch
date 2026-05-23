@@ -98,7 +98,7 @@ sqldelight {
     databases {
         create("AppDatabase") {
             packageName.set("ru.tcynik.meshtactics.data.local")
-            version = 9
+            version = 10
         }
     }
 }

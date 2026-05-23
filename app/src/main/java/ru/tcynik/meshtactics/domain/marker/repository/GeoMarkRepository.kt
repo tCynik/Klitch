@@ -12,4 +12,7 @@ interface GeoMarkRepository {
     suspend fun updateExpiresAt(id: String, expiresAt: Long)
     suspend fun deleteById(id: String)
     suspend fun deleteExpired(nowSeconds: Long)
+    suspend fun getActiveMarkIds(): Set<String>
+    suspend fun getActiveWaypointIds(): Set<Int>
+    suspend fun getDismissedMarkIds(): Set<String>
 }

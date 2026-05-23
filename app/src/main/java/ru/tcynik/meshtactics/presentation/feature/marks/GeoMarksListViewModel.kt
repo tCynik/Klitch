@@ -61,7 +61,7 @@ class GeoMarksListViewModel(
         viewModelScope.launch {
             observeContours(NoParams).collect { contours ->
                 val active = contours.filter { it.isActive }
-                val storage = GeoMarkContourOptionUi(LOCAL_STORAGE_ID, "Хранилище")
+                val storage = GeoMarkContourOptionUi(LOCAL_STORAGE_ID, "Память")
                 sendContourOptions = (active.map { GeoMarkContourOptionUi(it.id.value, it.name) } + storage)
                     .toImmutableList()
             }

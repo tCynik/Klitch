@@ -6,6 +6,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import ru.tcynik.meshtactics.data.local.GeoMarkQueries
 import ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapter
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
@@ -17,16 +19,20 @@ import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.TrackEndType
 import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkRepository
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshNetworkRepository
-import ru.tcynik.meshtactics.mesh.repository.CommandSender
+import ru.tcynik.meshtactics.mesh.repository.MeshRouter
+import ru.tcynik.meshtactics.mesh.repository.PacketRepository
 
 class GeoMarkRepositoryImpl(
-    private val commandSender: CommandSender,
+    private val meshRouter: MeshRouter,
     private val meshNetwork: MeshNetworkRepository,
     private val channelRepository: ContourRepository,
     private val channelSlotResolver: ChannelSlotResolver,
     private val adapter: GeoMarkWaypointAdapter,
     private val geoMarkQueries: GeoMarkQueries,
+    private val packetRepository: PacketRepository,
 ) : GeoMarkRepository {
+
+    private val sendMutex = Mutex()
 
     override fun observeGeoMarks(): Flow<List<GeoMarkModel>> =
         geoMarkQueries.selectAll()
@@ -57,37 +63,39 @@ class GeoMarkRepositoryImpl(
             return
         }
 
-        val ourNode = meshNetwork.observeOurNode().first()
-        val ourNodeNum = ourNode?.num ?: 0
-        val ourNodeId = ourNode?.nodeId ?: ""
+        sendMutex.withLock {
+            val ourNode = meshNetwork.observeOurNode().first()
+            val ourNodeNum = ourNode?.num ?: 0
+            val ourNodeId = ourNode?.nodeId ?: ""
 
-        val packet = adapter.encode(mark, ourNodeNum, ourNodeId, nowSeconds)
+            val packet = adapter.encode(mark, ourNodeNum, ourNodeId, nowSeconds)
 
-        if (contourId != null) {
-            val contour = channelRepository.observeContours().first()
-                .find { it.id == contourId }
-            val slot = contour?.transport?.meshtastic?.channelHash
-                ?.let { hash -> channelSlotResolver.hashToSlot[hash] }
-            if (slot != null) packet.channel = slot
+            if (contourId != null) {
+                val contour = channelRepository.observeContours().first()
+                    .find { it.id == contourId }
+                val slot = contour?.transport?.meshtastic?.channelHash
+                    ?.let { hash -> channelSlotResolver.hashToSlot[hash] }
+                if (slot != null) packet.channel = slot
+            }
+            meshRouter.actionHandler.handleSend(packet, ourNodeNum)
+
+            val resolvedContourId = contourId?.value ?: resolveContourId(channelIndex = packet.channel)
+            geoMarkQueries.insert(
+                id = mark.id,
+                waypointId = mark.waypointId.toLong(),
+                type = mark.type.name,
+                pointsJson = adapter.encodePointsJson(mark.points),
+                authorNodeId = ourNodeId,
+                createdAt = nowSeconds,
+                expiresAt = expiresAt,
+                isSelf = 1L,
+                logicalChannelId = resolvedContourId,
+                color = mark.color.toLong(),
+                name = mark.name,
+                trackEndType = mark.trackEndType.ends.toLong(),
+                shape = mark.shape.ordinal.toLong(),
+            )
         }
-        commandSender.sendData(packet)
-
-        val resolvedContourId = contourId?.value ?: resolveContourId(channelIndex = packet.channel)
-        geoMarkQueries.insert(
-            id = mark.id,
-            waypointId = mark.waypointId.toLong(),
-            type = mark.type.name,
-            pointsJson = adapter.encodePointsJson(mark.points),
-            authorNodeId = ourNodeId,
-            createdAt = nowSeconds,
-            expiresAt = expiresAt,
-            isSelf = 1L,
-            logicalChannelId = resolvedContourId,
-            color = mark.color.toLong(),
-            name = mark.name,
-            trackEndType = mark.trackEndType.ends.toLong(),
-            shape = mark.shape.ordinal.toLong(),
-        )
     }
 
     override suspend fun persistReceived(mark: GeoMarkModel, contourId: ContourId) {
@@ -115,11 +123,56 @@ class GeoMarkRepositoryImpl(
     }
 
     override suspend fun deleteById(id: String) {
+        val row = geoMarkQueries.selectById(id).executeAsOneOrNull()
+        dismissMarkIds(id, row?.waypoint_id?.toInt())
         geoMarkQueries.deleteById(id)
+        resolveWaypointIdForPacketCleanup(id, row?.waypoint_id?.toInt())?.let { waypointId ->
+            packetRepository.deleteWaypoint(waypointId)
+        }
+        resolveMeshPacketIdForCleanup(id)?.let { packetId ->
+            packetRepository.deleteWaypointByMeshPacketId(packetId)
+        }
     }
+
+    override suspend fun getActiveMarkIds(): Set<String> =
+        geoMarkQueries.selectAllIds().executeAsList().toSet()
+
+    override suspend fun getActiveWaypointIds(): Set<Int> =
+        geoMarkQueries.selectActiveWaypointIds()
+            .executeAsList()
+            .map { it.toInt() }
+            .toSet()
+
+    override suspend fun getDismissedMarkIds(): Set<String> =
+        geoMarkQueries.selectDismissedIds().executeAsList().toSet()
 
     override suspend fun deleteExpired(nowSeconds: Long) {
         geoMarkQueries.deleteExpired(nowSeconds)
+    }
+
+    private fun dismissMarkIds(markId: String, storedWaypointId: Int?) {
+        geoMarkQueries.insertDismissed(markId)
+        resolveWaypointIdForPacketCleanup(markId, storedWaypointId)?.let { waypointId ->
+            geoMarkQueries.insertDismissed("$WP_ID_PREFIX$waypointId")
+        }
+    }
+
+    private fun resolveWaypointIdForPacketCleanup(markId: String, storedWaypointId: Int?): Int? {
+        storedWaypointId?.takeIf { it != 0 }?.let { return it }
+        if (markId.startsWith(WP_ID_PREFIX)) {
+            return markId.removePrefix(WP_ID_PREFIX).toIntOrNull()?.takeIf { it != 0 }
+        }
+        return null
+    }
+
+    private fun resolveMeshPacketIdForCleanup(markId: String): Int? {
+        if (!markId.startsWith(PKT_ID_PREFIX)) return null
+        return markId.removePrefix(PKT_ID_PREFIX).toIntOrNull()?.takeIf { it != 0 }
+    }
+
+    companion object {
+        private const val WP_ID_PREFIX = "wp-"
+        private const val PKT_ID_PREFIX = "pkt-"
     }
 
     private suspend fun resolveContourId(channelIndex: Int): String {
