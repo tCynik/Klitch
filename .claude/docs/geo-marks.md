@@ -285,11 +285,11 @@ Derived StateFlow combining `_uiState + _formState`. All callbacks bundled (Menu
 | `toggleGeoMarksSheet()` | open/close sheet; opening activates mark tool |
 | `closeGeoMarksSheet()` | close sheet + deactivate mark tool + clear pending points |
 | `toggleMarkTool()` | direct tool toggle (HUD mark-tool shortcut); does not affect sheet visibility |
-| `setMarkType/Color/Shape/TrackEndType/Ttl/MarkName/NameCounter/Addressee()` | update `_formState`, persist to DataStore |
+| `setMarkType/Color/Shape/TrackEndType/Ttl/MarkName/NameCounter/Addressee()` | update `_formState`, persist to DataStore; **TRACK→POINT**: if draft has >1 vertex, keep only the last as point draft |
 | `applyPreset(preset)` | restore all form fields from preset |
 | `sendPendingMark()` | send from `pendingMarkPoints`; TRACK requires ≥2 vertices; then clear pending |
 | `sendGeoMarkAtPoints(points, type)` | private; shared encode/send path for button and double-tap |
-| `onMapClick(lat, lon)` | add draft vertex immediately (POINT replaces list, TRACK appends); called only after gesture layer confirms single-tap |
+| `onMapClick(lat, lon)` | add draft vertex immediately (POINT always replaces draft with one vertex, TRACK appends); called only after gesture layer confirms single-tap |
 | `onMapDoubleClick(lat, lon)` | POINT: send one mark at tap; TRACK: append tap vertex, then `sendPendingMark()` |
 | `onMapLongClick(...)` | proximity 30m to draft vertex → `GeoMarkContextMenuEvent` (non–course-up only) |
 | `clearPendingPoints()` | clear `pendingMarkPoints` from `_uiState` |

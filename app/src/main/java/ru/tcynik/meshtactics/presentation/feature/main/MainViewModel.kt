@@ -463,7 +463,18 @@ class MainViewModel(
     }
 
     fun setMarkType(type: GeoMarkType) {
+        val previousType = _formState.value.selectedType
         _formState.update { it.copy(selectedType = type) }
+        if (type == GeoMarkType.POINT && previousType == GeoMarkType.TRACK) {
+            _uiState.update { state ->
+                val pending = state.pendingMarkPoints
+                if (pending.size > 1) {
+                    state.withPendingMarkPoints(persistentListOf(pending.last()))
+                } else {
+                    state
+                }
+            }
+        }
         viewModelScope.launch { persistFormState() }
     }
 
@@ -526,12 +537,10 @@ class MainViewModel(
         val markType = _formState.value.selectedType
         val newPoint = GeoPoint(lat, lon)
         _uiState.update { state ->
-            val updatedPoints = when {
-                markType == GeoMarkType.TRACK ->
+            val updatedPoints = when (markType) {
+                GeoMarkType.TRACK ->
                     (state.pendingMarkPoints + newPoint).toImmutableList()
-                state.pendingMarkPoints.size >= 2 ->
-                    (state.pendingMarkPoints + newPoint).toImmutableList()
-                else ->
+                GeoMarkType.POINT ->
                     persistentListOf(newPoint)
             }
             state.withPendingMarkPoints(updatedPoints)

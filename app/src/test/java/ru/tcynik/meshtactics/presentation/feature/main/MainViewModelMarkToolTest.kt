@@ -238,14 +238,30 @@ class MainViewModelMarkToolTest {
     }
 
     @Test
-    fun `onMapClick — track draft with 2+ points keeps appending if type flips to POINT`() = runTest(testDispatcher) {
+    fun `setMarkType TRACK to POINT — keeps only last vertex as point draft`() = runTest(testDispatcher) {
+        viewModel.toggleMarkTool()
+        viewModel.setMarkType(GeoMarkType.TRACK)
+        viewModel.onMapClick(55.750, 37.620)
+        viewModel.onMapClick(55.751, 37.621)
+        viewModel.setMarkType(GeoMarkType.POINT)
+        val draft = viewModel.uiState.value.pendingMarkPoints
+        assertEquals(1, draft.size)
+        assertEquals(55.751, draft.first().latitude, 1e-9)
+        assertEquals(37.621, draft.first().longitude, 1e-9)
+    }
+
+    @Test
+    fun `onMapClick — after TRACK to POINT switch replaces draft with single tap`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
         viewModel.setMarkType(GeoMarkType.TRACK)
         viewModel.onMapClick(55.750, 37.620)
         viewModel.onMapClick(55.751, 37.621)
         viewModel.setMarkType(GeoMarkType.POINT)
         viewModel.onMapClick(55.752, 37.622)
-        assertEquals(3, viewModel.uiState.value.pendingMarkPoints.size)
+        val draft = viewModel.uiState.value.pendingMarkPoints
+        assertEquals(1, draft.size)
+        assertEquals(55.752, draft.first().latitude, 1e-9)
+        assertEquals(37.622, draft.first().longitude, 1e-9)
     }
 
     // ── onMapDoubleClick ──────────────────────────────────────────────────────
