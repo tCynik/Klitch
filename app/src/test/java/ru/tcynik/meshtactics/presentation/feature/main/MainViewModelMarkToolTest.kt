@@ -44,7 +44,7 @@ import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkFormPreferences
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkShape
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
-import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.DraftPointContextMenuEvent
 import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkPreferencesRepository
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
@@ -210,7 +210,7 @@ class MainViewModelMarkToolTest {
     @Test
     fun `toggleMarkTool deactivate — clears pending mark points`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
-        viewModel.onMapClick(, , 0f, 0f)
+        viewModel.onMapClick(55.75, 37.62, 0f, 0f)
         assertEquals(1, viewModel.uiState.value.pendingMarkPoints.size)
 
         viewModel.toggleMarkTool()
@@ -222,21 +222,21 @@ class MainViewModelMarkToolTest {
     @Test
     fun `onMapClick when tool inactive — does not add pending point`() = runTest(testDispatcher) {
         assertFalse(viewModel.uiState.value.markToolActive)
-        viewModel.onMapClick(, , 0f, 0f)
+        viewModel.onMapClick(55.75, 37.62, 0f, 0f)
         assertTrue(viewModel.uiState.value.pendingMarkPoints.isEmpty())
     }
 
     @Test
     fun `onMapClick when tool active — adds pending point`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
-        viewModel.onMapClick(, , 0f, 0f)
+        viewModel.onMapClick(55.75, 37.62, 0f, 0f)
         assertEquals(1, viewModel.uiState.value.pendingMarkPoints.size)
     }
 
     @Test
     fun `onMapClick — preserves tap coordinates in pending point`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
-        viewModel.onMapClick(, , 0f, 0f)
+        viewModel.onMapClick(55.750, 37.620, 0f, 0f)
         val pt = viewModel.uiState.value.pendingMarkPoints.first()
         assertEquals(55.750, pt.latitude, 1e-9)
         assertEquals(37.620, pt.longitude, 1e-9)
@@ -246,8 +246,8 @@ class MainViewModelMarkToolTest {
     fun `onMapClick multiple times — accumulates points after each tap`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
         viewModel.setMarkType(GeoMarkType.TRACK)
-        viewModel.onMapClick(, , 0f, 0f)
-        viewModel.onMapClick(, , 0f, 0f)
+        viewModel.onMapClick(55.750, 37.620, 0f, 0f)
+        viewModel.onMapClick(55.751, 37.621, 0f, 0f)
         assertEquals(2, viewModel.uiState.value.pendingMarkPoints.size)
     }
 
@@ -255,8 +255,8 @@ class MainViewModelMarkToolTest {
     fun `setMarkType TRACK to POINT — keeps only last vertex as point draft`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
         viewModel.setMarkType(GeoMarkType.TRACK)
-        viewModel.onMapClick(, , 0f, 0f)
-        viewModel.onMapClick(, , 0f, 0f)
+        viewModel.onMapClick(55.750, 37.620, 0f, 0f)
+        viewModel.onMapClick(55.751, 37.621, 0f, 0f)
         viewModel.setMarkType(GeoMarkType.POINT)
         val draft = viewModel.uiState.value.pendingMarkPoints
         assertEquals(1, draft.size)
@@ -268,10 +268,10 @@ class MainViewModelMarkToolTest {
     fun `onMapClick — after TRACK to POINT switch replaces draft with single tap`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
         viewModel.setMarkType(GeoMarkType.TRACK)
-        viewModel.onMapClick(, , 0f, 0f)
-        viewModel.onMapClick(, , 0f, 0f)
+        viewModel.onMapClick(55.750, 37.620, 0f, 0f)
+        viewModel.onMapClick(55.751, 37.621, 0f, 0f)
         viewModel.setMarkType(GeoMarkType.POINT)
-        viewModel.onMapClick(, , 0f, 0f)
+        viewModel.onMapClick(55.752, 37.622, 0f, 0f)
         val draft = viewModel.uiState.value.pendingMarkPoints
         assertEquals(1, draft.size)
         assertEquals(55.752, draft.first().latitude, 1e-9)
@@ -290,7 +290,7 @@ class MainViewModelMarkToolTest {
     @Test
     fun `onMapDoubleClick clears draft from preceding single tap`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
-        viewModel.onMapClick(, , 0f, 0f)
+        viewModel.onMapClick(55.75, 37.62, 0f, 0f)
         viewModel.onMapDoubleClick(55.75, 37.62)
         assertTrue(viewModel.uiState.value.pendingMarkPoints.isEmpty())
     }
@@ -306,8 +306,8 @@ class MainViewModelMarkToolTest {
     fun `onMapDoubleClick TRACK — appends tap point then sends all vertices`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
         viewModel.setMarkType(GeoMarkType.TRACK)
-        viewModel.onMapClick(, , 0f, 0f)
-        viewModel.onMapClick(, , 0f, 0f)
+        viewModel.onMapClick(55.750, 37.620, 0f, 0f)
+        viewModel.onMapClick(55.751, 37.621, 0f, 0f)
         viewModel.onMapDoubleClick(55.752, 37.622)
         coVerify(exactly = 1) {
             sendGeoMark(match {
@@ -332,7 +332,7 @@ class MainViewModelMarkToolTest {
     fun `onMapDoubleClick TRACK with one pending point — adds second and sends`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
         viewModel.setMarkType(GeoMarkType.TRACK)
-        viewModel.onMapClick(, , 0f, 0f)
+        viewModel.onMapClick(55.750, 37.620, 0f, 0f)
         viewModel.onMapDoubleClick(55.751, 37.621)
         coVerify(exactly = 1) {
             sendGeoMark(match {
@@ -375,12 +375,12 @@ class MainViewModelMarkToolTest {
     fun `onMapLongClick near pending point — emits context menu event with correct index`() =
         runTest(testDispatcher) {
             viewModel.toggleMarkTool()
-            viewModel.onMapClick(, , 0f, 0f)
+            viewModel.onMapClick(55.750, 37.620, 0f, 0f)
 
             viewModel.contextMenuEvent.test {
                 // Long-tap within ~10m of the pending point
                 viewModel.onMapLongClick(55.7501, 37.6201, 150f, 250f)
-                val event = awaitItem()
+                val event = awaitItem() as DraftPointContextMenuEvent
                 assertEquals(0, event.pointIndex)
                 assertEquals(150f, event.screenX)
                 assertEquals(250f, event.screenY)
@@ -392,7 +392,7 @@ class MainViewModelMarkToolTest {
     fun `onMapLongClick far from pending point — emits no context menu event`() =
         runTest(testDispatcher) {
             viewModel.toggleMarkTool()
-            viewModel.onMapClick(, , 0f, 0f)
+            viewModel.onMapClick(55.750, 37.620, 0f, 0f)
 
             var received = false
             val collectJob = backgroundScope.launch {
@@ -409,7 +409,7 @@ class MainViewModelMarkToolTest {
     @Test
     fun `sendPendingMark — clears pending points`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
-        viewModel.onMapClick(, , 0f, 0f)
+        viewModel.onMapClick(55.750, 37.620, 0f, 0f)
         assertEquals(1, viewModel.uiState.value.pendingMarkPoints.size)
 
         viewModel.sendPendingMark()
@@ -419,7 +419,7 @@ class MainViewModelMarkToolTest {
     @Test
     fun `sendPendingMark single point — sends POINT type`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
-        viewModel.onMapClick(, , 0f, 0f)
+        viewModel.onMapClick(55.750, 37.620, 0f, 0f)
 
         viewModel.sendPendingMark()
         coVerify(exactly = 1) { sendGeoMark(match { it.mark.type == GeoMarkType.POINT }) }
@@ -429,8 +429,8 @@ class MainViewModelMarkToolTest {
     fun `sendPendingMark two points — sends TRACK type`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
         viewModel.setMarkType(GeoMarkType.TRACK)
-        viewModel.onMapClick(, , 0f, 0f)
-        viewModel.onMapClick(, , 0f, 0f)
+        viewModel.onMapClick(55.750, 37.620, 0f, 0f)
+        viewModel.onMapClick(55.751, 37.621, 0f, 0f)
 
         viewModel.sendPendingMark()
         coVerify(exactly = 1) { sendGeoMark(match { it.mark.type == GeoMarkType.TRACK }) }
@@ -449,8 +449,8 @@ class MainViewModelMarkToolTest {
     fun `deletePendingPoint — removes point at specified index`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
         viewModel.setMarkType(GeoMarkType.TRACK)
-        viewModel.onMapClick(, , 0f, 0f)
-        viewModel.onMapClick(, , 0f, 0f)
+        viewModel.onMapClick(55.750, 37.620, 0f, 0f)
+        viewModel.onMapClick(55.751, 37.621, 0f, 0f)
         assertEquals(2, viewModel.uiState.value.pendingMarkPoints.size)
 
         viewModel.deletePendingPoint(0)
@@ -463,7 +463,7 @@ class MainViewModelMarkToolTest {
     @Test
     fun `deletePendingPoint last point — list becomes empty`() = runTest(testDispatcher) {
         viewModel.toggleMarkTool()
-        viewModel.onMapClick(, , 0f, 0f)
+        viewModel.onMapClick(55.750, 37.620, 0f, 0f)
 
         viewModel.deletePendingPoint(0)
         assertTrue(viewModel.uiState.value.pendingMarkPoints.isEmpty())

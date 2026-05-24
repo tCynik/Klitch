@@ -39,6 +39,8 @@ class GeoMarksListViewModel(
     private val extendGeoMark: ExtendGeoMarkUseCase,
     private val sendGeoMark: SendGeoMarkUseCase,
     private val logger: Logger,
+    /** Periodic TTL label refresh; disable in unit tests to avoid non-terminating delay loops. */
+    private val refreshTtlLabels: Boolean = true,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GeoMarksListUiState())
@@ -66,11 +68,13 @@ class GeoMarksListViewModel(
                     .toImmutableList()
             }
         }
-        viewModelScope.launch {
-            while (true) {
-                delay(60_000L)
-                nowSeconds = System.currentTimeMillis() / 1000
-                rebuildItems()
+        if (refreshTtlLabels) {
+            viewModelScope.launch {
+                while (true) {
+                    delay(60_000L)
+                    nowSeconds = System.currentTimeMillis() / 1000
+                    rebuildItems()
+                }
             }
         }
     }

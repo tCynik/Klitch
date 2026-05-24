@@ -1,14 +1,17 @@
 package ru.tcynik.meshtactics.presentation.feature.marks
 
-import app.cash.turbine.test
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -58,6 +61,8 @@ class GeoMarksListViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        marksFlow.value = emptyList()
+        contoursFlow.value = emptyList()
         every { observeGeoMarks.invoke(any()) } returns marksFlow
         every { observeContours.invoke(any()) } returns contoursFlow
         viewModel = GeoMarksListViewModel(
@@ -68,116 +73,105 @@ class GeoMarksListViewModelTest {
             extendGeoMark = extendGeoMark,
             sendGeoMark = sendGeoMark,
             logger = logger,
+            refreshTtlLabels = false,
         )
     }
 
     @After
     fun tearDown() {
+        if (::viewModel.isInitialized) {
+            viewModel.viewModelScope.cancel()
+        }
         Dispatchers.resetMain()
     }
 
+    /** Runs [body] on [testDispatcher]; cancels [viewModel] scope before runTest waits for idle. */
+    private fun viewModelCoroutineTest(body: suspend TestScope.() -> Unit) = runTest(testDispatcher) {
+        try {
+            body()
+        } finally {
+            if (::viewModel.isInitialized) {
+                viewModel.viewModelScope.cancel()
+            }
+        }
+    }
+
+    /** Lets [viewModelScope.launch] bodies finish before [coVerify]. */
+    private suspend fun TestScope.awaitLaunchedCoroutines() {
+        runCurrent()
+        runCurrent()
+    }
+
     @Test
-    fun `maps marks to list items sorted by createdAt descending`() = runTest {
+    fun `maps marks to list items sorted by createdAt descending`() {
         val older = makeMark(id = "old", createdAt = 100L, name = "Old")
         val newer = makeMark(id = "new", createdAt = 200L, name = "New")
+        marksFlow.value = listOf(older, newer)
 
-        viewModel.uiState.test {
-            awaitItem()
-
-            marksFlow.value = listOf(older, newer)
-
-            val state = awaitItem()
-            assertEquals(2, state.items.size)
-            assertEquals("new", state.items[0].id)
-            assertEquals("old", state.items[1].id)
-            cancelAndIgnoreRemainingEvents()
-        }
+        val state = viewModel.uiState.value
+        assertEquals(2, state.items.size)
+        assertEquals("new", state.items[0].id)
+        assertEquals("old", state.items[1].id)
     }
 
     @Test
-    fun `maps self author to Я and other to short node id`() = runTest {
+    fun `maps self author to Я and other to short node id`() {
         val self = makeMark(id = "self", isSelf = true, authorNodeId = "!aaaa1111")
         val remote = makeMark(id = "remote", isSelf = false, authorNodeId = "!bbbb2222")
+        marksFlow.value = listOf(self, remote)
 
-        viewModel.uiState.test {
-            awaitItem()
-            marksFlow.value = listOf(self, remote)
-
-            val state = awaitItem()
-            assertEquals("Я", state.items.find { it.id == "self" }?.authorLabel)
-            assertEquals("!bbbb2", state.items.find { it.id == "remote" }?.authorLabel)
-            cancelAndIgnoreRemainingEvents()
-        }
+        val state = viewModel.uiState.value
+        assertEquals("Я", state.items.find { it.id == "self" }?.authorLabel)
+        assertEquals("!bbbb2", state.items.find { it.id == "remote" }?.authorLabel)
     }
 
     @Test
-    fun `blank name becomes dash`() = runTest {
+    fun `blank name becomes dash`() {
         marksFlow.value = listOf(makeMark(id = "blank", name = ""))
-
-        viewModel.uiState.test {
-            awaitItem()
-            val state = awaitItem()
-            assertEquals("—", state.items.single().name)
-            cancelAndIgnoreRemainingEvents()
-        }
+        assertEquals("—", viewModel.uiState.value.items.single().name)
     }
 
     @Test
-    fun `visibility toggle delegates to use case`() = runTest {
+    fun `visibility toggle delegates to use case`() = viewModelCoroutineTest {
         coEvery { toggleVisibility("mark-1", false) } returns Unit
 
         viewModel.onVisibilityToggle("mark-1", false)
+        awaitLaunchedCoroutines()
 
         coVerify(exactly = 1) { toggleVisibility("mark-1", false) }
     }
 
     @Test
-    fun `maps delivery state from isSelf and logicalChannelId`() = runTest {
+    fun `maps delivery state from isSelf and logicalChannelId`() {
         marksFlow.value = listOf(
             makeMark(id = "local", isSelf = true, logicalChannelId = "", authorNodeId = ""),
             makeMark(id = "sent", isSelf = true, logicalChannelId = "ch-1", authorNodeId = "!aaaa1111"),
             makeMark(id = "rcv", isSelf = false, logicalChannelId = "ch-2", authorNodeId = "!bbbb2222"),
         )
-
-        viewModel.uiState.test {
-            awaitItem()
-            val state = awaitItem()
-            assertEquals(GeoMarkDeliveryState.LOCAL, state.items.find { it.id == "local" }?.deliveryState)
-            assertEquals(GeoMarkDeliveryState.SENT, state.items.find { it.id == "sent" }?.deliveryState)
-            assertEquals(GeoMarkDeliveryState.RECEIVED, state.items.find { it.id == "rcv" }?.deliveryState)
-            cancelAndIgnoreRemainingEvents()
-        }
+        val state = viewModel.uiState.value
+        assertEquals(GeoMarkDeliveryState.LOCAL, state.items.find { it.id == "local" }?.deliveryState)
+        assertEquals(GeoMarkDeliveryState.SENT, state.items.find { it.id == "sent" }?.deliveryState)
+        assertEquals(GeoMarkDeliveryState.RECEIVED, state.items.find { it.id == "rcv" }?.deliveryState)
     }
 
     @Test
-    fun `delivery filters selected for present types on load`() = runTest {
+    fun `delivery filters selected for present types on load`() {
         marksFlow.value = listOf(
             makeMark(id = "local", isSelf = true, logicalChannelId = "", authorNodeId = ""),
             makeMark(id = "rcv", isSelf = false, authorNodeId = "!bbbb2222"),
         )
-
-        viewModel.uiState.test {
-            awaitItem()
-            val state = awaitItem()
-            assertEquals(GeoMarkDeliveryFilterStatus.SELECTED, filterStatus(state, GeoMarkDeliveryState.LOCAL))
-            assertEquals(GeoMarkDeliveryFilterStatus.INACTIVE, filterStatus(state, GeoMarkDeliveryState.SENT))
-            assertEquals(GeoMarkDeliveryFilterStatus.SELECTED, filterStatus(state, GeoMarkDeliveryState.RECEIVED))
-            cancelAndIgnoreRemainingEvents()
-        }
+        val state = viewModel.uiState.value
+        assertEquals(GeoMarkDeliveryFilterStatus.SELECTED, filterStatus(state, GeoMarkDeliveryState.LOCAL))
+        assertEquals(GeoMarkDeliveryFilterStatus.INACTIVE, filterStatus(state, GeoMarkDeliveryState.SENT))
+        assertEquals(GeoMarkDeliveryFilterStatus.SELECTED, filterStatus(state, GeoMarkDeliveryState.RECEIVED))
     }
 
     @Test
-    fun `toggling delivery filter hides marks of that type`() = runTest {
+    fun `toggling delivery filter hides marks of that type`() {
         marksFlow.value = listOf(
             makeMark(id = "local", isSelf = true, logicalChannelId = "", authorNodeId = ""),
             makeMark(id = "rcv", isSelf = false, authorNodeId = "!bbbb2222"),
         )
-
-        viewModel.uiState.test {
-            awaitItem()
-            awaitItem()
-            cancelAndIgnoreRemainingEvents()
-        }
 
         viewModel.onDeliveryFilterToggle(GeoMarkDeliveryState.LOCAL)
 
@@ -189,103 +183,70 @@ class GeoMarksListViewModelTest {
     }
 
     @Test
-    fun `bulk visibility selects all filtered marks when not all visible`() = runTest {
+    fun `bulk visibility selects all filtered marks when not all visible`() = viewModelCoroutineTest {
         marksFlow.value = listOf(
             makeMark(id = "a", isVisible = true),
             makeMark(id = "b", isVisible = false),
         )
 
-        viewModel.uiState.test {
-            awaitItem()
-            awaitItem()
-            cancelAndIgnoreRemainingEvents()
-        }
-
         viewModel.onToggleAllFilteredVisibility()
+        awaitLaunchedCoroutines()
 
         coVerify { toggleVisibility("b", true) }
         coVerify(exactly = 0) { toggleVisibility("a", any()) }
     }
 
     @Test
-    fun `bulk visibility hides all filtered marks when all visible`() = runTest {
+    fun `bulk visibility hides all filtered marks when all visible`() = viewModelCoroutineTest {
         marksFlow.value = listOf(
             makeMark(id = "a", isVisible = true),
             makeMark(id = "b", isVisible = true),
         )
 
-        viewModel.uiState.test {
-            awaitItem()
-            awaitItem()
-            cancelAndIgnoreRemainingEvents()
-        }
-
         viewModel.onToggleAllFilteredVisibility()
+        awaitLaunchedCoroutines()
 
         coVerify { toggleVisibility("a", false) }
         coVerify { toggleVisibility("b", false) }
     }
 
     @Test
-    fun `allFilteredVisible reflects checkbox state of filtered items`() = runTest {
+    fun `allFilteredVisible reflects checkbox state of filtered items`() {
         marksFlow.value = listOf(
             makeMark(id = "a", isVisible = true),
             makeMark(id = "b", isVisible = false),
         )
-
-        viewModel.uiState.test {
-            awaitItem()
-            val state = awaitItem()
-            assertFalse(state.allFilteredVisible)
-            assertTrue(state.bulkVisibilityEnabled)
-            cancelAndIgnoreRemainingEvents()
-        }
+        val state = viewModel.uiState.value
+        assertFalse(state.allFilteredVisible)
+        assertTrue(state.bulkVisibilityEnabled)
     }
 
     @Test
-    fun `deleteEnabled when at least one visible mark in filter`() = runTest {
+    fun `deleteEnabled when at least one visible mark in filter`() {
         marksFlow.value = listOf(
             makeMark(id = "on", isVisible = true),
             makeMark(id = "off", isVisible = false),
         )
-
-        viewModel.uiState.test {
-            awaitItem()
-            val state = awaitItem()
-            assertTrue(state.deleteEnabled)
-            cancelAndIgnoreRemainingEvents()
-        }
+        assertTrue(viewModel.uiState.value.deleteEnabled)
     }
 
     @Test
-    fun `onDeleteClick — single mark confirmation message`() = runTest {
+    fun `onDeleteClick — single mark confirmation message`() {
         marksFlow.value = listOf(makeMark(id = "one", name = "Alpha", isSelf = true, authorNodeId = ""))
-
-        viewModel.uiState.test {
-            awaitItem()
-            awaitItem()
-            cancelAndIgnoreRemainingEvents()
-        }
 
         viewModel.onDeleteClick()
 
         val confirm = viewModel.uiState.value.deleteConfirm
-        assertEquals("Удалить метку Alpha(Я)?", confirm?.message)
+        assertEquals("Удалить метку Alpha(от Я)?", confirm?.message)
         assertEquals(listOf("one"), confirm?.markIds)
     }
 
     @Test
-    fun `onDeleteClick — multiple marks confirmation message`() = runTest {
+    fun `onDeleteClick — multiple marks confirmation message`() {
         marksFlow.value = listOf(
             makeMark(id = "a", isVisible = true),
             makeMark(id = "b", isVisible = true),
         )
-
-        viewModel.uiState.test {
-            awaitItem()
-            awaitItem()
-            cancelAndIgnoreRemainingEvents()
-        }
 
         viewModel.onDeleteClick()
 
@@ -293,33 +254,22 @@ class GeoMarksListViewModelTest {
     }
 
     @Test
-    fun `onConfirmDelete — invokes use case and closes dialog`() = runTest {
+    fun `onConfirmDelete — invokes use case and closes dialog`() = viewModelCoroutineTest {
         marksFlow.value = listOf(makeMark(id = "del", isVisible = true))
-
-        viewModel.uiState.test {
-            awaitItem()
-            awaitItem()
-            cancelAndIgnoreRemainingEvents()
-        }
 
         viewModel.onDeleteClick()
         viewModel.onConfirmDelete()
+        awaitLaunchedCoroutines()
 
         coVerify { deleteGeoMarks(listOf("del")) }
         assertNull(viewModel.uiState.value.deleteConfirm)
     }
 
     @Test
-    fun `hasMarks true when filters hide all items`() = runTest {
+    fun `hasMarks true when filters hide all items`() {
         marksFlow.value = listOf(
             makeMark(id = "local", isSelf = true, logicalChannelId = "", authorNodeId = ""),
         )
-
-        viewModel.uiState.test {
-            awaitItem()
-            awaitItem()
-            cancelAndIgnoreRemainingEvents()
-        }
 
         viewModel.onDeliveryFilterToggle(GeoMarkDeliveryState.LOCAL)
 
@@ -329,50 +279,33 @@ class GeoMarksListViewModelTest {
     }
 
     @Test
-    fun `onItemDeleteClick — single mark confirmation`() = runTest {
+    fun `onItemDeleteClick — single mark confirmation`() {
         marksFlow.value = listOf(makeMark(id = "one", name = "Alpha", isSelf = true, authorNodeId = ""))
-
-        viewModel.uiState.test {
-            awaitItem()
-            awaitItem()
-            cancelAndIgnoreRemainingEvents()
-        }
 
         viewModel.onItemDeleteClick("one")
 
         val confirm = viewModel.uiState.value.deleteConfirm
-        assertEquals("Удалить метку Alpha(Я)?", confirm?.message)
+        assertEquals("Удалить метку Alpha(от Я)?", confirm?.message)
         assertEquals(listOf("one"), confirm?.markIds)
     }
 
     @Test
-    fun `onItemExtendClick — delegates to use case`() = runTest {
+    fun `onItemExtendClick — delegates to use case`() = viewModelCoroutineTest {
         marksFlow.value = listOf(makeMark(id = "ext"))
 
-        viewModel.uiState.test {
-            awaitItem()
-            awaitItem()
-            cancelAndIgnoreRemainingEvents()
-        }
-
         viewModel.onItemExtendClick("ext")
+        awaitLaunchedCoroutines()
 
         coVerify { extendGeoMark("ext") }
     }
 
     @Test
-    fun `onItemSendClick — opens contour picker with active contours`() = runTest {
+    fun `onItemSendClick — opens contour picker with active contours`() {
         marksFlow.value = listOf(makeMark(id = "send", name = "SendMe"))
         contoursFlow.value = listOf(
             makeContour(id = "ch-1", name = "Alpha"),
             makeContour(id = "ch-2", name = "Beta", isActive = false),
         )
-
-        viewModel.uiState.test {
-            awaitItem()
-            awaitItem()
-            cancelAndIgnoreRemainingEvents()
-        }
 
         viewModel.onItemSendClick("send")
 
@@ -383,19 +316,14 @@ class GeoMarksListViewModelTest {
     }
 
     @Test
-    fun `onSendContourSelected — sends mark to contour`() = runTest {
+    fun `onSendContourSelected — sends mark to contour`() = viewModelCoroutineTest {
         val mark = makeMark(id = "send", isSelf = true)
         marksFlow.value = listOf(mark)
         contoursFlow.value = listOf(makeContour(id = "ch-1", name = "Alpha"))
 
-        viewModel.uiState.test {
-            awaitItem()
-            awaitItem()
-            cancelAndIgnoreRemainingEvents()
-        }
-
         viewModel.onItemSendClick("send")
         viewModel.onSendContourSelected("ch-1")
+        awaitLaunchedCoroutines()
 
         coVerify {
             sendGeoMark(match { params ->
@@ -406,19 +334,14 @@ class GeoMarksListViewModelTest {
     }
 
     @Test
-    fun `reflects isVisible from domain model`() = runTest {
+    fun `reflects isVisible from domain model`() {
         marksFlow.value = listOf(
             makeMark(id = "hidden", isVisible = false),
             makeMark(id = "shown", isVisible = true),
         )
-
-        viewModel.uiState.test {
-            awaitItem()
-            val state = awaitItem()
-            assertFalse(state.items.find { it.id == "hidden" }!!.isVisible)
-            assertTrue(state.items.find { it.id == "shown" }!!.isVisible)
-            cancelAndIgnoreRemainingEvents()
-        }
+        val state = viewModel.uiState.value
+        assertFalse(state.items.find { it.id == "hidden" }!!.isVisible)
+        assertTrue(state.items.find { it.id == "shown" }!!.isVisible)
     }
 
     private fun filterStatus(state: GeoMarksListUiState, type: GeoMarkDeliveryState): GeoMarkDeliveryFilterStatus =
