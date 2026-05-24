@@ -13,8 +13,8 @@ import kotlinx.coroutines.launch
 internal class MarkToolTapDispatcher(
     private val scope: CoroutineScope,
     private val doubleTapTimeoutMs: Long,
-    private val onSingleTap: (lat: Double, lon: Double) -> Unit,
-    private val onDoubleTap: (lat: Double, lon: Double) -> Unit,
+    private val onSingleTap: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit,
+    private val onDoubleTap: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit,
 ) {
     private var lastTapUptimeMs = 0L
     private var pendingSingleTapJob: Job? = null
@@ -25,13 +25,13 @@ internal class MarkToolTapDispatcher(
         pendingSingleTapJob = null
     }
 
-    fun onTapRelease(lat: Double, lon: Double) {
+    fun onTapRelease(lat: Double, lon: Double, screenX: Float, screenY: Float) {
         val now = SystemClock.uptimeMillis()
         if (lastTapUptimeMs > 0L && now - lastTapUptimeMs < doubleTapTimeoutMs) {
             pendingSingleTapJob?.cancel()
             pendingSingleTapJob = null
             lastTapUptimeMs = 0L
-            onDoubleTap(lat, lon)
+            onDoubleTap(lat, lon, screenX, screenY)
         } else {
             lastTapUptimeMs = now
             pendingSingleTapJob?.cancel()
@@ -39,7 +39,7 @@ internal class MarkToolTapDispatcher(
                 delay(doubleTapTimeoutMs)
                 pendingSingleTapJob = null
                 lastTapUptimeMs = 0L
-                onSingleTap(lat, lon)
+                onSingleTap(lat, lon, screenX, screenY)
             }
         }
     }

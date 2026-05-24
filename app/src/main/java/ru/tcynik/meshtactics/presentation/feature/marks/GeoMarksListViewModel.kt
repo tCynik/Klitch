@@ -204,7 +204,7 @@ class GeoMarksListViewModel(
                     type = mark.type,
                     name = mark.name.ifBlank { "—" },
                     ttlLabel = GeoMarkTtlFormatter.format(mark.expiresAt, now),
-                    authorLabel = if (mark.isSelf) "Я" else mark.authorNodeId.take(6),
+                    authorLabel = GeoMarkTitleFormatter.authorLabel(mark),
                     deliveryState = resolveGeoMarkDeliveryState(
                         isSelf = mark.isSelf,
                         logicalChannelId = mark.logicalChannelId,

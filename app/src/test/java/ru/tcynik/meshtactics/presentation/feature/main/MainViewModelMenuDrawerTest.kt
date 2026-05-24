@@ -34,9 +34,11 @@ import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkFormPreferences
 import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkPreferencesRepository
 import ru.tcynik.meshtactics.domain.marker.usecase.AutoExpireGeoMarksUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.DeleteGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.ToggleGeoMarkVisibilityUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
@@ -76,6 +78,8 @@ class MainViewModelMenuDrawerTest {
     private val getLastConnectedDevice: GetLastConnectedDeviceUseCase = mockk()
     private val nodeProvisioning: NodeProvisioningUseCase = mockk(relaxed = true)
     private val observeGeoMarks: ObserveGeoMarksUseCase = mockk()
+    private val toggleGeoMarkVisibility: ToggleGeoMarkVisibilityUseCase = mockk(relaxed = true)
+    private val deleteGeoMarks: DeleteGeoMarksUseCase = mockk(relaxed = true)
     private val sendGeoMark: SendGeoMarkUseCase = mockk(relaxed = true)
     private val ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase = mockk()
     private val autoExpireGeoMarks: AutoExpireGeoMarksUseCase = mockk(relaxed = true)
@@ -143,6 +147,8 @@ class MainViewModelMenuDrawerTest {
             nodeProvisioning = nodeProvisioning,
             checkNodeSync = checkNodeSync,
             observeGeoMarks = observeGeoMarks,
+            toggleGeoMarkVisibility = toggleGeoMarkVisibility,
+            deleteGeoMarks = deleteGeoMarks,
             sendGeoMark = sendGeoMark,
             ingestReceivedGeoMarks = ingestReceivedGeoMarks,
             autoExpireGeoMarks = autoExpireGeoMarks,

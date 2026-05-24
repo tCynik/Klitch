@@ -94,6 +94,9 @@ fun NavGraph() {
                     onMapDoubleClick = viewModel::onMapDoubleClick,
                     onMapLongClick = viewModel::onMapLongClick,
                     contextMenuEvents = viewModel.contextMenuEvent,
+                    onHideGeoMark = viewModel::hideGeoMark,
+                    onDeleteGeoMark = viewModel::deleteGeoMark,
+                    onSendGeoMark = viewModel::prepareGeoMarkForResend,
                     menuDrawerUiState = menuDrawerUiState,
                     geoMarksSheetUiState = geoMarksSheetUiState,
                     onFollowMeDeactivated = viewModel::onFollowMeDeactivated,
@@ -103,6 +106,7 @@ fun NavGraph() {
                     onMapRotatedByUser = viewModel::onMapRotatedByUser,
                     onCourseUpToggle = viewModel::onCourseUpToggle,
                     onFollowMeRestoreZoom = viewModel::onFollowMeRestoreZoom,
+                    onClearGeoMarkSelection = viewModel::clearSelectedGeoMark,
                 )
             }
 

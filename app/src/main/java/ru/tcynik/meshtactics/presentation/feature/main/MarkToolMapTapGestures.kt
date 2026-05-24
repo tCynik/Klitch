@@ -21,7 +21,7 @@ import org.maplibre.compose.camera.CameraState
  */
 fun Modifier.markToolMapTapGestures(
     cameraState: CameraState,
-    onMapClick: (lat: Double, lon: Double) -> Unit,
+    onMapClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit,
     onMapDoubleClick: (lat: Double, lon: Double) -> Unit,
     onMapLongClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit,
 ): Modifier = composed {
@@ -31,7 +31,7 @@ fun Modifier.markToolMapTapGestures(
             scope = scope,
             doubleTapTimeoutMs = ViewConfiguration.getDoubleTapTimeout().toLong(),
             onSingleTap = onMapClick,
-            onDoubleTap = onMapDoubleClick,
+            onDoubleTap = { lat, lon, _, _ -> onMapDoubleClick(lat, lon) },
         )
     }
     Modifier.pointerInput(tapDispatcher) {
@@ -56,7 +56,12 @@ fun Modifier.markToolMapTapGestures(
                             change.consume()
                             val projection = cameraState.projection ?: return@awaitEachGesture
                             val position = projection.positionFromScreenLocation(downOffset)
-                            tapDispatcher.onTapRelease(position.latitude, position.longitude)
+                            tapDispatcher.onTapRelease(
+                                position.latitude,
+                                position.longitude,
+                                downOffset.x.value,
+                                downOffset.y.value,
+                            )
                         }
                         break
                     }

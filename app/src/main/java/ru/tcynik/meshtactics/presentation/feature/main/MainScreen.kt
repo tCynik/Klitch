@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
+import ru.tcynik.meshtactics.presentation.feature.main.osd.GeoMarkMapContextMenu
+import ru.tcynik.meshtactics.presentation.feature.main.osd.GeoMarkMapContextMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -41,6 +43,8 @@ import ru.tcynik.meshtactics.di.orientation.DeviceOrientationProvider
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.presentation.feature.main.osd.GeoMarksSheet
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkContextMenuEvent
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.DraftPointContextMenuEvent
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.ExistingMarkContextMenuEvent
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarksSheetUiState
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudUiState
@@ -62,10 +66,13 @@ fun MainScreen(
     onCameraPositionChanged: (MapCameraPosition) -> Unit,
     locationProvider: LocationProvider,
     orientationProvider: DeviceOrientationProvider,
-    onMapClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
+    onMapClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit = { _, _, _, _ -> },
     onMapDoubleClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
     onMapLongClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit = { _, _, _, _ -> },
     contextMenuEvents: Flow<GeoMarkContextMenuEvent> = emptyFlow(),
+    onHideGeoMark: (String) -> Unit = {},
+    onDeleteGeoMark: (String) -> Unit = {},
+    onSendGeoMark: (String) -> Unit = {},
     menuDrawerUiState: MenuDrawerUiState,
     geoMarksSheetUiState: GeoMarksSheetUiState,
     onFollowMeDeactivated: () -> Unit = {},
@@ -75,6 +82,7 @@ fun MainScreen(
     onMapRotatedByUser: (Double) -> Unit = {},
     onCourseUpToggle: (Double) -> Unit = {},
     onFollowMeRestoreZoom: () -> Unit = {},
+    onClearGeoMarkSelection: () -> Unit = {},
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val density = LocalDensity.current
@@ -205,6 +213,7 @@ fun MainScreen(
                 userBearing = bearing,
                 selectedOverlays = uiState.selectedOverlays,
                 geoMarks = uiState.geoMarks,
+                selectedGeoMarkId = uiState.selectedGeoMarkId,
                 pendingMarkPoints = uiState.pendingMarkPoints,
                 pendingMarkColor = geoMarksSheetUiState.selectedColor,
                 pendingMarkShape = geoMarksSheetUiState.selectedShape,
@@ -267,18 +276,57 @@ fun MainScreen(
         }
 
         contextMenu?.let { event ->
-            Box(Modifier.offset(event.screenX.dp, event.screenY.dp).size(0.dp)) {
-                DropdownMenu(
-                    expanded = true,
-                    onDismissRequest = { contextMenu = null },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Удалить точку") },
-                        onClick = {
-                            geoMarksSheetUiState.onDeletePendingPoint(event.pointIndex)
-                            contextMenu = null
-                        },
-                    )
+            val dismissMenu = {
+                contextMenu = null
+                onClearGeoMarkSelection()
+            }
+            when (event) {
+                is DraftPointContextMenuEvent -> {
+                    Box(Modifier.offset(event.screenX.dp, event.screenY.dp).size(0.dp)) {
+                        DropdownMenu(
+                            expanded = true,
+                            onDismissRequest = dismissMenu,
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Удалить точку") },
+                                onClick = {
+                                    geoMarksSheetUiState.onDeletePendingPoint(event.pointIndex)
+                                    contextMenu = null
+                                },
+                            )
+                        }
+                    }
+                }
+                is ExistingMarkContextMenuEvent -> {
+                    GeoMarkMapContextMenu(
+                        screenXDp = event.screenX,
+                        screenYDp = event.screenY,
+                        title = event.title,
+                        mark = uiState.geoMarks.find { it.id == event.markId },
+                        onDismiss = dismissMenu,
+                    ) {
+                        GeoMarkMapContextMenuItem(
+                            text = "Скрыть",
+                            onClick = {
+                                onHideGeoMark(event.markId)
+                                contextMenu = null
+                            },
+                        )
+                        GeoMarkMapContextMenuItem(
+                            text = "Удалить",
+                            onClick = {
+                                onDeleteGeoMark(event.markId)
+                                contextMenu = null
+                            },
+                        )
+                        GeoMarkMapContextMenuItem(
+                            text = "Отправить",
+                            onClick = {
+                                onSendGeoMark(event.markId)
+                                contextMenu = null
+                            },
+                        )
+                    }
                 }
             }
         }

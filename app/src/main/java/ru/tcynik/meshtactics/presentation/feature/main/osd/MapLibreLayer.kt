@@ -111,12 +111,13 @@ fun MapLibreLayer(
     userBearing: Float = 0f,
     selectedOverlays: ImmutableList<OverlayRenderModel> = persistentListOf(),
     geoMarks: ImmutableList<GeoMarkModel> = persistentListOf(),
+    selectedGeoMarkId: String? = null,
     pendingMarkPoints: ImmutableList<ru.tcynik.meshtactics.domain.marker.model.GeoPoint> = persistentListOf(),
     pendingMarkColor: Int = 0,
     pendingMarkShape: GeoMarkShape = GeoMarkShape.CIRCLE,
     markToolActive: Boolean = false,
     isCourseUpActive: Boolean = false,
-    onMapClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
+    onMapClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit = { _, _, _, _ -> },
     onMapDoubleClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
     onMapLongClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit = { _, _, _, _ -> },
 ) {
@@ -129,7 +130,7 @@ fun MapLibreLayer(
                 scope = scope,
                 doubleTapTimeoutMs = ViewConfiguration.getDoubleTapTimeout().toLong(),
                 onSingleTap = onMapClick,
-                onDoubleTap = onMapDoubleClick,
+                onDoubleTap = { lat, lon, _, _ -> onMapDoubleClick(lat, lon) },
             )
         } else {
             null
@@ -196,12 +197,19 @@ fun MapLibreLayer(
             )
             else -> MapOptions(ornamentOptions = OrnamentOptions(isCompassEnabled = false))
         },
-        onMapClick = { position, _ ->
+        onMapClick = { position, dpOffset ->
+            val screenX = dpOffset.x.value
+            val screenY = dpOffset.y.value
             when {
                 markToolActive && !isCourseUpActive && !useComposeMarkGestures ->
-                    markToolTapDispatcher?.onTapRelease(position.latitude, position.longitude)
+                    markToolTapDispatcher?.onTapRelease(
+                        position.latitude,
+                        position.longitude,
+                        screenX,
+                        screenY,
+                    )
                 !markToolActive ->
-                    onMapClick(position.latitude, position.longitude)
+                    onMapClick(position.latitude, position.longitude, screenX, screenY)
             }
             ClickResult.Pass
         },
@@ -437,6 +445,19 @@ fun MapLibreLayer(
         val receivedPoints = geoMarks.filter { it.type == GeoMarkType.POINT && it.isVisible }
         val receivedTracks = geoMarks.filter { it.type == GeoMarkType.TRACK && it.isVisible }
 
+        val selectedMark = selectedGeoMarkId?.let { id -> geoMarks.find { it.id == id && it.isVisible } }
+        val selectedRingSource = rememberGeoJsonSource(
+            GeoJsonData.JsonString(buildSelectedMarkHighlightGeoJson(selectedMark)),
+        )
+        CircleLayer(
+            id = "geo-selected-mark-ring",
+            source = selectedRingSource,
+            color = const(Color(0x00000000)),
+            radius = const(draftRingRadius),
+            strokeColor = const(Color.Red),
+            strokeWidth = const(3.dp),
+        )
+
         val receivedPointsSource = rememberGeoJsonSource(
             GeoJsonData.JsonString(buildReceivedPointsGeoJson(receivedPoints))
         )
@@ -520,6 +541,7 @@ fun MapLibreLayer(
             iconHaloWidth = const(1.dp),
             iconAllowOverlap = const(true),
         )
+
     }
 }
 
@@ -640,8 +662,23 @@ private fun buildDraftLastPointGeoJson(
     points: List<ru.tcynik.meshtactics.domain.marker.model.GeoPoint>,
 ): String {
     val last = points.lastOrNull() ?: return """{"type":"FeatureCollection","features":[]}"""
-    return """{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[${last.longitude},${last.latitude}]},"properties":{}}]}"""
+    return buildPointGeoJson(last)
 }
+
+/** Кольцо выбранной метки: точка — якорь, трек — последняя вершина (как у черновика). */
+private fun buildSelectedMarkHighlightGeoJson(mark: GeoMarkModel?): String {
+    if (mark == null) return """{"type":"FeatureCollection","features":[]}"""
+    val ringPoint = when (mark.type) {
+        GeoMarkType.POINT -> mark.points.firstOrNull()
+        GeoMarkType.TRACK -> mark.points.lastOrNull()
+    } ?: return """{"type":"FeatureCollection","features":[]}"""
+    return buildPointGeoJson(ringPoint)
+}
+
+private fun buildPointGeoJson(
+    point: ru.tcynik.meshtactics.domain.marker.model.GeoPoint,
+): String =
+    """{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[${point.longitude},${point.latitude}]},"properties":{}}]}"""
 
 private fun buildDraftLineGeoJson(
     points: List<ru.tcynik.meshtactics.domain.marker.model.GeoPoint>,

@@ -27,7 +27,7 @@ fun Modifier.courseUpMapGestures(
     mapHeightPx: Float,
     markToolActive: Boolean,
     cameraState: CameraState,
-    onMapClick: (lat: Double, lon: Double) -> Unit,
+    onMapClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit,
     onMapDoubleClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
 ): Modifier = composed {
     val scope = rememberCoroutineScope()
@@ -37,7 +37,7 @@ fun Modifier.courseUpMapGestures(
                 scope = scope,
                 doubleTapTimeoutMs = ViewConfiguration.getDoubleTapTimeout().toLong(),
                 onSingleTap = onMapClick,
-                onDoubleTap = onMapDoubleClick,
+                onDoubleTap = { lat, lon, _, _ -> onMapDoubleClick(lat, lon) },
             )
         } else {
             null
@@ -94,7 +94,13 @@ fun Modifier.courseUpMapGestures(
         } else {
             val projection = cameraState.projection ?: return@awaitEachGesture
             val position = projection.positionFromScreenLocation(downOffset)
-            tapDispatcher?.onTapRelease(position.latitude, position.longitude)
+            val screenX = downOffset.x.value
+            val screenY = downOffset.y.value
+            if (tapDispatcher != null) {
+                tapDispatcher.onTapRelease(position.latitude, position.longitude, screenX, screenY)
+            } else {
+                onMapClick(position.latitude, position.longitude, screenX, screenY)
+            }
         }
     }
     }

@@ -76,6 +76,7 @@ import ru.tcynik.meshtactics.domain.marker.model.TrackEndType
 import ru.tcynik.meshtactics.domain.marker.util.GeoTrackDistance
 import android.os.SystemClock
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkParams
+import ru.tcynik.meshtactics.domain.marker.usecase.DeleteGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkAddressee
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarksSheetUiState
@@ -88,8 +89,12 @@ import ru.tcynik.meshtactics.domain.marker.usecase.AutoExpireGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.ToggleGeoMarkVisibilityUseCase
 import ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapter
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkContextMenuEvent
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.DraftPointContextMenuEvent
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.ExistingMarkContextMenuEvent
+import ru.tcynik.meshtactics.presentation.feature.marks.GeoMarkTitleFormatter
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MenuDrawerUiState
 import java.util.UUID
 
@@ -123,6 +128,8 @@ class MainViewModel(
     private val getLastConnectedDevice: GetLastConnectedDeviceUseCase,
     private val nodeProvisioning: NodeProvisioningUseCase,
     observeGeoMarks: ObserveGeoMarksUseCase,
+    private val toggleGeoMarkVisibility: ToggleGeoMarkVisibilityUseCase,
+    private val deleteGeoMarks: DeleteGeoMarksUseCase,
     private val sendGeoMark: SendGeoMarkUseCase,
     ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase,
     autoExpireGeoMarks: AutoExpireGeoMarksUseCase,
@@ -532,7 +539,25 @@ class MainViewModel(
         viewModelScope.launch { persistFormState() }
     }
 
-    fun onMapClick(lat: Double, lon: Double) {
+    fun onMapClick(lat: Double, lon: Double, screenX: Float, screenY: Float) {
+        findNearestVisibleMarkId(lat, lon)?.let { markId ->
+            val mark = _uiState.value.geoMarks.firstOrNull { it.id == markId } ?: return@let
+            _uiState.update { it.copy(selectedGeoMarkId = markId) }
+            viewModelScope.launch {
+                _contextMenuEvent.emit(
+                    ExistingMarkContextMenuEvent(
+                        markId = markId,
+                        title = GeoMarkTitleFormatter.selectionTitle(mark),
+                        screenX = screenX,
+                        screenY = screenY,
+                    ),
+                )
+            }
+            return
+        }
+
+        _uiState.update { it.copy(selectedGeoMarkId = null) }
+
         if (!_uiState.value.markToolActive) return
         val now = SystemClock.uptimeMillis()
         if (now - lastOnMapClickUptimeMs < 80L) return
@@ -571,18 +596,91 @@ class MainViewModel(
     }
 
     fun onMapLongClick(lat: Double, lon: Double, screenX: Float, screenY: Float) {
-        if (!_uiState.value.markToolActive) return
-        val pending = _uiState.value.pendingMarkPoints
-        val nearestIndex = pending.indexOfFirst { pt ->
-            val dLat = (pt.latitude  - lat) * METERS_PER_DEG_LAT_APPROX
-            val dLon = (pt.longitude - lon) * METERS_PER_DEG_LAT_APPROX
-            (dLat * dLat + dLon * dLon) < DRAFT_POINT_TOUCH_RADIUS_M * DRAFT_POINT_TOUCH_RADIUS_M
-        }
-        if (nearestIndex >= 0) {
-            viewModelScope.launch {
-                _contextMenuEvent.emit(GeoMarkContextMenuEvent(nearestIndex, screenX, screenY))
+        val state = _uiState.value
+        if (state.markToolActive) {
+            val pending = state.pendingMarkPoints
+            val radiusSq = DRAFT_POINT_TOUCH_RADIUS_M * DRAFT_POINT_TOUCH_RADIUS_M
+            val nearestIndex = pending.indexOfFirst { pt -> distanceSqMeters(pt, lat, lon) < radiusSq }
+            if (nearestIndex >= 0) {
+                viewModelScope.launch {
+                    _contextMenuEvent.emit(DraftPointContextMenuEvent(nearestIndex, screenX, screenY))
+                }
+                return
             }
         }
+
+    }
+
+    private fun findNearestVisibleMarkId(lat: Double, lon: Double): String? {
+        val radiusSq = DRAFT_POINT_TOUCH_RADIUS_M * DRAFT_POINT_TOUCH_RADIUS_M
+        return _uiState.value.geoMarks
+            .asSequence()
+            .filter { it.isVisible }
+            .mapNotNull { mark ->
+                val nearestDistance = mark.points.minOfOrNull { pt -> distanceSqMeters(pt, lat, lon) }
+                    ?: return@mapNotNull null
+                mark.id to nearestDistance
+            }
+            .minByOrNull { it.second }
+            ?.takeIf { it.second < radiusSq }
+            ?.first
+    }
+
+    private fun distanceSqMeters(
+        pt: GeoPoint,
+        lat: Double,
+        lon: Double,
+    ): Double {
+        val dLat = (pt.latitude - lat) * METERS_PER_DEG_LAT_APPROX
+        val dLon = (pt.longitude - lon) * METERS_PER_DEG_LAT_APPROX
+        return dLat * dLat + dLon * dLon
+    }
+
+    fun clearSelectedGeoMark() {
+        _uiState.update { it.copy(selectedGeoMarkId = null) }
+    }
+
+    fun hideGeoMark(markId: String) {
+        clearSelectedGeoMark()
+        viewModelScope.launch {
+            toggleGeoMarkVisibility(markId, visible = false)
+        }
+    }
+
+    fun deleteGeoMark(markId: String) {
+        clearSelectedGeoMark()
+        viewModelScope.launch {
+            deleteGeoMarks(listOf(markId))
+        }
+    }
+
+    fun prepareGeoMarkForResend(markId: String) {
+        val mark = _uiState.value.geoMarks.firstOrNull { it.id == markId } ?: return
+        clearSelectedGeoMark()
+        _formState.update { form ->
+            if (mark.type == GeoMarkType.POINT) {
+                form.copy(
+                    isSheetVisible = true,
+                    isCollapsed = false,
+                    selectedType = mark.type,
+                    selectedColor = mark.color,
+                    selectedShape = mark.shape,
+                    selectedTrackEndType = mark.trackEndType,
+                    pointMarkName = mark.name,
+                )
+            } else {
+                form.copy(
+                    isSheetVisible = true,
+                    isCollapsed = false,
+                    selectedType = mark.type,
+                    selectedColor = mark.color,
+                    selectedShape = mark.shape,
+                    selectedTrackEndType = mark.trackEndType,
+                    trackMarkName = mark.name,
+                )
+            }
+        }
+        _uiState.update { it.copy(markToolActive = true).withPendingMarkPoints(mark.points.toImmutableList()) }
     }
 
     fun sendPendingMark() {
