@@ -443,6 +443,28 @@ class MainViewModelMarkToolTest {
         coVerify(exactly = 0) { sendGeoMark(any()) }
     }
 
+    @Test
+    fun `clear name counter — sends mark without number and keeps counter empty`() = runTest(testDispatcher) {
+        viewModel.toggleMarkTool()
+        viewModel.setNameCounter(null)
+        viewModel.onMapClick(55.750, 37.620, 0f, 0f)
+
+        viewModel.sendPendingMark()
+
+        coVerify(exactly = 1) { sendGeoMark(match { it.mark.name == "точка" }) }
+        assertEquals(null, viewModel.geoMarksSheetUiState.value.nameCounter)
+    }
+
+    @Test
+    fun `send with name counter — increments counter for next mark`() = runTest(testDispatcher) {
+        viewModel.toggleMarkTool()
+        viewModel.onMapClick(55.750, 37.620, 0f, 0f)
+
+        viewModel.sendPendingMark()
+
+        assertEquals(2, viewModel.geoMarksSheetUiState.value.nameCounter)
+    }
+
     // ── deletePendingPoint ────────────────────────────────────────────────────
 
     @Test

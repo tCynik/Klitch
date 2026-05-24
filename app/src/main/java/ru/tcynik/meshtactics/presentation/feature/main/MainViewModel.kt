@@ -518,8 +518,8 @@ class MainViewModel(
         viewModelScope.launch { persistFormState() }
     }
 
-    fun setNameCounter(counter: Int) {
-        val v = counter.coerceAtLeast(1)
+    fun setNameCounter(counter: Int?) {
+        val v = counter?.coerceAtLeast(1)
         _formState.update { form ->
             if (form.selectedType == GeoMarkType.POINT)
                 form.copy(pointNameCounter = v)
@@ -1077,10 +1077,11 @@ class MainViewModel(
         )
         sendGeoMark(SendGeoMarkParams(mark, contourId, localOnly))
         _formState.update { s ->
-            if (type == GeoMarkType.POINT)
-                s.copy(pointNameCounter = s.pointNameCounter + 1)
-            else
-                s.copy(trackNameCounter = s.trackNameCounter + 1)
+            if (type == GeoMarkType.POINT) {
+                s.copy(pointNameCounter = s.pointNameCounter?.plus(1))
+            } else {
+                s.copy(trackNameCounter = s.trackNameCounter?.plus(1))
+            }
         }
         persistFormState()
         savePreset(_formState.value, markLabel)
@@ -1089,7 +1090,12 @@ class MainViewModel(
     private fun buildMarkLabel(form: GeoMarksFormState, type: GeoMarkType): String {
         val base = if (type == GeoMarkType.POINT) form.pointMarkName.trim() else form.trackMarkName.trim()
         val counter = if (type == GeoMarkType.POINT) form.pointNameCounter else form.trackNameCounter
-        return if (base.isEmpty()) "$counter" else "$base $counter"
+        return when {
+            counter == null && base.isEmpty() -> ""
+            counter == null -> base
+            base.isEmpty() -> "$counter"
+            else -> "$base $counter"
+        }
     }
 
     private fun applyPrefsToFormState(prefs: GeoMarkFormPreferences) {
@@ -1106,6 +1112,8 @@ class MainViewModel(
                 selectedTtlSeconds   = prefs.selectedTtlSeconds,
                 pointMarkName        = prefs.pointMarkName,
                 trackMarkName        = prefs.trackMarkName,
+                pointNameCounter     = prefs.pointNameCounter,
+                trackNameCounter     = prefs.trackNameCounter,
                 selectedContourId    = when {
                     form.wasAddresseeExplicitlySelected && form.selectedContourId.isNotEmpty() ->
                         form.selectedContourId
@@ -1129,6 +1137,8 @@ class MainViewModel(
                 selectedTtlSeconds   = form.selectedTtlSeconds,
                 pointMarkName        = form.pointMarkName,
                 trackMarkName        = form.trackMarkName,
+                pointNameCounter     = form.pointNameCounter,
+                trackNameCounter     = form.trackNameCounter,
                 selectedContourId    = form.selectedContourId,
             )
         )

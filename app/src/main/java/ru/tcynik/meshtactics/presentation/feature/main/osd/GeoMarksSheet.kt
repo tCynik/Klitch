@@ -445,7 +445,8 @@ private fun TrackEndTypeIcon(
 
 private fun buildSheetHeaderTitle(state: GeoMarksSheetUiState): String {
     val name = state.markName.trim().ifEmpty { state.selectedType.headerNameFallback }
-    return "$name ${state.nameCounter}/${formatTtlShort(state.selectedTtlSeconds)}"
+    val counterPart = state.nameCounter?.let { " $it" }.orEmpty()
+    return "$name$counterPart/${formatTtlShort(state.selectedTtlSeconds)}"
 }
 
 private fun formatTtlShort(seconds: Long): String = when (seconds) {
@@ -581,8 +582,13 @@ private fun NameAndTtlRow(state: GeoMarksSheetUiState) {
             modifier = Modifier.weight(1f),
         )
         OutlinedTextField(
-            value = state.nameCounter.toString(),
-            onValueChange = { v -> v.toIntOrNull()?.let { state.onNameCounterChanged(it) } },
+            value = state.nameCounter?.toString().orEmpty(),
+            onValueChange = { v ->
+                when {
+                    v.isEmpty() -> state.onNameCounterChanged(null)
+                    else -> v.toIntOrNull()?.let { state.onNameCounterChanged(it) }
+                }
+            },
             label = { Text("№") },
             modifier = Modifier.width(64.dp),
             singleLine = true,
