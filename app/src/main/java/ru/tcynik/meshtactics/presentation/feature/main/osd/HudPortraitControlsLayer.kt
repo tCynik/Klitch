@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import ru.tcynik.meshtactics.presentation.feature.main.osd.layouts.HudRow
@@ -20,7 +21,7 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudUiState
 import androidx.compose.foundation.layout.Arrangement
 
 // Portrait HUD — fixed layout:
-// Left column:  menuDrawer pinned at top (SpaceBetween), map tools at bottom.
+// Left column:  menuDrawer pinned at top, zoomIn/zoomOut in middle (SpaceBetween), map tools at bottom.
 // Right column: radio button pinned to the top, remaining buttons at the bottom.
 @Composable
 fun HudPortraitControlsLayer(
@@ -28,6 +29,8 @@ fun HudPortraitControlsLayer(
     modifier: Modifier = Modifier,
     onCompassLongClick: (() -> Unit)? = null,
     onFollowMeClick: (() -> Unit)? = null,
+    onZoomInClick: (() -> Unit)? = null,
+    onZoomOutClick: (() -> Unit)? = null,
 ) {
     val compassConfig = if (onCompassLongClick != null)
         state.compass.copy(button = state.compass.button.copy(onLongClick = onCompassLongClick))
@@ -37,6 +40,14 @@ fun HudPortraitControlsLayer(
         state.target.copy(button = state.target.button.copy(onClick = onFollowMeClick))
     else
         state.target
+    val zoomInConfig = if (onZoomInClick != null)
+        state.zoomIn.copy(button = state.zoomIn.button.copy(onClick = onZoomInClick))
+    else
+        state.zoomIn
+    val zoomOutConfig = if (onZoomOutClick != null)
+        state.zoomOut.copy(button = state.zoomOut.button.copy(onClick = onZoomOutClick))
+    else
+        state.zoomOut
 
     BoxWithConstraints(
         modifier = modifier
@@ -49,12 +60,19 @@ fun HudPortraitControlsLayer(
             modifier = Modifier.fillMaxSize(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            // Left — hamburger at top, map tools at bottom
+            // Left — hamburger at top, zoom in/out in middle, map tools at bottom
             Column(
                 modifier = Modifier.fillMaxHeight(),
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {
                 HudRow(config = state.menuDrawer, side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
+                Column(
+                    horizontalAlignment = Alignment.Start,
+                ) {
+                    HudRow(config = zoomInConfig,  side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
+                    Spacer(Modifier.height(4.dp))
+                    HudRow(config = zoomOutConfig, side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
+                }
                 Column(
                     verticalArrangement = Arrangement.Bottom,
                 ) {

@@ -1,14 +1,22 @@
 package ru.tcynik.meshtactics.presentation.feature.main
 
 import android.content.res.Configuration
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsTopHeight
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import ru.tcynik.meshtactics.presentation.feature.main.osd.GeoMarkMapContextMenu
@@ -19,6 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -36,6 +45,7 @@ import kotlin.math.pow
 import kotlin.math.sin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.launch
 import org.maplibre.compose.camera.CameraMoveReason
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
@@ -96,6 +106,7 @@ fun MainScreen(
     val density = LocalDensity.current
     var lastKnownPosition by remember { mutableStateOf(uiState.initialCameraPosition) }
     var contextMenu by remember { mutableStateOf<GeoMarkContextMenuEvent?>(null) }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(contextMenuEvents) {
         contextMenuEvents.collect { event -> contextMenu = event }
@@ -232,7 +243,13 @@ fun MainScreen(
             )
         }
 
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+        ) {
+        if (uiState.tileUrlTemplate.isEmpty()) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+        }
         if (uiState.tileUrlTemplate.isNotEmpty()) {
             MapLibreLayer(
                 modifier = Modifier.fillMaxSize(),
@@ -277,6 +294,14 @@ fun MainScreen(
             )
         }
 
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsTopHeight(WindowInsets.statusBars)
+                .background(Color.Black.copy(alpha = 0.35f))
+                .align(Alignment.TopCenter),
+        )
+
         // HUD button columns
         if (isLandscape) {
             HudControlsLayer(
@@ -294,6 +319,24 @@ fun MainScreen(
                 },
                 onFollowMeClick = {
                     if (uiState.isCourseUpActive) onFollowMeRestoreZoom() else hudUiState.target.button.onClick()
+                },
+                onZoomInClick = {
+                    val pos = cameraState.position
+                    coroutineScope.launch {
+                        cameraState.animateTo(
+                            finalPosition = CameraPosition(target = pos.target, zoom = pos.zoom + 0.5, bearing = pos.bearing),
+                            duration = 200.milliseconds,
+                        )
+                    }
+                },
+                onZoomOutClick = {
+                    val pos = cameraState.position
+                    coroutineScope.launch {
+                        cameraState.animateTo(
+                            finalPosition = CameraPosition(target = pos.target, zoom = pos.zoom - 0.5, bearing = pos.bearing),
+                            duration = 200.milliseconds,
+                        )
+                    }
                 },
             )
         }

@@ -769,6 +769,8 @@ class MainViewModel(
 
     private fun buildHudUiState(state: MainUiState, nav: HudNavCallbacks, form: GeoMarksFormState): HudUiState = HudUiState(
         menuDrawer = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_menu, label = "меню", onClick = { toggleMenuDrawer() }), info = emptyInfoSlot()),
+        zoomIn   = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_zoom_in,  label = "+", onClick = {}), info = emptyInfoSlot()),
+        zoomOut  = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_zoom_out, label = "-", onClick = {}), info = emptyInfoSlot()),
         compass  = HudRowConfig(
             button = buildCompassButton(state),
             info = if (!state.isNorthLocked)
@@ -840,11 +842,6 @@ class MainViewModel(
     private fun buildMenuDrawerUiState(state: MainUiState, nav: HudNavCallbacks): MenuDrawerUiState = MenuDrawerUiState(
         isOpen = state.menuDrawerOpen,
         items = listOf(
-            DrawerMenuItem(
-                iconRes = R.drawable.ic_radio,
-                label = "радио",
-                onClick = { nav.onRadioClick(); toggleMenuDrawer() },
-            ),
             DrawerMenuItem(
                 iconRes = R.drawable.ic_mesh,
                 label = "ноды",
@@ -994,23 +991,28 @@ class MainViewModel(
     private fun buildConnectionInfoSlot(state: MainUiState): HudInfoSlot = when (val status = state.connectionStatus) {
         MeshConnectionStatus.Scanning ->
             if (state.foundDevices.isNotEmpty())
-                HudInfoSlot(content = "выбор узла", color = Color.Yellow)
+                HudInfoSlot(content = "выбор узла", color = Color.Black)
             else
                 HudInfoSlot(content = "Поиск...", color = Color.Red)
         is MeshConnectionStatus.Connecting ->
-            HudInfoSlot(content = "Сопряжение с ${status.deviceName}", color = Color.Yellow)
+            HudInfoSlot(content = "Сопряжение с ${status.deviceName}", color = Color.Black)
         is MeshConnectionStatus.Connected ->
             if (state.syncRequired)
                 HudInfoSlot(content = "требуется синхронизация", color = Color.Red)
             else if (!state.hasChannelOnNode)
                 HudInfoSlot(content = "Настройте канал", color = Color.Red)
             else if (state.showConnectionLabel)
-                HudInfoSlot(content = "Сопряжено с ${status.shortName}", color = Color.Green)
+                HudInfoSlot(content = "Сопряжено с ${status.shortName}", color = Color.Black)
+            else if (status.batteryLevel in 1..100)
+                HudInfoSlot(
+                    content = "🔋${status.batteryLevel}%",
+                    color = if (status.batteryLevel < 20) Color.Red else Color.Black,
+                )
             else
                 emptyInfoSlot()
         else ->
             if (state.isRebooting)
-                HudInfoSlot(content = "Перезагрузка...", color = Color.Yellow)
+                HudInfoSlot(content = "Перезагрузка...", color = Color.Black)
             else
                 emptyInfoSlot()
     }

@@ -41,6 +41,8 @@
 | HUD Menu Drawer (выдвижная шторка навигации) | ✅ Done |
 | Follow Me (слежение за позицией пользователя) | ✅ Done |
 | Привязка ориентации карты (компас + heading-up) | ✅ Done |
+| Статус соединения в HUD (connection label + батарея ноды) | ✅ Done |
+| Кнопки масштаба на карте | ✅ Done |
 
 ---
 
@@ -131,14 +133,14 @@
 
 | План | Файл | Статус |
 |---|---|---|
-| HUD Node Status Indicator | `.claude/plans/hud-node-status-indicator.md` | In Progress |
-| Connection Status HUD Info | `.claude/plans/connection-status-hud-info.md` | Approved |
+| HUD Node Status Indicator | `.claude/archive/hud-node-status-indicator.md` | Done |
+| Connection Status HUD Info | `.claude/archive/connection-status-hud-info.md` | Done |
 | Map Orientation Binding | `.claude/archive/map-orientation.md` | Done |
 | Course-Up Mode | `.claude/archive/course-up.md` | Done |
 | Settings Screens Split | `.claude/archive/settings-screens-split.md` | Done |
 | Node PKC Key Management | `.claude/archive/node-key-management.md` | Done |
 | Chat Feature | `.claude/plans/chat-feature-plan.md` | Done |
-| Node Provisioning | `.claude/plans/node-provisioning.md` | Done |
+| Node Provisioning | `.claude/archive/node-provisioning.md` | Done |
 | Contour Concept | `.claude/archive/contour-concept.md` | Archived |
 | User & Channels Settings | `.claude/archive/user-and-channels-settings.md` | Archived |
 | Logical Channels Management | `.claude/archive/logical-channels-management.md` | Archived |

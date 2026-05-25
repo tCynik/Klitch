@@ -1,7 +1,7 @@
 # Plan: HUD Node Status Indicator
 
 **Date**: 2026-04-06
-**Status**: In Progress
+**Status**: Done
 
 ## Summary
 
@@ -185,6 +185,18 @@ Phase 6: /commit
    Future feature — nodes that haven't reported position recently still count.
 2. **`[OWN NODE]` log labeling**: not implemented in this commit. Tracked as follow-up — identify
    all data-layer log points where our node is processed and add explicit label.
+3. **`Color.Black` hardcoded fallback в `HudInfoSlotItem.kt`**: в ветке ui_fixes_may изменён с
+   `MaterialTheme.colorScheme.onSurface` на `Color.Black` — сломан HUD на тёмной теме.
+   При реализации этого плана восстановить `onSurface` или заменить на правильный дизайн-токен.
+
+## Отклонения от плана
+
+`NodeStatusIndicator` как отдельный composable **не создавался**. Вместо этого:
+- `infoBadge` на кнопке радио → счётчик нод с геопозицией
+- `tintOverride` на кнопке радио → цвет по RSSI
+- `RSSI_LOW_THRESHOLD` вынесен в `MainViewModel.kt`, не в `HudControlsLayer`
+
+Архитектурно лучше плана — консистентно с HUD `HudButtonSlot`-паттерном.
 
 ## Change Log
 
@@ -192,3 +204,4 @@ Phase 6: /commit
 - 2026-04-06: Clarified "our node" philosophy — excluded from map markers at domain level to avoid
   duplication with GPS location layer. Removed `isOurNode` from `NodeMarkerModel`. RSSI threshold
   confirmed at -90 dBm, extracted to named constant.
+- 2026-05-25: Done. Реализовано через infoBadge+tintOverride на radio-кнопке HUD.
