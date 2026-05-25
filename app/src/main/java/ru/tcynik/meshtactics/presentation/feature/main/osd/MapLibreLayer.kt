@@ -185,17 +185,17 @@ fun MapLibreLayer(
                     isDoubleTapEnabled = false,
                     isQuickZoomEnabled = false,
                 ),
-                ornamentOptions = OrnamentOptions(isCompassEnabled = false),
+                ornamentOptions = OrnamentOptions(isCompassEnabled = false, isScaleBarEnabled = false),
             )
             markToolActive -> MapOptions(
                 gestureOptions = GestureOptions(isDoubleTapEnabled = false, isQuickZoomEnabled = false),
-                ornamentOptions = OrnamentOptions(isCompassEnabled = false),
+                ornamentOptions = OrnamentOptions(isCompassEnabled = false, isScaleBarEnabled = false),
             )
             isCourseUpActive -> MapOptions(
                 gestureOptions = GestureOptions.PositionLocked,
-                ornamentOptions = OrnamentOptions(isCompassEnabled = false),
+                ornamentOptions = OrnamentOptions(isCompassEnabled = false, isScaleBarEnabled = false),
             )
-            else -> MapOptions(ornamentOptions = OrnamentOptions(isCompassEnabled = false))
+            else -> MapOptions(ornamentOptions = OrnamentOptions(isCompassEnabled = false, isScaleBarEnabled = false))
         },
         onMapClick = { position, dpOffset ->
             val screenX = dpOffset.x.value
