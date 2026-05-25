@@ -841,11 +841,6 @@ class MainViewModel(
         isOpen = state.menuDrawerOpen,
         items = listOf(
             DrawerMenuItem(
-                iconRes = R.drawable.ic_radio,
-                label = "радио",
-                onClick = { nav.onRadioClick(); toggleMenuDrawer() },
-            ),
-            DrawerMenuItem(
                 iconRes = R.drawable.ic_mesh,
                 label = "ноды",
                 onClick = { nav.onMeshClick(); toggleMenuDrawer() },
@@ -994,23 +989,23 @@ class MainViewModel(
     private fun buildConnectionInfoSlot(state: MainUiState): HudInfoSlot = when (val status = state.connectionStatus) {
         MeshConnectionStatus.Scanning ->
             if (state.foundDevices.isNotEmpty())
-                HudInfoSlot(content = "выбор узла", color = Color.Yellow)
+                HudInfoSlot(content = "выбор узла", color = Color.Black)
             else
                 HudInfoSlot(content = "Поиск...", color = Color.Red)
         is MeshConnectionStatus.Connecting ->
-            HudInfoSlot(content = "Сопряжение с ${status.deviceName}", color = Color.Yellow)
+            HudInfoSlot(content = "Сопряжение с ${status.deviceName}", color = Color.Black)
         is MeshConnectionStatus.Connected ->
             if (state.syncRequired)
                 HudInfoSlot(content = "требуется синхронизация", color = Color.Red)
             else if (!state.hasChannelOnNode)
                 HudInfoSlot(content = "Настройте канал", color = Color.Red)
             else if (state.showConnectionLabel)
-                HudInfoSlot(content = "Сопряжено с ${status.shortName}", color = Color.Green)
+                HudInfoSlot(content = "Сопряжено с ${status.shortName}", color = Color.Black)
             else
                 emptyInfoSlot()
         else ->
             if (state.isRebooting)
-                HudInfoSlot(content = "Перезагрузка...", color = Color.Yellow)
+                HudInfoSlot(content = "Перезагрузка...", color = Color.Black)
             else
                 emptyInfoSlot()
     }
