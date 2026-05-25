@@ -1,7 +1,8 @@
 # Geo Marks — Points and Tracks
 
-**Date**: 2026-05-21 (display settings: geo mark size + name labels)
+**Date**: 2026-05-25 (track distance, optional name counter, map context menu, send queue)
 **Plan archives**: `.claude/archive/geo-marks-plan.md`, `.claude/archive/geo-marks-sheet.md`, `.claude/archive/geo-marks-display-settings.md`
+**Related**: `.claude/docs/geo-marks-list.md` (полноэкранный список, фильтры, массовые действия)
 
 ---
 
@@ -25,6 +26,8 @@ app/
 │   │   ├── GeoMarkFormPreferences.kt    — @Serializable prefs stored in DataStore
 │   │   ├── GeoMarkPreset.kt             — @Serializable saved combo (id + displayName + prefs)
 │   │   └── GeoPoint.kt                  — lat/lon
+│   ├── util/
+│   │   └── GeoTrackDistance.kt          — last/total segment metres; formatKmRatio for sheet
 │   ├── repository/
 │   │   ├── GeoMarkRepository.kt         — observeGeoMarks / sendGeoMark / persistReceived / deleteExpired
 │   │   └── GeoMarkPreferencesRepository.kt — observePreferences / observePresets / savePreferences / addPreset
@@ -37,14 +40,15 @@ app/
 │   ├── adapter/
 │   │   └── GeoMarkWaypointAdapter.kt    — encode/decode; only class importing Waypoint proto
 │   └── repository/
-│       └── GeoMarkRepositoryImpl.kt     — PacketRepository + SQLDelight + adapter; channel override
+│       ├── GeoMarkRepositoryImpl.kt     — PacketRepository + SQLDelight + adapter; channel override
+│       └── GeoMarkSendQueue.kt          — paced WAYPOINT_APP sends (MIN_SEND_INTERVAL_MS)
 ├── data/markprefs/
 │   ├── GeoMarkPrefsDataSource.kt        — DataStore read/write; preset eviction (max 10)
 │   └── GeoMarkPreferencesRepositoryImpl.kt — implements GeoMarkPreferencesRepository
 └── presentation/feature/main/
     ├── GeoMarksFormState.kt             — internal ViewModel form state (not exposed directly)
     ├── GeoMarkAddresseeDefaults.kt      — default addressee resolver (Basic vs storage)
-    ├── MainUiState.kt                   — geoMarks, markToolActive, pendingMarkPoints
+    ├── MainUiState.kt                   — geoMarks, markToolActive, pendingMarkPoints, selectedGeoMarkId, trackDraftDistanceLabel
     ├── MainViewModel.kt                 — _formState StateFlow, mark tool logic, gesture handlers
     ├── MainScreen.kt                    — GeoMarksSheet; course-up overlay; wires map callbacks
     ├── MarkToolTapDispatcher.kt         — deferred single-tap / double-tap classification
@@ -52,13 +56,19 @@ app/
     ├── CourseUpMapGestures.kt           — course-up: Y-zoom + mark taps via dispatcher
     └── osd/
         ├── GeoMarksSheet.kt             — persistent non-modal bottom sheet composable
+        ├── GeoMarkMapContextMenu.kt     — Popup menu for existing marks on map (header + actions)
         ├── MapLibreLayer.kt             — gesture callbacks + geo mark rendering layers
         └── models/
             ├── GeoMarksSheetUiState.kt  — all sheet data + callbacks bundled (MenuDrawer pattern)
+            ├── GeoMarkContextMenuEvent.kt — sealed: DraftPoint / ExistingMark
             └── GeoMarkAddressee.kt      — contourId + displayName for адресат dropdown
 
+presentation/feature/marks/
+├── GeoMarkTitleFormatter.kt             — selectionTitle / authorLabel (map menu + list)
+└── GeoMarkCreatedAtFormatter.kt         — created_at labels (map menu header; см. geo-marks-list.md)
+
 shared/src/commonMain/sqldelight/.../data/local/
-└── GeoMark.sq                           — geo_mark table; 13 columns including color/name/track_end_type/shape
+└── GeoMark.sq                           — geo_mark table; is_visible + color/name/track_end_type/shape
 ```
 
 ---
@@ -79,8 +89,21 @@ data class GeoMarkModel(
     val name: String = "",       // user label; maps to Waypoint.name
     val trackEndType: TrackEndType = TrackEndType.NONE,
     val shape: GeoMarkShape = GeoMarkShape.CIRCLE,
+    val isVisible: Boolean = true,  // map + list checkbox; SQLDelight is_visible
 )
 ```
+
+### GeoTrackDistance
+
+`domain/marker/util/GeoTrackDistance.kt` — расстояния по черновому треку (haversine через `latLongToMeter`):
+
+| Метод | Назначение |
+|---|---|
+| `lastSegmentMeters(points)` | метры между двумя последними вершинами; 0 если &lt; 2 точек |
+| `totalMeters(points)` | сумма всех сегментов |
+| `formatKmRatio(seg, total)` | строка вида `0.123/0.456км` (3 знака после запятой) |
+
+`MainViewModel.withPendingMarkPoints()` обновляет `MainUiState.trackDraftDistanceLabel` при каждом изменении черновика. Шторка TRACK показывает `точек: N / 27` и `trackDistanceLabel` в одной строке.
 
 ### GeoMarkColor
 
@@ -179,7 +202,7 @@ ViewModel.sendPendingMark()  // или onMapDoubleClick → send для POINT / 
       → if localOnly: geoMarkQueries.insert() only
       → else: adapter.encode() → packet.channel = resolvedSlot → commandSender.sendData()
               → geoMarkQueries.insert(isSelf=1)
-  → increment nameCounter, persist prefs, save preset
+  → increment name counter (if non-null), persist prefs, save preset
 ```
 
 ### Receive
@@ -215,11 +238,14 @@ CREATE TABLE geo_mark (
     color              INTEGER NOT NULL DEFAULT 0,    -- GeoMarkColor.palette index
     name               TEXT    NOT NULL DEFAULT '',
     track_end_type     INTEGER NOT NULL DEFAULT 0,    -- TrackEndType.ends byte
-    shape              INTEGER NOT NULL DEFAULT 0     -- GeoMarkShape.ordinal
+    shape              INTEGER NOT NULL DEFAULT 0,    -- GeoMarkShape.ordinal
+    is_visible         INTEGER NOT NULL DEFAULT 1     -- 1 = on map; ToggleGeoMarkVisibilityUseCase
 );
 ```
 
-Queries: `selectAll`, `selectById`, `selectSelfIds`, `selectAllForChannel`, `insert`, `insertReceived` (`INSERT OR REPLACE` — same `wp-*` id updates coords/color), `deleteById`, `deleteExpired`.
+Queries: `selectAll`, `selectById`, `selectSelfIds`, `selectAllForChannel`, `insert`, `insertReceived` (`INSERT OR REPLACE` — same `wp-*` id updates coords/color), `setVisible`, `deleteById`, `deleteExpired`.
+
+Миграция `9.sqm`: `ALTER TABLE geo_mark ADD COLUMN is_visible`. Скрытые метки не попадают в `findNearestVisibleMarkId` и не рендерятся в `MapLibreLayer`.
 
 ---
 
@@ -233,9 +259,13 @@ Queries: `selectAll`, `selectById`, `selectSelfIds`, `selectAllForChannel`, `ins
 - `selectedShape: String` (enum name)
 - `selectedTrackEndType: Int` (TrackEndType.ends byte value — known inconsistency with String approach for other fields)
 - `selectedTtlSeconds: Long`
-- `markName: String`
+- `pointMarkName: String` (default `"точка"`)
+- `trackMarkName: String` (default `"Путь"`)
+- `pointNameCounter: Int?` (default `1`; `null` = номер не используется)
+- `trackNameCounter: Int?` (default `1`)
 - `selectedContourId: String`
-- **Note**: no counter fields — counters are session-only (reset on restart)
+
+`GeoMarkPrefsDataSource` кодирует `null` счётчик как `NO_NAME_COUNTER = -1` в Preferences DataStore; при чтении `decodeNameCounter` восстанавливает `null`.
 
 `GeoMarkPreset` (domain, `@Serializable`): `id + displayName + prefs: GeoMarkFormPreferences`
 
@@ -264,15 +294,18 @@ data class GeoMarksFormState(
     val selectedShape: GeoMarkShape,
     val selectedTrackEndType: TrackEndType,
     val selectedTtlSeconds: Long,
-    val markName: String,
-    val pointNameCounter: Int,   // session-only, not persisted
-    val trackNameCounter: Int,   // session-only, not persisted
+    val pointMarkName: String,
+    val trackMarkName: String,
+    val pointNameCounter: Int?,    // persisted; null = поле «№» пустое
+    val trackNameCounter: Int?,
     val selectedContourId: String,
     val wasAddresseeExplicitlySelected: Boolean,
     val availableContours: ImmutableList<GeoMarkAddressee>,
     val savedPresets: ImmutableList<GeoMarkPreset>,
 )
 ```
+
+Активное имя/счётчик в UI: по `selectedType` берётся `pointMarkName`/`trackMarkName` и соответствующий counter (`GeoMarksSheetUiState.markName`, `nameCounter: Int?`).
 
 ### GeoMarksSheetUiState
 
@@ -289,20 +322,23 @@ Derived StateFlow combining `_uiState + _formState`. All callbacks bundled (Menu
 | `applyPreset(preset)` | restore all form fields from preset |
 | `sendPendingMark()` | send from `pendingMarkPoints`; TRACK requires ≥2 vertices; then clear pending |
 | `sendGeoMarkAtPoints(points, type)` | private; shared encode/send path for button and double-tap |
-| `onMapClick(lat, lon)` | add draft vertex immediately (POINT always replaces draft with one vertex, TRACK appends); called only after gesture layer confirms single-tap |
-| `onMapDoubleClick(lat, lon)` | POINT: send one mark at tap; TRACK: append tap vertex, then `sendPendingMark()` |
-| `onMapLongClick(...)` | proximity 30m to draft vertex → `GeoMarkContextMenuEvent` (non–course-up only) |
+| `onMapClick(lat, lon, screenX, screenY)` | **сначала** `findNearestVisibleMarkId` (30 m, `isVisible`) → `ExistingMarkContextMenuEvent` + `selectedGeoMarkId`; иначе при `markToolActive` — черновик (POINT replace / TRACK append) |
+| `onMapDoubleClick(lat, lon)` | только при `markToolActive`: POINT send at tap; TRACK append + `sendPendingMark()` |
+| `onMapLongClick(...)` | при `markToolActive`: черновая вершина в 30 m → `DraftPointContextMenuEvent` (non–course-up) |
+| `hideGeoMark` / `deleteGeoMark` / `prepareGeoMarkForResend` | из меню существующей метки: скрыть (`toggleVisibility`), удалить, открыть шторку с полями метки для повторной отправки |
+| `clearSelectedGeoMark()` | сброс `selectedGeoMarkId` при dismiss меню |
 | `clearPendingPoints()` | clear `pendingMarkPoints` from `_uiState` |
 | `deletePendingPoint(index)` | remove by index |
 
 ### Name counter rules
 
-- Separate counters per type: `pointNameCounter` and `trackNameCounter` in `GeoMarksFormState`
-- Both reset to 1 on `setMarkName()` (text change)
-- `setNameCounter()` updates the counter for the active `selectedType`
-- Auto-increments the counter matching the sent mark type after each successful `sendGeoMarkAtPoints()`
-- Counters are **not persisted** to DataStore — reset to 1 on app restart
-- `GeoMarkFormPreferences` does not contain counter fields
+- Отдельные имена и счётчики по типу: `pointMarkName` / `trackMarkName`, `pointNameCounter` / `trackNameCounter` (`Int?`)
+- Поле «№» в шторке можно **очистить** → `null` → в заголовке и в `Waypoint.name` номер не подставляется
+- `setMarkName()` сбрасывает счётчик активного типа в `1` (не в `null`)
+- `setNameCounter(counter: Int?)` — `null` или значение ≥ 1; персистится в DataStore
+- После `sendGeoMarkAtPoints()` счётчик активного типа увеличивается на 1 **только если** был non-null (`?.plus(1)`)
+- `buildMarkLabel()`: `"{base} {counter}"` / только base / только counter / `""` в зависимости от пустых полей
+- Заголовок шторки: `{name}{optional " N"}/{ttlShort}` — при `nameCounter == null` пробел и номер опускаются
 
 ### Addressee logic
 
@@ -319,16 +355,18 @@ Selection priority:
 
 Emergency (`DefaultContour`) is never used as dynamic default even if `isActive`.
 
+**Реактивное переключение**: `combine(observeLogicalChannels, connectionStatus.distinctUntilChanged())` в `MainViewModel.init` — при подключении/отключении ноды и смене активных контуров `selectedContourId` пересчитывается без перезапуска (если пользователь не зафиксировал явный выбор и контур ещё в списке).
+
 ### GeoMarksSheet composable
 
 Non-modal bottom sheet. `AnimatedVisibility(slideInVertically + fadeIn)` at `Alignment.BottomEnd` in `MainScreen`.
 
-**Header**: Edit icon | ShapeIcon with fill color | `{name} {counter}/{ttlShort}` | collapse | close
+**Header**: Edit icon | ShapeIcon with fill color | `{name}{optional counter}/{ttlShort}` | collapse | close
 
 **Body** (hidden when collapsed):
 - Type dropdown (POINT, TRACK; POLYGON/PRIMITIVE disabled items)
 - **Вид** dropdown + Color dropdown (side by side with type): "Вид" switches content by type — POINT shows `ShapeDropdown` (CIRCLE/SQUARE/TRIANGLE via `ShapeIcon`), TRACK shows `TrackEndTypeDropdown` (NONE/ARROW via `TrackEndTypeIcon`)
-- Type-specific section: TRACK shows `точек: N / 27` text only; POINT shows nothing
+- Type-specific section: TRACK — `TrackSection`: `точек: N / 27` и `trackDraftDistanceLabel` (`0.123/0.456км`); POINT — пусто
 - Name field + counter field + TTL dropdown (9 options: 15m … 3 days)
 - Bottom row: "Очистить" button + split send button (`Отправить в | [addressee ▼]`)
 
@@ -349,6 +387,8 @@ Non-modal bottom sheet. `AnimatedVisibility(slideInVertically + fadeIn)` at `Ali
 - Received POINT marks: `SymbolLayer` (`geo-received-points`) with shape bitmap tinted by mark color
 - Received POINT name labels: separate `SymbolLayer` (`geo-received-point-labels`), same source as points, added only when `showGeoMarkNames = true`. Two layers necessary — single layer with conditional text params causes MapLibre layer ID conflict on recomposition.
 - Received TRACK marks: `LineLayer` (color from `markColorHex`) + anchor `SymbolLayer`
+- `selectedGeoMarkId`: подсветка выбранной метки (толще линия трека / увеличенный anchor point)
+- Рендер только `mark.isVisible == true` (черновик всегда виден)
 - `geoMarkSizeLevel` (1–10) controls `iconSize` of point/draft layers: `(36 + (level-1) * 6) / 64f` → range [0.5625, 1.406]. Track anchor scaled at 70% of point size.
 - `buildReceivedPointsGeoJson` includes `"name"` property; empty names render no label (`textOptional = true`).
 - Mark tool active: `GestureOptions(isDoubleTapEnabled = false, isQuickZoomEnabled = false)` — native double-tap zoom off; double-tap handled in Compose
@@ -378,15 +418,19 @@ Pan / zoom / long-press в оверлее
 
 ViewModel **не** дублирует логику double-tap (нет второго `onMapClick` → send).
 
+#### Одинарный тап: приоритет существующей метки
+
+`onMapClick` **всегда** сначала ищет ближайшую **видимую** метку в радиусе 30 m (`findNearestVisibleMarkId` — любая вершина point/track). Если найдена — меню существующей метки, **без** требования `markToolActive`. Иначе — логика черновика ниже (только при `markToolActive`).
+
 #### Режим без course-up (`MarkToolMapTapGestures`)
 
 | Жест | Поведение |
 |---|---|
-| Одинарный тап | Черновая вершина (`onMapClick`) после `doubleTapTimeout` |
-| Двойной тап | См. таблицу ниже по типу метки |
+| Одинарный тап | `onMapClick` после `doubleTapTimeout` (метка или черновик) |
+| Двойной тап | При `markToolActive` — см. таблицу ниже |
 | Перетаскивание (pan) | События **не consume** — MapLibre scroll |
 | Тап (короткий) | `change.consume()` на UP — MapLibre не дублирует клик |
-| Long tap | `onMapLongClick` → контекстное меню черновой точки |
+| Long tap | При `markToolActive`: `onMapLongClick` → меню черновой точки |
 
 Координаты тапа: `projection.positionFromScreenLocation` в позиции **DOWN** (как в course-up).
 
@@ -394,19 +438,19 @@ ViewModel **не** дублирует логику double-tap (нет второ
 
 | Жест | Поведение |
 |---|---|
-| Одинарный тап | То же через `MarkToolTapDispatcher` → `onMapClick` |
-| Двойной тап | То же → `onMapDoubleClick` |
+| Одинарный тап | `MarkToolTapDispatcher` → `onMapClick` (метка или черновик) |
+| Двойной тап | При `markToolActive` → `onMapDoubleClick` |
 | Движение по Y > touchSlop | Zoom камеры (не consume до порога; consume при zoom) |
 | 2+ пальца | Точку не ставить; pinch — MapLibre |
-| Long tap | Не обрабатывается |
+| Long tap | Черновик не обрабатывается |
 
 При `markToolActive && isCourseUpActive`: `isScrollEnabled = false` в MapLibre — pan только через Y-zoom оверлея.
 
-#### Действия по типу метки (double-tap)
+#### Действия по типу метки (double-tap, только `markToolActive`)
 
-| `selectedType` | Одинарный тап | Двойной тап |
+| `selectedType` | Одинарный тап (нет метки под курсором) | Двойной тап |
 |---|---|---|
-| **POINT** | Одна черновая вершина на карте (заменяет предыдущий черновик POINT) | Отправка **одной** точки в координатах тапа; параметры из шторки; черновик очищается |
+| **POINT** | Одна черновая вершина (заменяет предыдущий черновик POINT) | Отправка **одной** точки в координатах тапа; параметры из шторки; черновик очищается |
 | **TRACK** | Вершина **добавляется** к полилинии черновика | Вершина в точке тапа **добавляется**, затем `sendPendingMark()`; нужно **≥2** вершины суммарно; иначе отправки нет |
 
 Отправка с кнопки «Отправить» эквивалентна `sendPendingMark()` без добавления вершины в месте тапа.
@@ -427,7 +471,24 @@ NavGraph → MainViewModel::onMapClick / onMapDoubleClick
 
 ### Context menu
 
-Long-tap on draft point within 30m → `GeoMarkContextMenuEvent(pointIndex, screenX, screenY)` via `SharedFlow`. `MainScreen` renders `DropdownMenu` at `Modifier.offset(screenX.dp, screenY.dp)`. "Удалить точку" calls `deletePendingPoint(index)`.
+`GeoMarkContextMenuEvent` (sealed) эмитится через `MainViewModel.contextMenuEvent` (`SharedFlow`). `MainScreen` подписывается и ренерит UI по типу события.
+
+#### `DraftPointContextMenuEvent` (long-tap, `markToolActive`)
+
+Long-tap на черновой вершине в 30 m (non–course-up) → `DropdownMenu` в `Modifier.offset(screenX.dp, screenY.dp)`:
+
+- **Удалить точку** → `deletePendingPoint(index)`
+
+#### `ExistingMarkContextMenuEvent` (single-tap на видимой метке)
+
+Single-tap в 30 m от любой вершины видимой метки → `GeoMarkMapContextMenu` (`Popup`):
+
+- **Заголовок**: иконка типа, `{name} от {author}`, справа `GeoMarkCreatedAtFormatter` по `mark.createdAt` (формат как в списке — см. `.claude/docs/geo-marks-list.md`)
+- **Скрыть** → `hideGeoMark` (`ToggleGeoMarkVisibilityUseCase`, `is_visible = 0`)
+- **Удалить** → `deleteGeoMark` (`DeleteGeoMarksUseCase`)
+- **Отправить** → `prepareGeoMarkForResend` (открывает шторку, подставляет поля метки для повторной отправки)
+
+`selectedGeoMarkId` в `MainUiState` выставляется при открытии меню; сбрасывается в `clearSelectedGeoMark()` при dismiss.
 
 ---
 
@@ -436,7 +497,8 @@ Long-tap on draft point within 30m → `GeoMarkContextMenuEvent(pointIndex, scre
 - `GeoMarkColor` is Compose-free (pure Kotlin `Int` palette). Presentation wraps with `Color(argb)`.
 - `MainViewModel` depends on `GeoMarkPreferencesRepository` interface (domain), not `GeoMarkPrefsDataSource` (data). Koin binds `GeoMarkPreferencesRepositoryImpl`.
 - `sendPendingMark()` uses explicit `formState.selectedType` — not inferred from point count.
-- Map taps при `markToolActive`: только Compose (`MarkToolMapTapGestures` / `CourseUpMapGestures`); MapLibre `onMapClick` отключён, чтобы не было ложного double-tap и дублирования с pan.
+- Map taps при `markToolActive`: черновик/отправка — только Compose (`MarkToolMapTapGestures` / `CourseUpMapGestures`); MapLibre `onMapClick` отключён. Тап по **существующей** метке обрабатывается тем же `onMapClick` и работает и без mark tool.
+- `GeoTrackDistance` в domain/util — без зависимости от Compose; форматирование для UI в presentation.
 - `MarkToolTapDispatcher` откладывает single-tap на `ViewConfiguration.getDoubleTapTimeout()`; double-tap не вызывает промежуточный `onMapClick` для второго нажатия.
 - Channel routing: `adapter.encode()` returns `channel=0`; `GeoMarkRepositoryImpl` overrides to resolved contour slot.
 
@@ -462,3 +524,8 @@ Long-tap on draft point within 30m → `GeoMarkContextMenuEvent(pointIndex, scre
 | 2+ пальца при course-up + метки | Только zoom, точку не ставить |
 | Name labels layer separation | Отдельный слой `geo-received-point-labels` вместо if/else на одном id — MapLibre не обновляет свойства слоя при смене ветки Compose с одинаковым id |
 | Geo mark icon size formula | `(36 + (level-1)*6) / 64f`; диапазон 36–90dp в настройках; 64 = размер bitmap в px |
+| Name counter optional | `Int?` в форме и DataStore; пустое поле «№» → без номера в имени и заголовке |
+| Track draft distance | `GeoTrackDistance.formatKmRatio` в шторке TRACK при наборе вершин |
+| Map tap on existing mark | Single-tap 30 m → `GeoMarkMapContextMenu`; не требует mark tool |
+| Addressee on connect | `combine(channels, connectionStatus)` пересчитывает адресат при появлении ноды |
+| Waypoint send queue | SQLDelight сразу + `GeoMarkSendQueue` с интервалом 10.5 s; уникальный `Waypoint.id` |
