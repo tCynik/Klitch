@@ -157,3 +157,4 @@
 | Geo Marks Bottom Sheet | `.claude/archive/geo-marks-sheet.md` | Done |
 | Geo Marks Display Settings | `.claude/archive/geo-marks-display-settings.md` | Done |
 | Geo Marks List | `.claude/archive/geo-marks-list.md` | Done |
+| Geo Marks UI Completion | `.claude/archive/geo-marks-ui-completion.md` | Done |

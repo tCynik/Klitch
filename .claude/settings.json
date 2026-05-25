@@ -189,7 +189,8 @@
       "Bash(./gradlew assembleDebug)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(unzip -p \"/c/Users/LocAdmin/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar\" \"commonMain/org/maplibre/compose/camera/CameraProjection.kt\")"
+      "Bash(unzip -p \"/c/Users/LocAdmin/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar\" \"commonMain/org/maplibre/compose/camera/CameraProjection.kt\")",
+      "Bash(mv \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\geo-marks-ui-completion.md\" \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\archive\\\\geo-marks-ui-completion.md\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",
