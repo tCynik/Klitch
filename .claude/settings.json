@@ -188,7 +188,8 @@
       "Bash(rm \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\track-end-type-visual-picker.md\")",
       "Bash(./gradlew assembleDebug)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(unzip -p \"/c/Users/LocAdmin/.gradle/caches/modules-2/files-2.1/org.maplibre.compose/maplibre-compose-android/0.12.1/f708ef7c0df0289f479839037afe34ad1917b751/maplibre-compose-android-0.12.1-sources.jar\" \"commonMain/org/maplibre/compose/camera/CameraProjection.kt\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",

@@ -37,6 +37,7 @@ fun GeoMarkMapContextMenu(
     screenYDp: Float,
     title: String?,
     mark: GeoMarkModel? = null,
+    nodeNames: Map<String, String> = emptyMap(),
     onDismiss: () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -65,7 +66,7 @@ fun GeoMarkMapContextMenu(
                     color = containerColor,
                     shadowElevation = 3.dp,
                 ) {
-                    GeoMarkMapContextMenuHeader(title = title, mark = mark)
+                    GeoMarkMapContextMenuHeader(title = title, mark = mark, nodeNames = nodeNames)
                 }
             }
             Surface(
@@ -83,6 +84,7 @@ fun GeoMarkMapContextMenu(
 private fun GeoMarkMapContextMenuHeader(
     title: String,
     mark: GeoMarkModel?,
+    nodeNames: Map<String, String> = emptyMap(),
 ) {
     Row(
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
@@ -110,7 +112,7 @@ private fun GeoMarkMapContextMenuHeader(
         if (mark != null) {
             val nowSeconds = System.currentTimeMillis() / 1000
             val name = mark.name.ifBlank { "—" }
-            val author = GeoMarkTitleFormatter.authorLabel(mark)
+            val author = GeoMarkTitleFormatter.authorLabel(mark, nodeNames)
             val createdAtLabel = GeoMarkCreatedAtFormatter.format(mark.createdAt, nowSeconds)
             Text(
                 text = "$name от $author",

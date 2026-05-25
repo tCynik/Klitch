@@ -1,13 +1,12 @@
 package ru.tcynik.meshtactics.presentation.feature.marks
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -21,8 +20,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,57 +66,68 @@ fun GeoMarksListScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Метки") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад",
-                        )
-                    }
-                },
-                actions = {
+            val containerColor = TopAppBarDefaults.topAppBarColors().containerColor
+            Surface(color = containerColor) {
+                Column {
+                    TopAppBar(
+                        title = { Text("Метки") },
+                        navigationIcon = {
+                            IconButton(onClick = onBack) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Назад",
+                                )
+                            }
+                        },
+                        actions = {
+                            IconButton(
+                                onClick = onDeleteClick,
+                                enabled = uiState.deleteEnabled,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Delete,
+                                    contentDescription = "Удалить",
+                                )
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = containerColor),
+                    )
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 12.dp, end = 4.dp, bottom = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        IconButton(
-                            onClick = onToggleAllFilteredVisibility,
-                            enabled = uiState.bulkVisibilityEnabled,
-                        ) {
-                            Icon(
-                                imageVector = if (uiState.allFilteredVisible) {
-                                    Icons.Outlined.CheckBox
-                                } else {
-                                    Icons.Outlined.SelectAll
-                                },
-                                contentDescription = if (uiState.allFilteredVisible) {
-                                    "Скрыть все на карте"
-                                } else {
-                                    "Показать все на карте"
-                                },
-                            )
+                        if (uiState.items.isNotEmpty()) {
+                            IconButton(
+                                onClick = onToggleAllFilteredVisibility,
+                                enabled = uiState.bulkVisibilityEnabled,
+                            ) {
+                                Icon(
+                                    imageVector = if (uiState.allFilteredVisible) {
+                                        Icons.Outlined.CheckBox
+                                    } else {
+                                        Icons.Outlined.SelectAll
+                                    },
+                                    contentDescription = if (uiState.allFilteredVisible) {
+                                        "Скрыть все на карте"
+                                    } else {
+                                        "Показать все на карте"
+                                    },
+                                )
+                            }
                         }
+                        Spacer(Modifier.weight(1f))
                         uiState.deliveryFilters.forEach { filter ->
                             GeoMarkDeliveryFilterButton(
                                 filter = filter,
                                 onClick = { onDeliveryFilterToggle(filter.deliveryState) },
                             )
                         }
-                        Spacer(Modifier.width(8.dp))
-                        IconButton(
-                            onClick = onDeleteClick,
-                            enabled = uiState.deleteEnabled,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Delete,
-                                contentDescription = "Удалить",
-                            )
-                        }
                     }
-                },
-            )
+                    HorizontalDivider()
+                }
+            }
         },
     ) { innerPadding ->
         when {

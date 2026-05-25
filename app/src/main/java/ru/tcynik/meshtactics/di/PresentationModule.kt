@@ -22,6 +22,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveNodeSecurityConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
@@ -156,6 +157,7 @@ val presentationModule = module {
         GeoMarksListViewModel(
             observeGeoMarks = get(),
             observeContours = get(),
+            observeMeshNodes = get(),
             toggleVisibility = get<ToggleGeoMarkVisibilityUseCase>(),
             deleteGeoMarks = get(),
             extendGeoMark = get(),

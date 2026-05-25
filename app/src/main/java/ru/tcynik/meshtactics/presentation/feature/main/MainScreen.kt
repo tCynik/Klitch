@@ -17,6 +17,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +58,9 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MenuDrawerUiSt
 // MapLibre uses 512 px tiles: mpp = 40_075_016 / (512 * 2^zoom) = 78_271 / 2^zoom
 private fun metersPerPixel(latRad: Double, zoom: Double): Double =
     78271.51696 * cos(latRad) / 2.0.pow(zoom)
+
+// Tap hit-test radius for geo marks in dp (zoom-invariant screen-space check).
+private const val GEO_MARK_TAP_RADIUS_DP = 32f
 
 @Composable
 fun MainScreen(
@@ -102,6 +106,36 @@ fun MainScreen(
             zoom = uiState.initialCameraPosition.zoom,
         ),
     )
+
+    val currentGeoMarks by rememberUpdatedState(uiState.geoMarks)
+    val geoMarkAwareOnMapClick: (Double, Double, Float, Float) -> Unit = remember(onMapClick) {
+        { lat, lon, screenX, screenY ->
+            val proj = cameraState.projection
+            val hitMark = if (proj != null) {
+                currentGeoMarks
+                    .asSequence()
+                    .filter { it.isVisible }
+                    .mapNotNull { mark ->
+                        val nearestDistSq = mark.points.minOfOrNull { pt ->
+                            val screen = proj.screenLocationFromPosition(Position(longitude = pt.longitude, latitude = pt.latitude))
+                            val dx = screen.x.value - screenX
+                            val dy = screen.y.value - screenY
+                            dx * dx + dy * dy
+                        } ?: return@mapNotNull null
+                        if (nearestDistSq < GEO_MARK_TAP_RADIUS_DP * GEO_MARK_TAP_RADIUS_DP) mark to nearestDistSq
+                        else null
+                    }
+                    .minByOrNull { it.second }
+                    ?.first
+            } else null
+            if (hitMark != null) {
+                val pt = hitMark.points.first()
+                onMapClick(pt.latitude, pt.longitude, screenX, screenY)
+            } else {
+                onMapClick(lat, lon, screenX, screenY)
+            }
+        }
+    }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -219,7 +253,7 @@ fun MainScreen(
                 pendingMarkShape = geoMarksSheetUiState.selectedShape,
                 markToolActive = uiState.markToolActive,
                 isCourseUpActive = uiState.isCourseUpActive,
-                onMapClick = onMapClick,
+                onMapClick = geoMarkAwareOnMapClick,
                 onMapDoubleClick = onMapDoubleClick,
                 onMapLongClick = onMapLongClick,
             )
@@ -233,7 +267,7 @@ fun MainScreen(
                         mapHeightPx = mapHeightPx,
                         markToolActive = uiState.markToolActive,
                         cameraState = cameraState,
-                        onMapClick = onMapClick,
+                        onMapClick = geoMarkAwareOnMapClick,
                         onMapDoubleClick = onMapDoubleClick,
                     ),
             )
@@ -303,6 +337,7 @@ fun MainScreen(
                         screenYDp = event.screenY,
                         title = event.title,
                         mark = uiState.geoMarks.find { it.id == event.markId },
+                        nodeNames = uiState.nodeMarkers.associate { it.nodeId to it.longName },
                         onDismiss = dismissMenu,
                     ) {
                         GeoMarkMapContextMenuItem(

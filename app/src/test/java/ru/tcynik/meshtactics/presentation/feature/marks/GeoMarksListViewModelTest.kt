@@ -32,6 +32,8 @@ import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
+import ru.tcynik.meshtactics.domain.mesh.model.MeshNodeModel
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ExtendGeoMarkUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
@@ -47,8 +49,10 @@ class GeoMarksListViewModelTest {
 
     private val marksFlow = MutableStateFlow<List<GeoMarkModel>>(emptyList())
     private val contoursFlow = MutableStateFlow<List<Contour>>(emptyList())
+    private val nodesFlow = MutableStateFlow<List<MeshNodeModel>>(emptyList())
     private val observeGeoMarks: ObserveGeoMarksUseCase = mockk()
     private val observeContours: ObserveContoursUseCase = mockk()
+    private val observeMeshNodes: ObserveMeshNodesUseCase = mockk()
     private val toggleVisibility: ToggleGeoMarkVisibilityUseCase = mockk(relaxed = true)
     private val deleteGeoMarks: DeleteGeoMarksUseCase = mockk(relaxed = true)
     private val extendGeoMark: ExtendGeoMarkUseCase = mockk(relaxed = true)
@@ -63,11 +67,14 @@ class GeoMarksListViewModelTest {
         Dispatchers.setMain(testDispatcher)
         marksFlow.value = emptyList()
         contoursFlow.value = emptyList()
+        nodesFlow.value = emptyList()
         every { observeGeoMarks.invoke(any()) } returns marksFlow
         every { observeContours.invoke(any()) } returns contoursFlow
+        every { observeMeshNodes.invoke(any()) } returns nodesFlow
         viewModel = GeoMarksListViewModel(
             observeGeoMarks = observeGeoMarks,
             observeContours = observeContours,
+            observeMeshNodes = observeMeshNodes,
             toggleVisibility = toggleVisibility,
             deleteGeoMarks = deleteGeoMarks,
             extendGeoMark = extendGeoMark,
@@ -115,7 +122,7 @@ class GeoMarksListViewModelTest {
     }
 
     @Test
-    fun `maps self author to Я and other to short node id`() {
+    fun `maps self author to Я and other to short node id when no node names`() {
         val self = makeMark(id = "self", isSelf = true, authorNodeId = "!aaaa1111")
         val remote = makeMark(id = "remote", isSelf = false, authorNodeId = "!bbbb2222")
         marksFlow.value = listOf(self, remote)
@@ -123,6 +130,14 @@ class GeoMarksListViewModelTest {
         val state = viewModel.uiState.value
         assertEquals("Я", state.items.find { it.id == "self" }?.authorLabel)
         assertEquals("!bbbb2", state.items.find { it.id == "remote" }?.authorLabel)
+    }
+
+    @Test
+    fun `shows callsign instead of node id when node name is known`() {
+        marksFlow.value = listOf(makeMark(id = "remote", isSelf = false, authorNodeId = "!bbbb2222"))
+        nodesFlow.value = listOf(makeNode(nodeId = "!bbbb2222", longName = "Alpha-1"))
+
+        assertEquals("Alpha-1", viewModel.uiState.value.items.single().authorLabel)
     }
 
     @Test
@@ -237,7 +252,7 @@ class GeoMarksListViewModelTest {
         viewModel.onDeleteClick()
 
         val confirm = viewModel.uiState.value.deleteConfirm
-        assertEquals("Удалить метку Alpha(от Я)?", confirm?.message)
+        assertEquals("Удалить метку Alpha (от Я)?", confirm?.message)
         assertEquals(listOf("one"), confirm?.markIds)
     }
 
@@ -285,7 +300,7 @@ class GeoMarksListViewModelTest {
         viewModel.onItemDeleteClick("one")
 
         val confirm = viewModel.uiState.value.deleteConfirm
-        assertEquals("Удалить метку Alpha(от Я)?", confirm?.message)
+        assertEquals("Удалить метку Alpha (от Я)?", confirm?.message)
         assertEquals(listOf("one"), confirm?.markIds)
     }
 
@@ -344,6 +359,54 @@ class GeoMarksListViewModelTest {
         assertTrue(state.items.find { it.id == "shown" }!!.isVisible)
     }
 
+    @Test
+    fun `maps queued delivery state`() {
+        marksFlow.value = listOf(
+            makeMark(id = "queued", isSelf = true, logicalChannelId = "ch-1", authorNodeId = ""),
+        )
+        assertEquals(GeoMarkDeliveryState.QUEUED, viewModel.uiState.value.items.single().deliveryState)
+    }
+
+    @Test
+    fun `filter becomes inactive when all marks of that type are removed`() {
+        marksFlow.value = listOf(
+            makeMark(id = "local", isSelf = true, logicalChannelId = "", authorNodeId = ""),
+            makeMark(id = "rcv", isSelf = false, authorNodeId = "!bbbb2222"),
+        )
+        assertEquals(GeoMarkDeliveryFilterStatus.SELECTED, filterStatus(viewModel.uiState.value, GeoMarkDeliveryState.LOCAL))
+
+        marksFlow.value = listOf(
+            makeMark(id = "rcv", isSelf = false, authorNodeId = "!bbbb2222"),
+        )
+
+        val state = viewModel.uiState.value
+        assertEquals(GeoMarkDeliveryFilterStatus.INACTIVE, filterStatus(state, GeoMarkDeliveryState.LOCAL))
+        assertEquals(GeoMarkDeliveryFilterStatus.SELECTED, filterStatus(state, GeoMarkDeliveryState.RECEIVED))
+    }
+
+    @Test
+    fun `onDismissDeleteDialog clears deleteConfirm`() {
+        marksFlow.value = listOf(makeMark(id = "one", isVisible = true))
+        viewModel.onDeleteClick()
+        assertFalse(viewModel.uiState.value.deleteConfirm == null)
+
+        viewModel.onDismissDeleteDialog()
+
+        assertNull(viewModel.uiState.value.deleteConfirm)
+    }
+
+    @Test
+    fun `onDismissSendContourPicker clears sendContourPicker`() {
+        marksFlow.value = listOf(makeMark(id = "send", name = "SendMe"))
+        contoursFlow.value = listOf(makeContour(id = "ch-1", name = "Alpha"))
+        viewModel.onItemSendClick("send")
+        assertFalse(viewModel.uiState.value.sendContourPicker == null)
+
+        viewModel.onDismissSendContourPicker()
+
+        assertNull(viewModel.uiState.value.sendContourPicker)
+    }
+
     private fun filterStatus(state: GeoMarksListUiState, type: GeoMarkDeliveryState): GeoMarkDeliveryFilterStatus =
         state.deliveryFilters.first { it.deliveryState == type }.status
 
@@ -382,5 +445,28 @@ class GeoMarksListViewModelTest {
         name = name,
         shape = GeoMarkShape.CIRCLE,
         isVisible = isVisible,
+    )
+
+    private fun makeNode(nodeId: String, longName: String) = MeshNodeModel(
+        num = 0,
+        nodeId = nodeId,
+        shortName = "",
+        longName = longName,
+        snr = 0f,
+        rssi = 0,
+        lastHeard = 0,
+        hopsAway = 0,
+        batteryLevel = 0,
+        voltage = 0f,
+        channelUtilization = 0f,
+        airUtilTx = 0f,
+        uptimeSeconds = 0L,
+        latitude = 0.0,
+        longitude = 0.0,
+        hasValidPosition = false,
+        positionTime = 0,
+        isOnline = true,
+        groundSpeed = 0,
+        groundTrack = 0,
     )
 }

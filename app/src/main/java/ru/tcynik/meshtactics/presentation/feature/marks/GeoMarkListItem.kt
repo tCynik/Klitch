@@ -25,8 +25,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliveryState
@@ -76,6 +76,7 @@ fun GeoMarkListItem(
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 TypeBadge(type = item.type)
             }
@@ -143,7 +144,6 @@ private fun TypeBadge(type: GeoMarkType) {
     Text(
         text = label,
         style = MaterialTheme.typography.labelSmall,
-        fontSize = 10.sp,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }

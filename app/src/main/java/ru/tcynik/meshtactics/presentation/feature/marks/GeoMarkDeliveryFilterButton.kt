@@ -10,7 +10,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliveryFilterButtonUi
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliveryFilterStatus
@@ -50,9 +49,7 @@ fun GeoMarkDeliveryFilterButton(
             Icon(
                 imageVector = imageVector,
                 contentDescription = contentDescription,
-                modifier = Modifier
-                    .size(22.dp)
-                    .alpha(if (enabled) 1f else 0.38f),
+                modifier = Modifier.size(22.dp),
                 tint = tint,
             )
         }

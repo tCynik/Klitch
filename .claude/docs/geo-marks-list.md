@@ -120,7 +120,8 @@ shared/.../9.sqm
 |---|---|---|
 | `RECEIVED` | `!isSelf` | `MoveToInbox` — «Принято из сети» |
 | `LOCAL` | `isSelf` и пустые `logicalChannelId` + `authorNodeId` | `Save` — «Сохранено в базу» |
-| `SENT` | `isSelf`, иначе | `Email` — «Отправлено» |
+| `QUEUED` | `isSelf`, `authorNodeId` пуст, `logicalChannelId` не пуст | `Schedule` — «Ожидает отправки» |
+| `SENT` | `isSelf` и `authorNodeId` не пуст | `Email` — «Отправлено» |
 
 **Фильтры в AppBar** (`GeoMarkDeliveryFilterButton`):
 
@@ -188,7 +189,7 @@ shared/.../9.sqm
 
 | Источник | Кого удаляет | Текст (1 метка) | Текст (N меток) |
 |---|---|---|---|
-| AppBar «Удалить» | Все **видимые на карте** (`isVisible`) в текущем фильтре | `Удалить метку {name}(от {author})?` | `Удалить выбранные метки(N)?` |
+| AppBar «Удалить» | Все **видимые на карте** (`isVisible`) в текущем фильтре | `Удалить метку {name} (от {author})?` | `Удалить выбранные метки(N)?` |
 | Меню ⋮ «Удалить» | Только эта метка | то же | — |
 
 Подтверждение → `DeleteGeoMarksUseCase` → `repository.deleteById` для каждого id.

@@ -97,6 +97,7 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.models.ExistingMarkCo
 import ru.tcynik.meshtactics.presentation.feature.marks.GeoMarkTitleFormatter
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MenuDrawerUiState
 import java.util.UUID
+import kotlin.math.cos
 
 // BLE RSSI threshold separating low signal (red) from medium/high signal (green).
 // Adjust based on field experience; -90 dBm is the standard Meshtastic convention.
@@ -542,12 +543,13 @@ class MainViewModel(
     fun onMapClick(lat: Double, lon: Double, screenX: Float, screenY: Float) {
         findNearestVisibleMarkId(lat, lon)?.let { markId ->
             val mark = _uiState.value.geoMarks.firstOrNull { it.id == markId } ?: return@let
+            val nodeNames = _uiState.value.nodeMarkers.associate { it.nodeId to it.longName }
             _uiState.update { it.copy(selectedGeoMarkId = markId) }
             viewModelScope.launch {
                 _contextMenuEvent.emit(
                     ExistingMarkContextMenuEvent(
                         markId = markId,
-                        title = GeoMarkTitleFormatter.selectionTitle(mark),
+                        title = GeoMarkTitleFormatter.selectionTitle(mark, nodeNames),
                         screenX = screenX,
                         screenY = screenY,
                     ),
@@ -632,7 +634,7 @@ class MainViewModel(
         lon: Double,
     ): Double {
         val dLat = (pt.latitude - lat) * METERS_PER_DEG_LAT_APPROX
-        val dLon = (pt.longitude - lon) * METERS_PER_DEG_LAT_APPROX
+        val dLon = (pt.longitude - lon) * METERS_PER_DEG_LAT_APPROX * cos(Math.toRadians(lat))
         return dLat * dLat + dLon * dLon
     }
 

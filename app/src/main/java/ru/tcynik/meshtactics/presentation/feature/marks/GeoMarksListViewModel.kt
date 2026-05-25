@@ -20,6 +20,7 @@ import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkParams
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ToggleGeoMarkVisibilityUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkContourOptionUi
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliveryFilterButtonUi
@@ -28,12 +29,14 @@ import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliverySt
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkListItemUiModel
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarksDeleteConfirmUi
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarksListUiState
+import ru.tcynik.meshtactics.presentation.feature.main.GEO_MARK_LOCAL_STORAGE_ID
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarksSendContourPickerUi
 import ru.tcynik.meshtactics.presentation.feature.marks.models.resolveGeoMarkDeliveryState
 
 class GeoMarksListViewModel(
     private val observeGeoMarks: ObserveGeoMarksUseCase,
     private val observeContours: ObserveContoursUseCase,
+    private val observeMeshNodes: ObserveMeshNodesUseCase,
     private val toggleVisibility: ToggleGeoMarkVisibilityUseCase,
     private val deleteGeoMarks: DeleteGeoMarksUseCase,
     private val extendGeoMark: ExtendGeoMarkUseCase,
@@ -47,6 +50,7 @@ class GeoMarksListViewModel(
     val uiState: StateFlow<GeoMarksListUiState> = _uiState.asStateFlow()
 
     private var cachedMarks: List<GeoMarkModel> = emptyList()
+    private var cachedNodeNames: Map<String, String> = emptyMap()
     private var sendContourOptions: List<GeoMarkContourOptionUi> = emptyList()
     private var nowSeconds: Long = System.currentTimeMillis() / 1000
     private val visibleDeliveryFilters = mutableSetOf<GeoMarkDeliveryState>()
@@ -63,9 +67,15 @@ class GeoMarksListViewModel(
         viewModelScope.launch {
             observeContours(NoParams).collect { contours ->
                 val active = contours.filter { it.isActive }
-                val storage = GeoMarkContourOptionUi(LOCAL_STORAGE_ID, "Память")
+                val storage = GeoMarkContourOptionUi(GEO_MARK_LOCAL_STORAGE_ID, "Память")
                 sendContourOptions = (active.map { GeoMarkContourOptionUi(it.id.value, it.name) } + storage)
                     .toImmutableList()
+            }
+        }
+        viewModelScope.launch {
+            observeMeshNodes(NoParams).collect { nodes ->
+                cachedNodeNames = nodes.associate { it.nodeId to it.longName }
+                rebuildItems()
             }
         }
         if (refreshTtlLabels) {
@@ -135,7 +145,7 @@ class GeoMarksListViewModel(
     fun onSendContourSelected(contourId: String) {
         val picker = _uiState.value.sendContourPicker ?: return
         val mark = cachedMarks.find { it.id == picker.markId } ?: return
-        val localOnly = contourId == LOCAL_STORAGE_ID
+        val localOnly = contourId == GEO_MARK_LOCAL_STORAGE_ID
         val contour = if (localOnly) null else ContourId(contourId)
         viewModelScope.launch {
             sendGeoMark(SendGeoMarkParams(mark, contour, localOnly))
@@ -178,7 +188,7 @@ class GeoMarksListViewModel(
         val message = when (items.size) {
             1 -> {
                 val item = items.single()
-                "Удалить метку ${item.name}(от ${item.authorLabel})?"
+                "Удалить метку ${item.name} (от ${item.authorLabel})?"
             }
             else -> "Удалить выбранные метки(${items.size})?"
         }
@@ -209,7 +219,7 @@ class GeoMarksListViewModel(
                     name = mark.name.ifBlank { "—" },
                     createdAtLabel = GeoMarkCreatedAtFormatter.format(mark.createdAt, now),
                     ttlLabel = GeoMarkTtlFormatter.format(mark.expiresAt, now),
-                    authorLabel = GeoMarkTitleFormatter.authorLabel(mark),
+                    authorLabel = GeoMarkTitleFormatter.authorLabel(mark, cachedNodeNames),
                     deliveryState = resolveGeoMarkDeliveryState(
                         isSelf = mark.isSelf,
                         logicalChannelId = mark.logicalChannelId,
@@ -277,7 +287,4 @@ class GeoMarksListViewModel(
         else -> GeoMarkDeliveryFilterStatus.UNSELECTED
     }
 
-    companion object {
-        private const val LOCAL_STORAGE_ID = "__local__"
-    }
 }
