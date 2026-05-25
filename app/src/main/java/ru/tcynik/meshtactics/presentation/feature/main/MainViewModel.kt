@@ -649,11 +649,19 @@ class MainViewModel(
         }
     }
 
-    fun deleteGeoMark(markId: String) {
+    fun requestDeleteGeoMark(markId: String) {
         clearSelectedGeoMark()
-        viewModelScope.launch {
-            deleteGeoMarks(listOf(markId))
-        }
+        _uiState.update { it.copy(deleteConfirmMarkId = markId) }
+    }
+
+    fun confirmDeleteGeoMark() {
+        val markId = _uiState.value.deleteConfirmMarkId ?: return
+        _uiState.update { it.copy(deleteConfirmMarkId = null) }
+        viewModelScope.launch { deleteGeoMarks(listOf(markId)) }
+    }
+
+    fun dismissDeleteGeoMarkConfirm() {
+        _uiState.update { it.copy(deleteConfirmMarkId = null) }
     }
 
     fun prepareGeoMarkForResend(markId: String) {

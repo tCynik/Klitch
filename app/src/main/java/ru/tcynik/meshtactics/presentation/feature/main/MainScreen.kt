@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import ru.tcynik.meshtactics.presentation.feature.main.osd.GeoMarkMapContextMenu
 import ru.tcynik.meshtactics.presentation.feature.main.osd.GeoMarkMapContextMenuItem
 import androidx.compose.runtime.Composable
@@ -87,6 +89,8 @@ fun MainScreen(
     onCourseUpToggle: (Double) -> Unit = {},
     onFollowMeRestoreZoom: () -> Unit = {},
     onClearGeoMarkSelection: () -> Unit = {},
+    onConfirmDeleteGeoMark: () -> Unit = {},
+    onDismissDeleteGeoMarkConfirm: () -> Unit = {},
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val density = LocalDensity.current
@@ -365,6 +369,20 @@ fun MainScreen(
                 }
             }
         }
+        uiState.deleteConfirmMarkId?.let { markId ->
+            val markName = uiState.geoMarks.find { it.id == markId }?.name?.ifBlank { "—" } ?: "метку"
+            AlertDialog(
+                onDismissRequest = onDismissDeleteGeoMarkConfirm,
+                text = { Text("Удалить метку $markName?") },
+                confirmButton = {
+                    TextButton(onClick = onConfirmDeleteGeoMark) { Text("Удалить") }
+                },
+                dismissButton = {
+                    TextButton(onClick = onDismissDeleteGeoMarkConfirm) { Text("Отмена") }
+                },
+            )
+        }
+
         } // Box
     } // BoxWithConstraints
 }
