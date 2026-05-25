@@ -1,7 +1,7 @@
 # Plan: Connection Status Info in HUD (main button row)
 
 **Date**: 2026-04-16
-**Status**: Approved
+**Status**: Done
 
 ## Summary
 
@@ -132,6 +132,23 @@ Phase 6: [stage by name] → [propose commit] → [wait confirmation] → git co
 
 - None remaining. `deviceName` (BLE device name, e.g. `Meshtastic_ab12`) confirmed acceptable for "Сопряжение с…" label.
 
+## Отклонения от плана (реализация в ветке ui_fixes_may)
+
+| Пункт | План | Реализовано |
+|---|---|---|
+| Цвет "выбор узла" (Scanning + foundDevices) | `Color.Yellow` | `Color.Black` |
+| Цвет "Сопряжение с …" (Connecting) | `Color.Yellow` | `Color.Black` |
+| Цвет "Сопряжено с …" (Connected, showConnectionLabel=true) | `Color.Green` | `Color.Black` |
+| Цвет "Перезагрузка…" (Rebooting) | `Color.Yellow` | `Color.Black` |
+| Connected + showConnectionLabel=false | hidden | hidden → + батарея `🔋N%` (красный если < 20%, чёрный иначе) |
+| Радио-кнопка в MenuDrawer | присутствует | удалена |
+
+### Known Issues
+
+- `HudInfoSlotItem.kt` fallback-цвет изменён с `MaterialTheme.colorScheme.onSurface` на `Color.Black` —
+  регрессия тёмной темы. TODO-комментарий в файле есть. До разработки дизайн-токенов нужно вернуть `onSurface`.
+
 ## Change Log
 
 - 2026-04-16: created
+- 2026-05-25: реализовано в ветке ui_fixes_may; зафиксированы отклонения от плана
