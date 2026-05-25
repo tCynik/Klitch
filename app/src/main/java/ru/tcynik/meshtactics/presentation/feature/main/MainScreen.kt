@@ -27,6 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -44,6 +45,7 @@ import kotlin.math.pow
 import kotlin.math.sin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.launch
 import org.maplibre.compose.camera.CameraMoveReason
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
@@ -104,6 +106,7 @@ fun MainScreen(
     val density = LocalDensity.current
     var lastKnownPosition by remember { mutableStateOf(uiState.initialCameraPosition) }
     var contextMenu by remember { mutableStateOf<GeoMarkContextMenuEvent?>(null) }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(contextMenuEvents) {
         contextMenuEvents.collect { event -> contextMenu = event }
@@ -316,6 +319,24 @@ fun MainScreen(
                 },
                 onFollowMeClick = {
                     if (uiState.isCourseUpActive) onFollowMeRestoreZoom() else hudUiState.target.button.onClick()
+                },
+                onZoomInClick = {
+                    val pos = cameraState.position
+                    coroutineScope.launch {
+                        cameraState.animateTo(
+                            finalPosition = CameraPosition(target = pos.target, zoom = pos.zoom + 0.5, bearing = pos.bearing),
+                            duration = 200.milliseconds,
+                        )
+                    }
+                },
+                onZoomOutClick = {
+                    val pos = cameraState.position
+                    coroutineScope.launch {
+                        cameraState.animateTo(
+                            finalPosition = CameraPosition(target = pos.target, zoom = pos.zoom - 0.5, bearing = pos.bearing),
+                            duration = 200.milliseconds,
+                        )
+                    }
                 },
             )
         }

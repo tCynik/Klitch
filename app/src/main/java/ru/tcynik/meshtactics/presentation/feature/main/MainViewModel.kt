@@ -769,6 +769,8 @@ class MainViewModel(
 
     private fun buildHudUiState(state: MainUiState, nav: HudNavCallbacks, form: GeoMarksFormState): HudUiState = HudUiState(
         menuDrawer = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_menu, label = "меню", onClick = { toggleMenuDrawer() }), info = emptyInfoSlot()),
+        zoomIn   = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_zoom_in,  label = "+", onClick = {}), info = emptyInfoSlot()),
+        zoomOut  = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_zoom_out, label = "-", onClick = {}), info = emptyInfoSlot()),
         compass  = HudRowConfig(
             button = buildCompassButton(state),
             info = if (!state.isNorthLocked)
