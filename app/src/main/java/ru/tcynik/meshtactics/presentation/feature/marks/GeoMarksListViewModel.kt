@@ -207,6 +207,7 @@ class GeoMarksListViewModel(
                     trackEndType = mark.trackEndType,
                     type = mark.type,
                     name = mark.name.ifBlank { "—" },
+                    createdAtLabel = GeoMarkCreatedAtFormatter.format(mark.createdAt, now),
                     ttlLabel = GeoMarkTtlFormatter.format(mark.expiresAt, now),
                     authorLabel = GeoMarkTitleFormatter.authorLabel(mark),
                     deliveryState = resolveGeoMarkDeliveryState(

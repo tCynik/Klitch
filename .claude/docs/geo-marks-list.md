@@ -147,10 +147,17 @@ shared/.../9.sqm
 | Иконка 32dp | POINT: `GeoMarkShapeIcon`; TRACK: `GeoMarkTrackEndIcon` |
 | Имя | `mark.name` или «—» |
 | Бейдж типа | «точка» / «трек» |
-| Подзаголовок | иконка доставки + `{ttlLabel} • {authorLabel}` |
+| Подзаголовок | иконка доставки + `{createdAtLabel} • {ttlLabel} • {authorLabel}` |
 | ⋮ | `DropdownMenu`: Удалить / Продлить / Отправить |
 
 **Автор**: «Я» для `isSelf`, иначе первые 6 символов `authorNodeId`.
+
+**Время создания/получения** (`GeoMarkCreatedAtFormatter`, поле `created_at`):
+
+| Условие | Подпись |
+|---|---|
+| сегодня | `{ч}:{мм}` — минуты двузначные (локальное время) |
+| вчера и ранее | `{месяц}мес.{день}` |
 
 **TTL** (`GeoMarkTtlFormatter`; ViewModel обновляет `nowSeconds` каждые 60 с):
 

@@ -26,7 +26,9 @@ import kotlin.math.roundToInt
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkColor
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
+import ru.tcynik.meshtactics.presentation.feature.marks.GeoMarkCreatedAtFormatter
 import ru.tcynik.meshtactics.presentation.feature.marks.GeoMarkShapeIcon
+import ru.tcynik.meshtactics.presentation.feature.marks.GeoMarkTitleFormatter
 import ru.tcynik.meshtactics.presentation.feature.marks.GeoMarkTrackEndIcon
 
 @Composable
@@ -105,13 +107,34 @@ private fun GeoMarkMapContextMenuHeader(
                 )
             }
         }
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
+        if (mark != null) {
+            val nowSeconds = System.currentTimeMillis() / 1000
+            val name = mark.name.ifBlank { "—" }
+            val author = GeoMarkTitleFormatter.authorLabel(mark)
+            val createdAtLabel = GeoMarkCreatedAtFormatter.format(mark.createdAt, nowSeconds)
+            Text(
+                text = "$name от $author",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = createdAtLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 8.dp),
+            )
+        } else {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

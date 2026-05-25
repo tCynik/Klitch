@@ -11,6 +11,7 @@ data class GeoMarkListItemUiModel(
     val trackEndType: TrackEndType,
     val type: GeoMarkType,
     val name: String,
+    val createdAtLabel: String,
     val ttlLabel: String,
     val authorLabel: String,
     val deliveryState: GeoMarkDeliveryState,

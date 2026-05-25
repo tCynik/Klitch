@@ -85,7 +85,7 @@ fun GeoMarkListItem(
             ) {
                 DeliveryStateIcon(state = item.deliveryState)
                 Text(
-                    text = "${item.ttlLabel}  •  ${item.authorLabel}",
+                    text = "${item.createdAtLabel}  •  ${item.ttlLabel}  •  ${item.authorLabel}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
