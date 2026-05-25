@@ -50,7 +50,7 @@ On item tap: nav callback fires, then `toggleMenuDrawer()` closes the drawer imm
 
 | Property | Value |
 |---|---|
-| Drawer width | 200dp |
+| Drawer width | 280dp |
 | Scrim | `Color.Black.copy(alpha = 0.4f)` |
 | Panel background | `MaterialTheme.colorScheme.surface` |
 | Scrim animation | `fadeIn`/`fadeOut`, `tween(200)` |
