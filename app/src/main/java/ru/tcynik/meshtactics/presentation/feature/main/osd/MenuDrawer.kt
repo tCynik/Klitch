@@ -68,7 +68,7 @@ fun MenuDrawer(state: MenuDrawerUiState) {
             modifier = Modifier
                 .width(280.dp)
                 .fillMaxHeight()
-                .background(MaterialTheme.colorScheme.surface)
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
