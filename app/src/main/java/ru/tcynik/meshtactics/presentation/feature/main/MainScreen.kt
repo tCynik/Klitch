@@ -1,14 +1,17 @@
 package ru.tcynik.meshtactics.presentation.feature.main
 
 import android.content.res.Configuration
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import ru.tcynik.meshtactics.presentation.feature.main.osd.GeoMarkMapContextMenu
@@ -232,7 +235,13 @@ fun MainScreen(
             )
         }
 
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+        ) {
+        if (uiState.tileUrlTemplate.isEmpty()) {
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+        }
         if (uiState.tileUrlTemplate.isNotEmpty()) {
             MapLibreLayer(
                 modifier = Modifier.fillMaxSize(),

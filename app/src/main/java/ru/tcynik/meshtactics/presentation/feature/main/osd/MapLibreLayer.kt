@@ -80,7 +80,7 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.models.OverlayRenderM
 // BaseStyle.Empty has no `glyphs` URL — SymbolLayer text rendering fails without it and breaks
 // all other layers too. This style adds the MapLibre demotiles glyph server.
 private val BASE_STYLE_WITH_GLYPHS = BaseStyle.Json(
-    """{"version":8,"glyphs":"https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf","sources":{},"layers":[]}"""
+    """{"version":8,"glyphs":"https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf","sources":{},"layers":[{"id":"background","type":"background","paint":{"background-color":"#f5f3e7"}}]}"""
 )
 
 // Animation duration for marker position interpolation, in milliseconds.
