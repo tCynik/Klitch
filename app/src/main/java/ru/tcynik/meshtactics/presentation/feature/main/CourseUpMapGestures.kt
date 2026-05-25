@@ -2,6 +2,7 @@ package ru.tcynik.meshtactics.presentation.feature.main
 
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -26,24 +27,25 @@ fun Modifier.courseUpMapGestures(
     mapHeightPx: Float,
     markToolActive: Boolean,
     cameraState: CameraState,
-    onMapClick: (lat: Double, lon: Double) -> Unit,
+    onMapClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit,
     onMapDoubleClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
 ): Modifier = composed {
     val scope = rememberCoroutineScope()
-    Modifier.pointerInput(mapHeightPx, markToolActive, cameraState) {
-    val tapDispatcher = if (markToolActive) {
-        MarkToolTapDispatcher(
-            scope = scope,
-            doubleTapTimeoutMs = ViewConfiguration.getDoubleTapTimeout().toLong(),
-            onSingleTap = onMapClick,
-            onDoubleTap = onMapDoubleClick,
-        )
-    } else {
-        null
+    val tapDispatcher = remember(markToolActive, onMapClick, onMapDoubleClick) {
+        if (markToolActive) {
+            MarkToolTapDispatcher(
+                scope = scope,
+                doubleTapTimeoutMs = ViewConfiguration.getDoubleTapTimeout().toLong(),
+                onSingleTap = onMapClick,
+                onDoubleTap = { lat, lon, _, _ -> onMapDoubleClick(lat, lon) },
+            )
+        } else {
+            null
+        }
     }
-
+    Modifier.pointerInput(mapHeightPx, tapDispatcher) {
     awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false)
+        val down = awaitFirstDown(requireUnconsumed = true)
         if (currentEvent.changes.count { it.pressed } > 1) return@awaitEachGesture
 
         val pointerId = down.id
@@ -92,7 +94,13 @@ fun Modifier.courseUpMapGestures(
         } else {
             val projection = cameraState.projection ?: return@awaitEachGesture
             val position = projection.positionFromScreenLocation(downOffset)
-            tapDispatcher?.onTapRelease(position.latitude, position.longitude)
+            val screenX = downOffset.x.value
+            val screenY = downOffset.y.value
+            if (tapDispatcher != null) {
+                tapDispatcher.onTapRelease(position.latitude, position.longitude, screenX, screenY)
+            } else {
+                onMapClick(position.latitude, position.longitude, screenX, screenY)
+            }
         }
     }
     }

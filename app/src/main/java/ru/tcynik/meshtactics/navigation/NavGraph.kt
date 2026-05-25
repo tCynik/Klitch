@@ -21,6 +21,8 @@ import ru.tcynik.meshtactics.presentation.feature.groups.GroupsViewModel
 import ru.tcynik.meshtactics.presentation.feature.main.HudNavCallbacks
 import ru.tcynik.meshtactics.presentation.feature.main.MainScreen
 import ru.tcynik.meshtactics.presentation.feature.main.MainViewModel
+import ru.tcynik.meshtactics.presentation.feature.marks.GeoMarksListScreen
+import ru.tcynik.meshtactics.presentation.feature.marks.GeoMarksListViewModel
 import ru.tcynik.meshtactics.presentation.feature.markers.MarkerManagementScreen
 import ru.tcynik.meshtactics.presentation.feature.markers.MarkersViewModel
 import ru.tcynik.meshtactics.presentation.feature.meshtest.MeshTestScreen
@@ -62,6 +64,7 @@ fun NavGraph() {
                 // Provide navigation callbacks to ViewModel once navController is available.
                 // Unit key — callbacks are stable for the lifetime of this destination.
                 LaunchedEffect(Unit) {
+                    viewModel.onMainDestinationVisible()
                     viewModel.provideNavCallbacks(
                         HudNavCallbacks(
                             onRadioClick           = { navController.navigate(Route.MeshTest()) },
@@ -71,6 +74,7 @@ fun NavGraph() {
                             onMapSettingsClick     = { navController.navigate(Route.MapSettings) },
                             onDisplaySettingsClick = { navController.navigate(Route.DisplaySettings) },
                             onUserSettingsClick    = { navController.navigate(Route.UserSettings) },
+                            onGeoMarksList         = { navController.navigate(Route.GeoMarksList) },
                             onExitApp              = {
                                 context.stopService(GpsService.createIntent(context))
                                 (context as? Activity)?.finishAndRemoveTask()
@@ -90,6 +94,11 @@ fun NavGraph() {
                     onMapDoubleClick = viewModel::onMapDoubleClick,
                     onMapLongClick = viewModel::onMapLongClick,
                     contextMenuEvents = viewModel.contextMenuEvent,
+                    onHideGeoMark = viewModel::hideGeoMark,
+                    onDeleteGeoMark = viewModel::requestDeleteGeoMark,
+                    onConfirmDeleteGeoMark = viewModel::confirmDeleteGeoMark,
+                    onDismissDeleteGeoMarkConfirm = viewModel::dismissDeleteGeoMarkConfirm,
+                    onSendGeoMark = viewModel::prepareGeoMarkForResend,
                     menuDrawerUiState = menuDrawerUiState,
                     geoMarksSheetUiState = geoMarksSheetUiState,
                     onFollowMeDeactivated = viewModel::onFollowMeDeactivated,
@@ -99,6 +108,7 @@ fun NavGraph() {
                     onMapRotatedByUser = viewModel::onMapRotatedByUser,
                     onCourseUpToggle = viewModel::onCourseUpToggle,
                     onFollowMeRestoreZoom = viewModel::onFollowMeRestoreZoom,
+                    onClearGeoMarkSelection = viewModel::clearSelectedGeoMark,
                 )
             }
 
@@ -168,6 +178,26 @@ fun NavGraph() {
                 MarkerManagementScreen(
                     uiState = uiState,
                     onNavigateBack = { navController.popBackStack() },
+                )
+            }
+
+            composable<Route.GeoMarksList> {
+                val viewModel: GeoMarksListViewModel = koinViewModel()
+                val uiState by viewModel.uiState.collectAsState()
+                GeoMarksListScreen(
+                    uiState = uiState,
+                    onVisibilityToggle = viewModel::onVisibilityToggle,
+                    onDeliveryFilterToggle = viewModel::onDeliveryFilterToggle,
+                    onToggleAllFilteredVisibility = viewModel::onToggleAllFilteredVisibility,
+                    onDeleteClick = viewModel::onDeleteClick,
+                    onConfirmDelete = viewModel::onConfirmDelete,
+                    onDismissDeleteDialog = viewModel::onDismissDeleteDialog,
+                    onItemDeleteClick = viewModel::onItemDeleteClick,
+                    onItemExtendClick = viewModel::onItemExtendClick,
+                    onItemSendClick = viewModel::onItemSendClick,
+                    onSendContourSelected = viewModel::onSendContourSelected,
+                    onDismissSendContourPicker = viewModel::onDismissSendContourPicker,
+                    onBack = { navController.popBackStack() },
                 )
             }
 

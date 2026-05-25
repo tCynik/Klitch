@@ -16,6 +16,8 @@ data class GeoMarkModel(
     val expiresAt: Long?,
     /** true if sent by this device. */
     val isSelf: Boolean,
+    /** Contour id at persist time; empty = local storage only. */
+    val logicalChannelId: String = "",
     /** Index into GeoMarkColor.palette (0–15). Packed into icon field at transport. */
     val color: Int = 0,
     /** User-visible label. Packed into Waypoint.name at transport. */
@@ -24,4 +26,5 @@ data class GeoMarkModel(
     val trackEndType: TrackEndType = TrackEndType.NONE,
     /** Shape of the point marker. */
     val shape: GeoMarkShape = GeoMarkShape.CIRCLE,
+    val isVisible: Boolean = true,
 )

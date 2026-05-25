@@ -1,7 +1,6 @@
 package ru.tcynik.meshtactics.presentation.feature.main.osd
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -65,9 +64,11 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import kotlinx.collections.immutable.ImmutableList
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkColor
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkShape
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
+import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import ru.tcynik.meshtactics.domain.marker.model.TrackEndType
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkAddressee
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarksSheetUiState
@@ -87,7 +88,12 @@ private val TTL_OPTIONS = listOf(
 )
 
 @Composable
-fun GeoMarksSheet(state: GeoMarksSheetUiState, modifier: Modifier = Modifier) {
+fun GeoMarksSheet(
+    state: GeoMarksSheetUiState,
+    modifier: Modifier = Modifier,
+    pendingPoints: ImmutableList<GeoPoint> = state.pendingPoints,
+    trackDistanceLabel: String = state.trackDraftDistanceLabel,
+) {
     BackHandler(enabled = state.isVisible, onBack = state.onClose)
 
     AnimatedVisibility(
@@ -114,7 +120,11 @@ fun GeoMarksSheet(state: GeoMarksSheetUiState, modifier: Modifier = Modifier) {
                     .navigationBarsPadding()
                     .padding(bottom = 8.dp),
             ) {
-                SheetHeader(state)
+                SheetHeader(
+                    state = state,
+                    pendingPoints = pendingPoints,
+                    trackDistanceLabel = trackDistanceLabel,
+                )
                 AnimatedVisibility(
                     visible = !state.isCollapsed,
                     enter = expandVertically(animationSpec = tween(200)),
@@ -123,7 +133,11 @@ fun GeoMarksSheet(state: GeoMarksSheetUiState, modifier: Modifier = Modifier) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         HorizontalDivider()
                         TypeAndColorRow(state)
-                        TypeSpecificSection(state)
+                        TypeSpecificSection(
+                            state = state,
+                            pendingPoints = pendingPoints,
+                            trackDistanceLabel = trackDistanceLabel,
+                        )
                         HorizontalDivider()
                         NameAndTtlRow(state)
                         HorizontalDivider()
@@ -136,7 +150,11 @@ fun GeoMarksSheet(state: GeoMarksSheetUiState, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun SheetHeader(state: GeoMarksSheetUiState) {
+private fun SheetHeader(
+    state: GeoMarksSheetUiState,
+    pendingPoints: ImmutableList<GeoPoint>,
+    trackDistanceLabel: String,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -175,6 +193,15 @@ private fun SheetHeader(state: GeoMarksSheetUiState) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        if (state.isCollapsed && state.selectedType == GeoMarkType.TRACK) {
+            Text(
+                text = trackDistanceLabel,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                modifier = Modifier.padding(end = 4.dp),
+            )
+        }
         IconButton(onClick = state.onToggleCollapsed) {
             Icon(
                 imageVector = if (state.isCollapsed) Icons.Default.KeyboardArrowUp
@@ -418,7 +445,8 @@ private fun TrackEndTypeIcon(
 
 private fun buildSheetHeaderTitle(state: GeoMarksSheetUiState): String {
     val name = state.markName.trim().ifEmpty { state.selectedType.headerNameFallback }
-    return "$name ${state.nameCounter}/${formatTtlShort(state.selectedTtlSeconds)}"
+    val counterPart = state.nameCounter?.let { " $it" }.orEmpty()
+    return "$name$counterPart/${formatTtlShort(state.selectedTtlSeconds)}"
 }
 
 private fun formatTtlShort(seconds: Long): String = when (seconds) {
@@ -497,26 +525,42 @@ private fun ColorDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TypeSpecificSection(state: GeoMarksSheetUiState) {
-    AnimatedContent(targetState = state.selectedType, label = "type_section") { type ->
-        when (type) {
-            GeoMarkType.TRACK -> TrackSection(state)
-            else -> Spacer(Modifier.height(0.dp))
-        }
+private fun TypeSpecificSection(
+    state: GeoMarksSheetUiState,
+    pendingPoints: ImmutableList<GeoPoint>,
+    trackDistanceLabel: String,
+) {
+    when (state.selectedType) {
+        GeoMarkType.TRACK -> TrackSection(
+            pendingPoints = pendingPoints,
+            trackDistanceLabel = trackDistanceLabel,
+        )
+        else -> Spacer(Modifier.height(0.dp))
     }
 }
 
 @Composable
-private fun TrackSection(state: GeoMarksSheetUiState) {
-    Text(
-        text = "точек: ${state.pendingPoints.size} / 27",
-        style = MaterialTheme.typography.bodyMedium,
+private fun TrackSection(
+    pendingPoints: ImmutableList<GeoPoint>,
+    trackDistanceLabel: String,
+) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-    )
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "точек: ${pendingPoints.size} / 27",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            text = trackDistanceLabel,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -538,8 +582,13 @@ private fun NameAndTtlRow(state: GeoMarksSheetUiState) {
             modifier = Modifier.weight(1f),
         )
         OutlinedTextField(
-            value = state.nameCounter.toString(),
-            onValueChange = { v -> v.toIntOrNull()?.let { state.onNameCounterChanged(it) } },
+            value = state.nameCounter?.toString().orEmpty(),
+            onValueChange = { v ->
+                when {
+                    v.isEmpty() -> state.onNameCounterChanged(null)
+                    else -> v.toIntOrNull()?.let { state.onNameCounterChanged(it) }
+                }
+            },
             label = { Text("№") },
             modifier = Modifier.width(64.dp),
             singleLine = true,

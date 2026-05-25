@@ -36,6 +36,16 @@ class GeoMarkWaypointAdapter {
         // Transport-level type codes — kept in the adapter, not in the domain enum.
         private val TYPE_CODES = mapOf(GeoMarkType.POINT to 0, GeoMarkType.TRACK to 1)
         private val TYPE_BY_CODE = TYPE_CODES.entries.associate { (k, v) -> v to k }
+
+        /** Derives a non-zero Meshtastic waypoint id from the app mark UUID. */
+        fun waypointIdFromMarkId(markId: String): Int {
+            val raw = try {
+                (UUID.fromString(markId).leastSignificantBits and 0x7FFF_FFFFL).toInt()
+            } catch (_: IllegalArgumentException) {
+                markId.hashCode() and 0x7FFF_FFFF
+            }
+            return if (raw == 0) 1 else raw
+        }
     }
 
     private fun typeCode(type: GeoMarkType): Int = TYPE_CODES[type] ?: 0
@@ -73,8 +83,9 @@ class GeoMarkWaypointAdapter {
         val description = buildDescription(mark)
         val expireSeconds = mark.expiresAt ?: (nowSeconds + EXPIRE_TTL_SECONDS)
 
+        val waypointId = mark.waypointId.takeIf { it != 0 } ?: waypointIdFromMarkId(mark.id)
         val waypoint = Waypoint(
-            id = 0,
+            id = waypointId,
             latitude_i = (anchor.latitude * LAT_LON_SCALE).roundToInt(),
             longitude_i = (anchor.longitude * LAT_LON_SCALE).roundToInt(),
             expire = expireSeconds.toInt(),
@@ -87,7 +98,11 @@ class GeoMarkWaypointAdapter {
             to = DataPacket.ID_BROADCAST,
             channel = 0,
             waypoint = waypoint,
-        )
+        ).apply {
+            // Broadcast waypoints do not get per-hop ACKs; want_ack=true blocks the radio
+            // send queue (~5s timeout per packet) and drops rapid consecutive sends.
+            wantAck = false
+        }
     }
 
     /**
@@ -115,12 +130,7 @@ class GeoMarkWaypointAdapter {
             GeoMarkType.TRACK -> decodeTrackPoints(anchor, waypoint.description) ?: return null
         }
 
-        // Use waypointId as part of stable ID to avoid UUID churn on repeated emissions
-        val markId = if (waypoint.id != 0) {
-            "wp-${waypoint.id}"
-        } else {
-            UUID.randomUUID().toString()
-        }
+        val markId = resolveMarkId(waypoint, packet)
 
         val colorIndex = (waypoint.icon ushr 8) and 0xF
         val endsByte = extractEndsByte(waypoint.description, type)
@@ -160,6 +170,19 @@ class GeoMarkWaypointAdapter {
     }
 
     // ── Private helpers ────────────────────────────────────────────────────────
+
+    private fun resolveMarkId(waypoint: Waypoint, packet: DataPacket): String {
+        if (waypoint.id != 0) return "wp-${waypoint.id}"
+        if (packet.id != 0) return "pkt-${packet.id}"
+        return buildContentFingerprintId(waypoint)
+    }
+
+    /** Stable id for legacy packets with waypoint.id = 0 and mesh packet id not yet assigned. */
+    private fun buildContentFingerprintId(waypoint: Waypoint): String {
+        val author = DataPacket.nodeNumToDefaultId(waypoint.locked_to)
+        return "mt1-$author-${waypoint.latitude_i}-${waypoint.longitude_i}-" +
+            "${waypoint.expire}-${waypoint.icon}-${waypoint.name}-${waypoint.description}"
+    }
 
     private fun buildIcon(type: GeoMarkType, color: Int, variant: Int): Int =
         (NAMESPACE shl 24) or (typeCode(type) shl 16) or (color shl 8) or variant

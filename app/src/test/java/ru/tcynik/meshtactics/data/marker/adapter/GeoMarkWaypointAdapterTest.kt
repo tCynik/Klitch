@@ -7,6 +7,7 @@ import io.mockk.unmockkStatic
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -271,5 +272,37 @@ class GeoMarkWaypointAdapterTest {
         val packet = adapter.encode(pointMark(), 0, "", 1000L)
         val decoded = adapter.decode(packet, selfIds = emptySet())!!
         assertFalse(decoded.isSelf)
+    }
+
+    @Test
+    fun `encode point — wantAck is false for broadcast queue`() {
+        val packet = adapter.encode(pointMark(), 0, "", 1000L)
+        assertFalse(packet.wantAck)
+    }
+
+    @Test
+    fun `encode — assigns non-zero waypoint id from mark id`() {
+        val mark = pointMark().copy(id = "550e8400-e29b-41d4-a716-446655440000")
+        val packet = adapter.encode(mark, 0, "", 1000L)
+        assertTrue(packet.waypoint!!.id != 0)
+    }
+
+    @Test
+    fun `encode — different mark ids produce different waypoint ids`() {
+        val id1 = "550e8400-e29b-41d4-a716-446655440000"
+        val id2 = "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+        val wp1 = adapter.encode(pointMark().copy(id = id1), 0, "", 1000L).waypoint!!.id
+        val wp2 = adapter.encode(pointMark().copy(id = id2), 0, "", 1000L).waypoint!!.id
+        assertNotEquals(wp1, wp2)
+    }
+
+    @Test
+    fun `decode — same packet yields stable mark id on repeated decode`() {
+        val mark = pointMark().copy(id = "550e8400-e29b-41d4-a716-446655440000")
+        val packet = adapter.encode(mark, 0, "", 1000L).copy(id = 42)
+        val first = adapter.decode(packet)!!
+        val second = adapter.decode(packet)!!
+        assertEquals(first.id, second.id)
+        assertEquals("wp-${packet.waypoint!!.id}", first.id)
     }
 }

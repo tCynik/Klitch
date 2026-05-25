@@ -50,6 +50,7 @@ import org.meshtastic.proto.FromRadio
 import org.meshtastic.proto.MeshPacket
 import org.meshtastic.proto.QueueStatus
 import org.meshtastic.proto.ToRadio
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
@@ -129,21 +130,43 @@ class PacketHandlerImpl(
     override fun handleQueueStatus(queueStatus: QueueStatus) {
         Logger.d { "[queueStatus] ${queueStatus.toOneLineString()}" }
         val (success, isFull, requestId) = with(queueStatus) { Triple(res == 0, free == 0, mesh_packet_id) }
-        if (success && isFull) return
+        // Packet accepted into the device queue (queue full afterwards) — unblock the send job.
+        if (success && isFull) {
+            scope.launch { responseMutex.withLock { completeQueueResponse(requestId, success = true) } }
+            return
+        }
 
         scope.launch {
-            responseMutex.withLock {
-                if (requestId != 0) {
-                    queueResponse.remove(requestId)?.complete(success)
-                } else {
-                    queueResponse.values.firstOrNull { !it.isCompleted }?.complete(success)
-                }
-            }
+            responseMutex.withLock { completeQueueResponse(requestId, success) }
+        }
+    }
+
+    private fun completeQueueResponse(requestId: Int, success: Boolean) {
+        if (requestId != 0) {
+            queueResponse.remove(requestId)?.complete(success)
+        } else {
+            queueResponse.values.firstOrNull { !it.isCompleted }?.complete(success)
         }
     }
 
     override fun removeResponse(dataRequestId: Int, complete: Boolean) {
         scope.launch { responseMutex.withLock { queueResponse.remove(dataRequestId)?.complete(complete) } }
+    }
+
+    override suspend fun awaitPacketSendResult(packetId: Int, timeout: Duration): Boolean {
+        if (packetId == 0) return false
+        return try {
+            withTimeout(timeout) {
+                while (true) {
+                    val deferred = responseMutex.withLock { queueResponse[packetId] }
+                    if (deferred != null) break
+                    delay(50.milliseconds)
+                }
+                responseMutex.withLock { queueResponse[packetId] }?.await() ?: false
+            }
+        } catch (_: TimeoutCancellationException) {
+            false
+        }
     }
 
     private fun startPacketQueue() {
@@ -203,6 +226,11 @@ class PacketHandlerImpl(
                 throw RadioNotConnectedException()
             }
             sendToRadio(ToRadio(packet = packet))
+            // No-ack packets (incl. broadcast waypoints) do not get routing ACKs; pacing for
+            // geo-marks is handled in GeoMarkSendQueue, not by blocking here on QueueStatus.
+            if (packet.want_ack != true) {
+                deferred.complete(true)
+            }
         } catch (ex: RadioNotConnectedException) {
             Logger.w(ex) { "sendToRadio skipped: Not connected to radio" }
             deferred.complete(false)

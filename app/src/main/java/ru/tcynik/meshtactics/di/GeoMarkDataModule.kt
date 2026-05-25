@@ -17,9 +17,12 @@ import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkPreferencesReposito
 import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkRepository
 import ru.tcynik.meshtactics.domain.marker.usecase.AutoExpireGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.DeleteGeoMarksUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.ExtendGeoMarkUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.ToggleGeoMarkVisibilityUseCase
 
 val geoMarkDataModule = module {
     single<androidx.datastore.core.DataStore<androidx.datastore.preferences.core.Preferences>>(named("GeoMarkPrefsDataStore")) {
@@ -35,15 +38,19 @@ val geoMarkDataModule = module {
     single { GeoMarkWaypointAdapter() }
     single<GeoMarkRepository> {
         GeoMarkRepositoryImpl(
-            commandSender       = get(),
+            meshRouter          = get(),
             meshNetwork         = get(),
             channelRepository   = get(),
             channelSlotResolver = get(),
             adapter             = get(),
             geoMarkQueries      = get(),
+            packetRepository    = get(),
         )
     }
     single { ObserveGeoMarksUseCase(get()) }
+    single { ToggleGeoMarkVisibilityUseCase(get()) }
+    single { DeleteGeoMarksUseCase(get()) }
+    single { ExtendGeoMarkUseCase(get()) }
     single { SendGeoMarkUseCase(get()) }
     single { DeleteExpiredGeoMarksUseCase(get()) }
     single { AutoExpireGeoMarksUseCase(get()) }

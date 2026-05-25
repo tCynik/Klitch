@@ -32,8 +32,14 @@ data class MainUiState(
     // Accumulates across scan restarts; cleared on connect.
     val foundDevices: ImmutableList<MeshDeviceModel> = persistentListOf(),
     val geoMarks: ImmutableList<GeoMarkModel> = persistentListOf(),
+    /** Выбранная метка на карте (контекстное меню); красная обводка как у черновика. */
+    val selectedGeoMarkId: String? = null,
+    /** Метка, ожидающая подтверждения удаления с карты. */
+    val deleteConfirmMarkId: String? = null,
     val markToolActive: Boolean = false,
     val pendingMarkPoints: ImmutableList<GeoPoint> = persistentListOf(),
+    /** Синхронно с [pendingMarkPoints]; не пересчитывать отдельно в UI. */
+    val trackDraftDistanceLabel: String = "0.000/0.000км",
     val hasChannelOnNode: Boolean = true,
     val syncRequired: Boolean = false,
     val isRebooting: Boolean = false,

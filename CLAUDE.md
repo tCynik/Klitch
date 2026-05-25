@@ -31,6 +31,7 @@
 | BLE-узлы на карте (telemetry) | ⬜ Planned |
 | Чат | ✅ Done |
 | Маркеры / заметки | ✅ Done |
+| Список гео-меток | ✅ Done |
 | Контуры (CRUD + isActive + Geo Protection) | ✅ Done |
 | Emergency SOS (кнопка SOS, трансляция геопозиции) | ✅ Done |
 | Настройки кэша тайлов (OkHttp duration modes) | ✅ Done |
@@ -97,6 +98,7 @@
 | Фича | Документ |
 |---|---|
 | Geo Marks | `.claude/docs/geo-marks.md` |
+| Geo Marks List | `.claude/docs/geo-marks-list.md` |
 | App Structure | `.claude/docs/app-structure.md` |
 | Map Start Position | `.claude/docs/map-start-position.md` |
 | GPS User Position Marker | `.claude/docs/gps-user-position-marker.md` |
@@ -154,3 +156,5 @@
 | Follow Me | `.claude/archive/follow-me.md` | Archived |
 | Geo Marks Bottom Sheet | `.claude/archive/geo-marks-sheet.md` | Done |
 | Geo Marks Display Settings | `.claude/archive/geo-marks-display-settings.md` | Done |
+| Geo Marks List | `.claude/archive/geo-marks-list.md` | Done |
+| Geo Marks UI Completion | `.claude/archive/geo-marks-ui-completion.md` | Done |

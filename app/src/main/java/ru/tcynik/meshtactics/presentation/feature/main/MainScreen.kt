@@ -6,15 +6,20 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import ru.tcynik.meshtactics.presentation.feature.main.osd.GeoMarkMapContextMenu
+import ru.tcynik.meshtactics.presentation.feature.main.osd.GeoMarkMapContextMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +46,8 @@ import ru.tcynik.meshtactics.di.orientation.DeviceOrientationProvider
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.presentation.feature.main.osd.GeoMarksSheet
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkContextMenuEvent
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.DraftPointContextMenuEvent
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.ExistingMarkContextMenuEvent
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarksSheetUiState
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudUiState
@@ -54,6 +61,9 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MenuDrawerUiSt
 private fun metersPerPixel(latRad: Double, zoom: Double): Double =
     78271.51696 * cos(latRad) / 2.0.pow(zoom)
 
+// Tap hit-test radius for geo marks in dp (zoom-invariant screen-space check).
+private const val GEO_MARK_TAP_RADIUS_DP = 32f
+
 @Composable
 fun MainScreen(
     uiState: MainUiState,
@@ -62,10 +72,13 @@ fun MainScreen(
     onCameraPositionChanged: (MapCameraPosition) -> Unit,
     locationProvider: LocationProvider,
     orientationProvider: DeviceOrientationProvider,
-    onMapClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
+    onMapClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit = { _, _, _, _ -> },
     onMapDoubleClick: (lat: Double, lon: Double) -> Unit = { _, _ -> },
     onMapLongClick: (lat: Double, lon: Double, screenX: Float, screenY: Float) -> Unit = { _, _, _, _ -> },
     contextMenuEvents: Flow<GeoMarkContextMenuEvent> = emptyFlow(),
+    onHideGeoMark: (String) -> Unit = {},
+    onDeleteGeoMark: (String) -> Unit = {},
+    onSendGeoMark: (String) -> Unit = {},
     menuDrawerUiState: MenuDrawerUiState,
     geoMarksSheetUiState: GeoMarksSheetUiState,
     onFollowMeDeactivated: () -> Unit = {},
@@ -75,6 +88,9 @@ fun MainScreen(
     onMapRotatedByUser: (Double) -> Unit = {},
     onCourseUpToggle: (Double) -> Unit = {},
     onFollowMeRestoreZoom: () -> Unit = {},
+    onClearGeoMarkSelection: () -> Unit = {},
+    onConfirmDeleteGeoMark: () -> Unit = {},
+    onDismissDeleteGeoMarkConfirm: () -> Unit = {},
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val density = LocalDensity.current
@@ -94,6 +110,36 @@ fun MainScreen(
             zoom = uiState.initialCameraPosition.zoom,
         ),
     )
+
+    val currentGeoMarks by rememberUpdatedState(uiState.geoMarks)
+    val geoMarkAwareOnMapClick: (Double, Double, Float, Float) -> Unit = remember(onMapClick) {
+        { lat, lon, screenX, screenY ->
+            val proj = cameraState.projection
+            val hitMark = if (proj != null) {
+                currentGeoMarks
+                    .asSequence()
+                    .filter { it.isVisible }
+                    .mapNotNull { mark ->
+                        val nearestDistSq = mark.points.minOfOrNull { pt ->
+                            val screen = proj.screenLocationFromPosition(Position(longitude = pt.longitude, latitude = pt.latitude))
+                            val dx = screen.x.value - screenX
+                            val dy = screen.y.value - screenY
+                            dx * dx + dy * dy
+                        } ?: return@mapNotNull null
+                        if (nearestDistSq < GEO_MARK_TAP_RADIUS_DP * GEO_MARK_TAP_RADIUS_DP) mark to nearestDistSq
+                        else null
+                    }
+                    .minByOrNull { it.second }
+                    ?.first
+            } else null
+            if (hitMark != null) {
+                val pt = hitMark.points.first()
+                onMapClick(pt.latitude, pt.longitude, screenX, screenY)
+            } else {
+                onMapClick(lat, lon, screenX, screenY)
+            }
+        }
+    }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -205,12 +251,13 @@ fun MainScreen(
                 userBearing = bearing,
                 selectedOverlays = uiState.selectedOverlays,
                 geoMarks = uiState.geoMarks,
+                selectedGeoMarkId = uiState.selectedGeoMarkId,
                 pendingMarkPoints = uiState.pendingMarkPoints,
                 pendingMarkColor = geoMarksSheetUiState.selectedColor,
                 pendingMarkShape = geoMarksSheetUiState.selectedShape,
                 markToolActive = uiState.markToolActive,
                 isCourseUpActive = uiState.isCourseUpActive,
-                onMapClick = onMapClick,
+                onMapClick = geoMarkAwareOnMapClick,
                 onMapDoubleClick = onMapDoubleClick,
                 onMapLongClick = onMapLongClick,
             )
@@ -224,7 +271,7 @@ fun MainScreen(
                         mapHeightPx = mapHeightPx,
                         markToolActive = uiState.markToolActive,
                         cameraState = cameraState,
-                        onMapClick = onMapClick,
+                        onMapClick = geoMarkAwareOnMapClick,
                         onMapDoubleClick = onMapDoubleClick,
                     ),
             )
@@ -260,26 +307,82 @@ fun MainScreen(
         if (!isLandscape) {
             GeoMarksSheet(
                 state = geoMarksSheetUiState,
+                pendingPoints = uiState.pendingMarkPoints,
+                trackDistanceLabel = uiState.trackDraftDistanceLabel,
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
 
         contextMenu?.let { event ->
-            Box(Modifier.offset(event.screenX.dp, event.screenY.dp).size(0.dp)) {
-                DropdownMenu(
-                    expanded = true,
-                    onDismissRequest = { contextMenu = null },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Удалить точку") },
-                        onClick = {
-                            geoMarksSheetUiState.onDeletePendingPoint(event.pointIndex)
-                            contextMenu = null
-                        },
-                    )
+            val dismissMenu = {
+                contextMenu = null
+                onClearGeoMarkSelection()
+            }
+            when (event) {
+                is DraftPointContextMenuEvent -> {
+                    Box(Modifier.offset(event.screenX.dp, event.screenY.dp).size(0.dp)) {
+                        DropdownMenu(
+                            expanded = true,
+                            onDismissRequest = dismissMenu,
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Удалить точку") },
+                                onClick = {
+                                    geoMarksSheetUiState.onDeletePendingPoint(event.pointIndex)
+                                    contextMenu = null
+                                },
+                            )
+                        }
+                    }
+                }
+                is ExistingMarkContextMenuEvent -> {
+                    GeoMarkMapContextMenu(
+                        screenXDp = event.screenX,
+                        screenYDp = event.screenY,
+                        title = event.title,
+                        mark = uiState.geoMarks.find { it.id == event.markId },
+                        nodeNames = uiState.nodeMarkers.associate { it.nodeId to it.longName },
+                        onDismiss = dismissMenu,
+                    ) {
+                        GeoMarkMapContextMenuItem(
+                            text = "Скрыть",
+                            onClick = {
+                                onHideGeoMark(event.markId)
+                                contextMenu = null
+                            },
+                        )
+                        GeoMarkMapContextMenuItem(
+                            text = "Удалить",
+                            onClick = {
+                                onDeleteGeoMark(event.markId)
+                                contextMenu = null
+                            },
+                        )
+                        GeoMarkMapContextMenuItem(
+                            text = "Отправить",
+                            onClick = {
+                                onSendGeoMark(event.markId)
+                                contextMenu = null
+                            },
+                        )
+                    }
                 }
             }
         }
+        uiState.deleteConfirmMarkId?.let { markId ->
+            val markName = uiState.geoMarks.find { it.id == markId }?.name?.ifBlank { "—" } ?: "метку"
+            AlertDialog(
+                onDismissRequest = onDismissDeleteGeoMarkConfirm,
+                text = { Text("Удалить метку $markName?") },
+                confirmButton = {
+                    TextButton(onClick = onConfirmDeleteGeoMark) { Text("Удалить") }
+                },
+                dismissButton = {
+                    TextButton(onClick = onDismissDeleteGeoMarkConfirm) { Text("Отмена") }
+                },
+            )
+        }
+
         } // Box
     } // BoxWithConstraints
 }

@@ -1,7 +1,8 @@
 # Plan: Geo Marks UI Completion
 
 **Date**: 2026-04-18
-**Status**: Approved
+**Status**: Done
+**Actualized**: 2026-05-25
 
 ## Summary
 
@@ -36,7 +37,7 @@ All ViewModel methods (`sendPendingMark`, `deletePendingPoint`, `toggleMarkTool`
 
 ## Phase Plan
 
-### Phase 1 — Fix right-column "метки" button + badge
+### Phase 1 — Fix right-column "метки" button + badge ✅
 
 **Goal**: Right-column button activates the mark tool and shows pending point count.
 
@@ -63,7 +64,7 @@ HudButtonSlot(
 
 ---
 
-### Phase 2 — Send panel
+### Phase 2 — Send panel ✅
 
 **Goal**: When `markToolActive && pendingMarkPoints.isNotEmpty()`, a "Отправить (N)" button appears above the HUD.
 
@@ -94,7 +95,7 @@ AnimatedVisibility(
 
 ---
 
-### Phase 3 — Context menu (DropdownMenu)
+### Phase 3 — Context menu (DropdownMenu) ✅
 
 **Goal**: Long-tapping a draft point shows a `DropdownMenu` with "Удалить точку".
 
@@ -145,13 +146,13 @@ val contextMenuEvents: SharedFlow<GeoMarkContextMenuEvent> = _contextMenuEvent.a
 
 ---
 
-### Phase 4 — Integration Review
+### Phase 4 — Integration Review ✅
 
 Review `MainScreen.kt` parameter count. If it exceeds ~10 params, extract a `MainScreenCallbacks` data class. Check there are no layer violations (all new calls stay in presentation).
 
 ---
 
-### Phase 5 — Skill Update Review
+### Phase 5 — Skill Update Review ✅
 
 - `/architect` — no new patterns.
 - `/ui-designer` — no new design tokens.
@@ -162,7 +163,7 @@ Explicit outcome: **no skill files need updating**.
 
 ---
 
-### Phase 6 — Docs & Memory Update
+### Phase 6 — Docs & Memory Update ✅
 
 - Update `.claude/docs/geo-marks.md`:
   - Presentation section: fix right-column wiring, add send panel and context menu descriptions
@@ -172,7 +173,7 @@ Explicit outcome: **no skill files need updating**.
 
 ---
 
-### Phase 7 — Commit Preparation
+### Phase 7 — Commit Preparation ✅
 
 Files to stage (by name):
 - `app/.../presentation/feature/main/MainViewModel.kt`
@@ -211,3 +212,4 @@ None — all resolved.
 ## Change Log
 
 - 2026-04-18: created (revised after clarifications: mark tool belongs in right column, send panel bottom-centre, dp units confirmed)
+- 2026-05-25: actualized — all phases done; design evolved: button calls `toggleGeoMarksSheet()` instead of `toggleMarkTool()`, send panel moved to `GeoMarksSheet` component instead of `MainScreen`. Context menu (`DropdownMenu`) implemented in `MainScreen`. `onMarkersClick` removed from `HudNavCallbacks`. `contextMenuEvents` wired via `NavGraph`. Feature committed on branch `marks_list`.

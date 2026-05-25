@@ -29,6 +29,8 @@ class GeoMarkPrefsDataSource(
                 selectedTtlSeconds   = prefs[KEY_TTL_SECONDS] ?: 900L,
                 pointMarkName        = prefs[KEY_POINT_MARK_NAME] ?: "точка",
                 trackMarkName        = prefs[KEY_TRACK_MARK_NAME] ?: "Путь",
+                pointNameCounter     = decodeNameCounter(prefs[KEY_POINT_NAME_COUNTER]),
+                trackNameCounter     = decodeNameCounter(prefs[KEY_TRACK_NAME_COUNTER]),
                 selectedContourId    = prefs[KEY_CONTOUR_ID] ?: "",
                 selectedShape        = prefs[KEY_SHAPE] ?: ru.tcynik.meshtactics.domain.marker.model.GeoMarkShape.CIRCLE.name,
             )
@@ -42,6 +44,8 @@ class GeoMarkPrefsDataSource(
             prefs[KEY_TTL_SECONDS]       = p.selectedTtlSeconds
             prefs[KEY_POINT_MARK_NAME]   = p.pointMarkName
             prefs[KEY_TRACK_MARK_NAME]   = p.trackMarkName
+            prefs[KEY_POINT_NAME_COUNTER] = encodeNameCounter(p.pointNameCounter)
+            prefs[KEY_TRACK_NAME_COUNTER] = encodeNameCounter(p.trackNameCounter)
             prefs[KEY_CONTOUR_ID]        = p.selectedContourId
             prefs[KEY_SHAPE]             = p.selectedShape
         }
@@ -67,6 +71,8 @@ class GeoMarkPrefsDataSource(
 
     companion object {
         private const val MAX_PRESETS = 10
+        /** Stored in DataStore when the user cleared the mark number field. */
+        private const val NO_NAME_COUNTER = -1
 
         private val KEY_TYPE             = stringPreferencesKey("geomark_type")
         private val KEY_COLOR            = intPreferencesKey("geomark_color")
@@ -74,8 +80,19 @@ class GeoMarkPrefsDataSource(
         private val KEY_TTL_SECONDS      = longPreferencesKey("geomark_ttl_seconds")
         private val KEY_POINT_MARK_NAME  = stringPreferencesKey("geomark_point_name")
         private val KEY_TRACK_MARK_NAME  = stringPreferencesKey("geomark_track_name")
+        private val KEY_POINT_NAME_COUNTER = intPreferencesKey("geomark_point_name_counter")
+        private val KEY_TRACK_NAME_COUNTER = intPreferencesKey("geomark_track_name_counter")
         private val KEY_CONTOUR_ID       = stringPreferencesKey("geomark_contour_id")
         private val KEY_PRESETS          = stringPreferencesKey("geomark_presets_json")
         private val KEY_SHAPE            = stringPreferencesKey("geomark_shape")
+
+        private fun encodeNameCounter(counter: Int?): Int =
+            counter ?: NO_NAME_COUNTER
+
+        private fun decodeNameCounter(stored: Int?): Int? = when (stored) {
+            null -> 1
+            NO_NAME_COUNTER -> null
+            else -> stored
+        }
     }
 }

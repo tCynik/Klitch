@@ -34,6 +34,9 @@ sealed interface Route {
     @Serializable
     data object GroupManagement : Route  // Beta 1.0
 
+    @Serializable
+    data object GeoMarksList : Route
+
     // Legacy / prototype screens
     @Serializable
     data object Nodes : Route

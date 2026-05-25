@@ -6,6 +6,7 @@ import org.koin.dsl.module
 import ru.tcynik.meshtactics.presentation.feature.chat.ChatViewModel
 import ru.tcynik.meshtactics.presentation.feature.groups.GroupsViewModel
 import ru.tcynik.meshtactics.presentation.feature.main.MainViewModel
+import ru.tcynik.meshtactics.presentation.feature.marks.GeoMarksListViewModel
 import ru.tcynik.meshtactics.presentation.feature.markers.MarkersViewModel
 import ru.tcynik.meshtactics.presentation.feature.meshtest.MeshTestViewModel
 import ru.tcynik.meshtactics.presentation.feature.node.NodeSettingsViewModel
@@ -21,6 +22,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveNodeSecurityConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
@@ -28,6 +30,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.AutoExpireGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
+import ru.tcynik.meshtactics.domain.marker.usecase.ToggleGeoMarkVisibilityUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
@@ -77,6 +80,8 @@ val presentationModule = module {
             nodeProvisioning = get<NodeProvisioningUseCase>(),
             checkNodeSync = get<CheckNodeSyncUseCase>(),
             observeGeoMarks = get(),
+            toggleGeoMarkVisibility = get<ToggleGeoMarkVisibilityUseCase>(),
+            deleteGeoMarks = get(),
             sendGeoMark = get(),
             ingestReceivedGeoMarks = get<IngestReceivedGeoMarksUseCase>(),
             autoExpireGeoMarks = get<AutoExpireGeoMarksUseCase>(),
@@ -148,6 +153,18 @@ val presentationModule = module {
     }
     viewModelOf(::NodeStatusViewModel)
     viewModelOf(::MarkersViewModel)
+    viewModel {
+        GeoMarksListViewModel(
+            observeGeoMarks = get(),
+            observeContours = get(),
+            observeMeshNodes = get(),
+            toggleVisibility = get<ToggleGeoMarkVisibilityUseCase>(),
+            deleteGeoMarks = get(),
+            extendGeoMark = get(),
+            sendGeoMark = get(),
+            logger = get(),
+        )
+    }
     viewModelOf(::GroupsViewModel)
 
     // ── Legacy / prototype ───────────────────────────────────────────────────

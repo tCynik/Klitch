@@ -18,6 +18,7 @@ import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkRepository
+import ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapter
 import java.util.UUID
 
 private const val BROADCAST_INTERVAL_MS = 30_000L
@@ -60,10 +61,11 @@ class EmergencyPositionBroadcastRepositoryImpl(
 
     private suspend fun sendPositionMark(location: GpsLocation) {
         val nowSeconds = System.currentTimeMillis() / 1_000
+        val markId = UUID.randomUUID().toString()
         geoMarkRepository.sendGeoMark(
             GeoMarkModel(
-                id = UUID.randomUUID().toString(),
-                waypointId = 0,
+                id = markId,
+                waypointId = GeoMarkWaypointAdapter.waypointIdFromMarkId(markId),
                 type = GeoMarkType.POINT,
                 points = listOf(GeoPoint(location.latitude, location.longitude)),
                 authorNodeId = "",
