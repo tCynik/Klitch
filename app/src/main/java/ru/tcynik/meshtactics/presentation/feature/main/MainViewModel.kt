@@ -1001,6 +1001,11 @@ class MainViewModel(
                 HudInfoSlot(content = "Настройте канал", color = Color.Red)
             else if (state.showConnectionLabel)
                 HudInfoSlot(content = "Сопряжено с ${status.shortName}", color = Color.Black)
+            else if (status.batteryLevel in 1..100)
+                HudInfoSlot(
+                    content = "🔋${status.batteryLevel}%",
+                    color = if (status.batteryLevel < 20) Color.Red else Color.Black,
+                )
             else
                 emptyInfoSlot()
         else ->
