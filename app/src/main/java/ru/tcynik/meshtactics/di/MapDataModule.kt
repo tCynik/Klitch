@@ -25,11 +25,16 @@ import ru.tcynik.meshtactics.domain.settings.repository.MapCacheSettingsReposito
 import ru.tcynik.meshtactics.domain.settings.usecase.GetGeoMarkSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetMarkerSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetShowGeoMarkNamesUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.GetScreenOrientationLockedUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.GetScreenOrientationModeUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetTileCacheModeUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveGeoMarkSizeLevelUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.ObserveScreenOrientationSettingsUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveMarkerSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveShowGeoMarkNamesUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveTileCacheModeUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.SetScreenOrientationLockedUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.SetScreenOrientationModeUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.SetTileCacheModeUseCase
 
 val mapDataModule = module {
@@ -58,6 +63,13 @@ val mapDataModule = module {
     single { GetTileCacheModeUseCase(get()) }
     single { SetTileCacheModeUseCase(get()) }
     single { ObserveTileCacheModeUseCase(get()) }
+
+    // Screen orientation lock — ScreenOrientationRepository resolved from commonModule
+    single { GetScreenOrientationLockedUseCase(get()) }
+    single { SetScreenOrientationLockedUseCase(get()) }
+    single { GetScreenOrientationModeUseCase(get()) }
+    single { SetScreenOrientationModeUseCase(get()) }
+    single { ObserveScreenOrientationSettingsUseCase(get()) }
 
     // Imported map overlays (KMZ/KML via SAF)
     single { KmlOverlayParser(androidContext(), get()) }

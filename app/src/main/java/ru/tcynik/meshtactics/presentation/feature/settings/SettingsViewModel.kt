@@ -14,10 +14,15 @@ import ru.tcynik.meshtactics.domain.map.usecase.HideImportedMapUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ImportMapFileUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveImportedMapsUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ToggleImportedMapSelectionUseCase
+import ru.tcynik.meshtactics.domain.settings.model.ScreenOrientationMode
 import ru.tcynik.meshtactics.domain.settings.model.TileCacheMode
 import ru.tcynik.meshtactics.domain.settings.repository.MarkerSettingsRepository
+import ru.tcynik.meshtactics.domain.settings.usecase.GetScreenOrientationLockedUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.GetScreenOrientationModeUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetTileCacheModeUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveTileCacheModeUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.SetScreenOrientationLockedUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.SetScreenOrientationModeUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.SetTileCacheModeUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import ru.tcynik.meshtactics.presentation.feature.settings.models.MapItem
@@ -32,6 +37,10 @@ class SettingsViewModel(
     private val getTileCacheMode: GetTileCacheModeUseCase,
     private val observeTileCacheMode: ObserveTileCacheModeUseCase,
     private val setTileCacheMode: SetTileCacheModeUseCase,
+    private val getScreenOrientationLocked: GetScreenOrientationLockedUseCase,
+    private val getScreenOrientationMode: GetScreenOrientationModeUseCase,
+    private val setScreenOrientationLocked: SetScreenOrientationLockedUseCase,
+    private val setScreenOrientationMode: SetScreenOrientationModeUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -40,6 +49,8 @@ class SettingsViewModel(
             markerSizeLevelPending = repository.getMarkerSizeLevel(),
             geoMarkSizeLevelPending = repository.getGeoMarkSizeLevel(),
             showGeoMarkNamesPending = repository.getShowGeoMarkNames(),
+            orientationLockedPending = getScreenOrientationLocked(),
+            orientationModePending = getScreenOrientationMode(),
             tileCacheMode = getTileCacheMode(),
         )
     )
@@ -80,11 +91,22 @@ class SettingsViewModel(
         _uiState.update { it.copy(showGeoMarkNamesPending = enabled) }
     }
 
+    fun onOrientationLockedChange(locked: Boolean) {
+        _uiState.update { it.copy(orientationLockedPending = locked) }
+    }
+
+    fun onOrientationModeChange(mode: ScreenOrientationMode) {
+        _uiState.update { it.copy(orientationModePending = mode) }
+    }
+
     fun onSave() {
         val state = _uiState.value
         repository.setMarkerSizeLevel(state.markerSizeLevelPending)
         repository.setGeoMarkSizeLevel(state.geoMarkSizeLevelPending)
         repository.setShowGeoMarkNames(state.showGeoMarkNamesPending)
+        // TODO: restore state.orientationLockedPending / state.orientationModePending when landscape is implemented
+        setScreenOrientationLocked(true)
+        setScreenOrientationMode(ScreenOrientationMode.PORTRAIT)
         _uiState.update { it.copy(markerSizeLevel = state.markerSizeLevelPending) }
     }
 

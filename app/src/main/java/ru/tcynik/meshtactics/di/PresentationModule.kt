@@ -46,11 +46,15 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SetGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetGeoMarkSizeLevelUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.GetScreenOrientationLockedUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.GetScreenOrientationModeUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetShowGeoMarkNamesUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetTileCacheModeUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveGeoMarkSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveShowGeoMarkNamesUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveTileCacheModeUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.SetScreenOrientationLockedUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.SetScreenOrientationModeUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.SetTileCacheModeUseCase
 import ru.tcynik.meshtactics.presentation.feature.settings.SettingsViewModel
 import ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModel
@@ -109,6 +113,10 @@ val presentationModule = module {
             getTileCacheMode = get<GetTileCacheModeUseCase>(),
             observeTileCacheMode = get<ObserveTileCacheModeUseCase>(),
             setTileCacheMode = get<SetTileCacheModeUseCase>(),
+            getScreenOrientationLocked = get<GetScreenOrientationLockedUseCase>(),
+            getScreenOrientationMode = get<GetScreenOrientationModeUseCase>(),
+            setScreenOrientationLocked = get<SetScreenOrientationLockedUseCase>(),
+            setScreenOrientationMode = get<SetScreenOrientationModeUseCase>(),
         )
     }
     viewModel {
