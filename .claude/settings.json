@@ -196,7 +196,15 @@
       "Bash(./gradlew :app:compileDebugKotlin)",
       "Bash(mv \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\connection-status-hud-info.md\" \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\archive\\\\connection-status-hud-info.md\")",
       "Bash(mv \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\node-provisioning.md\" \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\archive\\\\node-provisioning.md\")",
-      "Bash(mv \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\hud-node-status-indicator.md\" \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\archive\\\\hud-node-status-indicator.md\")"
+      "Bash(mv \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\hud-node-status-indicator.md\" \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\archive\\\\hud-node-status-indicator.md\")",
+      "Read(//c//**)",
+      "Bash(magick --version)",
+      "PowerShell(Get-Command magick -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Command python -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Command python3 -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Command ffmpeg -ErrorAction SilentlyContinue)",
+      "PowerShell(python -c \"import sys; print\\(sys.version\\)\" 2>&1)",
+      "PowerShell(Rename-Item \"C:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\app\\\\src\\\\main\\\\res\\\\drawable\\\\ic_launcher_foreground.png\" \"ic_launcher_foreground.png\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\tcynik\\StudioProjects\\MeshTactics\\.claude",
