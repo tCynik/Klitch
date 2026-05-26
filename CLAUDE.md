@@ -36,6 +36,7 @@
 | Emergency SOS (кнопка SOS, трансляция геопозиции) | ✅ Done |
 | Настройки кэша тайлов (OkHttp duration modes) | ✅ Done |
 | Настройки экрана (размер маркеров + геоточек, имена точек) | ✅ Done |
+| Блокировка ориентации экрана | ✅ Done |
 | Настройки ноды | ⬜ Planned |
 | Инжектируемый Logger (MT/<Feature>) | ✅ Done |
 | HUD Menu Drawer (выдвижная шторка навигации) | ✅ Done |
@@ -126,6 +127,7 @@
 | App Logger | `.claude/docs/logger.md` |
 | HUD Menu Drawer | `.claude/docs/hud-menu-drawer.md` |
 | Map Orientation Binding | `.claude/docs/map-orientation.md` |
+| Screen Orientation Lock | `.claude/docs/screen-orientation-lock.md` |
 
 ---
 
@@ -160,3 +162,4 @@
 | Geo Marks Display Settings | `.claude/archive/geo-marks-display-settings.md` | Done |
 | Geo Marks List | `.claude/archive/geo-marks-list.md` | Done |
 | Geo Marks UI Completion | `.claude/archive/geo-marks-ui-completion.md` | Done |
+| Screen Orientation Lock | `.claude/archive/screen-orientation-lock.md` | Done |
