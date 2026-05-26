@@ -104,8 +104,9 @@ class SettingsViewModel(
         repository.setMarkerSizeLevel(state.markerSizeLevelPending)
         repository.setGeoMarkSizeLevel(state.geoMarkSizeLevelPending)
         repository.setShowGeoMarkNames(state.showGeoMarkNamesPending)
-        setScreenOrientationLocked(state.orientationLockedPending)
-        setScreenOrientationMode(state.orientationModePending)
+        // TODO: restore state.orientationLockedPending / state.orientationModePending when landscape is implemented
+        setScreenOrientationLocked(true)
+        setScreenOrientationMode(ScreenOrientationMode.PORTRAIT)
         _uiState.update { it.copy(markerSizeLevel = state.markerSizeLevelPending) }
     }
 

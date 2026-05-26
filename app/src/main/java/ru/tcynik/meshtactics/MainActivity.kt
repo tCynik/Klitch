@@ -23,21 +23,29 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        observeScreenOrientationSettings(NoParams)
-            .onEach { (locked, mode) ->
-                requestedOrientation = when {
-                    !locked -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                    mode == ScreenOrientationMode.PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                    mode == ScreenOrientationMode.LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                    else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                }
-            }
-            .launchIn(lifecycleScope)
+        applyScreenOrientation()
 
         setContent {
             MeshTacticsTheme {
                 NavGraph()
             }
         }
+    }
+
+    private fun applyScreenOrientation() {
+        // TODO: replace with flow-based implementation when landscape orientation is implemented
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+
+        // TODO: uncomment and remove the hardcode above when landscape orientation is implemented
+//        observeScreenOrientationSettings(NoParams)
+//            .onEach { (locked, mode) ->
+//                requestedOrientation = when {
+//                    !locked -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+//                    mode == ScreenOrientationMode.PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+//                    mode == ScreenOrientationMode.LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+//                    else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+//                }
+//            }
+//            .launchIn(lifecycleScope)
     }
 }

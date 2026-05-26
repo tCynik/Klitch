@@ -183,13 +183,11 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `onSave calls orientation use cases with pending values`() = runTest {
-        viewModel.onOrientationLockedChange(true)
-        viewModel.onOrientationModeChange(ScreenOrientationMode.LANDSCAPE)
+    fun `onSave always saves portrait locked regardless of pending state`() = runTest {
         viewModel.onSave()
 
         verify(exactly = 1) { setScreenOrientationLocked(true) }
-        verify(exactly = 1) { setScreenOrientationMode(ScreenOrientationMode.LANDSCAPE) }
+        verify(exactly = 1) { setScreenOrientationMode(ScreenOrientationMode.PORTRAIT) }
     }
 
     // ── Tile cache mode ──────────────────────────────────────────────────────

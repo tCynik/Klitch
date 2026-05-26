@@ -81,9 +81,10 @@ fun DisplaySettingsScreen(
             onGeoMarkLevelChange = viewModel::onGeoMarkSizeLevelChange,
             showGeoMarkNames = state.showGeoMarkNamesPending,
             onShowGeoMarkNamesChange = viewModel::onShowGeoMarkNamesChange,
-            orientationLocked = state.orientationLockedPending,
+            // TODO: restore state.orientationLockedPending / state.orientationModePending when landscape is implemented
+            orientationLocked = true,
             onOrientationLockedChange = viewModel::onOrientationLockedChange,
-            orientationMode = state.orientationModePending,
+            orientationMode = ScreenOrientationMode.PORTRAIT,
             onOrientationModeChange = viewModel::onOrientationModeChange,
             onSave = {
                 viewModel.onSave()
@@ -159,9 +160,11 @@ private fun ScreenTabContent(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // TODO: enable when landscape orientation is implemented
             Checkbox(
                 checked = orientationLocked,
                 onCheckedChange = onOrientationLockedChange,
+                enabled = false,
             )
             Text(
                 text = stringResource(R.string.settings_orientation_lock_label),
@@ -173,6 +176,7 @@ private fun ScreenTabContent(
             OrientationModeDropdown(
                 selectedMode = orientationMode,
                 onModeSelected = onOrientationModeChange,
+                enabled = false, // TODO: enable when landscape orientation is implemented
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),
@@ -197,6 +201,7 @@ private fun ScreenTabContent(
 private fun OrientationModeDropdown(
     selectedMode: ScreenOrientationMode,
     onModeSelected: (ScreenOrientationMode) -> Unit,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val modes = listOf(
@@ -209,13 +214,14 @@ private fun OrientationModeDropdown(
 
     ExposedDropdownMenuBox(
         expanded = expanded,
-        onExpandedChange = { expanded = it },
+        onExpandedChange = { if (enabled) expanded = it },
         modifier = modifier,
     ) {
         OutlinedTextField(
             value = stringResource(labelRes),
             onValueChange = {},
             readOnly = true,
+            enabled = enabled,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
             modifier = Modifier
                 .fillMaxWidth()

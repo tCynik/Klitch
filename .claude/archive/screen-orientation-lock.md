@@ -72,3 +72,5 @@ All phases completed 2026-05-26.
 
 - 2026-05-26: created
 - 2026-05-26: implemented (phases 1–6b)
+- 2026-05-26: review fixes — удалён `ScreenOrientationMode.SYSTEM`, убрано мёртвое поле `orientationLocked`, упрощён `displayMode` в дропдауне, добавлен стаб теста
+- 2026-05-26: landscape hardcode — UI заморожен (чекбокс + дропдаун disabled), `onSave()` всегда PORTRAIT+locked, `AppSettings` default → true, `MainActivity` Flow заменён на прямой `requestedOrientation = PORTRAIT`, манифест `screenOrientation="portrait"`; причина: `combine(StateFlow)` асинхронен — Flow не успевал установить PORTRAIT до срабатывания авторотации

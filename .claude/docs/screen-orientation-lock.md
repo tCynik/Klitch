@@ -1,13 +1,15 @@
 # Screen Orientation Lock
 
-**Date**: 2026-05-26  
+**Date**: 2026-05-26
 **Plan archive**: `.claude/archive/screen-orientation-lock.md`
 
 ---
 
 ## Overview
 
-Пользователь может закрепить ориентацию приложения (портрет или альбом) на экране **Настройки → Экран**. Чекбокс включает блокировку; при включении появляется выпадающий список. После **Сохранить** настройка пишется в `AppSettings` и сразу применяется к `MainActivity` без перезапуска. При снятии чекбокса восстанавливается авто-поворот (`SCREEN_ORIENTATION_UNSPECIFIED`).
+На экране **Настройки → Экран** — чекбокс «Закрепить ориентацию экрана» + выпадающий список (портрет / альбом). После **Сохранить** настройка персистируется и применяется к Activity немедленно. При снятом чекбоксе — авто-поворот.
+
+**Текущее состояние (MVP)**: ландшафтная ориентация не реализована. UI заморожен: чекбокс всегда нажат, дропдаун disabled, `onSave()` всегда сохраняет `locked=true` + `PORTRAIT`. Разморозить по TODO при реализации ландшафта.
 
 ---
 
@@ -15,11 +17,9 @@
 
 | Файл | Назначение |
 |---|---|
-| `domain/settings/model/ScreenOrientationMode.kt` | `SYSTEM`, `PORTRAIT`, `LANDSCAPE` |
-| `domain/settings/repository/ScreenOrientationRepository.kt` | get/set + `observeOrientationSettings(): Flow<Pair<Boolean, ScreenOrientationMode>>` |
-| `data/settings/AppSettings.kt` | Реализация; ключи `screen_orientation_locked`, `screen_orientation_mode` |
-
-`SYSTEM` в UI не показывается — только в persisted state при первом включении lock подставляется `PORTRAIT`.
+| `domain/settings/model/ScreenOrientationMode.kt` | `PORTRAIT`, `LANDSCAPE` |
+| `domain/settings/repository/ScreenOrientationRepository.kt` | get/set locked + mode, `observeOrientationSettings(): Flow<Pair<Boolean, ScreenOrientationMode>>` |
+| `data/settings/AppSettings.kt` | Реализация; ключи `screen_orientation_locked` (default `true`), `screen_orientation_mode` (default `PORTRAIT`) |
 
 ---
 
@@ -31,7 +31,7 @@
 | `GetScreenOrientationModeUseCase` | Чтение режима |
 | `SetScreenOrientationLockedUseCase` | Сохранение из `onSave()` |
 | `SetScreenOrientationModeUseCase` | Сохранение из `onSave()` |
-| `ObserveScreenOrientationSettingsUseCase` | Flow для `MainActivity` |
+| `ObserveScreenOrientationSettingsUseCase` | Flow для `MainActivity` (сейчас закомментирован) |
 
 DI: `CommonModule` → `ScreenOrientationRepository`; use cases в `MapDataModule`.
 
@@ -39,9 +39,9 @@ DI: `CommonModule` → `ScreenOrientationRepository`; use cases в `MapDataModul
 
 ## Presentation
 
-- `SettingsUiState`: `orientationLocked`, `orientationLockedPending`, `orientationModePending`
-- `SettingsViewModel`: `onOrientationLockedChange`, `onOrientationModeChange`, сохранение в `onSave()`
-- `DisplaySettingsScreen`: `Checkbox` + `AnimatedVisibility` + `ExposedDropdownMenuBox` (паттерн как в `GeoMarksSheet`)
+- `SettingsUiState`: `orientationLockedPending`, `orientationModePending` (committed `orientationLocked` удалён — было мёртвое поле)
+- `SettingsViewModel`: `onOrientationLockedChange`, `onOrientationModeChange`; `onSave()` **хардкодит** `locked=true` + `PORTRAIT`
+- `DisplaySettingsScreen`: `Checkbox(enabled=false)` + `AnimatedVisibility` + `ExposedDropdownMenuBox(enabled=false)` с хардкодом `true`/`PORTRAIT`
 
 Строки: `settings_orientation_lock_label`, `settings_orientation_portrait`, `settings_orientation_landscape`.
 
@@ -49,30 +49,48 @@ DI: `CommonModule` → `ScreenOrientationRepository`; use cases в `MapDataModul
 
 ## Apply orientation (Android-only)
 
-`MainActivity.onCreate()` подписывается на `ObserveScreenOrientationSettingsUseCase` в `lifecycleScope`:
+**Текущее (хардкод)**: `MainActivity.applyScreenOrientation()` вызывает `requestedOrientation = PORTRAIT` напрямую. Flow-коллектор закомментирован — `combine(StateFlow, StateFlow)` не даёт синхронной первой эмиссии, поэтому `UNSPECIFIED` успевал переопределить манифест до установки PORTRAIT.
 
+**Целевое (после реализации ландшафта)**:
 ```kotlin
-requestedOrientation = when {
-    !locked -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-    mode == PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-    mode == LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-    else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-}
+observeScreenOrientationSettings(NoParams)
+    .onEach { (locked, mode) ->
+        requestedOrientation = when {
+            !locked -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            mode == PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            mode == LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
+    .launchIn(lifecycleScope)
 ```
 
-Платформенный API остаётся в `app`; domain/data — KMP-чистые.
+Также в манифесте стоит `android:screenOrientation="portrait"` как дополнительный safety-net.
+
+---
+
+## Non-obvious decisions
+
+- **`combine` не синхронный** — два `MutableStateFlow` через `combine` дают `ChannelFlow`; первая эмиссия приходит асинхронно. Это причина, по которой Flow-коллектор в `MainActivity` не работал как хардкод: `UNSPECIFIED` успевал установиться раньше `PORTRAIT`.
+- **`requestedOrientation` переопределяет манифест** — вызов `requestedOrientation = UNSPECIFIED` в рантайме всегда побеждает над `android:screenOrientation` в манифесте.
+- **`ScreenOrientationMode.SYSTEM` удалён** — изначально был в enum как дефолт "не выбрано", но создавал скрытое третье состояние. Заменён дефолтом `PORTRAIT` в `AppSettings`.
+
+---
+
+## TODO-маркеры (к реализации ландшафта)
+
+| Файл | TODO |
+|---|---|
+| `AndroidManifest.xml` | Удалить `android:screenOrientation="portrait"` |
+| `MainActivity.kt` | Раскомментировать Flow-коллектор, удалить прямой вызов |
+| `AppSettings.kt` | Вернуть default `getOrientationLocked()` → `false` |
+| `DisplaySettingsScreen.kt` | Восстановить `state.orientationLockedPending` / `state.orientationModePending`, убрать `enabled=false` |
+| `SettingsViewModel.kt` | Восстановить `setScreenOrientationLocked(state.orientationLockedPending)` в `onSave()` |
 
 ---
 
 ## Tests
 
 `SettingsViewModelTest`:
-- `onOrientationLockedChange` → pending + default `PORTRAIT` при `SYSTEM`
-- `onSave` → вызов set use cases
-
----
-
-## Manual smoke
-
-1. Настройки → Экран → включить «Закрепить ориентацию» → Вертикальная → Сохранить → повернуть устройство → экран не поворачивается.
-2. Снять чекбокс → Сохранить → авто-поворот снова работает.
+- `onOrientationLockedChange(true)` → `orientationLockedPending = true`
+- `onSave()` → всегда вызывает `setScreenOrientationLocked(true)` + `setScreenOrientationMode(PORTRAIT)`

@@ -71,8 +71,9 @@ class AppSettings(private val settings: Settings) :
         _tileCacheMode.value = mode
     }
 
+    // TODO: change default back to false when landscape orientation is implemented
     override fun getOrientationLocked(): Boolean =
-        settings.getBoolean(KEY_SCREEN_ORIENTATION_LOCKED, false)
+        settings.getBoolean(KEY_SCREEN_ORIENTATION_LOCKED, true)
 
     override fun setOrientationLocked(locked: Boolean) {
         settings.putBoolean(KEY_SCREEN_ORIENTATION_LOCKED, locked)
