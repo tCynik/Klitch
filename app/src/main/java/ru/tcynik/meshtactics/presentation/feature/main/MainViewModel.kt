@@ -843,6 +843,11 @@ class MainViewModel(
         isOpen = state.menuDrawerOpen,
         items = listOf(
             DrawerMenuItem(
+                iconRes = R.drawable.ic_radio,
+                label = "радио",
+                onClick = { nav.onRadioClick(); toggleMenuDrawer() },
+            ),
+            DrawerMenuItem(
                 iconRes = R.drawable.ic_mesh,
                 label = "ноды",
                 onClick = { nav.onMeshClick(); toggleMenuDrawer() },
