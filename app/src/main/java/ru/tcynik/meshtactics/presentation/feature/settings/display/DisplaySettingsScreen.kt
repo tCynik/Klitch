@@ -204,8 +204,8 @@ private fun OrientationModeDropdown(
         ScreenOrientationMode.LANDSCAPE to R.string.settings_orientation_landscape,
     )
     var expanded by remember { mutableStateOf(false) }
-    val displayMode = modes.firstOrNull { it.first == selectedMode }?.first
-        ?: ScreenOrientationMode.PORTRAIT
+    val labelRes = modes.firstOrNull { it.first == selectedMode }?.second
+        ?: R.string.settings_orientation_portrait
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -213,9 +213,7 @@ private fun OrientationModeDropdown(
         modifier = modifier,
     ) {
         OutlinedTextField(
-            value = stringResource(
-                modes.first { it.first == displayMode }.second,
-            ),
+            value = stringResource(labelRes),
             onValueChange = {},
             readOnly = true,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },

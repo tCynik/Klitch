@@ -82,7 +82,7 @@ class AppSettings(private val settings: Settings) :
     override fun getOrientationMode(): ScreenOrientationMode =
         settings.getStringOrNull(KEY_SCREEN_ORIENTATION_MODE)
             ?.let { runCatching { ScreenOrientationMode.valueOf(it) }.getOrNull() }
-            ?: ScreenOrientationMode.SYSTEM
+            ?: ScreenOrientationMode.PORTRAIT
 
     override fun setOrientationMode(mode: ScreenOrientationMode) {
         settings.putString(KEY_SCREEN_ORIENTATION_MODE, mode.name)

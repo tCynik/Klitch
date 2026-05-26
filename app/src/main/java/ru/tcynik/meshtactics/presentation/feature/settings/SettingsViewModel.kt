@@ -49,7 +49,6 @@ class SettingsViewModel(
             markerSizeLevelPending = repository.getMarkerSizeLevel(),
             geoMarkSizeLevelPending = repository.getGeoMarkSizeLevel(),
             showGeoMarkNamesPending = repository.getShowGeoMarkNames(),
-            orientationLocked = getScreenOrientationLocked(),
             orientationLockedPending = getScreenOrientationLocked(),
             orientationModePending = getScreenOrientationMode(),
             tileCacheMode = getTileCacheMode(),
@@ -93,17 +92,7 @@ class SettingsViewModel(
     }
 
     fun onOrientationLockedChange(locked: Boolean) {
-        _uiState.update { state ->
-            val mode = if (locked && state.orientationModePending == ScreenOrientationMode.SYSTEM) {
-                ScreenOrientationMode.PORTRAIT
-            } else {
-                state.orientationModePending
-            }
-            state.copy(
-                orientationLockedPending = locked,
-                orientationModePending = mode,
-            )
-        }
+        _uiState.update { it.copy(orientationLockedPending = locked) }
     }
 
     fun onOrientationModeChange(mode: ScreenOrientationMode) {
@@ -117,12 +106,7 @@ class SettingsViewModel(
         repository.setShowGeoMarkNames(state.showGeoMarkNamesPending)
         setScreenOrientationLocked(state.orientationLockedPending)
         setScreenOrientationMode(state.orientationModePending)
-        _uiState.update {
-            it.copy(
-                markerSizeLevel = state.markerSizeLevelPending,
-                orientationLocked = state.orientationLockedPending,
-            )
-        }
+        _uiState.update { it.copy(markerSizeLevel = state.markerSizeLevelPending) }
     }
 
     fun onTileCacheModeSelected(mode: TileCacheMode) {
