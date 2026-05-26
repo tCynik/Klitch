@@ -1,14 +1,21 @@
 package ru.tcynik.meshtactics.data.settings
 
 import com.russhwolf.settings.Settings
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import ru.tcynik.meshtactics.domain.settings.model.ScreenOrientationMode
 import ru.tcynik.meshtactics.domain.settings.model.TileCacheMode
 import ru.tcynik.meshtactics.domain.settings.repository.MapCacheSettingsRepository
 import ru.tcynik.meshtactics.domain.settings.repository.MarkerSettingsRepository
+import ru.tcynik.meshtactics.domain.settings.repository.ScreenOrientationRepository
 
-class AppSettings(private val settings: Settings) : MarkerSettingsRepository, MapCacheSettingsRepository {
+class AppSettings(private val settings: Settings) :
+    MarkerSettingsRepository,
+    MapCacheSettingsRepository,
+    ScreenOrientationRepository {
 
     private val _markerSizeLevel = MutableStateFlow(getMarkerSizeLevel())
     override val markerSizeLevelFlow: StateFlow<Int> = _markerSizeLevel.asStateFlow()
@@ -21,6 +28,9 @@ class AppSettings(private val settings: Settings) : MarkerSettingsRepository, Ma
 
     private val _tileCacheMode = MutableStateFlow(getTileCacheMode())
     override val tileCacheModeFlow: StateFlow<TileCacheMode> = _tileCacheMode.asStateFlow()
+
+    private val _orientationLocked = MutableStateFlow(getOrientationLocked())
+    private val _orientationMode = MutableStateFlow(getOrientationMode())
 
     fun getDeviceId(): String? = settings.getStringOrNull(KEY_DEVICE_ID)
 
@@ -61,6 +71,27 @@ class AppSettings(private val settings: Settings) : MarkerSettingsRepository, Ma
         _tileCacheMode.value = mode
     }
 
+    override fun getOrientationLocked(): Boolean =
+        settings.getBoolean(KEY_SCREEN_ORIENTATION_LOCKED, false)
+
+    override fun setOrientationLocked(locked: Boolean) {
+        settings.putBoolean(KEY_SCREEN_ORIENTATION_LOCKED, locked)
+        _orientationLocked.value = locked
+    }
+
+    override fun getOrientationMode(): ScreenOrientationMode =
+        settings.getStringOrNull(KEY_SCREEN_ORIENTATION_MODE)
+            ?.let { runCatching { ScreenOrientationMode.valueOf(it) }.getOrNull() }
+            ?: ScreenOrientationMode.SYSTEM
+
+    override fun setOrientationMode(mode: ScreenOrientationMode) {
+        settings.putString(KEY_SCREEN_ORIENTATION_MODE, mode.name)
+        _orientationMode.value = mode
+    }
+
+    override fun observeOrientationSettings(): Flow<Pair<Boolean, ScreenOrientationMode>> =
+        combine(_orientationLocked, _orientationMode) { locked, mode -> locked to mode }
+
     companion object {
         private const val KEY_DEVICE_ID = "device_id"
         private const val KEY_LAST_SYNC = "last_sync"
@@ -68,6 +99,8 @@ class AppSettings(private val settings: Settings) : MarkerSettingsRepository, Ma
         private const val KEY_GEO_MARK_SIZE_LEVEL = "geo_mark_size_level"
         private const val KEY_SHOW_GEO_MARK_NAMES = "show_geo_mark_names"
         private const val KEY_TILE_CACHE_MODE = "tile_cache_mode"
+        private const val KEY_SCREEN_ORIENTATION_LOCKED = "screen_orientation_locked"
+        private const val KEY_SCREEN_ORIENTATION_MODE = "screen_orientation_mode"
         private const val DEFAULT_MARKER_SIZE_LEVEL = 5
         private const val DEFAULT_GEO_MARK_SIZE_LEVEL = 5
     }

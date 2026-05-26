@@ -13,6 +13,9 @@
     <string name="settings_marker_size_label">Размер маркера: %ddp (уровень %d)</string>
     <string name="settings_geo_mark_size_label">Размер гео точек: %ddp (уровень %d)</string>
     <string name="settings_geo_mark_names_label">Имена точек на карте</string>
+    <string name="settings_orientation_lock_label">Закрепить ориентацию экрана</string>
+    <string name="settings_orientation_portrait">Вертикальная</string>
+    <string name="settings_orientation_landscape">Горизонтальная</string>
     <string name="settings_save_button">Сохранить</string>
     <string name="settings_exit_app_description">Выйти из приложения</string>
     <string name="settings_exit_app_icon">Иконка выхода</string>

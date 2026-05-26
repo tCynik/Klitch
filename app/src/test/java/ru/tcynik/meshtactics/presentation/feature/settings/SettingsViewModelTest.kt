@@ -21,10 +21,15 @@ import ru.tcynik.meshtactics.domain.map.usecase.HideImportedMapUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ImportMapFileUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveImportedMapsUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ToggleImportedMapSelectionUseCase
+import ru.tcynik.meshtactics.domain.settings.model.ScreenOrientationMode
 import ru.tcynik.meshtactics.domain.settings.model.TileCacheMode
 import ru.tcynik.meshtactics.domain.settings.repository.MarkerSettingsRepository
+import ru.tcynik.meshtactics.domain.settings.usecase.GetScreenOrientationLockedUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.GetScreenOrientationModeUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetTileCacheModeUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveTileCacheModeUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.SetScreenOrientationLockedUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.SetScreenOrientationModeUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.SetTileCacheModeUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 
@@ -39,6 +44,10 @@ class SettingsViewModelTest {
     private val getTileCacheMode: GetTileCacheModeUseCase = mockk()
     private val observeTileCacheMode: ObserveTileCacheModeUseCase = mockk()
     private val setTileCacheMode: SetTileCacheModeUseCase = mockk(relaxed = true)
+    private val getScreenOrientationLocked: GetScreenOrientationLockedUseCase = mockk()
+    private val getScreenOrientationMode: GetScreenOrientationModeUseCase = mockk()
+    private val setScreenOrientationLocked: SetScreenOrientationLockedUseCase = mockk(relaxed = true)
+    private val setScreenOrientationMode: SetScreenOrientationModeUseCase = mockk(relaxed = true)
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var viewModel: SettingsViewModel
@@ -50,6 +59,8 @@ class SettingsViewModelTest {
         every { observeImportedMaps() } returns flowOf(emptyList())
         every { getTileCacheMode() } returns TileCacheMode.DEFAULT
         every { observeTileCacheMode(NoParams) } returns flowOf(TileCacheMode.DEFAULT)
+        every { getScreenOrientationLocked() } returns false
+        every { getScreenOrientationMode() } returns ScreenOrientationMode.SYSTEM
         viewModel = SettingsViewModel(
             repository = repository,
             observeImportedMaps = observeImportedMaps,
@@ -60,6 +71,10 @@ class SettingsViewModelTest {
             getTileCacheMode = getTileCacheMode,
             observeTileCacheMode = observeTileCacheMode,
             setTileCacheMode = setTileCacheMode,
+            getScreenOrientationLocked = getScreenOrientationLocked,
+            getScreenOrientationMode = getScreenOrientationMode,
+            setScreenOrientationLocked = setScreenOrientationLocked,
+            setScreenOrientationMode = setScreenOrientationMode,
         )
     }
 
@@ -153,6 +168,36 @@ class SettingsViewModelTest {
         coVerify(exactly = 1) { toggleImportedMapSelection("map-5", true) }
     }
 
+    // ── Screen orientation ─────────────────────────────────────────────────────
+
+    @Test
+    fun `onOrientationLockedChange updates orientationLockedPending`() = runTest {
+        viewModel.onOrientationLockedChange(true)
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals(true, state.orientationLockedPending)
+            assertEquals(ScreenOrientationMode.PORTRAIT, state.orientationModePending)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `onSave calls orientation use cases with pending values`() = runTest {
+        viewModel.onOrientationLockedChange(true)
+        viewModel.onOrientationModeChange(ScreenOrientationMode.LANDSCAPE)
+        viewModel.onSave()
+
+        verify(exactly = 1) { setScreenOrientationLocked(true) }
+        verify(exactly = 1) { setScreenOrientationMode(ScreenOrientationMode.LANDSCAPE) }
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals(true, state.orientationLocked)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     // ── Tile cache mode ──────────────────────────────────────────────────────
 
     @Test
@@ -176,6 +221,10 @@ class SettingsViewModelTest {
             getTileCacheMode = getTileCacheMode,
             observeTileCacheMode = observeTileCacheMode,
             setTileCacheMode = setTileCacheMode,
+            getScreenOrientationLocked = getScreenOrientationLocked,
+            getScreenOrientationMode = getScreenOrientationMode,
+            setScreenOrientationLocked = setScreenOrientationLocked,
+            setScreenOrientationMode = setScreenOrientationMode,
         )
 
         viewModel.uiState.test {
