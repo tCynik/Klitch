@@ -8,11 +8,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.toRoute
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.maplibre.compose.location.LocationProvider
-import ru.tcynik.meshtactics.BuildConfig
 import ru.tcynik.meshtactics.di.orientation.DeviceOrientationProvider
 import ru.tcynik.meshtactics.presentation.feature.chat.ChatScreen
 import ru.tcynik.meshtactics.presentation.feature.chat.ChatViewModel
@@ -25,7 +23,8 @@ import ru.tcynik.meshtactics.presentation.feature.marks.GeoMarksListScreen
 import ru.tcynik.meshtactics.presentation.feature.marks.GeoMarksListViewModel
 import ru.tcynik.meshtactics.presentation.feature.markers.MarkerManagementScreen
 import ru.tcynik.meshtactics.presentation.feature.markers.MarkersViewModel
-import ru.tcynik.meshtactics.presentation.feature.meshtest.MeshTestScreen
+import ru.tcynik.meshtactics.presentation.feature.network.NetworkScreen
+import ru.tcynik.meshtactics.presentation.feature.network.NetworkSettingsScreen
 import ru.tcynik.meshtactics.presentation.feature.node.NodeSettingsScreen
 import ru.tcynik.meshtactics.presentation.feature.node.NodeSettingsViewModel
 import ru.tcynik.meshtactics.presentation.feature.node.NodeStatusDialog
@@ -67,7 +66,7 @@ fun NavGraph() {
                     viewModel.onMainDestinationVisible()
                     viewModel.provideNavCallbacks(
                         HudNavCallbacks(
-                            onRadioClick           = { navController.navigate(Route.MeshTest()) },
+                            onRadioClick           = { navController.navigate(Route.Network) },
                             onMeshClick            = { navController.navigate(Route.Nodes) },
                             onChatClick            = { navController.navigate(Route.Chat) },
                             onMainSettingsClick    = { navController.navigate(Route.MainSettings) },
@@ -213,9 +212,7 @@ fun NavGraph() {
             // ── Legacy / prototype screens ───────────────────────────────────
             composable<Route.Nodes> {
                 NodesScreen(
-                    onNodeClick = { nodeId ->
-                        navController.navigate(Route.MeshTest(nodeId))
-                    },
+                    onNodeClick = { navController.navigate(Route.Network) },
                     onNavigateBack = { navController.popBackStack() },
                 )
             }
@@ -224,14 +221,17 @@ fun NavGraph() {
                 // NodeDetailScreen — реализовать при добавлении фичи
             }
 
-            if (BuildConfig.DEBUG) {
-                composable<Route.MeshTest> { backStackEntry ->
-                    val route = backStackEntry.toRoute<Route.MeshTest>()
-                    MeshTestScreen(
-                        nodeId = route.nodeId,
-                        onNavigateBack = { navController.popBackStack() },
-                    )
-                }
+            composable<Route.Network> {
+                NetworkScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToSettings = { navController.navigate(Route.NetworkSettings) },
+                )
+            }
+
+            composable<Route.NetworkSettings> {
+                NetworkSettingsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                )
             }
         }
     }

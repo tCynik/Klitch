@@ -10,12 +10,14 @@ import ru.tcynik.meshtactics.domain.settings.model.ScreenOrientationMode
 import ru.tcynik.meshtactics.domain.settings.model.TileCacheMode
 import ru.tcynik.meshtactics.domain.settings.repository.MapCacheSettingsRepository
 import ru.tcynik.meshtactics.domain.settings.repository.MarkerSettingsRepository
+import ru.tcynik.meshtactics.domain.settings.repository.NetworkSettingsRepository
 import ru.tcynik.meshtactics.domain.settings.repository.ScreenOrientationRepository
 
 class AppSettings(private val settings: Settings) :
     MarkerSettingsRepository,
     MapCacheSettingsRepository,
-    ScreenOrientationRepository {
+    ScreenOrientationRepository,
+    NetworkSettingsRepository {
 
     private val _markerSizeLevel = MutableStateFlow(getMarkerSizeLevel())
     override val markerSizeLevelFlow: StateFlow<Int> = _markerSizeLevel.asStateFlow()
@@ -31,6 +33,9 @@ class AppSettings(private val settings: Settings) :
 
     private val _orientationLocked = MutableStateFlow(getOrientationLocked())
     private val _orientationMode = MutableStateFlow(getOrientationMode())
+
+    private val _networkEnabled = MutableStateFlow(getNetworkEnabled())
+    override val networkEnabledFlow: StateFlow<Boolean> = _networkEnabled.asStateFlow()
 
     fun getDeviceId(): String? = settings.getStringOrNull(KEY_DEVICE_ID)
 
@@ -93,6 +98,14 @@ class AppSettings(private val settings: Settings) :
     override fun observeOrientationSettings(): Flow<Pair<Boolean, ScreenOrientationMode>> =
         combine(_orientationLocked, _orientationMode) { locked, mode -> locked to mode }
 
+    override fun getNetworkEnabled(): Boolean =
+        settings.getBoolean(KEY_NETWORK_ENABLED, DEFAULT_NETWORK_ENABLED)
+
+    override fun setNetworkEnabled(enabled: Boolean) {
+        settings.putBoolean(KEY_NETWORK_ENABLED, enabled)
+        _networkEnabled.value = enabled
+    }
+
     companion object {
         private const val KEY_DEVICE_ID = "device_id"
         private const val KEY_LAST_SYNC = "last_sync"
@@ -102,7 +115,9 @@ class AppSettings(private val settings: Settings) :
         private const val KEY_TILE_CACHE_MODE = "tile_cache_mode"
         private const val KEY_SCREEN_ORIENTATION_LOCKED = "screen_orientation_locked"
         private const val KEY_SCREEN_ORIENTATION_MODE = "screen_orientation_mode"
+        private const val KEY_NETWORK_ENABLED = "network_enabled"
         private const val DEFAULT_MARKER_SIZE_LEVEL = 5
         private const val DEFAULT_GEO_MARK_SIZE_LEVEL = 5
+        private const val DEFAULT_NETWORK_ENABLED = true
     }
 }

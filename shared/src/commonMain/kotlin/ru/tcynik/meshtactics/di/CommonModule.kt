@@ -17,6 +17,7 @@ import ru.tcynik.meshtactics.data.settings.AppSettings
 import ru.tcynik.meshtactics.domain.repository.NodeRepository
 import ru.tcynik.meshtactics.domain.settings.repository.MapCacheSettingsRepository
 import ru.tcynik.meshtactics.domain.settings.repository.MarkerSettingsRepository
+import ru.tcynik.meshtactics.domain.settings.repository.NetworkSettingsRepository
 import ru.tcynik.meshtactics.domain.settings.repository.ScreenOrientationRepository
 import ru.tcynik.meshtactics.domain.usecase.node.GetNodesUseCase
 
@@ -55,6 +56,7 @@ val commonModule: Module = module {
     single<MarkerSettingsRepository> { get<AppSettings>() }
     single<MapCacheSettingsRepository> { get<AppSettings>() }
     single<ScreenOrientationRepository> { get<AppSettings>() }
+    single<NetworkSettingsRepository> { get<AppSettings>() }
 
     // Domain
     single<NodeRepository> { NodeRepositoryImpl(get(), get(), get()) }

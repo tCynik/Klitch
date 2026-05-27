@@ -8,7 +8,8 @@ import ru.tcynik.meshtactics.presentation.feature.groups.GroupsViewModel
 import ru.tcynik.meshtactics.presentation.feature.main.MainViewModel
 import ru.tcynik.meshtactics.presentation.feature.marks.GeoMarksListViewModel
 import ru.tcynik.meshtactics.presentation.feature.markers.MarkersViewModel
-import ru.tcynik.meshtactics.presentation.feature.meshtest.MeshTestViewModel
+import ru.tcynik.meshtactics.presentation.feature.network.NetworkSettingsViewModel
+import ru.tcynik.meshtactics.presentation.feature.network.NetworkViewModel
 import ru.tcynik.meshtactics.presentation.feature.node.NodeSettingsViewModel
 import ru.tcynik.meshtactics.presentation.feature.node.NodeStatusViewModel
 import ru.tcynik.meshtactics.presentation.feature.nodes.NodesViewModel
@@ -52,6 +53,7 @@ import ru.tcynik.meshtactics.domain.settings.usecase.GetScreenOrientationModeUse
 import ru.tcynik.meshtactics.domain.settings.usecase.GetShowGeoMarkNamesUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetTileCacheModeUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveGeoMarkSizeLevelUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.ObserveNetworkEnabledUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveShowGeoMarkNamesUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveTileCacheModeUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.SetScreenOrientationLockedUseCase
@@ -79,6 +81,7 @@ val presentationModule = module {
             observeGeoMarkSizeLevel = get<ObserveGeoMarkSizeLevelUseCase>(),
             getShowGeoMarkNames = get<GetShowGeoMarkNamesUseCase>(),
             observeShowGeoMarkNames = get<ObserveShowGeoMarkNamesUseCase>(),
+            observeNetworkEnabled = get<ObserveNetworkEnabledUseCase>(),
             observeSelectedOverlays = get<ObserveSelectedOverlaysUseCase>(),
             observeTotalUnreadChatCount = get(),
             scanDevices = get<ScanMeshDevicesUseCase>(),
@@ -183,25 +186,13 @@ val presentationModule = module {
     // ── Legacy / prototype ───────────────────────────────────────────────────
     viewModel { NodesViewModel(get()) }
     viewModel {
-        MeshTestViewModel(
+        NetworkViewModel(
             observeConnectionStatus = get(),
             scanDevices = get(),
             connectToDevice = get(),
             disconnectFromMesh = get(),
             observeNodes = get(),
             observeOurNode = get(),
-            observeMessages = get(),
-            sendMessage = get(),
-            observeGeoNodes = get(),
-            observeDeviceConfig = get(),
-            requestDeviceConfig = get(),
-            writeOwner = get(),
-            writeChannel = get(),
-            observeLocationConfig = get(),
-            setProvideLocation = get(),
-            writePositionConfig = get(),
-            writeChannelPositionPrecision = get(),
-            removeFixedPosition = get(),
             checkContourSync = get<CheckNodeSyncUseCase>(),
             syncContoursOnConnect = get<SyncContoursOnConnectUseCase>(),
             rebootNode = get<RebootNodeUseCase>(),
@@ -209,6 +200,24 @@ val presentationModule = module {
             rebootStateRepository = get<RebootStateRepository>(),
             observeAppUser = get<ObserveAppUserUseCase>(),
             saveAppUser = get<SaveAppUserUseCase>(),
+            observeNetworkEnabled = get(),
+            setNetworkEnabled = get(),
+            logger = get(),
+        )
+    }
+    viewModel {
+        NetworkSettingsViewModel(
+            observeConnectionStatus = get(),
+            observeDeviceConfig = get(),
+            requestDeviceConfig = get(),
+            writeOwner = get(),
+            writeChannel = get(),
+            observeOurNode = get(),
+            observeLocationConfig = get(),
+            setProvideLocation = get(),
+            writePositionConfig = get(),
+            writeChannelPositionPrecision = get(),
+            removeFixedPosition = get(),
             logger = get(),
         )
     }

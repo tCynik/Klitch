@@ -45,6 +45,8 @@
 | Привязка ориентации карты (компас + heading-up) | ✅ Done |
 | Статус соединения в HUD (connection label + батарея ноды) | ✅ Done |
 | Кнопки масштаба на карте | ✅ Done |
+| Экран «Сеть» (BLE + телеметрия) | ✅ Done |
+| Настройки сети (конфиг ноды + location) | ✅ Done |
 
 ---
 
@@ -131,6 +133,7 @@
 | Screen Orientation Lock | `.claude/docs/screen-orientation-lock.md` |
 | Callsign (позывной как сущность) | `.claude/docs/callsign.md` |
 | Callsign Gate on Connect (реализация) | `.claude/docs/callsign-gate-on-connect.md` |
+| Network Screen | `.claude/docs/network-screen.md` |
 
 ---
 

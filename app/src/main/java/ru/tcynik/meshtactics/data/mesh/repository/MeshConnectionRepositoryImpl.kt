@@ -43,7 +43,7 @@ class MeshConnectionRepositoryImpl(
      */
     @Volatile private var pendingDeviceName: String = ""
 
-    // Counts active scanDevices() collectors. Multiple callers (e.g. MainViewModel + MeshTestViewModel)
+    // Counts active scanDevices() collectors. Multiple callers (e.g. MainViewModel + NetworkViewModel)
     // can scan concurrently; _isScanning stays true until ALL of them finish.
     private val activeScanCount = AtomicInteger(0)
     private val _isScanning = MutableStateFlow(false)

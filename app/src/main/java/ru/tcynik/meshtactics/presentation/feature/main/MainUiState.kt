@@ -52,4 +52,5 @@ data class MainUiState(
     val isNorthLocked: Boolean = true,
     // current map camera bearing in degrees [0, 360); used to rotate compass icon
     val mapBearing: Float = 0f,
+    val networkEnabled: Boolean = true,
 )
