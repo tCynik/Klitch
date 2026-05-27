@@ -20,6 +20,7 @@ import ru.tcynik.meshtactics.domain.map.usecase.ObserveSelectedOverlaysUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ToggleImportedMapSelectionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
@@ -56,6 +57,8 @@ import ru.tcynik.meshtactics.domain.settings.usecase.ObserveTileCacheModeUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.SetScreenOrientationLockedUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.SetScreenOrientationModeUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.SetTileCacheModeUseCase
+import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
+import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
 import ru.tcynik.meshtactics.presentation.feature.settings.SettingsViewModel
 import ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModel
 
@@ -96,6 +99,7 @@ val presentationModule = module {
             rebootStateRepository = get<RebootStateRepository>(),
             observeCallsignChanges = get<ObserveCallsignChangesUseCase>(),
             refreshNodePublicKey = get<RefreshNodePublicKeyUseCase>(),
+            observeAppUser = get<ObserveAppUserUseCase>(),
             geoMarkPrefsRepository = get<GeoMarkPreferencesRepository>(),
         )
     }
@@ -140,6 +144,7 @@ val presentationModule = module {
             cancelEmergency = get(),
             checkContourSync = get<CheckNodeSyncUseCase>(),
             syncStateRepository = get<ContourSyncStateRepository>(),
+            disconnectFromMesh = get<DisconnectFromMeshUseCase>(),
             rebootNode = get<RebootNodeUseCase>(),
             rebootStateRepository = get<RebootStateRepository>(),
             observeGpsBroadcastEnabled = get<ObserveGpsBroadcastEnabledUseCase>(),
@@ -202,6 +207,8 @@ val presentationModule = module {
             rebootNode = get<RebootNodeUseCase>(),
             syncStateRepository = get<ContourSyncStateRepository>(),
             rebootStateRepository = get<RebootStateRepository>(),
+            observeAppUser = get<ObserveAppUserUseCase>(),
+            saveAppUser = get<SaveAppUserUseCase>(),
             logger = get(),
         )
     }

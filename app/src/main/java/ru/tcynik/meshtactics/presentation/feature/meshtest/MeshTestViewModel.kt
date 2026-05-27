@@ -48,6 +48,9 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SendMeshMessageParams
 import ru.tcynik.meshtactics.domain.mesh.usecase.SendMeshMessageUseCase
 import ru.tcynik.meshtactics.domain.mesh.util.PskValidator
+import ru.tcynik.meshtactics.domain.user.model.AppUser
+import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
+import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.BleDeviceUi
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.ConfigTabState
@@ -61,6 +64,8 @@ import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MeshNodeUi
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MeshTestTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MessageDirection
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MessageStatus
+import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.CallsignGateDialogState
+import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.PendingAction
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.GeoNodeUi
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.GpsModeUi
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.LocationConfigUi
@@ -89,11 +94,15 @@ class MeshTestViewModel(
     private val rebootNode: RebootNodeUseCase,
     private val syncStateRepository: ContourSyncStateRepository,
     private val rebootStateRepository: RebootStateRepository,
+    private val observeAppUser: ObserveAppUserUseCase,
+    private val saveAppUser: SaveAppUserUseCase,
     private val logger: Logger,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MeshTestUiState())
     val uiState: StateFlow<MeshTestUiState> = _uiState.asStateFlow()
+
+    private val _callsignRequired = MutableStateFlow(true)
 
     private var scanJob: Job? = null
     private var messagesJob: Job? = null
@@ -142,7 +151,8 @@ class MeshTestViewModel(
                 state.copy(
                     connectionStatus = uiStatus,
                     lastConnectedNodeName = when (status) {
-                        is MeshConnectionStatus.Connected -> status.nodeId
+                        is MeshConnectionStatus.Connecting -> status.deviceName
+                        is MeshConnectionStatus.Connected -> state.lastConnectedNodeName.ifBlank { status.nodeId }
                         else -> state.lastConnectedNodeName
                     },
                     connectionTab = state.connectionTab.copy(
@@ -164,7 +174,7 @@ class MeshTestViewModel(
             // but this VM hasn't started collecting devices yet.
             // Skip during reboot: extra scan competes with GATT auto-connect and breaks reconnect.
             if (status is MeshConnectionStatus.Scanning && scanJob == null && !isRebooting && !userStoppedScan) {
-                onScanClick()
+                startScan()
             }
             // Stop scan when auto-connect from MainViewModel kicks in.
             if (status is MeshConnectionStatus.Connecting || status is MeshConnectionStatus.Connected) {
@@ -269,6 +279,50 @@ class MeshTestViewModel(
             .launchIn(viewModelScope)
 
         startObservingMessages(activeContactKey)
+
+        var initGateShown = false
+        observeAppUser(NoParams)
+            .onEach { user ->
+                val required = user.displayName.isBlank()
+                _callsignRequired.value = required
+                if (!initGateShown) {
+                    initGateShown = true
+                    if (required) {
+                        _uiState.update {
+                            it.copy(callsignGateDialog = CallsignGateDialogState(PendingAction.None, ""))
+                        }
+                    }
+                }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    // ── Callsign gate ─────────────────────────────────────────────────────────
+
+    fun onCallsignInput(text: String) {
+        _uiState.update { state ->
+            val dialog = state.callsignGateDialog ?: return@update state
+            state.copy(callsignGateDialog = dialog.copy(callsignInput = text))
+        }
+    }
+
+    fun onCallsignConfirmed() {
+        val dialog = _uiState.value.callsignGateDialog ?: return
+        val callsign = dialog.callsignInput.trim()
+        if (callsign.isBlank()) return
+        viewModelScope.launch {
+            saveAppUser(AppUser(displayName = callsign))
+            _uiState.update { it.copy(callsignGateDialog = null) }
+            when (val action = dialog.pendingAction) {
+                PendingAction.None -> Unit
+                PendingAction.Scan -> startScan()
+                is PendingAction.Connect -> connectToPendingDevice(action.address, action.deviceName)
+            }
+        }
+    }
+
+    fun onCallsignDismissed() {
+        _uiState.update { it.copy(callsignGateDialog = null) }
     }
 
     // ── Sync Dialog ───────────────────────────────────────────────────────────
@@ -287,6 +341,7 @@ class MeshTestViewModel(
     fun onDismissChannelSync() {
         _uiState.update { it.copy(showSyncDialog = false) }
         syncStateRepository.setSyncRequired(true)
+        viewModelScope.launch { disconnectFromMesh(NoParams) }
     }
 
     // ── Navigation ────────────────────────────────────────────────────────────
@@ -299,6 +354,16 @@ class MeshTestViewModel(
 
     fun onScanClick() {
         userStoppedScan = false
+        if (_callsignRequired.value) {
+            _uiState.update {
+                it.copy(callsignGateDialog = CallsignGateDialogState(PendingAction.Scan, ""))
+            }
+            return
+        }
+        startScan()
+    }
+
+    private fun startScan() {
         scanJob?.cancel()
         _uiState.update { state ->
             state.copy(
@@ -338,24 +403,34 @@ class MeshTestViewModel(
         scanJob = null
         val deviceName = _uiState.value.connectionTab.scannedDevices
             .find { it.address == address }?.name ?: address
-        logger.i("App","DBG onConnectClick: address=$address name=$deviceName")
+        if (_callsignRequired.value) {
+            _uiState.update {
+                it.copy(callsignGateDialog = CallsignGateDialogState(
+                    PendingAction.Connect(address, deviceName), ""
+                ))
+            }
+            return
+        }
+        viewModelScope.launch { connectToPendingDevice(address, deviceName) }
+    }
+
+    private suspend fun connectToPendingDevice(address: String, deviceName: String) {
+        logger.i("App", "DBG onConnectClick: address=$address name=$deviceName")
         _uiState.update { state ->
             state.copy(
                 connectionStatus = MeshConnectionStatusUi.Connecting(deviceName),
                 connectionTab = state.connectionTab.copy(isScanning = false),
             )
         }
-        viewModelScope.launch {
-            logger.i("App","DBG onConnectClick: calling connectToDevice...")
-            runCatching { connectToDevice(ConnectToMeshDeviceParams(address, deviceName)) }
-                .onSuccess { logger.i("App","DBG onConnectClick: connectToDevice returned OK") }
-                .onFailure { e ->
-                    logger.e("App","DBG onConnectClick: connectToDevice failed: ${e.message}", e)
-                    _uiState.update {
-                        it.copy(connectionStatus = MeshConnectionStatusUi.Error(e.message ?: "Connection failed"))
-                    }
+        logger.i("App", "DBG onConnectClick: calling connectToDevice...")
+        runCatching { connectToDevice(ConnectToMeshDeviceParams(address, deviceName)) }
+            .onSuccess { logger.i("App", "DBG onConnectClick: connectToDevice returned OK") }
+            .onFailure { e ->
+                logger.e("App", "DBG onConnectClick: connectToDevice failed: ${e.message}", e)
+                _uiState.update {
+                    it.copy(connectionStatus = MeshConnectionStatusUi.Error(e.message ?: "Connection failed"))
                 }
-        }
+            }
     }
 
     fun onDisconnectClick() {

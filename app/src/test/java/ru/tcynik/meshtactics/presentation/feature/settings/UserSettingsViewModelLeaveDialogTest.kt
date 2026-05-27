@@ -38,6 +38,7 @@ import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCas
 import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.model.MeshDeviceConfigModel
+import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
@@ -52,6 +53,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
 import ru.tcynik.meshtactics.domain.user.model.AppUser
+import ru.tcynik.meshtactics.domain.user.model.DISPLAY_NAME_MAX_LENGTH
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
 
@@ -76,6 +78,7 @@ class UserSettingsViewModelLeaveDialogTest {
     private val cancelEmergency: CancelEmergencyUseCase = mockk(relaxed = true)
     private val checkContourSync: CheckNodeSyncUseCase = mockk(relaxed = true)
     private val syncStateRepository: ContourSyncStateRepository = mockk(relaxed = true)
+    private val disconnectFromMesh: DisconnectFromMeshUseCase = mockk(relaxed = true)
     private val rebootNode: RebootNodeUseCase = mockk(relaxed = true)
     private val rebootStateRepository: RebootStateRepository = mockk(relaxed = true)
     private val observeGpsBroadcastEnabled: ObserveGpsBroadcastEnabledUseCase = mockk()
@@ -144,6 +147,7 @@ class UserSettingsViewModelLeaveDialogTest {
             cancelEmergency = cancelEmergency,
             checkContourSync = checkContourSync,
             syncStateRepository = syncStateRepository,
+            disconnectFromMesh = disconnectFromMesh,
             rebootNode = rebootNode,
             rebootStateRepository = rebootStateRepository,
             observeGpsBroadcastEnabled = observeGpsBroadcastEnabled,
@@ -205,6 +209,18 @@ class UserSettingsViewModelLeaveDialogTest {
     // ── onSaveAndReboot ───────────────────────────────────────────────────────
 
     @Test
+    fun `onSaveAndReboot с пустым позывным — displayNameError без writeOwner`() = runTest(testDispatcher) {
+        viewModel.onDisplayNameChange("")
+        runCurrent()
+
+        viewModel.onSaveAndReboot()
+        runCurrent()
+
+        assertTrue(viewModel.uiState.value.displayNameError)
+        verify(exactly = 0) { writeOwner.invoke(any(), any()) }
+    }
+
+    @Test
     fun `onSaveAndReboot вызывает writeOwner и rebootNode и эмитит navigateBack`() = runTest(testDispatcher) {
         viewModel.onDisplayNameChange("Новый позывной")
         runCurrent()
@@ -223,18 +239,78 @@ class UserSettingsViewModelLeaveDialogTest {
     // ── onDiscardAndLeave ─────────────────────────────────────────────────────
 
     @Test
-    fun `onDiscardAndLeave сбрасывает displayName и эмитит navigateBack`() = runTest(testDispatcher) {
+    fun `onDiscardAndLeave сбрасывает displayName и остаётся на экране`() = runTest(testDispatcher) {
         viewModel.onDisplayNameChange("Изменено")
         runCurrent()
 
-        viewModel.navigateBack.test {
-            viewModel.onDiscardAndLeave()
-            runCurrent()
-            awaitItem()
-            assertEquals("Иван", viewModel.uiState.value.displayName)
-            assertFalse(viewModel.uiState.value.hasUnsavedUserChanges)
-            cancelAndIgnoreRemainingEvents()
-        }
+        viewModel.onDiscardAndLeave()
+        runCurrent()
+
+        assertEquals("Иван", viewModel.uiState.value.displayName)
+        assertFalse(viewModel.uiState.value.hasUnsavedUserChanges)
+        assertFalse(viewModel.uiState.value.showLeaveDialog)
+    }
+
+    // ── LengthExceededDialog ──────────────────────────────────────────────────
+
+    @Test
+    fun `onNavigateBackRequested connected & превышение длины — показывает LengthExceededDialog а не LeaveDialog`() = runTest(testDispatcher) {
+        connectionStatusFlow.value = connectedStatus
+        runCurrent()
+        val tooLong = "A".repeat(DISPLAY_NAME_MAX_LENGTH + 1)
+        viewModel.onDisplayNameChange(tooLong)
+        runCurrent()
+
+        viewModel.onNavigateBackRequested()
+        runCurrent()
+
+        assertTrue(viewModel.uiState.value.showLengthExceededDialog)
+        assertFalse(viewModel.uiState.value.showLeaveDialog)
+    }
+
+    @Test
+    fun `onNavigateBackRequested disconnected & превышение длины — показывает LengthExceededDialog`() = runTest(testDispatcher) {
+        val tooLong = "A".repeat(DISPLAY_NAME_MAX_LENGTH + 1)
+        viewModel.onDisplayNameChange(tooLong)
+        runCurrent()
+
+        viewModel.onNavigateBackRequested()
+        runCurrent()
+
+        assertTrue(viewModel.uiState.value.showLengthExceededDialog)
+        assertFalse(viewModel.uiState.value.showLeaveDialog)
+    }
+
+    @Test
+    fun `onLengthExceededReset сбрасывает имя до сохранённого и остаётся на экране`() = runTest(testDispatcher) {
+        val tooLong = "A".repeat(DISPLAY_NAME_MAX_LENGTH + 1)
+        viewModel.onDisplayNameChange(tooLong)
+        runCurrent()
+        viewModel.onNavigateBackRequested()
+        runCurrent()
+
+        viewModel.onLengthExceededReset()
+        runCurrent()
+
+        assertEquals("Иван", viewModel.uiState.value.displayName)
+        assertFalse(viewModel.uiState.value.showLengthExceededDialog)
+        assertFalse(viewModel.uiState.value.hasUnsavedUserChanges)
+        coVerify(exactly = 0) { saveAppUser.invoke(any()) }
+    }
+
+    @Test
+    fun `onLengthExceededDismiss закрывает диалог и остаётся на экране`() = runTest(testDispatcher) {
+        val tooLong = "A".repeat(DISPLAY_NAME_MAX_LENGTH + 1)
+        viewModel.onDisplayNameChange(tooLong)
+        runCurrent()
+        viewModel.onNavigateBackRequested()
+        runCurrent()
+
+        viewModel.onLengthExceededDismiss()
+        runCurrent()
+
+        assertFalse(viewModel.uiState.value.showLengthExceededDialog)
+        assertEquals(tooLong, viewModel.uiState.value.displayName)
     }
 
     // ── onGpsBroadcastToggle ──────────────────────────────────────────────────

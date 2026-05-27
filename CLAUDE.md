@@ -27,6 +27,7 @@
 | Импорт KMZ/KML оверлеев (SAF + SQLDelight) | ✅ Done |
 | Рендеринг KMZ/KML оверлеев на карте | ✅ Done |
 | Автоподключение к последнему узлу при старте | ✅ Done |
+| Callsign gate on connect (позывной обязателен) | ✅ Done |
 | Визуальный язык (цвет, типографика, HUD) | ⏳ Deferred (после отработки userFlow) |
 | BLE-узлы на карте (telemetry) | ⬜ Planned |
 | Чат | ✅ Done |
@@ -128,6 +129,8 @@
 | HUD Menu Drawer | `.claude/docs/hud-menu-drawer.md` |
 | Map Orientation Binding | `.claude/docs/map-orientation.md` |
 | Screen Orientation Lock | `.claude/docs/screen-orientation-lock.md` |
+| Callsign (позывной как сущность) | `.claude/docs/callsign.md` |
+| Callsign Gate on Connect (реализация) | `.claude/docs/callsign-gate-on-connect.md` |
 
 ---
 

@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -50,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import java.time.Instant
@@ -57,6 +59,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.domain.channel.model.ChannelSyncStatus
+import ru.tcynik.meshtactics.domain.user.model.DISPLAY_NAME_MAX_LENGTH
 import ru.tcynik.meshtactics.presentation.feature.settings.ContourEditorState
 import ru.tcynik.meshtactics.presentation.feature.settings.EmergencyEvent
 import ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModel
@@ -95,6 +98,13 @@ fun UserTabContent(
             snackbarHostState.showSnackbar(emergencyTriggeredText)
             viewModel.onEmergencyEventConsumed()
         }
+    }
+
+    if (state.showLengthExceededDialog) {
+        LengthExceededDialog(
+            onReset = viewModel::onLengthExceededReset,
+            onDismiss = viewModel::onLengthExceededDismiss,
+        )
     }
 
     if (state.showSyncDialog) {
@@ -170,10 +180,21 @@ fun UserTabContent(
                 )
             }
             item {
+                val isOverLimit = state.displayName.length > DISPLAY_NAME_MAX_LENGTH
                 OutlinedTextField(
                     value = state.displayName,
                     onValueChange = viewModel::onDisplayNameChange,
                     label = { Text(stringResource(R.string.user_display_name_label)) },
+                    isError = state.displayNameError || isOverLimit,
+                    colors = if (isOverLimit) OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = MaterialTheme.colorScheme.error,
+                        unfocusedTextColor = MaterialTheme.colorScheme.error,
+                    ) else OutlinedTextFieldDefaults.colors(),
+                    supportingText = when {
+                        state.displayNameError -> { { Text(stringResource(R.string.user_display_name_error)) } }
+                        isOverLimit -> { { Text("${state.displayName.length}/$DISPLAY_NAME_MAX_LENGTH", color = MaterialTheme.colorScheme.error) } }
+                        else -> { { Text("${state.displayName.length}/$DISPLAY_NAME_MAX_LENGTH") } }
+                    },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -515,6 +536,39 @@ private fun TriggerEmergencyDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.emergency_trigger_dialog_dismiss))
+            }
+        },
+    )
+}
+
+@Composable
+private fun LengthExceededDialog(
+    onReset: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        text = {
+            Text(stringResource(R.string.user_display_name_length_exceeded, DISPLAY_NAME_MAX_LENGTH))
+        },
+        confirmButton = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.user_display_name_length_exceeded_cancel))
+                }
+                TextButton(
+                    onClick = onReset,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(
+                        text = stringResource(R.string.user_display_name_length_exceeded_reset),
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
         },
     )

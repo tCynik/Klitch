@@ -197,7 +197,9 @@
       "Bash(mv \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\connection-status-hud-info.md\" \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\archive\\\\connection-status-hud-info.md\")",
       "Bash(mv \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\node-provisioning.md\" \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\archive\\\\node-provisioning.md\")",
       "Bash(mv \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\hud-node-status-indicator.md\" \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\archive\\\\hud-node-status-indicator.md\")",
-      "Bash(cd \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\" && rm .claude/plans/screen-orientation-lock.md && ls .claude/plans/)"
+      "Bash(cd \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\" && rm .claude/plans/screen-orientation-lock.md && ls .claude/plans/)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\" -Directory)",
+      "Bash(Select-Object Name)"
       "Bash(mv \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\plans\\\\hud-node-status-indicator.md\" \"c:\\\\Users\\\\LocAdmin\\\\AndroidStudioProjects\\\\MeshTactics\\\\.claude\\\\archive\\\\hud-node-status-indicator.md\")",
       "Read(//c//**)",
       "Bash(magick --version)",

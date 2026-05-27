@@ -42,6 +42,7 @@ data class MainUiState(
     val trackDraftDistanceLabel: String = "0.000/0.000км",
     val hasChannelOnNode: Boolean = true,
     val syncRequired: Boolean = false,
+    val callsignRequired: Boolean = false,
     val isRebooting: Boolean = false,
     val menuDrawerOpen: Boolean = false,
     val isFollowMeActive: Boolean = false,

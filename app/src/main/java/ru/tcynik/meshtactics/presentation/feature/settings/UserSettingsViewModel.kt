@@ -44,6 +44,7 @@ import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCas
 import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
@@ -57,6 +58,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.SetGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
 import ru.tcynik.meshtactics.domain.user.model.AppUser
+import ru.tcynik.meshtactics.domain.user.model.DISPLAY_NAME_MAX_LENGTH
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
@@ -84,6 +86,7 @@ class UserSettingsViewModel(
     private val cancelEmergency: CancelEmergencyUseCase,
     private val checkContourSync: CheckNodeSyncUseCase,
     private val syncStateRepository: ContourSyncStateRepository,
+    private val disconnectFromMesh: DisconnectFromMeshUseCase,
     private val rebootNode: RebootNodeUseCase,
     private val rebootStateRepository: RebootStateRepository,
     private val observeGpsBroadcastEnabled: ObserveGpsBroadcastEnabledUseCase,
@@ -256,6 +259,7 @@ class UserSettingsViewModel(
     fun onDismissChannelSync() {
         _uiState.update { it.copy(showSyncDialog = false) }
         syncStateRepository.setSyncRequired(true)
+        viewModelScope.launch { disconnectFromMesh(NoParams) }
     }
 
     fun onNodeWriteEventConsumed() {
@@ -263,7 +267,7 @@ class UserSettingsViewModel(
     }
 
     fun onDisplayNameChange(value: String) {
-        _uiState.update { it.copy(displayName = value, hasUnsavedUserChanges = true) }
+        _uiState.update { it.copy(displayName = value, hasUnsavedUserChanges = true, displayNameError = false) }
     }
 
     fun onGpsBroadcastToggle(enabled: Boolean) {
@@ -277,19 +281,43 @@ class UserSettingsViewModel(
     }
 
     fun onNavigateBackRequested() {
+        if (_uiState.value.hasUnsavedUserChanges && _uiState.value.displayName.length > DISPLAY_NAME_MAX_LENGTH) {
+            _uiState.update { it.copy(showLengthExceededDialog = true) }
+            return
+        }
         if (_uiState.value.hasUnsavedUserChanges && _uiState.value.isNodeConnected) {
             _uiState.update { it.copy(showLeaveDialog = true) }
         } else {
             if (_uiState.value.hasUnsavedUserChanges) {
-                viewModelScope.launch { saveAppUser(AppUser(displayName = _uiState.value.displayName)) }
+                val name = _uiState.value.displayName
+                if (name.isNotBlank()) {
+                    viewModelScope.launch { saveAppUser(AppUser(displayName = name)) }
+                }
             }
             _navigateBack.tryEmit(Unit)
         }
     }
 
+    fun onLengthExceededReset() {
+        _uiState.update { it.copy(showLengthExceededDialog = false, hasUnsavedUserChanges = false) }
+        viewModelScope.launch {
+            val saved = observeAppUser(NoParams).first()
+            _uiState.update { it.copy(displayName = saved.displayName) }
+        }
+    }
+
+    fun onLengthExceededDismiss() {
+        _uiState.update { it.copy(showLengthExceededDialog = false) }
+    }
+
     fun onSaveAndReboot() {
         _uiState.update { it.copy(showLeaveDialog = false) }
         viewModelScope.launch {
+            val name = _uiState.value.displayName
+            if (name.isBlank() || name.length > DISPLAY_NAME_MAX_LENGTH) {
+                _uiState.update { it.copy(displayNameError = true) }
+                return@launch
+            }
             val shortName = withTimeoutOrNull(5_000) {
                 observeDeviceConfig(NoParams).first { it != null }
             }?.shortName ?: ""
@@ -308,7 +336,6 @@ class UserSettingsViewModel(
         viewModelScope.launch {
             val saved = observeAppUser(NoParams).first()
             _uiState.update { it.copy(displayName = saved.displayName) }
-            _navigateBack.tryEmit(Unit)
         }
     }
 

@@ -7,6 +7,7 @@ import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MeshConnectionS
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MeshTestTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MessagesTabState
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.TelemetryTabState
+import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.CallsignGateDialogState
 
 data class MeshTestUiState(
     val selectedTab: MeshTestTab = MeshTestTab.Connection,
@@ -17,6 +18,7 @@ data class MeshTestUiState(
     val telemetryTab: TelemetryTabState = TelemetryTabState(),
     val geoNodesTab: GeoNodesTabState = GeoNodesTabState(),
     val showSyncDialog: Boolean = false,
+    val callsignGateDialog: CallsignGateDialogState? = null,
     val isRebooting: Boolean = false,
     val lastConnectedNodeName: String = "",
 )

@@ -12,6 +12,7 @@ sealed interface EmergencyEvent {
 
 data class UserSettingsUiState(
     val displayName: String = "",
+    val displayNameError: Boolean = false,
     val hasUnsavedUserChanges: Boolean = false,
     val isGpsBroadcastEnabled: Boolean = true,
     val showLeaveDialog: Boolean = false,
@@ -25,6 +26,7 @@ data class UserSettingsUiState(
     val showCancelDialog: Boolean = false,
     val emergencyEvent: EmergencyEvent? = null,
     val showSyncDialog: Boolean = false,
+    val showLengthExceededDialog: Boolean = false,
 )
 
 data class ContourEditorState(

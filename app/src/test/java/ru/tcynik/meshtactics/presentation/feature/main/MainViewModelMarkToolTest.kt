@@ -67,6 +67,8 @@ import ru.tcynik.meshtactics.domain.settings.usecase.GetShowGeoMarkNamesUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveGeoMarkSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveMarkerSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveShowGeoMarkNamesUseCase
+import ru.tcynik.meshtactics.domain.user.model.AppUser
+import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 
 /** Step between [SystemClock.uptimeMillis] calls — must exceed [MainViewModel] 80 ms tap dedupe. */
 private const val MOCK_UPTIME_STEP_MS = 100L
@@ -108,6 +110,7 @@ class MainViewModelMarkToolTest {
     private val observeCallsignChanges: ObserveCallsignChangesUseCase = mockk()
     private val refreshNodePublicKey: RefreshNodePublicKeyUseCase = mockk(relaxed = true)
     private val geoMarkPrefsRepository: GeoMarkPreferencesRepository = mockk(relaxed = true)
+    private val observeAppUser: ObserveAppUserUseCase = mockk()
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var viewModel: MainViewModel
@@ -149,6 +152,7 @@ class MainViewModelMarkToolTest {
         coEvery { checkNodeSync.invoke() } returns NodeSyncResult.InSync
         every { geoMarkPrefsRepository.observePreferences() } returns flowOf(GeoMarkFormPreferences())
         every { geoMarkPrefsRepository.observePresets() } returns flowOf(emptyList())
+        every { observeAppUser.invoke(any()) } returns flowOf(AppUser(displayName = "Alpha"))
         viewModel = MainViewModel(
             getTileUrl = getTileUrl,
             getLastPosition = getLastPosition,
@@ -182,6 +186,7 @@ class MainViewModelMarkToolTest {
             rebootStateRepository = rebootStateRepository,
             observeCallsignChanges = observeCallsignChanges,
             refreshNodePublicKey = refreshNodePublicKey,
+            observeAppUser = observeAppUser,
             geoMarkPrefsRepository = geoMarkPrefsRepository,
         )
     }
