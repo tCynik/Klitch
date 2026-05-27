@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -98,6 +99,13 @@ fun UserTabContent(
         }
     }
 
+    if (state.showLengthExceededDialog) {
+        LengthExceededDialog(
+            onReset = viewModel::onLengthExceededReset,
+            onDismiss = viewModel::onLengthExceededDismiss,
+        )
+    }
+
     if (state.showSyncDialog) {
         SyncRequiredDialog(
             onConfirm = viewModel::onConfirmChannelSync,
@@ -171,13 +179,19 @@ fun UserTabContent(
                 )
             }
             item {
+                val isOverLimit = state.displayName.length > DISPLAY_NAME_MAX_LENGTH
                 OutlinedTextField(
                     value = state.displayName,
                     onValueChange = viewModel::onDisplayNameChange,
                     label = { Text(stringResource(R.string.user_display_name_label)) },
-                    isError = state.displayNameError,
+                    isError = state.displayNameError || isOverLimit,
+                    colors = if (isOverLimit) OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = MaterialTheme.colorScheme.error,
+                        unfocusedTextColor = MaterialTheme.colorScheme.error,
+                    ) else OutlinedTextFieldDefaults.colors(),
                     supportingText = when {
                         state.displayNameError -> { { Text(stringResource(R.string.user_display_name_error)) } }
+                        isOverLimit -> { { Text("${state.displayName.length}/$DISPLAY_NAME_MAX_LENGTH", color = MaterialTheme.colorScheme.error) } }
                         else -> { { Text("${state.displayName.length}/$DISPLAY_NAME_MAX_LENGTH") } }
                     },
                     singleLine = true,
@@ -521,6 +535,29 @@ private fun TriggerEmergencyDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.emergency_trigger_dialog_dismiss))
+            }
+        },
+    )
+}
+
+@Composable
+private fun LengthExceededDialog(
+    onReset: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        text = {
+            Text(stringResource(R.string.user_display_name_length_exceeded, DISPLAY_NAME_MAX_LENGTH))
+        },
+        confirmButton = {
+            TextButton(onClick = onReset) {
+                Text(stringResource(R.string.user_display_name_length_exceeded_reset))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.user_display_name_length_exceeded_cancel))
             }
         },
     )

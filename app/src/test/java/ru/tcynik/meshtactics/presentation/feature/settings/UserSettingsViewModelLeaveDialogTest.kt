@@ -53,6 +53,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
 import ru.tcynik.meshtactics.domain.user.model.AppUser
+import ru.tcynik.meshtactics.domain.user.model.DISPLAY_NAME_MAX_LENGTH
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
 
@@ -250,6 +251,70 @@ class UserSettingsViewModelLeaveDialogTest {
             assertFalse(viewModel.uiState.value.hasUnsavedUserChanges)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    // ── LengthExceededDialog ──────────────────────────────────────────────────
+
+    @Test
+    fun `onNavigateBackRequested connected & превышение длины — показывает LengthExceededDialog а не LeaveDialog`() = runTest(testDispatcher) {
+        connectionStatusFlow.value = connectedStatus
+        runCurrent()
+        val tooLong = "A".repeat(DISPLAY_NAME_MAX_LENGTH + 1)
+        viewModel.onDisplayNameChange(tooLong)
+        runCurrent()
+
+        viewModel.onNavigateBackRequested()
+        runCurrent()
+
+        assertTrue(viewModel.uiState.value.showLengthExceededDialog)
+        assertFalse(viewModel.uiState.value.showLeaveDialog)
+    }
+
+    @Test
+    fun `onNavigateBackRequested disconnected & превышение длины — показывает LengthExceededDialog`() = runTest(testDispatcher) {
+        val tooLong = "A".repeat(DISPLAY_NAME_MAX_LENGTH + 1)
+        viewModel.onDisplayNameChange(tooLong)
+        runCurrent()
+
+        viewModel.onNavigateBackRequested()
+        runCurrent()
+
+        assertTrue(viewModel.uiState.value.showLengthExceededDialog)
+        assertFalse(viewModel.uiState.value.showLeaveDialog)
+    }
+
+    @Test
+    fun `onLengthExceededReset сбрасывает имя до сохранённого и эмитит navigateBack`() = runTest(testDispatcher) {
+        val tooLong = "A".repeat(DISPLAY_NAME_MAX_LENGTH + 1)
+        viewModel.onDisplayNameChange(tooLong)
+        runCurrent()
+        viewModel.onNavigateBackRequested()
+        runCurrent()
+
+        viewModel.navigateBack.test {
+            viewModel.onLengthExceededReset()
+            runCurrent()
+            awaitItem()
+            assertEquals("Иван", viewModel.uiState.value.displayName)
+            assertFalse(viewModel.uiState.value.showLengthExceededDialog)
+            coVerify(exactly = 0) { saveAppUser.invoke(any()) }
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `onLengthExceededDismiss закрывает диалог и остаётся на экране`() = runTest(testDispatcher) {
+        val tooLong = "A".repeat(DISPLAY_NAME_MAX_LENGTH + 1)
+        viewModel.onDisplayNameChange(tooLong)
+        runCurrent()
+        viewModel.onNavigateBackRequested()
+        runCurrent()
+
+        viewModel.onLengthExceededDismiss()
+        runCurrent()
+
+        assertFalse(viewModel.uiState.value.showLengthExceededDialog)
+        assertEquals(tooLong, viewModel.uiState.value.displayName)
     }
 
     // ── onGpsBroadcastToggle ──────────────────────────────────────────────────

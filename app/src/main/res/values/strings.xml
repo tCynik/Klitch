@@ -113,12 +113,15 @@
     <string name="callsign_gate_dialog_confirm">Подключить</string>
     <string name="callsign_gate_dialog_dismiss">Отмена</string>
     <string name="user_display_name_error">Позывной не может быть пустым</string>
+    <string name="user_display_name_length_exceeded">Количество символов в позывном превышает допустимое (%1$d)</string>
+    <string name="user_display_name_length_exceeded_reset">Сбросить изменения</string>
+    <string name="user_display_name_length_exceeded_cancel">Отменить</string>
 
     <!-- Leave Settings Dialog -->
     <string name="leave_settings_dialog_title">Сохранить изменения?</string>
     <string name="leave_settings_dialog_message">Нода будет перезагружена.</string>
     <string name="leave_settings_dialog_save">Сохранить</string>
-    <string name="leave_settings_dialog_discard">Сбросить</string>
+    <string name="leave_settings_dialog_discard">Сбросить измениения</string>
 
     <!-- Tile Cache Settings -->
     <string name="tile_cache_section_label">Кэш тайлов</string>

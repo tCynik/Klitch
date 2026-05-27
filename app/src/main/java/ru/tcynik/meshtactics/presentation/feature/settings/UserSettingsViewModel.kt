@@ -267,7 +267,6 @@ class UserSettingsViewModel(
     }
 
     fun onDisplayNameChange(value: String) {
-        if (value.length > DISPLAY_NAME_MAX_LENGTH) return
         _uiState.update { it.copy(displayName = value, hasUnsavedUserChanges = true, displayNameError = false) }
     }
 
@@ -282,6 +281,10 @@ class UserSettingsViewModel(
     }
 
     fun onNavigateBackRequested() {
+        if (_uiState.value.hasUnsavedUserChanges && _uiState.value.displayName.length > DISPLAY_NAME_MAX_LENGTH) {
+            _uiState.update { it.copy(showLengthExceededDialog = true) }
+            return
+        }
         if (_uiState.value.hasUnsavedUserChanges && _uiState.value.isNodeConnected) {
             _uiState.update { it.copy(showLeaveDialog = true) }
         } else {
@@ -295,10 +298,24 @@ class UserSettingsViewModel(
         }
     }
 
+    fun onLengthExceededReset() {
+        _uiState.update { it.copy(showLengthExceededDialog = false, hasUnsavedUserChanges = false) }
+        viewModelScope.launch {
+            val saved = observeAppUser(NoParams).first()
+            _uiState.update { it.copy(displayName = saved.displayName) }
+            _navigateBack.tryEmit(Unit)
+        }
+    }
+
+    fun onLengthExceededDismiss() {
+        _uiState.update { it.copy(showLengthExceededDialog = false) }
+    }
+
     fun onSaveAndReboot() {
         _uiState.update { it.copy(showLeaveDialog = false) }
         viewModelScope.launch {
-            if (_uiState.value.displayName.isBlank()) {
+            val name = _uiState.value.displayName
+            if (name.isBlank() || name.length > DISPLAY_NAME_MAX_LENGTH) {
                 _uiState.update { it.copy(displayNameError = true) }
                 return@launch
             }
