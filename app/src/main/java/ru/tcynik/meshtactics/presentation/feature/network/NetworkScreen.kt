@@ -33,6 +33,7 @@ import ru.tcynik.meshtactics.presentation.feature.network.components.CallsignGat
 import ru.tcynik.meshtactics.presentation.feature.network.components.ConnectionContent
 import ru.tcynik.meshtactics.presentation.feature.network.components.MeshStatusBar
 import ru.tcynik.meshtactics.presentation.feature.network.components.TelemetryContent
+import ru.tcynik.meshtactics.presentation.feature.network.state.MeshConnectionStatusUi
 import ru.tcynik.meshtactics.presentation.ui.components.SyncRequiredDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,6 +44,7 @@ fun NetworkScreen(
     viewModel: NetworkViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val isNodeConnected = state.connectionStatus is MeshConnectionStatusUi.Connected
 
     state.callsignGateDialog?.let { dialog ->
         CallsignGateDialog(
@@ -70,7 +72,10 @@ fun NetworkScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onNavigateToSettings) {
+                    IconButton(
+                        onClick = onNavigateToSettings,
+                        enabled = isNodeConnected,
+                    ) {
                         Icon(Icons.Default.Settings, contentDescription = "Настройки")
                     }
                 },
