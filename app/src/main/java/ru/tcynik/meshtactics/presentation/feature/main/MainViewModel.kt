@@ -243,6 +243,8 @@ class MainViewModel(
                         viewModelScope.launch {
                             if (checkNodeSync() is NodeSyncResult.NeedsSync)
                                 syncStateRepository.setSyncRequired(true)
+                            else
+                                syncStateRepository.clear()
                         }
                         _uiState.update { it.copy(showConnectionLabel = true) }
                         connectedLabelJob?.cancel()

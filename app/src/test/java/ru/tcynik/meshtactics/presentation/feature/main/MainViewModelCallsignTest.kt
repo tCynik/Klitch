@@ -4,6 +4,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
@@ -232,5 +233,29 @@ class MainViewModelCallsignTest {
         runCurrent()
         assertFalse(viewModel.uiState.value.callsignRequired)
         coVerify { connectToDevice.invoke(ConnectToMeshDeviceParams(lastDevice.address, lastDevice.name)) }
+    }
+
+    @Test
+    fun `повторное подключение с InSync сбрасывает syncRequired через clear`() = runTest(testDispatcher) {
+        val connected = MeshConnectionStatus.Connected(
+            nodeId = "!aabbccdd", shortName = "TS", rssi = -70, batteryLevel = 80,
+        )
+        appUserFlow.value = AppUser(displayName = "Alpha")
+        coEvery { checkNodeSync.invoke() } returns NodeSyncResult.NeedsSync
+        createViewModel()
+        runCurrent()
+
+        connectionStatusFlow.value = connected
+        runCurrent()
+        coVerify { syncStateRepository.setSyncRequired(true) }
+
+        connectionStatusFlow.value = MeshConnectionStatus.Disconnected
+        runCurrent()
+
+        coEvery { checkNodeSync.invoke() } returns NodeSyncResult.InSync
+        connectionStatusFlow.value = connected
+        runCurrent()
+
+        verify { syncStateRepository.clear() }
     }
 }
