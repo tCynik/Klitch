@@ -103,7 +103,7 @@
     <string name="emergency_cancel_dialog_dismiss">Нет</string>
     <string name="emergency_toast_triggered">Запрос о помощи отправлен. Трансляция геопозиции начата.</string>
     <string name="sync_required_dialog_title">Требуется синхронизация</string>
-    <string name="sync_required_dialog_message">Для работы требуется синхронизация настроек ноды. После синхронизации нода будет перезагружена.</string>
+    <string name="sync_required_dialog_message">Для работы в сети требуется синхронизация настроек ноды. После синхронизации нода будет перезагружена.</string>
     <string name="sync_required_dialog_confirm">Да</string>
     <string name="sync_required_dialog_dismiss">Нет</string>
 

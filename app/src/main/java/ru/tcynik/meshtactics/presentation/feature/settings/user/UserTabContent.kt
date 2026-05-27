@@ -57,6 +57,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.domain.channel.model.ChannelSyncStatus
+import ru.tcynik.meshtactics.domain.user.model.DISPLAY_NAME_MAX_LENGTH
 import ru.tcynik.meshtactics.presentation.feature.settings.ContourEditorState
 import ru.tcynik.meshtactics.presentation.feature.settings.EmergencyEvent
 import ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModel
@@ -175,10 +176,9 @@ fun UserTabContent(
                     onValueChange = viewModel::onDisplayNameChange,
                     label = { Text(stringResource(R.string.user_display_name_label)) },
                     isError = state.displayNameError,
-                    supportingText = if (state.displayNameError) {
-                        { Text(stringResource(R.string.user_display_name_error)) }
-                    } else {
-                        null
+                    supportingText = when {
+                        state.displayNameError -> { { Text(stringResource(R.string.user_display_name_error)) } }
+                        else -> { { Text("${state.displayName.length}/$DISPLAY_NAME_MAX_LENGTH") } }
                     },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),

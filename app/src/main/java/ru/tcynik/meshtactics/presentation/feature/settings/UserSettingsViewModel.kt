@@ -58,6 +58,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.SetGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
 import ru.tcynik.meshtactics.domain.user.model.AppUser
+import ru.tcynik.meshtactics.domain.user.model.DISPLAY_NAME_MAX_LENGTH
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
@@ -266,6 +267,7 @@ class UserSettingsViewModel(
     }
 
     fun onDisplayNameChange(value: String) {
+        if (value.length > DISPLAY_NAME_MAX_LENGTH) return
         _uiState.update { it.copy(displayName = value, hasUnsavedUserChanges = true, displayNameError = false) }
     }
 
@@ -284,7 +286,10 @@ class UserSettingsViewModel(
             _uiState.update { it.copy(showLeaveDialog = true) }
         } else {
             if (_uiState.value.hasUnsavedUserChanges) {
-                viewModelScope.launch { saveAppUser(AppUser(displayName = _uiState.value.displayName)) }
+                val name = _uiState.value.displayName
+                if (name.isNotBlank()) {
+                    viewModelScope.launch { saveAppUser(AppUser(displayName = name)) }
+                }
             }
             _navigateBack.tryEmit(Unit)
         }

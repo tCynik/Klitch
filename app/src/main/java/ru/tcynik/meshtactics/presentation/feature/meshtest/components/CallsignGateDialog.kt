@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import ru.tcynik.meshtactics.R
+import ru.tcynik.meshtactics.domain.user.model.DISPLAY_NAME_MAX_LENGTH
 
 @Composable
 fun CallsignGateDialog(
@@ -30,8 +31,9 @@ fun CallsignGateDialog(
                 Text(stringResource(R.string.callsign_gate_dialog_message))
                 OutlinedTextField(
                     value = callsignInput,
-                    onValueChange = onCallsignChange,
+                    onValueChange = { if (it.length <= DISPLAY_NAME_MAX_LENGTH) onCallsignChange(it) },
                     label = { Text(stringResource(R.string.user_display_name_label)) },
+                    supportingText = { Text("${callsignInput.length}/$DISPLAY_NAME_MAX_LENGTH") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )

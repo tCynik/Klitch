@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -66,6 +65,7 @@ import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MeshTestTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MessageDirection
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MessageStatus
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.CallsignGateDialogState
+import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.PendingAction
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.GeoNodeUi
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.GpsModeUi
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.LocationConfigUi
@@ -101,6 +101,8 @@ class MeshTestViewModel(
 
     private val _uiState = MutableStateFlow(MeshTestUiState())
     val uiState: StateFlow<MeshTestUiState> = _uiState.asStateFlow()
+
+    private val _callsignRequired = MutableStateFlow(true)
 
     private var scanJob: Job? = null
     private var messagesJob: Job? = null
@@ -171,7 +173,7 @@ class MeshTestViewModel(
             // but this VM hasn't started collecting devices yet.
             // Skip during reboot: extra scan competes with GATT auto-connect and breaks reconnect.
             if (status is MeshConnectionStatus.Scanning && scanJob == null && !isRebooting && !userStoppedScan) {
-                onScanClick()
+                startScan()
             }
             // Stop scan when auto-connect from MainViewModel kicks in.
             if (status is MeshConnectionStatus.Connecting || status is MeshConnectionStatus.Connected) {
@@ -277,19 +279,21 @@ class MeshTestViewModel(
 
         startObservingMessages(activeContactKey)
 
-        viewModelScope.launch {
-            if (observeAppUser(NoParams).first().displayName.isBlank()) {
-                _uiState.update {
-                    it.copy(
-                        callsignGateDialog = CallsignGateDialogState(
-                            pendingAddress = "",
-                            pendingDeviceName = "",
-                            callsignInput = "",
-                        ),
-                    )
+        var initGateShown = false
+        observeAppUser(NoParams)
+            .onEach { user ->
+                val required = user.displayName.isBlank()
+                _callsignRequired.value = required
+                if (!initGateShown) {
+                    initGateShown = true
+                    if (required) {
+                        _uiState.update {
+                            it.copy(callsignGateDialog = CallsignGateDialogState(PendingAction.None, ""))
+                        }
+                    }
                 }
             }
-        }
+            .launchIn(viewModelScope)
     }
 
     // ── Callsign gate ─────────────────────────────────────────────────────────
@@ -307,10 +311,12 @@ class MeshTestViewModel(
         if (callsign.isBlank()) return
         viewModelScope.launch {
             saveAppUser(AppUser(displayName = callsign))
-            if (dialog.pendingAddress.isNotBlank()) {
-                connectToPendingDevice(dialog.pendingAddress, dialog.pendingDeviceName)
-            }
             _uiState.update { it.copy(callsignGateDialog = null) }
+            when (val action = dialog.pendingAction) {
+                PendingAction.None -> Unit
+                PendingAction.Scan -> startScan()
+                is PendingAction.Connect -> connectToPendingDevice(action.address, action.deviceName)
+            }
         }
     }
 
@@ -347,6 +353,16 @@ class MeshTestViewModel(
 
     fun onScanClick() {
         userStoppedScan = false
+        if (_callsignRequired.value) {
+            _uiState.update {
+                it.copy(callsignGateDialog = CallsignGateDialogState(PendingAction.Scan, ""))
+            }
+            return
+        }
+        startScan()
+    }
+
+    private fun startScan() {
         scanJob?.cancel()
         _uiState.update { state ->
             state.copy(
@@ -386,21 +402,15 @@ class MeshTestViewModel(
         scanJob = null
         val deviceName = _uiState.value.connectionTab.scannedDevices
             .find { it.address == address }?.name ?: address
-        viewModelScope.launch {
-            if (observeAppUser(NoParams).first().displayName.isBlank()) {
-                _uiState.update {
-                    it.copy(
-                        callsignGateDialog = CallsignGateDialogState(
-                            pendingAddress = address,
-                            pendingDeviceName = deviceName,
-                            callsignInput = "",
-                        ),
-                    )
-                }
-                return@launch
+        if (_callsignRequired.value) {
+            _uiState.update {
+                it.copy(callsignGateDialog = CallsignGateDialogState(
+                    PendingAction.Connect(address, deviceName), ""
+                ))
             }
-            connectToPendingDevice(address, deviceName)
+            return
         }
+        viewModelScope.launch { connectToPendingDevice(address, deviceName) }
     }
 
     private suspend fun connectToPendingDevice(address: String, deviceName: String) {

@@ -16,6 +16,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
@@ -48,6 +49,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.WritePositionConfigUseCase
 import ru.tcynik.meshtactics.domain.user.model.AppUser
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
+import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.PendingAction
 class MeshTestViewModelCallsignGateTest {
 
     private val observeConnectionStatus: ObserveConnectionStatusUseCase = mockk()
@@ -154,7 +156,7 @@ class MeshTestViewModelCallsignGateTest {
     }
 
     @Test
-    fun `пустой позывной при Connect — диалог с pendingAddress без connect`() = runTest(testDispatcher) {
+    fun `пустой позывной при Connect — диалог с pendingConnect без connect`() = runTest(testDispatcher) {
         appUserFlow.value = AppUser(displayName = "")
         createViewModel()
         runCurrent()
@@ -162,7 +164,8 @@ class MeshTestViewModelCallsignGateTest {
         runCurrent()
         val dialog = viewModel.uiState.value.callsignGateDialog
         assertNotNull(dialog)
-        assertEquals(deviceAddress, dialog!!.pendingAddress)
+        assertTrue(dialog!!.pendingAction is PendingAction.Connect)
+        assertEquals(deviceAddress, (dialog.pendingAction as PendingAction.Connect).address)
         coVerify(exactly = 0) { connectToDevice.invoke(any()) }
     }
 
@@ -178,6 +181,37 @@ class MeshTestViewModelCallsignGateTest {
         runCurrent()
         coVerify { saveAppUser.invoke(AppUser(displayName = "Bravo")) }
         coVerify { connectToDevice.invoke(ConnectToMeshDeviceParams(deviceAddress, deviceAddress)) }
+        assertNull(viewModel.uiState.value.callsignGateDialog)
+    }
+
+    @Test
+    fun `пустой позывной при Scan — диалог с pendingScan без скана`() = runTest(testDispatcher) {
+        appUserFlow.value = AppUser(displayName = "")
+        createViewModel()
+        runCurrent()
+        // закрываем init gate, чтобы onScanClick мог показать свой
+        viewModel.onCallsignDismissed()
+        runCurrent()
+        viewModel.onScanClick()
+        runCurrent()
+        val dialog = viewModel.uiState.value.callsignGateDialog
+        assertNotNull(dialog)
+        assertEquals(PendingAction.Scan, dialog!!.pendingAction)
+    }
+
+    @Test
+    fun `onCallsignConfirmed при pendingScan запускает скан`() = runTest(testDispatcher) {
+        appUserFlow.value = AppUser(displayName = "")
+        createViewModel()
+        runCurrent()
+        viewModel.onCallsignDismissed()
+        runCurrent()
+        viewModel.onScanClick()
+        runCurrent()
+        viewModel.onCallsignInput("Charlie")
+        viewModel.onCallsignConfirmed()
+        runCurrent()
+        coVerify { saveAppUser.invoke(AppUser(displayName = "Charlie")) }
         assertNull(viewModel.uiState.value.callsignGateDialog)
     }
 
