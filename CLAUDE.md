@@ -129,7 +129,8 @@
 | HUD Menu Drawer | `.claude/docs/hud-menu-drawer.md` |
 | Map Orientation Binding | `.claude/docs/map-orientation.md` |
 | Screen Orientation Lock | `.claude/docs/screen-orientation-lock.md` |
-| Callsign Gate on Connect | `.claude/docs/callsign-gate-on-connect.md` |
+| Callsign (позывной как сущность) | `.claude/docs/callsign.md` |
+| Callsign Gate on Connect (реализация) | `.claude/docs/callsign-gate-on-connect.md` |
 
 ---
 
