@@ -151,7 +151,8 @@ class MeshTestViewModel(
                 state.copy(
                     connectionStatus = uiStatus,
                     lastConnectedNodeName = when (status) {
-                        is MeshConnectionStatus.Connected -> status.nodeId
+                        is MeshConnectionStatus.Connecting -> status.deviceName
+                        is MeshConnectionStatus.Connected -> state.lastConnectedNodeName.ifBlank { status.nodeId }
                         else -> state.lastConnectedNodeName
                     },
                     connectionTab = state.connectionTab.copy(
