@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -48,6 +49,9 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SendMeshMessageParams
 import ru.tcynik.meshtactics.domain.mesh.usecase.SendMeshMessageUseCase
 import ru.tcynik.meshtactics.domain.mesh.util.PskValidator
+import ru.tcynik.meshtactics.domain.user.model.AppUser
+import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
+import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.BleDeviceUi
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.ConfigTabState
@@ -61,6 +65,7 @@ import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MeshNodeUi
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MeshTestTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MessageDirection
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.MessageStatus
+import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.CallsignGateDialogState
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.GeoNodeUi
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.GpsModeUi
 import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.LocationConfigUi
@@ -89,6 +94,8 @@ class MeshTestViewModel(
     private val rebootNode: RebootNodeUseCase,
     private val syncStateRepository: ContourSyncStateRepository,
     private val rebootStateRepository: RebootStateRepository,
+    private val observeAppUser: ObserveAppUserUseCase,
+    private val saveAppUser: SaveAppUserUseCase,
     private val logger: Logger,
 ) : ViewModel() {
 
@@ -269,6 +276,46 @@ class MeshTestViewModel(
             .launchIn(viewModelScope)
 
         startObservingMessages(activeContactKey)
+
+        viewModelScope.launch {
+            if (observeAppUser(NoParams).first().displayName.isBlank()) {
+                _uiState.update {
+                    it.copy(
+                        callsignGateDialog = CallsignGateDialogState(
+                            pendingAddress = "",
+                            pendingDeviceName = "",
+                            callsignInput = "",
+                        ),
+                    )
+                }
+            }
+        }
+    }
+
+    // ── Callsign gate ─────────────────────────────────────────────────────────
+
+    fun onCallsignInput(text: String) {
+        _uiState.update { state ->
+            val dialog = state.callsignGateDialog ?: return@update state
+            state.copy(callsignGateDialog = dialog.copy(callsignInput = text))
+        }
+    }
+
+    fun onCallsignConfirmed() {
+        val dialog = _uiState.value.callsignGateDialog ?: return
+        val callsign = dialog.callsignInput.trim()
+        if (callsign.isBlank()) return
+        viewModelScope.launch {
+            saveAppUser(AppUser(displayName = callsign))
+            if (dialog.pendingAddress.isNotBlank()) {
+                connectToPendingDevice(dialog.pendingAddress, dialog.pendingDeviceName)
+            }
+            _uiState.update { it.copy(callsignGateDialog = null) }
+        }
+    }
+
+    fun onCallsignDismissed() {
+        _uiState.update { it.copy(callsignGateDialog = null) }
     }
 
     // ── Sync Dialog ───────────────────────────────────────────────────────────
@@ -287,6 +334,7 @@ class MeshTestViewModel(
     fun onDismissChannelSync() {
         _uiState.update { it.copy(showSyncDialog = false) }
         syncStateRepository.setSyncRequired(true)
+        viewModelScope.launch { disconnectFromMesh(NoParams) }
     }
 
     // ── Navigation ────────────────────────────────────────────────────────────
@@ -338,24 +386,40 @@ class MeshTestViewModel(
         scanJob = null
         val deviceName = _uiState.value.connectionTab.scannedDevices
             .find { it.address == address }?.name ?: address
-        logger.i("App","DBG onConnectClick: address=$address name=$deviceName")
+        viewModelScope.launch {
+            if (observeAppUser(NoParams).first().displayName.isBlank()) {
+                _uiState.update {
+                    it.copy(
+                        callsignGateDialog = CallsignGateDialogState(
+                            pendingAddress = address,
+                            pendingDeviceName = deviceName,
+                            callsignInput = "",
+                        ),
+                    )
+                }
+                return@launch
+            }
+            connectToPendingDevice(address, deviceName)
+        }
+    }
+
+    private suspend fun connectToPendingDevice(address: String, deviceName: String) {
+        logger.i("App", "DBG onConnectClick: address=$address name=$deviceName")
         _uiState.update { state ->
             state.copy(
                 connectionStatus = MeshConnectionStatusUi.Connecting(deviceName),
                 connectionTab = state.connectionTab.copy(isScanning = false),
             )
         }
-        viewModelScope.launch {
-            logger.i("App","DBG onConnectClick: calling connectToDevice...")
-            runCatching { connectToDevice(ConnectToMeshDeviceParams(address, deviceName)) }
-                .onSuccess { logger.i("App","DBG onConnectClick: connectToDevice returned OK") }
-                .onFailure { e ->
-                    logger.e("App","DBG onConnectClick: connectToDevice failed: ${e.message}", e)
-                    _uiState.update {
-                        it.copy(connectionStatus = MeshConnectionStatusUi.Error(e.message ?: "Connection failed"))
-                    }
+        logger.i("App", "DBG onConnectClick: calling connectToDevice...")
+        runCatching { connectToDevice(ConnectToMeshDeviceParams(address, deviceName)) }
+            .onSuccess { logger.i("App", "DBG onConnectClick: connectToDevice returned OK") }
+            .onFailure { e ->
+                logger.e("App", "DBG onConnectClick: connectToDevice failed: ${e.message}", e)
+                _uiState.update {
+                    it.copy(connectionStatus = MeshConnectionStatusUi.Error(e.message ?: "Connection failed"))
                 }
-        }
+            }
     }
 
     fun onDisconnectClick() {

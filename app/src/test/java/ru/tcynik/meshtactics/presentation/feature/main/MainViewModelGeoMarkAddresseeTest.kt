@@ -59,6 +59,8 @@ import ru.tcynik.meshtactics.domain.settings.usecase.ObserveGeoMarkSizeLevelUseC
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveMarkerSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveShowGeoMarkNamesUseCase
 import java.util.Base64
+import ru.tcynik.meshtactics.domain.user.model.AppUser
+import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 
 class MainViewModelGeoMarkAddresseeTest {
 
@@ -95,6 +97,7 @@ class MainViewModelGeoMarkAddresseeTest {
     private val observeCallsignChanges: ObserveCallsignChangesUseCase = mockk()
     private val refreshNodePublicKey: RefreshNodePublicKeyUseCase = mockk(relaxed = true)
     private val geoMarkPrefsRepository: GeoMarkPreferencesRepository = mockk(relaxed = true)
+    private val observeAppUser: ObserveAppUserUseCase = mockk()
 
     private val channelsFlow = MutableStateFlow<List<Contour>>(emptyList())
     private val connectionStatusFlow = MutableStateFlow<MeshConnectionStatus>(MeshConnectionStatus.Disconnected)
@@ -136,6 +139,7 @@ class MainViewModelGeoMarkAddresseeTest {
         coEvery { checkNodeSync.invoke() } returns NodeSyncResult.InSync
         every { geoMarkPrefsRepository.observePreferences() } returns prefsFlow
         every { geoMarkPrefsRepository.observePresets() } returns flowOf(emptyList())
+        every { observeAppUser.invoke(any()) } returns flowOf(AppUser(displayName = "Alpha"))
         viewModel = createViewModel()
     }
 
@@ -177,6 +181,7 @@ class MainViewModelGeoMarkAddresseeTest {
         rebootStateRepository = rebootStateRepository,
         observeCallsignChanges = observeCallsignChanges,
         refreshNodePublicKey = refreshNodePublicKey,
+        observeAppUser = observeAppUser,
         geoMarkPrefsRepository = geoMarkPrefsRepository,
     )
 

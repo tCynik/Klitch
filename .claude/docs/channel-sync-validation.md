@@ -4,7 +4,7 @@
 
 ## Summary
 
-On connect and on contour activation, the app compares the node's current configuration against active contours and the user's callsign. If a mismatch is detected the user sees a dialog offering to write channels + owner name + reboot the node. Declining sets a persistent in-memory `syncRequired` flag shown in the HUD Radio info slot as "требуется синхронизация" (red).
+On connect and on contour activation, the app compares the node's current configuration against active contours and the user's callsign. If a mismatch is detected the user sees a dialog offering to write channels + owner name + reboot the node. Declining sets `syncRequired` and **disconnects from the node** so the mesh is not left with the old owner name while the app has a new callsign. On next connect the dialog appears again.
 
 ## Files
 
@@ -91,4 +91,5 @@ This avoids brief status flicker and prevents premature reboot-state reset that 
 | `CheckNodeSyncUseCaseTest.kt` | InSync/NeedsSync: slot 0 mismatch, missing contour, disabled slot, position_precision=0, owner name mismatch/match |
 | `SyncContoursOnConnectUseCaseTest.kt` | Emergency write, AlreadySynced/FreeSlot/NoFreeSlot for contours |
 | `ContourSyncStateRepositoryImplTest.kt` | set/clear/observe |
-| `UserSettingsViewModelSyncDialogTest.kt` | `onToggleActive(true)` → connected → NeedsSync → showSyncDialog |
+| `UserSettingsViewModelSyncDialogTest.kt` | `onToggleActive(true)` → connected → NeedsSync → showSyncDialog; dismiss → disconnect |
+| `MeshTestViewModelCallsignGateTest.kt` | `onDismissChannelSync` → disconnect |

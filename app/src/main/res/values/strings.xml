@@ -107,6 +107,13 @@
     <string name="sync_required_dialog_confirm">Да</string>
     <string name="sync_required_dialog_dismiss">Нет</string>
 
+    <!-- Callsign Gate Dialog -->
+    <string name="callsign_gate_dialog_title">Укажите позывной</string>
+    <string name="callsign_gate_dialog_message">Для подключения к сети необходимо задать ваш позывной.</string>
+    <string name="callsign_gate_dialog_confirm">Подключить</string>
+    <string name="callsign_gate_dialog_dismiss">Отмена</string>
+    <string name="user_display_name_error">Позывной не может быть пустым</string>
+
     <!-- Leave Settings Dialog -->
     <string name="leave_settings_dialog_title">Сохранить изменения?</string>
     <string name="leave_settings_dialog_message">Нода будет перезагружена.</string>

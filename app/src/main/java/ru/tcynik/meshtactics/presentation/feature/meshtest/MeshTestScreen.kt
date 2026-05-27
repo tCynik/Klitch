@@ -18,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
+import ru.tcynik.meshtactics.presentation.feature.meshtest.components.CallsignGateDialog
 import ru.tcynik.meshtactics.presentation.feature.meshtest.components.MeshStatusBar
 import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.ConfigTab
 import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.ConnectionTab
@@ -35,6 +36,15 @@ fun MeshTestScreen(
     viewModel: MeshTestViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    state.callsignGateDialog?.let { dialog ->
+        CallsignGateDialog(
+            callsignInput = dialog.callsignInput,
+            onCallsignChange = viewModel::onCallsignInput,
+            onConfirm = viewModel::onCallsignConfirmed,
+            onDismiss = viewModel::onCallsignDismissed,
+        )
+    }
 
     if (state.showSyncDialog) {
         SyncRequiredDialog(

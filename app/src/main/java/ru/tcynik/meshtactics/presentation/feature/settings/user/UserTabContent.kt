@@ -174,6 +174,12 @@ fun UserTabContent(
                     value = state.displayName,
                     onValueChange = viewModel::onDisplayNameChange,
                     label = { Text(stringResource(R.string.user_display_name_label)) },
+                    isError = state.displayNameError,
+                    supportingText = if (state.displayNameError) {
+                        { Text(stringResource(R.string.user_display_name_error)) }
+                    } else {
+                        null
+                    },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )

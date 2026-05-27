@@ -1,7 +1,7 @@
 # Plan: Callsign Gate on Connect
 
 **Date**: 2026-05-26
-**Status**: Approved
+**Status**: Done
 
 ## Summary
 

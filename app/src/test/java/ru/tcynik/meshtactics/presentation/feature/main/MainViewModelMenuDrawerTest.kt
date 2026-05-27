@@ -54,6 +54,8 @@ import ru.tcynik.meshtactics.domain.settings.usecase.GetShowGeoMarkNamesUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveGeoMarkSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveMarkerSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveShowGeoMarkNamesUseCase
+import ru.tcynik.meshtactics.domain.user.model.AppUser
+import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 
 class MainViewModelMenuDrawerTest {
 
@@ -92,6 +94,7 @@ class MainViewModelMenuDrawerTest {
     private val observeCallsignChanges: ObserveCallsignChangesUseCase = mockk()
     private val refreshNodePublicKey: RefreshNodePublicKeyUseCase = mockk(relaxed = true)
     private val geoMarkPrefsRepository: GeoMarkPreferencesRepository = mockk(relaxed = true)
+    private val observeAppUser: ObserveAppUserUseCase = mockk()
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var viewModel: MainViewModel
@@ -126,6 +129,7 @@ class MainViewModelMenuDrawerTest {
         coEvery { checkNodeSync.invoke() } returns NodeSyncResult.InSync
         every { geoMarkPrefsRepository.observePreferences() } returns flowOf(GeoMarkFormPreferences())
         every { geoMarkPrefsRepository.observePresets() } returns flowOf(emptyList())
+        every { observeAppUser.invoke(any()) } returns flowOf(AppUser(displayName = "Alpha"))
         viewModel = MainViewModel(
             getTileUrl = getTileUrl,
             getLastPosition = getLastPosition,
@@ -159,6 +163,7 @@ class MainViewModelMenuDrawerTest {
             rebootStateRepository = rebootStateRepository,
             observeCallsignChanges = observeCallsignChanges,
             refreshNodePublicKey = refreshNodePublicKey,
+            observeAppUser = observeAppUser,
             geoMarkPrefsRepository = geoMarkPrefsRepository,
         )
     }

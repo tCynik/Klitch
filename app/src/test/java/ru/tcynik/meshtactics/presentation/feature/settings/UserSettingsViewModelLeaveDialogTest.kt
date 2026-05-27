@@ -38,6 +38,7 @@ import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCas
 import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.model.MeshDeviceConfigModel
+import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
@@ -76,6 +77,7 @@ class UserSettingsViewModelLeaveDialogTest {
     private val cancelEmergency: CancelEmergencyUseCase = mockk(relaxed = true)
     private val checkContourSync: CheckNodeSyncUseCase = mockk(relaxed = true)
     private val syncStateRepository: ContourSyncStateRepository = mockk(relaxed = true)
+    private val disconnectFromMesh: DisconnectFromMeshUseCase = mockk(relaxed = true)
     private val rebootNode: RebootNodeUseCase = mockk(relaxed = true)
     private val rebootStateRepository: RebootStateRepository = mockk(relaxed = true)
     private val observeGpsBroadcastEnabled: ObserveGpsBroadcastEnabledUseCase = mockk()
@@ -144,6 +146,7 @@ class UserSettingsViewModelLeaveDialogTest {
             cancelEmergency = cancelEmergency,
             checkContourSync = checkContourSync,
             syncStateRepository = syncStateRepository,
+            disconnectFromMesh = disconnectFromMesh,
             rebootNode = rebootNode,
             rebootStateRepository = rebootStateRepository,
             observeGpsBroadcastEnabled = observeGpsBroadcastEnabled,
@@ -203,6 +206,18 @@ class UserSettingsViewModelLeaveDialogTest {
     }
 
     // ── onSaveAndReboot ───────────────────────────────────────────────────────
+
+    @Test
+    fun `onSaveAndReboot с пустым позывным — displayNameError без writeOwner`() = runTest(testDispatcher) {
+        viewModel.onDisplayNameChange("")
+        runCurrent()
+
+        viewModel.onSaveAndReboot()
+        runCurrent()
+
+        assertTrue(viewModel.uiState.value.displayNameError)
+        verify(exactly = 0) { writeOwner.invoke(any(), any()) }
+    }
 
     @Test
     fun `onSaveAndReboot вызывает writeOwner и rebootNode и эмитит navigateBack`() = runTest(testDispatcher) {

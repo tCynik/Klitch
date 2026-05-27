@@ -44,6 +44,7 @@ import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCas
 import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
@@ -84,6 +85,7 @@ class UserSettingsViewModel(
     private val cancelEmergency: CancelEmergencyUseCase,
     private val checkContourSync: CheckNodeSyncUseCase,
     private val syncStateRepository: ContourSyncStateRepository,
+    private val disconnectFromMesh: DisconnectFromMeshUseCase,
     private val rebootNode: RebootNodeUseCase,
     private val rebootStateRepository: RebootStateRepository,
     private val observeGpsBroadcastEnabled: ObserveGpsBroadcastEnabledUseCase,
@@ -256,6 +258,7 @@ class UserSettingsViewModel(
     fun onDismissChannelSync() {
         _uiState.update { it.copy(showSyncDialog = false) }
         syncStateRepository.setSyncRequired(true)
+        viewModelScope.launch { disconnectFromMesh(NoParams) }
     }
 
     fun onNodeWriteEventConsumed() {
@@ -263,7 +266,7 @@ class UserSettingsViewModel(
     }
 
     fun onDisplayNameChange(value: String) {
-        _uiState.update { it.copy(displayName = value, hasUnsavedUserChanges = true) }
+        _uiState.update { it.copy(displayName = value, hasUnsavedUserChanges = true, displayNameError = false) }
     }
 
     fun onGpsBroadcastToggle(enabled: Boolean) {
@@ -290,6 +293,10 @@ class UserSettingsViewModel(
     fun onSaveAndReboot() {
         _uiState.update { it.copy(showLeaveDialog = false) }
         viewModelScope.launch {
+            if (_uiState.value.displayName.isBlank()) {
+                _uiState.update { it.copy(displayNameError = true) }
+                return@launch
+            }
             val shortName = withTimeoutOrNull(5_000) {
                 observeDeviceConfig(NoParams).first { it != null }
             }?.shortName ?: ""

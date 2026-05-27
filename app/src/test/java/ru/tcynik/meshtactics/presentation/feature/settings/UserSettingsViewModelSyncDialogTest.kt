@@ -42,6 +42,7 @@ import ru.tcynik.meshtactics.domain.emergency.usecase.CancelEmergencyUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
+import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
@@ -82,6 +83,7 @@ class UserSettingsViewModelSyncDialogTest {
     private val cancelEmergency: CancelEmergencyUseCase = mockk(relaxed = true)
     private val checkContourSync: CheckNodeSyncUseCase = mockk()
     private val syncStateRepository: ContourSyncStateRepository = mockk(relaxed = true)
+    private val disconnectFromMesh: DisconnectFromMeshUseCase = mockk(relaxed = true)
     private val rebootNode: RebootNodeUseCase = mockk(relaxed = true)
     private val rebootStateRepository: RebootStateRepository = mockk(relaxed = true)
     private val observeGpsBroadcastEnabled: ObserveGpsBroadcastEnabledUseCase = mockk()
@@ -143,6 +145,7 @@ class UserSettingsViewModelSyncDialogTest {
             cancelEmergency = cancelEmergency,
             checkContourSync = checkContourSync,
             syncStateRepository = syncStateRepository,
+            disconnectFromMesh = disconnectFromMesh,
             rebootNode = rebootNode,
             rebootStateRepository = rebootStateRepository,
             observeGpsBroadcastEnabled = observeGpsBroadcastEnabled,
@@ -283,7 +286,16 @@ class UserSettingsViewModelSyncDialogTest {
     @Test
     fun `onDismissChannelSync — устанавливает syncRequired через репозиторий`() = runTest(testDispatcher) {
         viewModel.onDismissChannelSync()
+        runCurrent()
 
         verify(exactly = 1) { syncStateRepository.setSyncRequired(true) }
+    }
+
+    @Test
+    fun `onDismissChannelSync — отключается от ноды`() = runTest(testDispatcher) {
+        viewModel.onDismissChannelSync()
+        runCurrent()
+
+        coVerify(exactly = 1) { disconnectFromMesh.invoke(any()) }
     }
 }

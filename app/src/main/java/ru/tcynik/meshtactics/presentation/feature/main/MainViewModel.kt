@@ -47,6 +47,8 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeyUseCase
+import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
+import kotlinx.coroutines.flow.first
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
@@ -142,6 +144,7 @@ class MainViewModel(
     private val rebootStateRepository: RebootStateRepository,
     private val observeCallsignChanges: ObserveCallsignChangesUseCase,
     private val refreshNodePublicKey: RefreshNodePublicKeyUseCase,
+    private val observeAppUser: ObserveAppUserUseCase,
     private val geoMarkPrefsRepository: GeoMarkPreferencesRepository,
 ) : ViewModel() {
 
@@ -362,6 +365,12 @@ class MainViewModel(
 
         syncStateRepository.syncRequired
             .onEach { required -> _uiState.update { it.copy(syncRequired = required) } }
+            .launchIn(viewModelScope)
+
+        observeAppUser(NoParams)
+            .onEach { user ->
+                _uiState.update { it.copy(callsignRequired = user.displayName.isBlank()) }
+            }
             .launchIn(viewModelScope)
 
         observeCallsignChanges(NoParams)
@@ -728,7 +737,9 @@ class MainViewModel(
             // (connected to Android OS). Scan runs in parallel so user can switch to another
             // device if lastDevice is unavailable.
             viewModelScope.launch {
-                connectToDevice(ConnectToMeshDeviceParams(lastDevice.address, lastDevice.name))
+                if (!observeAppUser(NoParams).first().displayName.isBlank()) {
+                    connectToDevice(ConnectToMeshDeviceParams(lastDevice.address, lastDevice.name))
+                }
             }
         }
 
@@ -995,7 +1006,9 @@ class MainViewModel(
 
     private fun buildConnectionInfoSlot(state: MainUiState): HudInfoSlot = when (val status = state.connectionStatus) {
         MeshConnectionStatus.Scanning ->
-            if (state.foundDevices.isNotEmpty())
+            if (state.callsignRequired)
+                HudInfoSlot(content = "установите позывной", color = Color.Red)
+            else if (state.foundDevices.isNotEmpty())
                 HudInfoSlot(content = "выбор узла", color = Color.Black)
             else
                 HudInfoSlot(content = "Поиск...", color = Color.Red)

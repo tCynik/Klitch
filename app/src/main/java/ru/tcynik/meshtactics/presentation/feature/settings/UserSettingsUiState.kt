@@ -12,6 +12,7 @@ sealed interface EmergencyEvent {
 
 data class UserSettingsUiState(
     val displayName: String = "",
+    val displayNameError: Boolean = false,
     val hasUnsavedUserChanges: Boolean = false,
     val isGpsBroadcastEnabled: Boolean = true,
     val showLeaveDialog: Boolean = false,
