@@ -239,18 +239,16 @@ class UserSettingsViewModelLeaveDialogTest {
     // ── onDiscardAndLeave ─────────────────────────────────────────────────────
 
     @Test
-    fun `onDiscardAndLeave сбрасывает displayName и эмитит navigateBack`() = runTest(testDispatcher) {
+    fun `onDiscardAndLeave сбрасывает displayName и остаётся на экране`() = runTest(testDispatcher) {
         viewModel.onDisplayNameChange("Изменено")
         runCurrent()
 
-        viewModel.navigateBack.test {
-            viewModel.onDiscardAndLeave()
-            runCurrent()
-            awaitItem()
-            assertEquals("Иван", viewModel.uiState.value.displayName)
-            assertFalse(viewModel.uiState.value.hasUnsavedUserChanges)
-            cancelAndIgnoreRemainingEvents()
-        }
+        viewModel.onDiscardAndLeave()
+        runCurrent()
+
+        assertEquals("Иван", viewModel.uiState.value.displayName)
+        assertFalse(viewModel.uiState.value.hasUnsavedUserChanges)
+        assertFalse(viewModel.uiState.value.showLeaveDialog)
     }
 
     // ── LengthExceededDialog ──────────────────────────────────────────────────
@@ -284,22 +282,20 @@ class UserSettingsViewModelLeaveDialogTest {
     }
 
     @Test
-    fun `onLengthExceededReset сбрасывает имя до сохранённого и эмитит navigateBack`() = runTest(testDispatcher) {
+    fun `onLengthExceededReset сбрасывает имя до сохранённого и остаётся на экране`() = runTest(testDispatcher) {
         val tooLong = "A".repeat(DISPLAY_NAME_MAX_LENGTH + 1)
         viewModel.onDisplayNameChange(tooLong)
         runCurrent()
         viewModel.onNavigateBackRequested()
         runCurrent()
 
-        viewModel.navigateBack.test {
-            viewModel.onLengthExceededReset()
-            runCurrent()
-            awaitItem()
-            assertEquals("Иван", viewModel.uiState.value.displayName)
-            assertFalse(viewModel.uiState.value.showLengthExceededDialog)
-            coVerify(exactly = 0) { saveAppUser.invoke(any()) }
-            cancelAndIgnoreRemainingEvents()
-        }
+        viewModel.onLengthExceededReset()
+        runCurrent()
+
+        assertEquals("Иван", viewModel.uiState.value.displayName)
+        assertFalse(viewModel.uiState.value.showLengthExceededDialog)
+        assertFalse(viewModel.uiState.value.hasUnsavedUserChanges)
+        coVerify(exactly = 0) { saveAppUser.invoke(any()) }
     }
 
     @Test

@@ -51,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import java.time.Instant
@@ -551,13 +552,23 @@ private fun LengthExceededDialog(
             Text(stringResource(R.string.user_display_name_length_exceeded, DISPLAY_NAME_MAX_LENGTH))
         },
         confirmButton = {
-            TextButton(onClick = onReset) {
-                Text(stringResource(R.string.user_display_name_length_exceeded_reset))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.user_display_name_length_exceeded_cancel))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.user_display_name_length_exceeded_cancel))
+                }
+                TextButton(
+                    onClick = onReset,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(
+                        text = stringResource(R.string.user_display_name_length_exceeded_reset),
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
         },
     )

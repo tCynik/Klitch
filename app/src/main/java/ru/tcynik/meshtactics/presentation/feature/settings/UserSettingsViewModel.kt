@@ -303,7 +303,6 @@ class UserSettingsViewModel(
         viewModelScope.launch {
             val saved = observeAppUser(NoParams).first()
             _uiState.update { it.copy(displayName = saved.displayName) }
-            _navigateBack.tryEmit(Unit)
         }
     }
 
@@ -337,7 +336,6 @@ class UserSettingsViewModel(
         viewModelScope.launch {
             val saved = observeAppUser(NoParams).first()
             _uiState.update { it.copy(displayName = saved.displayName) }
-            _navigateBack.tryEmit(Unit)
         }
     }
 
