@@ -18,6 +18,7 @@ usb-serial-android    = "3.10.0"
 
 # AndroidX (Android-only слой)
 coreKtx               = "1.18.0"
+coreSplashscreen      = "1.2.0"
 activityCompose       = "1.13.0"
 composeBom            = "2026.03.01"
 
@@ -53,6 +54,7 @@ kotest                = "5.9.1"
 [libraries]
 # ── AndroidX (app-модуль) ──────────────────────────────────────────────────────
 androidx-core-ktx                   = { group = "androidx.core",          name = "core-ktx",                   version.ref = "coreKtx" }
+androidx-core-splashscreen        = { group = "androidx.core",          name = "core-splashscreen",          version.ref = "coreSplashscreen" }
 androidx-core-location-altitude     = { group = "androidx.core",          name = "core-location-altitude",     version = "1.0.0-rc01" }
 androidx-activity-compose           = { group = "androidx.activity",       name = "activity-compose",           version.ref = "activityCompose" }
 androidx-compose-bom                = { group = "androidx.compose",        name = "compose-bom",                version.ref = "composeBom" }
