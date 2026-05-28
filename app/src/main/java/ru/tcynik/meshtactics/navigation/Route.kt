@@ -45,5 +45,8 @@ sealed interface Route {
     data class NodeDetail(val nodeId: String) : Route
 
     @Serializable
-    data class MeshTest(val nodeId: String = "") : Route
+    data object Network : Route
+
+    @Serializable
+    data object NetworkSettings : Route
 }

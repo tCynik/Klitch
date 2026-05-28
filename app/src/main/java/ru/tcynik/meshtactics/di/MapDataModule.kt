@@ -28,11 +28,13 @@ import ru.tcynik.meshtactics.domain.settings.usecase.GetShowGeoMarkNamesUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetScreenOrientationLockedUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetScreenOrientationModeUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetTileCacheModeUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.ObserveNetworkEnabledUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveGeoMarkSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveScreenOrientationSettingsUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveMarkerSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveShowGeoMarkNamesUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveTileCacheModeUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.SetNetworkEnabledUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.SetScreenOrientationLockedUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.SetScreenOrientationModeUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.SetTileCacheModeUseCase
@@ -57,6 +59,10 @@ val mapDataModule = module {
     single { ObserveGeoMarkSizeLevelUseCase(get()) }
     single { GetShowGeoMarkNamesUseCase(get()) }
     single { ObserveShowGeoMarkNamesUseCase(get()) }
+
+    // Network enabled — NetworkSettingsRepository resolved from commonModule
+    single { ObserveNetworkEnabledUseCase(get()) }
+    single { SetNetworkEnabledUseCase(get()) }
 
     // Tile cache — MapCacheSettingsRepository resolved from commonModule
     single { TileCacheOkHttpConfigurator(androidContext().cacheDir, get<MapCacheSettingsRepository>().getTileCacheMode()) }

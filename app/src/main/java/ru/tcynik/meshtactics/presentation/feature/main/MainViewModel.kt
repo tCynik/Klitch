@@ -39,6 +39,7 @@ import ru.tcynik.meshtactics.domain.settings.usecase.GetGeoMarkSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetMarkerSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetShowGeoMarkNamesUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveGeoMarkSizeLevelUseCase
+import ru.tcynik.meshtactics.domain.settings.usecase.ObserveNetworkEnabledUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveMarkerSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveShowGeoMarkNamesUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.ObserveTotalUnreadChatCountUseCase
@@ -124,6 +125,7 @@ class MainViewModel(
     observeGeoMarkSizeLevel: ObserveGeoMarkSizeLevelUseCase,
     getShowGeoMarkNames: GetShowGeoMarkNamesUseCase,
     observeShowGeoMarkNames: ObserveShowGeoMarkNamesUseCase,
+    observeNetworkEnabled: ObserveNetworkEnabledUseCase,
     observeSelectedOverlays: ObserveSelectedOverlaysUseCase,
     observeTotalUnreadChatCount: ObserveTotalUnreadChatCountUseCase,
     private val scanDevices: ScanMeshDevicesUseCase,
@@ -261,7 +263,7 @@ class MainViewModel(
                     if (wasConnected && _uiState.value.isRebooting) {
                         viewModelScope.launch {
                             delay(3_000)
-                            startAutoConnect()
+                            startAutoConnectIfEnabled()
                         }
                     }
                 }
@@ -289,6 +291,20 @@ class MainViewModel(
         observeShowGeoMarkNames(NoParams)
             .onEach { enabled ->
                 _uiState.update { it.copy(showGeoMarkNames = enabled) }
+            }
+            .launchIn(viewModelScope)
+
+        observeNetworkEnabled(NoParams)
+            .onEach { enabled ->
+                val wasEnabled = _uiState.value.networkEnabled
+                _uiState.update { it.copy(networkEnabled = enabled) }
+                if (enabled && !wasEnabled) {
+                    startAutoConnectIfEnabled()
+                } else if (!enabled && wasEnabled) {
+                    scanJob?.cancel()
+                    scanJob = null
+                    _uiState.update { it.copy(foundDevices = persistentListOf()) }
+                }
             }
             .launchIn(viewModelScope)
 
@@ -393,7 +409,7 @@ class MainViewModel(
             }
             .launchIn(viewModelScope)
 
-        startAutoConnect()
+        startAutoConnectIfEnabled()
     }
 
     fun onCameraPositionChanged(position: MapCameraPosition) {
@@ -726,7 +742,13 @@ class MainViewModel(
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
+    private fun startAutoConnectIfEnabled() {
+        if (!_uiState.value.networkEnabled) return
+        startAutoConnect()
+    }
+
     private fun startAutoConnect() {
+        if (!_uiState.value.networkEnabled) return
         val lastDevice = getLastConnectedDevice()
         scanJob?.cancel()
 
@@ -762,7 +784,7 @@ class MainViewModel(
                     status !is MeshConnectionStatus.Connected &&
                     status !is MeshConnectionStatus.Connecting
                 ) {
-                    startAutoConnect()
+                    startAutoConnectIfEnabled()
                 }
             }
             .catch { /* CancellationException — normal job termination, ignored */ }
@@ -823,6 +845,7 @@ class MainViewModel(
                 iconRes      = R.drawable.ic_radio,
                 label        = "радио",
                 onClick      = nav.onRadioClick,
+                selected     = if (!state.networkEnabled) false else null,
                 tintOverride = buildNodeStatusColor(state),
                 infoBadge    = when (state.connectionStatus) {
                     is MeshConnectionStatus.Connected -> state.nodeMarkers.size.toString().take(2)
@@ -974,6 +997,7 @@ class MainViewModel(
                         iconRes = R.drawable.ic_radio,
                         label = "радио",
                         onClick = nav.onRadioClick,
+                        selected = if (!state.networkEnabled) false else null,
                         tintOverride = buildNodeStatusColor(state),
                         infoBadge = when (state.connectionStatus) {
                             is MeshConnectionStatus.Connected -> state.nodeMarkers.size.toString().take(2)
@@ -1038,6 +1062,7 @@ class MainViewModel(
     }
 
     private fun buildNodeStatusColor(state: MainUiState): Color {
+        if (!state.networkEnabled) return Color.Gray
         if (state.isRebooting) return Color.Yellow
         return when (val status = state.connectionStatus) {
             is MeshConnectionStatus.Connected ->

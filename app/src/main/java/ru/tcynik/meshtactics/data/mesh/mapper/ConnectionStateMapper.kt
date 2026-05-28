@@ -12,8 +12,9 @@ fun ConnectionState.toMeshConnectionStatus(
     ConnectionState.Disconnected -> MeshConnectionStatus.Disconnected
     ConnectionState.Connecting -> MeshConnectionStatus.Connecting(connectingDeviceName)
     ConnectionState.Connected -> MeshConnectionStatus.Connected(
-        nodeId = ourNode?.user?.long_name?.ifBlank { ourNode.user.id } ?: ourNode?.user?.id ?: "",
+        nodeId = ourNode?.user?.id.orEmpty(),
         shortName = ourNode?.user?.short_name.orEmpty(),
+        deviceName = connectingDeviceName,
         rssi = bleRssi,
         batteryLevel = ourNode?.deviceMetrics?.battery_level ?: 0,
     )

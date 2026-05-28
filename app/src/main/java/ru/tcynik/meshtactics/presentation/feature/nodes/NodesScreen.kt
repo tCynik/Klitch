@@ -19,9 +19,9 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.collections.immutable.toImmutableList
 import org.koin.compose.viewmodel.koinViewModel
-import ru.tcynik.meshtactics.presentation.feature.meshtest.components.tabs.GeoNodesTab
-import ru.tcynik.meshtactics.presentation.feature.meshtest.state.GeoNodesTabState
-import ru.tcynik.meshtactics.presentation.feature.meshtest.state.models.GeoNodeUi
+import ru.tcynik.meshtactics.presentation.feature.nodes.components.GeoNodesList
+import ru.tcynik.meshtactics.presentation.feature.nodes.state.GeoNodesListState
+import ru.tcynik.meshtactics.presentation.feature.nodes.state.models.GeoNodeUi
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,15 +51,15 @@ fun NodesScreen(
             state.error != null -> Box(Modifier.fillMaxSize()) {
                 Text(text = state.error.orEmpty(), modifier = Modifier.align(Alignment.Center))
             }
-            else -> GeoNodesTab(
-                state = GeoNodesTabState(
+            else -> GeoNodesList(
+                state = GeoNodesListState(
                     nodes = state.nodes.map { node ->
                         GeoNodeUi(
                             nodeId = node.nodeId,
                             shortName = node.shortName,
                             distanceFormatted = node.distanceMeters?.let { formatDistance(it) } ?: "—",
-                            positionTime = node.positionTime,
-                            groundSpeed = node.groundSpeed,
+                            positionTime = node.positionTime.toLong(),
+                            groundSpeed = node.groundSpeed.toFloat(),
                             groundTrack = node.groundTrack,
                         )
                     }.toImmutableList(),

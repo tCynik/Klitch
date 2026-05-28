@@ -123,6 +123,92 @@
     <string name="leave_settings_dialog_save">Сохранить</string>
     <string name="leave_settings_dialog_discard">Сбросить изменения</string>
 
+    <!-- Network Disconnect Dialog -->
+    <string name="network_disconnect_dialog_title">Отключить ноду?</string>
+    <string name="network_disconnect_dialog_message">Вы уверены, что хотите отключиться от %1$s?</string>
+    <string name="network_disconnect_dialog_message_generic">Вы уверены, что хотите отключиться от устройства?</string>
+    <string name="network_disconnect_dialog_confirm">Отключить</string>
+    <string name="network_disconnect_dialog_dismiss">Отмена</string>
+
+    <!-- Network: connection -->
+    <string name="network_connection_title_scanning">Подключиться к ноде</string>
+    <string name="network_action_collapse">Свернуть</string>
+    <string name="network_action_expand">Развернуть</string>
+    <string name="network_connection_stop_scan">Остановить сканирование</string>
+    <string name="network_connection_start_scan">Начать сканирование</string>
+    <string name="network_connection_no_nodes_found">Ноды для сопряжения не обнаружены</string>
+    <string name="network_connection_nodes_found">Обнаружены ноды (%1$d):</string>
+    <string name="network_connection_unknown_device">Неизвестно</string>
+    <string name="network_connection_rssi">%1$d dBm</string>
+    <string name="network_connection_connecting">Соединение...</string>
+    <string name="network_connection_connect">Подключиться</string>
+
+    <!-- Network: telemetry -->
+    <string name="network_telemetry_title">Телеметрия</string>
+    <string name="network_telemetry_refresh">Обновить</string>
+    <string name="network_telemetry_nodes_title">Ноды (%1$d)</string>
+    <string name="network_telemetry_no_nodes">Ноды ещё не получены.</string>
+    <string name="network_telemetry_no_data">Данные отсутствуют.</string>
+    <string name="network_value_placeholder">—</string>
+    <string name="network_metric_battery">Батарея</string>
+    <string name="network_metric_voltage">Напряжение</string>
+    <string name="network_metric_channel_utilization">Загрузка канала</string>
+    <string name="network_metric_air_util_tx">Эфирное время TX</string>
+    <string name="network_metric_uptime">Время работы</string>
+    <string name="network_metric_battery_percent">%1$d%%</string>
+    <string name="network_node_snr">SNR %1$s</string>
+    <string name="network_node_hops">%1$d хоп%2$s</string>
+    <string name="network_node_hops_suffix_plural"></string>
+
+    <!-- Network: location config -->
+    <string name="network_location_config_title">Настройки геопозиции</string>
+    <string name="network_location_section_phone_to_node">Телефон → Нода</string>
+    <string name="network_location_provide_to_mesh">Передавать геопозицию в сеть</string>
+    <string name="network_location_permission">Разрешение геопозиции</string>
+    <string name="network_location_permission_granted">Выдано</string>
+    <string name="network_location_permission_denied">Отклонено</string>
+    <string name="network_location_section_node_source">Источник позиции ноды</string>
+    <string name="network_location_fixed_position">Фиксированная позиция</string>
+    <string name="network_location_remove">Удалить</string>
+    <string name="network_location_not_set">Не задана</string>
+    <string name="network_location_section_node_broadcast">Нода → Трансляция в сеть</string>
+    <string name="network_location_smart_broadcast">Умная трансляция</string>
+    <string name="network_location_section_flags">Флаги позиции</string>
+    <string name="network_location_section_precision">Точность канала (основной)</string>
+    <string name="network_location_banner_ready">Активно</string>
+    <string name="network_location_banner_warning">Внимание</string>
+    <string name="network_location_banner_blocked">Заблокировано</string>
+    <string name="network_location_banner_ready_details">Передача геопозиции активна</string>
+    <string name="network_location_reason_sharing_disabled">Передача отключена</string>
+    <string name="network_location_reason_permission_denied">Нет разрешения геопозиции</string>
+    <string name="network_location_reason_fixed_active">Фиксированная позиция активна</string>
+    <string name="network_location_reason_precision_zero">Точность канала = 0</string>
+    <string name="network_location_reason_no_flags">Нет флагов позиции</string>
+    <string name="network_location_reason_high_interval">Большой интервал трансляции</string>
+    <string name="network_location_reason_gps_conflict">GPS ноды может перезаписать</string>
+    <string name="network_location_gps_mode">Режим GPS</string>
+    <string name="network_flag_altitude">Высота</string>
+    <string name="network_flag_msl_altitude">Высота MSL</string>
+    <string name="network_flag_sats_in_view">Спутников в зоне</string>
+    <string name="network_flag_seq_no">Порядковый №</string>
+    <string name="network_flag_timestamp">Временная метка</string>
+    <string name="network_flag_heading">Курс</string>
+    <string name="network_flag_speed">Скорость</string>
+    <string name="network_interval_live">Сейчас</string>
+    <string name="network_interval_30s">30 с</string>
+    <string name="network_interval_1m">1 мин</string>
+    <string name="network_interval_2m">2 мин</string>
+    <string name="network_interval_5m">5 мин</string>
+    <string name="network_interval_10m">10 мин</string>
+    <string name="network_interval_15m">15 мин</string>
+    <string name="network_interval_30m">30 мин</string>
+    <string name="network_precision_off">Выкл</string>
+    <string name="network_precision_11km">~11 км</string>
+    <string name="network_precision_14km">~1.4 км</string>
+    <string name="network_precision_170m">~170 м</string>
+    <string name="network_precision_21m">~21 м</string>
+    <string name="network_precision_full">Полная</string>
+
     <!-- Tile Cache Settings -->
     <string name="tile_cache_section_label">Кэш тайлов</string>
     <string name="tile_cache_mode_default">По умолчанию</string>
