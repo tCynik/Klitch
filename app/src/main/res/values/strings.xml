@@ -123,6 +123,13 @@
     <string name="leave_settings_dialog_save">Сохранить</string>
     <string name="leave_settings_dialog_discard">Сбросить изменения</string>
 
+    <!-- Network Disconnect Dialog -->
+    <string name="network_disconnect_dialog_title">Отключить ноду?</string>
+    <string name="network_disconnect_dialog_message">Вы уверены, что хотите отключиться от %1$s?</string>
+    <string name="network_disconnect_dialog_message_generic">Вы уверены, что хотите отключиться от устройства?</string>
+    <string name="network_disconnect_dialog_confirm">Отключить</string>
+    <string name="network_disconnect_dialog_dismiss">Отмена</string>
+
     <!-- Tile Cache Settings -->
     <string name="tile_cache_section_label">Кэш тайлов</string>
     <string name="tile_cache_mode_default">По умолчанию</string>

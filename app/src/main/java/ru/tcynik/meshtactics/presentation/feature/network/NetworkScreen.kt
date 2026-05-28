@@ -30,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.meshtactics.presentation.feature.network.components.CallsignGateDialog
 import ru.tcynik.meshtactics.presentation.feature.network.components.ConnectionContent
+import ru.tcynik.meshtactics.presentation.feature.network.components.DisconnectConfirmDialog
 import ru.tcynik.meshtactics.presentation.feature.network.components.MeshStatusBar
 import ru.tcynik.meshtactics.presentation.feature.network.components.TelemetryContent
 import ru.tcynik.meshtactics.presentation.ui.components.SyncRequiredDialog
@@ -56,6 +57,14 @@ fun NetworkScreen(
         SyncRequiredDialog(
             onConfirm = viewModel::onConfirmChannelSync,
             onDismiss = viewModel::onDismissChannelSync,
+        )
+    }
+
+    if (state.showDisconnectDialog) {
+        DisconnectConfirmDialog(
+            deviceName = state.lastConnectedNodeName,
+            onConfirm = viewModel::onDisconnectConfirmed,
+            onDismiss = viewModel::onDisconnectDismissed,
         )
     }
 

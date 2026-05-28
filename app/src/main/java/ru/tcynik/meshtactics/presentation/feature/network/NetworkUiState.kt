@@ -11,6 +11,7 @@ data class NetworkUiState(
     val connection: NetworkConnectionState = NetworkConnectionState(),
     val telemetry: NetworkTelemetryState = NetworkTelemetryState(),
     val showSyncDialog: Boolean = false,
+    val showDisconnectDialog: Boolean = false,
     val callsignGateDialog: CallsignGateDialogState? = null,
     val isRebooting: Boolean = false,
     val lastConnectedNodeName: String = "",

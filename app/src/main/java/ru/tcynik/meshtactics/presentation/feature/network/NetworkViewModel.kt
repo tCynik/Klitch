@@ -329,7 +329,22 @@ class NetworkViewModel(
     }
 
     fun onDisconnectClick() {
+        when (_uiState.value.connectionStatus) {
+            is MeshConnectionStatusUi.Connected ->
+                _uiState.update { it.copy(showDisconnectDialog = true) }
+            is MeshConnectionStatusUi.Connecting ->
+                viewModelScope.launch { disconnectFromMesh(NoParams) }
+            else -> Unit
+        }
+    }
+
+    fun onDisconnectConfirmed() {
+        _uiState.update { it.copy(showDisconnectDialog = false) }
         viewModelScope.launch { disconnectFromMesh(NoParams) }
+    }
+
+    fun onDisconnectDismissed() {
+        _uiState.update { it.copy(showDisconnectDialog = false) }
     }
 
     fun onRefreshTelemetryClick() {
