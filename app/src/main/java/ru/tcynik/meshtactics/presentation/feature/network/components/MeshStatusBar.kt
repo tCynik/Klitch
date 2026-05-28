@@ -75,7 +75,7 @@ fun MeshStatusBar(
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
                 ) {
                     Text(
-                        text = if (status is MeshConnectionStatusUi.Connecting) "Cancel" else "Disconnect",
+                        text = if (status is MeshConnectionStatusUi.Connecting) "Cancel" else "Отключиться",
                         style = MaterialTheme.typography.labelSmall,
                     )
                 }

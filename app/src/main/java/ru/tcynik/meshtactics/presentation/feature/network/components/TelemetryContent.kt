@@ -53,7 +53,7 @@ fun TelemetryContent(
             enabled = isConnected && !state.isLoading,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Refresh telemetry")
+            Text("Обновить")
         }
 
         Card(

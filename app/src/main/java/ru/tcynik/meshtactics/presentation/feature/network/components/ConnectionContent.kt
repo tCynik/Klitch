@@ -93,7 +93,7 @@ fun ConnectionContent(
                         onClick = onStopScanClick,
                         modifier = Modifier.weight(1f),
                     ) {
-                        Text("Stop Scan")
+                        Text("Остановить сканирование")
                     }
                 } else {
                     Button(
@@ -104,7 +104,7 @@ fun ConnectionContent(
                                 || connectionStatus is MeshConnectionStatusUi.Connected
                                 || connectionStatus is MeshConnectionStatusUi.Error,
                     ) {
-                        Text("Scan for devices")
+                        Text("Начать сканирование")
                     }
                 }
             }
@@ -118,13 +118,13 @@ fun ConnectionContent(
 
             if (state.scannedDevices.isEmpty() && !state.isScanning) {
                 Text(
-                    text = "No devices found. Press Scan to search.",
+                    text = "Ноды для сопряжения не обнаружены",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
                 Text(
-                    text = "Found devices (${state.scannedDevices.size})",
+                    text = "Обнаружены ноды (${state.scannedDevices.size}):",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -179,7 +179,7 @@ private fun BleDeviceRow(
                 onClick = onConnectClick,
                 enabled = !isConnecting,
             ) {
-                Text(if (isConnecting) "Connecting..." else "Connect")
+                Text(if (isConnecting) "Соединение..." else "Подключиться")
             }
         }
     }

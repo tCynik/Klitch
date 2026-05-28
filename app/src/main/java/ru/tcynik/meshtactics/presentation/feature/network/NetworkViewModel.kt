@@ -114,6 +114,7 @@ class NetworkViewModel(
                 else -> status.toUi()
             }
             _uiState.update { state ->
+                val isScanInProgress = status is MeshConnectionStatus.Scanning && !userStoppedScan || scanJob != null
                 state.copy(
                     connectionStatus = uiStatus,
                     lastConnectedNodeName = when (status) {
@@ -123,7 +124,7 @@ class NetworkViewModel(
                         else -> state.lastConnectedNodeName
                     },
                     connection = state.connection.copy(
-                        isScanning = status is MeshConnectionStatus.Scanning && !userStoppedScan,
+                        isScanning = isScanInProgress,
                     ),
                 )
             }
@@ -140,7 +141,7 @@ class NetworkViewModel(
             if (status is MeshConnectionStatus.Scanning && scanJob == null && !isRebooting && !userStoppedScan) {
                 startScan()
             }
-            if (status is MeshConnectionStatus.Connecting || status is MeshConnectionStatus.Connected) {
+            if (status is MeshConnectionStatus.Connecting) {
                 scanJob?.cancel()
                 scanJob = null
             }
@@ -257,9 +258,10 @@ class NetworkViewModel(
     private fun startScan() {
         if (!_uiState.value.networkEnabled) return
         scanJob?.cancel()
+        val shouldSwitchToScanningState = _uiState.value.connectionStatus !is MeshConnectionStatusUi.Connected
         _uiState.update { state ->
             state.copy(
-                connectionStatus = MeshConnectionStatusUi.Scanning,
+                connectionStatus = if (shouldSwitchToScanningState) MeshConnectionStatusUi.Scanning else state.connectionStatus,
                 connection = state.connection.copy(isScanning = true),
             )
         }
@@ -287,7 +289,11 @@ class NetworkViewModel(
         scanJob = null
         _uiState.update { state ->
             state.copy(
-                connectionStatus = MeshConnectionStatusUi.Disconnected,
+                connectionStatus = if (state.connectionStatus is MeshConnectionStatusUi.Connected) {
+                    state.connectionStatus
+                } else {
+                    MeshConnectionStatusUi.Disconnected
+                },
                 connection = state.connection.copy(isScanning = false),
             )
         }
