@@ -31,6 +31,23 @@ import ru.tcynik.meshtactics.presentation.feature.network.state.MeshConnectionSt
 import ru.tcynik.meshtactics.presentation.feature.network.state.MeshNodeUi
 import ru.tcynik.meshtactics.presentation.feature.network.state.NetworkTelemetryState
 
+private const val TITLE_TELEMETRY = "Телеметрия"
+private const val ACTION_COLLAPSE = "Свернуть"
+private const val ACTION_EXPAND = "Развернуть"
+private const val REFRESH_BUTTON_TEXT = "Обновить"
+private const val NODES_TITLE_TEMPLATE = "Ноды (%d)"
+private const val NO_NODES_TEXT = "No nodes received yet."
+private const val NO_DATA_TEXT = "No data yet."
+private const val NO_VALUE_PLACEHOLDER = "—"
+private const val METRIC_BATTERY = "Battery"
+private const val METRIC_VOLTAGE = "Voltage"
+private const val METRIC_CHANNEL_UTILIZATION = "Chan utilization"
+private const val METRIC_AIR_UTIL_TX = "Air util TX"
+private const val METRIC_UPTIME = "Uptime"
+private const val BATTERY_TEMPLATE = "%d%%"
+private const val SNR_TEMPLATE = "SNR %s"
+private const val HOPS_TEMPLATE = "%d hop%s"
+
 @Composable
 fun TelemetryContent(
     state: NetworkTelemetryState,
@@ -48,14 +65,6 @@ fun TelemetryContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        OutlinedButton(
-            onClick = onRefreshClick,
-            enabled = isConnected && !state.isLoading,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Обновить")
-        }
-
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -69,18 +78,26 @@ fun TelemetryContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Телеметрия",
+                        text = TITLE_TELEMETRY,
                         style = MaterialTheme.typography.titleSmall,
                         modifier = Modifier.weight(1f),
                     )
                     Icon(
                         imageVector = if (isTelemetryExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = if (isTelemetryExpanded) "Свернуть" else "Развернуть",
+                        contentDescription = if (isTelemetryExpanded) ACTION_COLLAPSE else ACTION_EXPAND,
                     )
                 }
                 if (isTelemetryExpanded) {
                     Spacer(modifier = Modifier.height(8.dp))
                     DeviceMetricsCard(metrics = state.deviceMetrics)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = onRefreshClick,
+                        enabled = isConnected && !state.isLoading,
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                    ) {
+                        Text(REFRESH_BUTTON_TEXT)
+                    }
                 }
             }
         }
@@ -98,20 +115,20 @@ fun TelemetryContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Ноды (${state.meshNodes.size})",
+                        text = NODES_TITLE_TEMPLATE.format(state.meshNodes.size),
                         style = MaterialTheme.typography.titleSmall,
                         modifier = Modifier.weight(1f),
                     )
                     Icon(
                         imageVector = if (isNodesExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = if (isNodesExpanded) "Свернуть" else "Развернуть",
+                        contentDescription = if (isNodesExpanded) ACTION_COLLAPSE else ACTION_EXPAND,
                     )
                 }
                 if (isNodesExpanded) {
                     Spacer(modifier = Modifier.height(8.dp))
                     if (state.meshNodes.isEmpty()) {
                         Text(
-                            text = "No nodes received yet.",
+                            text = NO_NODES_TEXT,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -135,27 +152,22 @@ private fun DeviceMetricsCard(
 ) {
     Card(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Device Metrics",
-                style = MaterialTheme.typography.titleSmall,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
             if (metrics == null) {
                 Text(
-                    text = "No data yet.",
+                    text = NO_DATA_TEXT,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
-                MetricRow("Battery", metrics.batteryLevel?.let { "$it%" } ?: "—")
+                MetricRow(METRIC_BATTERY, metrics.batteryLevel?.let { BATTERY_TEMPLATE.format(it) } ?: NO_VALUE_PLACEHOLDER)
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                MetricRow("Voltage", metrics.voltage ?: "—")
+                MetricRow(METRIC_VOLTAGE, metrics.voltage ?: NO_VALUE_PLACEHOLDER)
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                MetricRow("Chan utilization", metrics.channelUtilization ?: "—")
+                MetricRow(METRIC_CHANNEL_UTILIZATION, metrics.channelUtilization ?: NO_VALUE_PLACEHOLDER)
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                MetricRow("Air util TX", metrics.airUtilTx ?: "—")
+                MetricRow(METRIC_AIR_UTIL_TX, metrics.airUtilTx ?: NO_VALUE_PLACEHOLDER)
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                MetricRow("Uptime", metrics.uptimeFormatted ?: "—")
+                MetricRow(METRIC_UPTIME, metrics.uptimeFormatted ?: NO_VALUE_PLACEHOLDER)
             }
         }
     }
@@ -211,12 +223,12 @@ private fun MeshNodeRow(
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "SNR ${node.snr}",
+                    text = SNR_TEMPLATE.format(node.snr),
                     style = MaterialTheme.typography.labelSmall,
                 )
                 node.hopsAway?.let {
                     Text(
-                        text = "$it hop${if (it != 1) "s" else ""}",
+                        text = HOPS_TEMPLATE.format(it, if (it != 1) "s" else ""),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
