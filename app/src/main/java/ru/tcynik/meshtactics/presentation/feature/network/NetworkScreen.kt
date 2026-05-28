@@ -32,6 +32,7 @@ import ru.tcynik.meshtactics.presentation.feature.network.components.ConnectionC
 import ru.tcynik.meshtactics.presentation.feature.network.components.DisconnectConfirmDialog
 import ru.tcynik.meshtactics.presentation.feature.network.components.MeshStatusBar
 import ru.tcynik.meshtactics.presentation.feature.network.components.TelemetryContent
+import ru.tcynik.meshtactics.presentation.feature.network.state.MeshConnectionStatusUi
 import ru.tcynik.meshtactics.presentation.ui.components.SyncRequiredDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -120,12 +121,14 @@ fun NetworkScreen(
                         onStopScanClick = viewModel::onStopScanClick,
                         onConnectClick = viewModel::onConnectClick,
                     )
-                    HorizontalDivider()
-                    TelemetryContent(
-                        state = state.telemetry,
-                        connectionStatus = state.connectionStatus,
-                        onRefreshClick = viewModel::onRefreshTelemetryClick,
-                    )
+                    if (state.connectionStatus is MeshConnectionStatusUi.Connected) {
+                        HorizontalDivider()
+                        TelemetryContent(
+                            state = state.telemetry,
+                            connectionStatus = state.connectionStatus,
+                            onRefreshClick = viewModel::onRefreshTelemetryClick,
+                        )
+                    }
                 }
             } else {
                 Box(
