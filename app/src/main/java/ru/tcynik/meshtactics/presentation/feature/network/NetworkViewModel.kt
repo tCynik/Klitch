@@ -68,6 +68,7 @@ class NetworkViewModel(
     private var wasConnected = false
     private var rebootDisconnectObserved = false
     private var userStoppedScan = false
+    private var pendingConnectAddress: String? = null
 
     init {
         observeNetworkEnabled(NoParams)
@@ -129,6 +130,18 @@ class NetworkViewModel(
                 )
             }
             if (status is MeshConnectionStatus.Connected) {
+                pendingConnectAddress?.let { connectedAddress ->
+                    _uiState.update { state ->
+                        state.copy(
+                            connection = state.connection.copy(
+                                scannedDevices = state.connection.scannedDevices
+                                    .filterNot { it.address == connectedAddress }
+                                    .toImmutableList(),
+                            )
+                        )
+                    }
+                    pendingConnectAddress = null
+                }
                 if (!wasConnected && !isRebooting) {
                     viewModelScope.launch {
                         if (checkContourSync() is NodeSyncResult.NeedsSync) {
@@ -318,6 +331,7 @@ class NetworkViewModel(
 
     private suspend fun connectToPendingDevice(address: String, deviceName: String) {
         if (!_uiState.value.networkEnabled) return
+        pendingConnectAddress = address
         logger.i("App", "DBG onConnectClick: address=$address name=$deviceName")
         _uiState.update { state ->
             state.copy(
@@ -327,6 +341,7 @@ class NetworkViewModel(
         }
         runCatching { connectToDevice(ConnectToMeshDeviceParams(address, deviceName)) }
             .onFailure { e ->
+                pendingConnectAddress = null
                 logger.e("App", "DBG onConnectClick: connectToDevice failed: ${e.message}", e)
                 _uiState.update {
                     it.copy(connectionStatus = MeshConnectionStatusUi.Error(e.message ?: "Connection failed"))
