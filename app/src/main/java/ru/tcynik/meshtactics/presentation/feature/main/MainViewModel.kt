@@ -1062,6 +1062,7 @@ class MainViewModel(
     }
 
     private fun buildNodeStatusColor(state: MainUiState): Color {
+        if (!state.networkEnabled) return Color.Gray
         if (state.isRebooting) return Color.Yellow
         return when (val status = state.connectionStatus) {
             is MeshConnectionStatus.Connected ->
