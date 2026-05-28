@@ -204,6 +204,7 @@ class MainViewModelHudWarningTest {
     private val connectedStatus = MeshConnectionStatus.Connected(
         nodeId = "!aabbccdd",
         shortName = "ТЕ",
+        deviceName = "Meshtastic TE",
         rssi = -70,
         batteryLevel = 80,
     )

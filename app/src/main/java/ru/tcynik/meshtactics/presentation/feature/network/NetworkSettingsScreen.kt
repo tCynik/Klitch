@@ -26,7 +26,9 @@ fun NetworkSettingsScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val title = when (val connectionStatus = state.connectionStatus) {
-        is MeshConnectionStatusUi.Connected -> "Нода ${connectionStatus.nodeId}"
+        is MeshConnectionStatusUi.Connected -> {
+            connectionStatus.deviceName.ifBlank { "Настройки ноды" }
+        }
         else -> "Настройки ноды"
     }
 

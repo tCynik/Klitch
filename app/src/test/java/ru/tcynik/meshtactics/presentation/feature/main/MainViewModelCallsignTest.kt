@@ -238,7 +238,11 @@ class MainViewModelCallsignTest {
     @Test
     fun `повторное подключение с InSync сбрасывает syncRequired через clear`() = runTest(testDispatcher) {
         val connected = MeshConnectionStatus.Connected(
-            nodeId = "!aabbccdd", shortName = "TS", rssi = -70, batteryLevel = 80,
+            nodeId = "!aabbccdd",
+            shortName = "TS",
+            deviceName = "Meshtastic TS",
+            rssi = -70,
+            batteryLevel = 80,
         )
         appUserFlow.value = AppUser(displayName = "Alpha")
         coEvery { checkNodeSync.invoke() } returns NodeSyncResult.NeedsSync

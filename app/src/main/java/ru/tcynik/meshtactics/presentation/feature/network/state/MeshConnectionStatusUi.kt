@@ -7,6 +7,7 @@ sealed interface MeshConnectionStatusUi {
     data class Connecting(val deviceName: String) : MeshConnectionStatusUi
     data class Connected(
         val nodeId: String,
+        val deviceName: String,
         val rssi: Int,
         val batteryLevel: Int?,
     ) : MeshConnectionStatusUi

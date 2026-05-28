@@ -221,7 +221,7 @@ class MainViewModelGeoMarkAddresseeTest {
     @Test
     fun `connected with Basic active — default addressee is Basic`() = runTest(testDispatcher) {
         channelsFlow.value = listOf(makeBasicContour())
-        connectionStatusFlow.value = MeshConnectionStatus.Connected("!abc", "SN", -70, 80)
+        connectionStatusFlow.value = MeshConnectionStatus.Connected("!abc", "SN", "Meshtastic SN", -70, 80)
         assertEquals(DefaultActiveContour.ID.value, viewModel.geoMarksSheetUiState.value.selectedContourId)
     }
 
@@ -230,7 +230,7 @@ class MainViewModelGeoMarkAddresseeTest {
         prefsFlow.value = GeoMarkFormPreferences(selectedContourId = GEO_MARK_LOCAL_STORAGE_ID)
         viewModel = createViewModel()
         channelsFlow.value = listOf(makeBasicContour())
-        connectionStatusFlow.value = MeshConnectionStatus.Connected("!abc", "SN", -70, 80)
+        connectionStatusFlow.value = MeshConnectionStatus.Connected("!abc", "SN", "Meshtastic SN", -70, 80)
         assertEquals(DefaultActiveContour.ID.value, viewModel.geoMarksSheetUiState.value.selectedContourId)
     }
 
@@ -240,14 +240,14 @@ class MainViewModelGeoMarkAddresseeTest {
         prefsFlow.value = GeoMarkFormPreferences(selectedContourId = customId)
         viewModel = createViewModel()
         channelsFlow.value = listOf(makeBasicContour(), makeCustomContour(customId))
-        connectionStatusFlow.value = MeshConnectionStatus.Connected("!abc", "SN", -70, 80)
+        connectionStatusFlow.value = MeshConnectionStatus.Connected("!abc", "SN", "Meshtastic SN", -70, 80)
         assertEquals(customId, viewModel.geoMarksSheetUiState.value.selectedContourId)
     }
 
     @Test
     fun `setAddressee storage while connected — keeps storage in session`() = runTest(testDispatcher) {
         channelsFlow.value = listOf(makeBasicContour())
-        connectionStatusFlow.value = MeshConnectionStatus.Connected("!abc", "SN", -70, 80)
+        connectionStatusFlow.value = MeshConnectionStatus.Connected("!abc", "SN", "Meshtastic SN", -70, 80)
         viewModel.setAddressee(GEO_MARK_LOCAL_STORAGE_ID)
         assertEquals(GEO_MARK_LOCAL_STORAGE_ID, viewModel.geoMarksSheetUiState.value.selectedContourId)
     }

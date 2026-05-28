@@ -118,7 +118,8 @@ class NetworkViewModel(
                     connectionStatus = uiStatus,
                     lastConnectedNodeName = when (status) {
                         is MeshConnectionStatus.Connecting -> status.deviceName
-                        is MeshConnectionStatus.Connected -> state.lastConnectedNodeName.ifBlank { status.nodeId }
+                        is MeshConnectionStatus.Connected -> status.deviceName
+                            .ifBlank { state.lastConnectedNodeName }
                         else -> state.lastConnectedNodeName
                     },
                     connection = state.connection.copy(
@@ -341,7 +342,12 @@ class NetworkViewModel(
         MeshConnectionStatus.Disconnected -> MeshConnectionStatusUi.Disconnected
         MeshConnectionStatus.Scanning -> MeshConnectionStatusUi.Scanning
         is MeshConnectionStatus.Connecting -> MeshConnectionStatusUi.Connecting(deviceName)
-        is MeshConnectionStatus.Connected -> MeshConnectionStatusUi.Connected(nodeId, rssi, batteryLevel)
+        is MeshConnectionStatus.Connected -> MeshConnectionStatusUi.Connected(
+            nodeId = nodeId,
+            deviceName = deviceName,
+            rssi = rssi,
+            batteryLevel = batteryLevel,
+        )
         MeshConnectionStatus.DeviceSleep -> MeshConnectionStatusUi.Connecting("Sleeping…")
         is MeshConnectionStatus.Error -> MeshConnectionStatusUi.Error(message)
     }

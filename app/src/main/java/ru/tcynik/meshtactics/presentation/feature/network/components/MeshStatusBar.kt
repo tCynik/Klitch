@@ -118,6 +118,6 @@ private fun statusLabel(status: MeshConnectionStatusUi, rebootingNodeName: Strin
         if (rebootingNodeName.isNotBlank()) "$rebootingNodeName - Перезагрузка..."
         else "Перезагрузка..."
     is MeshConnectionStatusUi.Connecting -> "Connecting to ${status.deviceName}..."
-    is MeshConnectionStatusUi.Connected -> rebootingNodeName.ifBlank { status.nodeId }
+    is MeshConnectionStatusUi.Connected -> rebootingNodeName.ifBlank { status.deviceName }.ifBlank { status.nodeId }
     is MeshConnectionStatusUi.Error -> "Error: ${status.message}"
 }

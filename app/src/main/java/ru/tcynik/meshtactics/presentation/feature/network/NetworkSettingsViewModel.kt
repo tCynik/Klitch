@@ -260,7 +260,12 @@ class NetworkSettingsViewModel(
         MeshConnectionStatus.Disconnected -> MeshConnectionStatusUi.Disconnected
         MeshConnectionStatus.Scanning -> MeshConnectionStatusUi.Scanning
         is MeshConnectionStatus.Connecting -> MeshConnectionStatusUi.Connecting(deviceName)
-        is MeshConnectionStatus.Connected -> MeshConnectionStatusUi.Connected(nodeId, rssi, batteryLevel)
+        is MeshConnectionStatus.Connected -> MeshConnectionStatusUi.Connected(
+            nodeId = nodeId,
+            deviceName = deviceName,
+            rssi = rssi,
+            batteryLevel = batteryLevel,
+        )
         MeshConnectionStatus.DeviceSleep -> MeshConnectionStatusUi.Connecting("Sleeping…")
         is MeshConnectionStatus.Error -> MeshConnectionStatusUi.Error(message)
     }
