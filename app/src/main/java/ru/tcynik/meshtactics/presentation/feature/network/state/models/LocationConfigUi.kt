@@ -36,6 +36,12 @@ data class LocationConfigUi(
 
 enum class GpsModeUi { DISABLED, ENABLED, NOT_PRESENT }
 
+object LocationConfigOptions {
+    val broadcastIntervalSecs = listOf(15, 30, 60, 120, 300, 600, 900, 1800)
+    val channelPrecisionBits = listOf(0, 10, 13, 16, 19, 32)
+    val positionFlagBits = listOf(1, 2, 32, 64, 128, 256, 512)
+}
+
 enum class BlockReason {
     PROVIDE_LOCATION_DISABLED,
     LOCATION_PERMISSION_DENIED,

@@ -20,12 +20,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.presentation.feature.network.state.models.BlockReason
 import ru.tcynik.meshtactics.presentation.feature.network.state.models.GpsModeUi
+import ru.tcynik.meshtactics.presentation.feature.network.state.models.LocationConfigOptions
 import ru.tcynik.meshtactics.presentation.feature.network.state.models.LocationConfigUi
 import ru.tcynik.meshtactics.presentation.feature.network.state.models.LocationSharingStatus
 
@@ -158,11 +158,15 @@ fun LocationConfigCard(
 @Composable
 private fun ReadinessBanner(status: LocationSharingStatus, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val errorColor = MaterialTheme.colorScheme.error
     val backgroundColor = when (status) {
-        is LocationSharingStatus.Ready -> Color(0xFF2E7D32)
-        is LocationSharingStatus.Warning -> Color(0xFFF57F17)
-        is LocationSharingStatus.Blocked -> errorColor
+        is LocationSharingStatus.Ready -> MaterialTheme.colorScheme.tertiary
+        is LocationSharingStatus.Warning -> MaterialTheme.colorScheme.secondary
+        is LocationSharingStatus.Blocked -> MaterialTheme.colorScheme.error
+    }
+    val contentColor = when (status) {
+        is LocationSharingStatus.Ready -> MaterialTheme.colorScheme.onTertiary
+        is LocationSharingStatus.Warning -> MaterialTheme.colorScheme.onSecondary
+        is LocationSharingStatus.Blocked -> MaterialTheme.colorScheme.onError
     }
     val label = when (status) {
         is LocationSharingStatus.Ready -> stringResource(R.string.network_location_banner_ready)
@@ -177,19 +181,12 @@ private fun ReadinessBanner(status: LocationSharingStatus, modifier: Modifier = 
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = backgroundColor,
+        contentColor = contentColor,
         shape = MaterialTheme.shapes.small,
     ) {
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge,
-                color = Color.White,
-            )
-            Text(
-                text = details,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White,
-            )
+            Text(text = label, style = MaterialTheme.typography.labelLarge)
+            Text(text = details, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -281,15 +278,16 @@ private fun PositionFlagsSection(
     enabled: Boolean,
     onFlagsChange: (Int) -> Unit,
 ) {
-    val flagDefs = listOf(
-        1 to stringResource(R.string.network_flag_altitude),
-        2 to stringResource(R.string.network_flag_msl_altitude),
-        32 to stringResource(R.string.network_flag_sats_in_view),
-        64 to stringResource(R.string.network_flag_seq_no),
-        128 to stringResource(R.string.network_flag_timestamp),
-        256 to stringResource(R.string.network_flag_heading),
-        512 to stringResource(R.string.network_flag_speed),
+    val flagLabels = listOf(
+        stringResource(R.string.network_flag_altitude),
+        stringResource(R.string.network_flag_msl_altitude),
+        stringResource(R.string.network_flag_sats_in_view),
+        stringResource(R.string.network_flag_seq_no),
+        stringResource(R.string.network_flag_timestamp),
+        stringResource(R.string.network_flag_heading),
+        stringResource(R.string.network_flag_speed),
     )
+    val flagDefs = LocationConfigOptions.positionFlagBits.zip(flagLabels)
     Column {
         flagDefs.forEach { (bit, label) ->
             Row(
@@ -321,16 +319,17 @@ private fun BroadcastIntervalRow(
     enabled: Boolean,
     onChanged: (Int) -> Unit,
 ) {
-    val options = listOf(
-        15 to stringResource(R.string.network_interval_live),
-        30 to stringResource(R.string.network_interval_30s),
-        60 to stringResource(R.string.network_interval_1m),
-        120 to stringResource(R.string.network_interval_2m),
-        300 to stringResource(R.string.network_interval_5m),
-        600 to stringResource(R.string.network_interval_10m),
-        900 to stringResource(R.string.network_interval_15m),
-        1800 to stringResource(R.string.network_interval_30m),
+    val intervalLabels = listOf(
+        stringResource(R.string.network_interval_live),
+        stringResource(R.string.network_interval_30s),
+        stringResource(R.string.network_interval_1m),
+        stringResource(R.string.network_interval_2m),
+        stringResource(R.string.network_interval_5m),
+        stringResource(R.string.network_interval_10m),
+        stringResource(R.string.network_interval_15m),
+        stringResource(R.string.network_interval_30m),
     )
+    val options = LocationConfigOptions.broadcastIntervalSecs.zip(intervalLabels)
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         options.chunked(4).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -363,14 +362,15 @@ private fun PrecisionRow(
     enabled: Boolean,
     onChanged: (Int) -> Unit,
 ) {
-    val options = listOf(
-        0 to stringResource(R.string.network_precision_off),
-        10 to stringResource(R.string.network_precision_11km),
-        13 to stringResource(R.string.network_precision_14km),
-        16 to stringResource(R.string.network_precision_170m),
-        19 to stringResource(R.string.network_precision_21m),
-        32 to stringResource(R.string.network_precision_full),
+    val precisionLabels = listOf(
+        stringResource(R.string.network_precision_off),
+        stringResource(R.string.network_precision_11km),
+        stringResource(R.string.network_precision_14km),
+        stringResource(R.string.network_precision_170m),
+        stringResource(R.string.network_precision_21m),
+        stringResource(R.string.network_precision_full),
     )
+    val options = LocationConfigOptions.channelPrecisionBits.zip(precisionLabels)
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         options.chunked(3).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {

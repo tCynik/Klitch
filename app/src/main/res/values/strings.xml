@@ -131,7 +131,7 @@
     <string name="network_disconnect_dialog_dismiss">Отмена</string>
 
     <!-- Network: connection -->
-    <string name="network_connection_title_scanning">Сканирование</string>
+    <string name="network_connection_title_scanning">Подключиться к ноде</string>
     <string name="network_action_collapse">Свернуть</string>
     <string name="network_action_expand">Развернуть</string>
     <string name="network_connection_stop_scan">Остановить сканирование</string>
