@@ -6,8 +6,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -23,6 +27,7 @@ fun MeshStatusBar(
     status: MeshConnectionStatusUi,
     rebootingNodeName: String,
     onDisconnectClick: () -> Unit,
+    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -73,6 +78,18 @@ fun MeshStatusBar(
                         text = if (status is MeshConnectionStatusUi.Connecting) "Cancel" else "Disconnect",
                         style = MaterialTheme.typography.labelSmall,
                     )
+                }
+                if (status is MeshConnectionStatusUi.Connected) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    IconButton(
+                        onClick = onSettingsClick,
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Настройки ноды",
+                        )
+                    }
                 }
             }
         }

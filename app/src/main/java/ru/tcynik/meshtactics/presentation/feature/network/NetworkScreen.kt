@@ -11,7 +11,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -33,7 +32,6 @@ import ru.tcynik.meshtactics.presentation.feature.network.components.CallsignGat
 import ru.tcynik.meshtactics.presentation.feature.network.components.ConnectionContent
 import ru.tcynik.meshtactics.presentation.feature.network.components.MeshStatusBar
 import ru.tcynik.meshtactics.presentation.feature.network.components.TelemetryContent
-import ru.tcynik.meshtactics.presentation.feature.network.state.MeshConnectionStatusUi
 import ru.tcynik.meshtactics.presentation.ui.components.SyncRequiredDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,7 +42,6 @@ fun NetworkScreen(
     viewModel: NetworkViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val isNodeConnected = state.connectionStatus is MeshConnectionStatusUi.Connected
 
     state.callsignGateDialog?.let { dialog ->
         CallsignGateDialog(
@@ -71,14 +68,6 @@ fun NetworkScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 },
-                actions = {
-                    IconButton(
-                        onClick = onNavigateToSettings,
-                        enabled = isNodeConnected,
-                    ) {
-                        Icon(Icons.Default.Settings, contentDescription = "Настройки")
-                    }
-                },
             )
         },
     ) { padding ->
@@ -103,6 +92,7 @@ fun NetworkScreen(
                         status = state.connectionStatus,
                         rebootingNodeName = state.lastConnectedNodeName,
                         onDisconnectClick = viewModel::onDisconnectClick,
+                        onSettingsClick = onNavigateToSettings,
                     )
                     HorizontalDivider()
                     ConnectionContent(

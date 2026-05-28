@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.meshtactics.presentation.feature.network.components.NetworkSettingsContent
+import ru.tcynik.meshtactics.presentation.feature.network.state.MeshConnectionStatusUi
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,11 +25,15 @@ fun NetworkSettingsScreen(
     viewModel: NetworkSettingsViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val title = when (val connectionStatus = state.connectionStatus) {
+        is MeshConnectionStatusUi.Connected -> "Нода ${connectionStatus.nodeId}"
+        else -> "Настройки ноды"
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Настройки сети") },
+                title = { Text(title) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
