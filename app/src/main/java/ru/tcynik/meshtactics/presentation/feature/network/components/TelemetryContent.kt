@@ -7,12 +7,22 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.clickable
+import androidx.compose.animation.animateContentSize
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -29,6 +39,8 @@ fun TelemetryContent(
     modifier: Modifier = Modifier,
 ) {
     val isConnected = connectionStatus is MeshConnectionStatusUi.Connected
+    var isTelemetryExpanded by rememberSaveable { mutableStateOf(false) }
+    var isNodesExpanded by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -36,11 +48,6 @@ fun TelemetryContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            text = "Телеметрия",
-            style = MaterialTheme.typography.titleSmall,
-        )
-
         OutlinedButton(
             onClick = onRefreshClick,
             enabled = isConnected && !state.isLoading,
@@ -49,28 +56,75 @@ fun TelemetryContent(
             Text("Refresh telemetry")
         }
 
-        DeviceMetricsCard(metrics = state.deviceMetrics)
-
-        Text(
-            text = "Mesh nodes (${state.meshNodes.size})",
-            style = MaterialTheme.typography.titleSmall,
-        )
-
-        if (state.meshNodes.isEmpty()) {
-            Text(
-                text = "No nodes received yet.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                state.meshNodes.forEach { node ->
-                    MeshNodeRow(node = node)
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .animateContentSize(),
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { isTelemetryExpanded = !isTelemetryExpanded },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Телеметрия",
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Icon(
+                        imageVector = if (isTelemetryExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (isTelemetryExpanded) "Свернуть" else "Развернуть",
+                    )
+                }
+                if (isTelemetryExpanded) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    DeviceMetricsCard(metrics = state.deviceMetrics)
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .animateContentSize(),
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { isNodesExpanded = !isNodesExpanded },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Ноды (${state.meshNodes.size})",
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Icon(
+                        imageVector = if (isNodesExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (isNodesExpanded) "Свернуть" else "Развернуть",
+                    )
+                }
+                if (isNodesExpanded) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (state.meshNodes.isEmpty()) {
+                        Text(
+                            text = "No nodes received yet.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            state.meshNodes.forEach { node ->
+                                MeshNodeRow(node = node)
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
