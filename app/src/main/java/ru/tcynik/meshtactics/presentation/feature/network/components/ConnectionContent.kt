@@ -19,6 +19,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -28,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.presentation.feature.network.state.BleDeviceUi
 import ru.tcynik.meshtactics.presentation.feature.network.state.MeshConnectionStatusUi
 import ru.tcynik.meshtactics.presentation.feature.network.state.NetworkConnectionState
@@ -70,13 +72,17 @@ fun ConnectionContent(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Сканирование",
+                    text = stringResource(R.string.network_connection_title_scanning),
                     style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.weight(1f),
                 )
                 Icon(
                     imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = if (isExpanded) "Свернуть" else "Развернуть",
+                    contentDescription = if (isExpanded) {
+                        stringResource(R.string.network_action_collapse)
+                    } else {
+                        stringResource(R.string.network_action_expand)
+                    },
                 )
             }
 
@@ -93,7 +99,7 @@ fun ConnectionContent(
                         onClick = onStopScanClick,
                         modifier = Modifier.weight(1f),
                     ) {
-                        Text("Остановить сканирование")
+                        Text(stringResource(R.string.network_connection_stop_scan))
                     }
                 } else {
                     Button(
@@ -104,7 +110,7 @@ fun ConnectionContent(
                                 || connectionStatus is MeshConnectionStatusUi.Connected
                                 || connectionStatus is MeshConnectionStatusUi.Error,
                     ) {
-                        Text("Начать сканирование")
+                        Text(stringResource(R.string.network_connection_start_scan))
                     }
                 }
             }
@@ -118,13 +124,13 @@ fun ConnectionContent(
 
             if (state.scannedDevices.isEmpty() && !state.isScanning) {
                 Text(
-                    text = "Ноды для сопряжения не обнаружены",
+                    text = stringResource(R.string.network_connection_no_nodes_found),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
                 Text(
-                    text = "Обнаружены ноды (${state.scannedDevices.size}):",
+                    text = stringResource(R.string.network_connection_nodes_found, state.scannedDevices.size),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -160,7 +166,7 @@ private fun BleDeviceRow(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = device.name.ifBlank { "Unknown" },
+                    text = device.name.ifBlank { stringResource(R.string.network_connection_unknown_device) },
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(
@@ -170,7 +176,7 @@ private fun BleDeviceRow(
                 )
             }
             Text(
-                text = "${device.rssi} dBm",
+                text = stringResource(R.string.network_connection_rssi, device.rssi),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(end = 12.dp),
@@ -179,7 +185,13 @@ private fun BleDeviceRow(
                 onClick = onConnectClick,
                 enabled = !isConnecting,
             ) {
-                Text(if (isConnecting) "Соединение..." else "Подключиться")
+                Text(
+                    if (isConnecting) {
+                        stringResource(R.string.network_connection_connecting)
+                    } else {
+                        stringResource(R.string.network_connection_connect)
+                    }
+                )
             }
         }
     }

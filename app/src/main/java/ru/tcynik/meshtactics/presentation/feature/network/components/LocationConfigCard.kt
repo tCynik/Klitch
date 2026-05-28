@@ -1,5 +1,6 @@
 package ru.tcynik.meshtactics.presentation.feature.network.components
 
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,10 +17,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.presentation.feature.network.state.models.BlockReason
 import ru.tcynik.meshtactics.presentation.feature.network.state.models.GpsModeUi
 import ru.tcynik.meshtactics.presentation.feature.network.state.models.LocationConfigUi
@@ -40,7 +44,10 @@ fun LocationConfigCard(
 ) {
     Card(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(text = "Location Config", style = MaterialTheme.typography.titleSmall)
+            Text(
+                text = stringResource(R.string.network_location_config_title),
+                style = MaterialTheme.typography.titleSmall,
+            )
             Spacer(modifier = Modifier.height(8.dp))
 
             ReadinessBanner(status = config.sharingStatus)
@@ -48,8 +55,8 @@ fun LocationConfigCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             // Section A: Phone → Node
-            SectionHeader("Phone → Node")
-            SettingsRow(label = "Provide location to mesh") {
+            SectionHeader(stringResource(R.string.network_location_section_phone_to_node))
+            SettingsRow(label = stringResource(R.string.network_location_provide_to_mesh)) {
                 Switch(
                     checked = config.provideLocationToMesh,
                     onCheckedChange = { onProvideLocationToggle(it) },
@@ -57,9 +64,13 @@ fun LocationConfigCard(
                 )
             }
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-            SettingsRow(label = "Location permission") {
+            SettingsRow(label = stringResource(R.string.network_location_permission)) {
                 Text(
-                    text = if (config.hasLocationPermission) "Granted" else "Denied",
+                    text = if (config.hasLocationPermission) {
+                        stringResource(R.string.network_location_permission_granted)
+                    } else {
+                        stringResource(R.string.network_location_permission_denied)
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (config.hasLocationPermission)
                         MaterialTheme.colorScheme.primary
@@ -73,24 +84,24 @@ fun LocationConfigCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Section B: Node Position Source
-            SectionHeader("Node Position Source")
+            SectionHeader(stringResource(R.string.network_location_section_node_source))
             GpsModeRow(
                 current = config.gpsMode,
                 enabled = isConnected,
                 onChanged = onGpsModeChange,
             )
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-            SettingsRow(label = "Fixed position") {
+            SettingsRow(label = stringResource(R.string.network_location_fixed_position)) {
                 if (config.fixedPositionEnabled) {
                     Button(
                         onClick = onRemoveFixedPosition,
                         enabled = isConnected,
                     ) {
-                        Text("Remove")
+                        Text(stringResource(R.string.network_location_remove))
                     }
                 } else {
                     Text(
-                        text = "Not set",
+                        text = stringResource(R.string.network_location_not_set),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -102,14 +113,14 @@ fun LocationConfigCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Section C: Node → Mesh Broadcast
-            SectionHeader("Node → Mesh Broadcast")
+            SectionHeader(stringResource(R.string.network_location_section_node_broadcast))
             BroadcastIntervalRow(
                 current = config.broadcastIntervalSecs,
                 enabled = isConnected,
                 onChanged = onBroadcastIntervalChange,
             )
             Spacer(modifier = Modifier.height(4.dp))
-            SettingsRow(label = "Smart broadcast") {
+            SettingsRow(label = stringResource(R.string.network_location_smart_broadcast)) {
                 Switch(
                     checked = config.smartBroadcastEnabled,
                     onCheckedChange = { onSmartBroadcastToggle(it) },
@@ -122,7 +133,7 @@ fun LocationConfigCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Section D: Position Payload Flags
-            SectionHeader("Position Flags")
+            SectionHeader(stringResource(R.string.network_location_section_flags))
             PositionFlagsSection(
                 flags = config.positionFlags,
                 enabled = isConnected,
@@ -134,7 +145,7 @@ fun LocationConfigCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Section E: Channel Position Precision
-            SectionHeader("Channel Precision (primary)")
+            SectionHeader(stringResource(R.string.network_location_section_precision))
             PrecisionRow(
                 current = config.primaryChannelPositionPrecision,
                 enabled = isConnected,
@@ -146,6 +157,7 @@ fun LocationConfigCard(
 
 @Composable
 private fun ReadinessBanner(status: LocationSharingStatus, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
     val errorColor = MaterialTheme.colorScheme.error
     val backgroundColor = when (status) {
         is LocationSharingStatus.Ready -> Color(0xFF2E7D32)
@@ -153,14 +165,14 @@ private fun ReadinessBanner(status: LocationSharingStatus, modifier: Modifier = 
         is LocationSharingStatus.Blocked -> errorColor
     }
     val label = when (status) {
-        is LocationSharingStatus.Ready -> "Ready"
-        is LocationSharingStatus.Warning -> "Warning"
-        is LocationSharingStatus.Blocked -> "Blocked"
+        is LocationSharingStatus.Ready -> stringResource(R.string.network_location_banner_ready)
+        is LocationSharingStatus.Warning -> stringResource(R.string.network_location_banner_warning)
+        is LocationSharingStatus.Blocked -> stringResource(R.string.network_location_banner_blocked)
     }
     val details = when (status) {
-        is LocationSharingStatus.Ready -> "Live GPS sharing is active"
-        is LocationSharingStatus.Warning -> status.reasons.joinToString(" · ") { it.toLabel() }
-        is LocationSharingStatus.Blocked -> status.reasons.joinToString(" · ") { it.toLabel() }
+        is LocationSharingStatus.Ready -> stringResource(R.string.network_location_banner_ready_details)
+        is LocationSharingStatus.Warning -> status.reasons.joinToString(" · ") { it.toLabel(context) }
+        is LocationSharingStatus.Blocked -> status.reasons.joinToString(" · ") { it.toLabel(context) }
     }
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -182,14 +194,14 @@ private fun ReadinessBanner(status: LocationSharingStatus, modifier: Modifier = 
     }
 }
 
-private fun BlockReason.toLabel(): String = when (this) {
-    BlockReason.PROVIDE_LOCATION_DISABLED -> "Sharing disabled"
-    BlockReason.LOCATION_PERMISSION_DENIED -> "No location permission"
-    BlockReason.FIXED_POSITION_ACTIVE -> "Fixed position active"
-    BlockReason.CHANNEL_PRECISION_DISABLED -> "Channel precision = 0"
-    BlockReason.NO_POSITION_FLAGS -> "No position flags"
-    BlockReason.BROADCAST_INTERVAL_HIGH -> "High broadcast interval"
-    BlockReason.GPS_MODE_CONFLICT -> "Node GPS may overwrite"
+private fun BlockReason.toLabel(context: Context): String = when (this) {
+    BlockReason.PROVIDE_LOCATION_DISABLED -> context.getString(R.string.network_location_reason_sharing_disabled)
+    BlockReason.LOCATION_PERMISSION_DENIED -> context.getString(R.string.network_location_reason_permission_denied)
+    BlockReason.FIXED_POSITION_ACTIVE -> context.getString(R.string.network_location_reason_fixed_active)
+    BlockReason.CHANNEL_PRECISION_DISABLED -> context.getString(R.string.network_location_reason_precision_zero)
+    BlockReason.NO_POSITION_FLAGS -> context.getString(R.string.network_location_reason_no_flags)
+    BlockReason.BROADCAST_INTERVAL_HIGH -> context.getString(R.string.network_location_reason_high_interval)
+    BlockReason.GPS_MODE_CONFLICT -> context.getString(R.string.network_location_reason_gps_conflict)
 }
 
 @Composable
@@ -237,7 +249,7 @@ private fun GpsModeRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "GPS mode",
+            text = stringResource(R.string.network_location_gps_mode),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
@@ -270,13 +282,13 @@ private fun PositionFlagsSection(
     onFlagsChange: (Int) -> Unit,
 ) {
     val flagDefs = listOf(
-        1 to "Altitude",
-        2 to "MSL Altitude",
-        32 to "Sats in view",
-        64 to "Seq no",
-        128 to "Timestamp",
-        256 to "Heading ⭐",
-        512 to "Speed ⭐",
+        1 to stringResource(R.string.network_flag_altitude),
+        2 to stringResource(R.string.network_flag_msl_altitude),
+        32 to stringResource(R.string.network_flag_sats_in_view),
+        64 to stringResource(R.string.network_flag_seq_no),
+        128 to stringResource(R.string.network_flag_timestamp),
+        256 to stringResource(R.string.network_flag_heading),
+        512 to stringResource(R.string.network_flag_speed),
     )
     Column {
         flagDefs.forEach { (bit, label) ->
@@ -303,25 +315,24 @@ private fun PositionFlagsSection(
     }
 }
 
-private val BROADCAST_INTERVAL_OPTIONS = listOf(
-    15   to "Live",
-    30   to "30s",
-    60   to "1 min",
-    120  to "2 min",
-    300  to "5 min",
-    600  to "10 min",
-    900  to "15 min",
-    1800 to "30 min",
-)
-
 @Composable
 private fun BroadcastIntervalRow(
     current: Int,
     enabled: Boolean,
     onChanged: (Int) -> Unit,
 ) {
+    val options = listOf(
+        15 to stringResource(R.string.network_interval_live),
+        30 to stringResource(R.string.network_interval_30s),
+        60 to stringResource(R.string.network_interval_1m),
+        120 to stringResource(R.string.network_interval_2m),
+        300 to stringResource(R.string.network_interval_5m),
+        600 to stringResource(R.string.network_interval_10m),
+        900 to stringResource(R.string.network_interval_15m),
+        1800 to stringResource(R.string.network_interval_30m),
+    )
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        BROADCAST_INTERVAL_OPTIONS.chunked(4).forEach { row ->
+        options.chunked(4).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 row.forEach { (value, label) ->
                     val selected = value == current
@@ -346,23 +357,22 @@ private fun BroadcastIntervalRow(
     }
 }
 
-private val PRECISION_OPTIONS = listOf(
-    0 to "Off",
-    10 to "~11 km",
-    13 to "~1.4 km",
-    16 to "~170 m",
-    19 to "~21 m",
-    32 to "Full",
-)
-
 @Composable
 private fun PrecisionRow(
     current: Int,
     enabled: Boolean,
     onChanged: (Int) -> Unit,
 ) {
+    val options = listOf(
+        0 to stringResource(R.string.network_precision_off),
+        10 to stringResource(R.string.network_precision_11km),
+        13 to stringResource(R.string.network_precision_14km),
+        16 to stringResource(R.string.network_precision_170m),
+        19 to stringResource(R.string.network_precision_21m),
+        32 to stringResource(R.string.network_precision_full),
+    )
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        PRECISION_OPTIONS.chunked(3).forEach { row ->
+        options.chunked(3).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 row.forEach { (value, label) ->
                     val selected = value == current

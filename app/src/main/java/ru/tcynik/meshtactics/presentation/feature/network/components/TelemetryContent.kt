@@ -25,28 +25,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.presentation.feature.network.state.DeviceMetricsUi
 import ru.tcynik.meshtactics.presentation.feature.network.state.MeshConnectionStatusUi
 import ru.tcynik.meshtactics.presentation.feature.network.state.MeshNodeUi
 import ru.tcynik.meshtactics.presentation.feature.network.state.NetworkTelemetryState
-
-private const val TITLE_TELEMETRY = "Телеметрия"
-private const val ACTION_COLLAPSE = "Свернуть"
-private const val ACTION_EXPAND = "Развернуть"
-private const val REFRESH_BUTTON_TEXT = "Обновить"
-private const val NODES_TITLE_TEMPLATE = "Ноды (%d)"
-private const val NO_NODES_TEXT = "No nodes received yet."
-private const val NO_DATA_TEXT = "No data yet."
-private const val NO_VALUE_PLACEHOLDER = "—"
-private const val METRIC_BATTERY = "Battery"
-private const val METRIC_VOLTAGE = "Voltage"
-private const val METRIC_CHANNEL_UTILIZATION = "Chan utilization"
-private const val METRIC_AIR_UTIL_TX = "Air util TX"
-private const val METRIC_UPTIME = "Uptime"
-private const val BATTERY_TEMPLATE = "%d%%"
-private const val SNR_TEMPLATE = "SNR %s"
-private const val HOPS_TEMPLATE = "%d hop%s"
 
 @Composable
 fun TelemetryContent(
@@ -78,13 +63,17 @@ fun TelemetryContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = TITLE_TELEMETRY,
+                        text = stringResource(R.string.network_telemetry_title),
                         style = MaterialTheme.typography.titleSmall,
                         modifier = Modifier.weight(1f),
                     )
                     Icon(
                         imageVector = if (isTelemetryExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = if (isTelemetryExpanded) ACTION_COLLAPSE else ACTION_EXPAND,
+                        contentDescription = if (isTelemetryExpanded) {
+                            stringResource(R.string.network_action_collapse)
+                        } else {
+                            stringResource(R.string.network_action_expand)
+                        },
                     )
                 }
                 if (isTelemetryExpanded) {
@@ -96,7 +85,7 @@ fun TelemetryContent(
                         enabled = isConnected && !state.isLoading,
                         modifier = Modifier.align(Alignment.CenterHorizontally),
                     ) {
-                        Text(REFRESH_BUTTON_TEXT)
+                        Text(stringResource(R.string.network_telemetry_refresh))
                     }
                 }
             }
@@ -115,20 +104,24 @@ fun TelemetryContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = NODES_TITLE_TEMPLATE.format(state.meshNodes.size),
+                        text = stringResource(R.string.network_telemetry_nodes_title, state.meshNodes.size),
                         style = MaterialTheme.typography.titleSmall,
                         modifier = Modifier.weight(1f),
                     )
                     Icon(
                         imageVector = if (isNodesExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = if (isNodesExpanded) ACTION_COLLAPSE else ACTION_EXPAND,
+                        contentDescription = if (isNodesExpanded) {
+                            stringResource(R.string.network_action_collapse)
+                        } else {
+                            stringResource(R.string.network_action_expand)
+                        },
                     )
                 }
                 if (isNodesExpanded) {
                     Spacer(modifier = Modifier.height(8.dp))
                     if (state.meshNodes.isEmpty()) {
                         Text(
-                            text = NO_NODES_TEXT,
+                            text = stringResource(R.string.network_telemetry_no_nodes),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -154,20 +147,37 @@ private fun DeviceMetricsCard(
         Column(modifier = Modifier.padding(16.dp)) {
             if (metrics == null) {
                 Text(
-                    text = NO_DATA_TEXT,
+                    text = stringResource(R.string.network_telemetry_no_data),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
-                MetricRow(METRIC_BATTERY, metrics.batteryLevel?.let { BATTERY_TEMPLATE.format(it) } ?: NO_VALUE_PLACEHOLDER)
+                MetricRow(
+                    stringResource(R.string.network_metric_battery),
+                    metrics.batteryLevel?.let {
+                        stringResource(R.string.network_metric_battery_percent, it)
+                    } ?: stringResource(R.string.network_value_placeholder),
+                )
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                MetricRow(METRIC_VOLTAGE, metrics.voltage ?: NO_VALUE_PLACEHOLDER)
+                MetricRow(
+                    stringResource(R.string.network_metric_voltage),
+                    metrics.voltage ?: stringResource(R.string.network_value_placeholder),
+                )
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                MetricRow(METRIC_CHANNEL_UTILIZATION, metrics.channelUtilization ?: NO_VALUE_PLACEHOLDER)
+                MetricRow(
+                    stringResource(R.string.network_metric_channel_utilization),
+                    metrics.channelUtilization ?: stringResource(R.string.network_value_placeholder),
+                )
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                MetricRow(METRIC_AIR_UTIL_TX, metrics.airUtilTx ?: NO_VALUE_PLACEHOLDER)
+                MetricRow(
+                    stringResource(R.string.network_metric_air_util_tx),
+                    metrics.airUtilTx ?: stringResource(R.string.network_value_placeholder),
+                )
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                MetricRow(METRIC_UPTIME, metrics.uptimeFormatted ?: NO_VALUE_PLACEHOLDER)
+                MetricRow(
+                    stringResource(R.string.network_metric_uptime),
+                    metrics.uptimeFormatted ?: stringResource(R.string.network_value_placeholder),
+                )
             }
         }
     }
@@ -223,12 +233,16 @@ private fun MeshNodeRow(
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = SNR_TEMPLATE.format(node.snr),
+                    text = stringResource(R.string.network_node_snr, node.snr),
                     style = MaterialTheme.typography.labelSmall,
                 )
                 node.hopsAway?.let {
                     Text(
-                        text = HOPS_TEMPLATE.format(it, if (it != 1) "s" else ""),
+                        text = stringResource(
+                            R.string.network_node_hops,
+                            it,
+                            if (it != 1) stringResource(R.string.network_node_hops_suffix_plural) else "",
+                        ),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

@@ -130,6 +130,85 @@
     <string name="network_disconnect_dialog_confirm">Отключить</string>
     <string name="network_disconnect_dialog_dismiss">Отмена</string>
 
+    <!-- Network: connection -->
+    <string name="network_connection_title_scanning">Сканирование</string>
+    <string name="network_action_collapse">Свернуть</string>
+    <string name="network_action_expand">Развернуть</string>
+    <string name="network_connection_stop_scan">Остановить сканирование</string>
+    <string name="network_connection_start_scan">Начать сканирование</string>
+    <string name="network_connection_no_nodes_found">Ноды для сопряжения не обнаружены</string>
+    <string name="network_connection_nodes_found">Обнаружены ноды (%1$d):</string>
+    <string name="network_connection_unknown_device">Unknown</string>
+    <string name="network_connection_rssi">%1$d dBm</string>
+    <string name="network_connection_connecting">Соединение...</string>
+    <string name="network_connection_connect">Подключиться</string>
+
+    <!-- Network: telemetry -->
+    <string name="network_telemetry_title">Телеметрия</string>
+    <string name="network_telemetry_refresh">Обновить</string>
+    <string name="network_telemetry_nodes_title">Ноды (%1$d)</string>
+    <string name="network_telemetry_no_nodes">No nodes received yet.</string>
+    <string name="network_telemetry_no_data">No data yet.</string>
+    <string name="network_value_placeholder">—</string>
+    <string name="network_metric_battery">Battery</string>
+    <string name="network_metric_voltage">Voltage</string>
+    <string name="network_metric_channel_utilization">Chan utilization</string>
+    <string name="network_metric_air_util_tx">Air util TX</string>
+    <string name="network_metric_uptime">Uptime</string>
+    <string name="network_metric_battery_percent">%1$d%%</string>
+    <string name="network_node_snr">SNR %1$s</string>
+    <string name="network_node_hops">%1$d hop%2$s</string>
+    <string name="network_node_hops_suffix_plural">s</string>
+
+    <!-- Network: location config -->
+    <string name="network_location_config_title">Location Config</string>
+    <string name="network_location_section_phone_to_node">Phone → Node</string>
+    <string name="network_location_provide_to_mesh">Provide location to mesh</string>
+    <string name="network_location_permission">Location permission</string>
+    <string name="network_location_permission_granted">Granted</string>
+    <string name="network_location_permission_denied">Denied</string>
+    <string name="network_location_section_node_source">Node Position Source</string>
+    <string name="network_location_fixed_position">Fixed position</string>
+    <string name="network_location_remove">Remove</string>
+    <string name="network_location_not_set">Not set</string>
+    <string name="network_location_section_node_broadcast">Node → Mesh Broadcast</string>
+    <string name="network_location_smart_broadcast">Smart broadcast</string>
+    <string name="network_location_section_flags">Position Flags</string>
+    <string name="network_location_section_precision">Channel Precision (primary)</string>
+    <string name="network_location_banner_ready">Ready</string>
+    <string name="network_location_banner_warning">Warning</string>
+    <string name="network_location_banner_blocked">Blocked</string>
+    <string name="network_location_banner_ready_details">Live GPS sharing is active</string>
+    <string name="network_location_reason_sharing_disabled">Sharing disabled</string>
+    <string name="network_location_reason_permission_denied">No location permission</string>
+    <string name="network_location_reason_fixed_active">Fixed position active</string>
+    <string name="network_location_reason_precision_zero">Channel precision = 0</string>
+    <string name="network_location_reason_no_flags">No position flags</string>
+    <string name="network_location_reason_high_interval">High broadcast interval</string>
+    <string name="network_location_reason_gps_conflict">Node GPS may overwrite</string>
+    <string name="network_location_gps_mode">GPS mode</string>
+    <string name="network_flag_altitude">Altitude</string>
+    <string name="network_flag_msl_altitude">MSL Altitude</string>
+    <string name="network_flag_sats_in_view">Sats in view</string>
+    <string name="network_flag_seq_no">Seq no</string>
+    <string name="network_flag_timestamp">Timestamp</string>
+    <string name="network_flag_heading">Heading ⭐</string>
+    <string name="network_flag_speed">Speed ⭐</string>
+    <string name="network_interval_live">Live</string>
+    <string name="network_interval_30s">30s</string>
+    <string name="network_interval_1m">1 min</string>
+    <string name="network_interval_2m">2 min</string>
+    <string name="network_interval_5m">5 min</string>
+    <string name="network_interval_10m">10 min</string>
+    <string name="network_interval_15m">15 min</string>
+    <string name="network_interval_30m">30 min</string>
+    <string name="network_precision_off">Off</string>
+    <string name="network_precision_11km">~11 km</string>
+    <string name="network_precision_14km">~1.4 km</string>
+    <string name="network_precision_170m">~170 m</string>
+    <string name="network_precision_21m">~21 m</string>
+    <string name="network_precision_full">Full</string>
+
     <!-- Tile Cache Settings -->
     <string name="tile_cache_section_label">Кэш тайлов</string>
     <string name="tile_cache_mode_default">По умолчанию</string>
