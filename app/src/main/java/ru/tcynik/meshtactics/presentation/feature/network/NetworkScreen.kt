@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -77,6 +76,22 @@ fun NetworkScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 },
+                actions = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(end = 8.dp),
+                    ) {
+                        Text(
+                            text = "Использовать",
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                        Switch(
+                            checked = state.networkEnabled,
+                            onCheckedChange = viewModel::onNetworkEnabledToggle,
+                        )
+                    }
+                },
             )
         },
     ) { padding ->
@@ -85,12 +100,6 @@ fun NetworkScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            NetworkEnabledToggle(
-                enabled = state.networkEnabled,
-                onToggle = viewModel::onNetworkEnabledToggle,
-            )
-            HorizontalDivider()
-
             if (state.networkEnabled) {
                 Column(
                     modifier = Modifier
@@ -133,40 +142,6 @@ fun NetworkScreen(
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun NetworkEnabledToggle(
-    enabled: Boolean,
-    onToggle: (Boolean) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = "Использовать сеть",
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = if (enabled) "Вкл" else "Выкл",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Switch(
-                checked = enabled,
-                onCheckedChange = onToggle,
-            )
         }
     }
 }
