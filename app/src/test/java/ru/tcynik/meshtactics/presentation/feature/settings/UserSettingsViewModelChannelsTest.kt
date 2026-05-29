@@ -327,8 +327,8 @@ class UserSettingsViewModelChannelsTest {
         connectionStatusFlow.value = connectedStatus
         runCurrent()
 
-        verify(exactly = 1) { enableNodePositionBroadcastReady.invoke() }
-        verify(exactly = 0) { disableNodePositionBroadcast.invoke() }
+        coVerify(exactly = 1) { enableNodePositionBroadcastReady.invoke() }
+        coVerify(exactly = 0) { disableNodePositionBroadcast.invoke() }
     }
 
     @Test
@@ -338,8 +338,8 @@ class UserSettingsViewModelChannelsTest {
         connectionStatusFlow.value = connectedStatus
         runCurrent()
 
-        verify(exactly = 1) { disableNodePositionBroadcast.invoke() }
-        verify(exactly = 0) { enableNodePositionBroadcastReady.invoke() }
+        coVerify(exactly = 1) { disableNodePositionBroadcast.invoke() }
+        coVerify(exactly = 0) { enableNodePositionBroadcastReady.invoke() }
     }
 
     @Test
@@ -349,7 +349,7 @@ class UserSettingsViewModelChannelsTest {
         connectionStatusFlow.value = connectedStatus
         runCurrent()
 
-        verify(exactly = 1) { enableNodePositionBroadcastReady.invoke() }
+        coVerify(exactly = 1) { enableNodePositionBroadcastReady.invoke() }
     }
 
     // ── onNodeWriteEventConsumed ──────────────────────────────────────────────

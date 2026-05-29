@@ -10,6 +10,7 @@ import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import ru.tcynik.meshtactics.data.channel.ChannelSlotResolverImpl
 import ru.tcynik.meshtactics.data.channel.repository.ContourRepositoryImpl
+import ru.tcynik.meshtactics.data.mesh.GpsBroadcastCoordinator
 import ru.tcynik.meshtactics.data.mesh.repository.GpsBroadcastSettingsRepositoryImpl
 import ru.tcynik.meshtactics.data.channel.repository.ContourSyncStateRepositoryImpl
 import ru.tcynik.meshtactics.data.emergency.EmergencyPositionBroadcastRepositoryImpl
@@ -77,6 +78,9 @@ val userSettingsModule = module {
 
     single<EmergencyPositionBroadcastRepository>(createdAtStart = true) {
         EmergencyPositionBroadcastRepositoryImpl(get(), get(), get())
+    }
+    single(createdAtStart = true) {
+        GpsBroadcastCoordinator(get(), get(), get(), get(), get())
     }
     single { ObserveEmergencyModeUseCase(get()) }
     single { TriggerEmergencyUseCase(get(), get(), get(), get(), get(), get()) }

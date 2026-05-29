@@ -35,11 +35,11 @@ interface MeshConfigRepository {
     fun writeChannelPositionPrecision(destNum: Int, channelIndex: Int, precision: Int)
     fun removeFixedPosition(destNum: Int)
 
-    /** Configures the connected node for active geo broadcast (position_broadcast_secs=60, precision=13). */
-    fun enableNodePositionBroadcastReady()
+    /** Configures the connected node for active geo broadcast (position_broadcast_secs=60). Waits for position config. */
+    suspend fun enableNodePositionBroadcastReady()
 
-    /** Disables position broadcast on the connected node (position_broadcast_secs=MAX). */
-    fun disableNodePositionBroadcast()
+    /** Disables position broadcast on the connected node (position_broadcast_secs=MAX). Waits for position config. */
+    suspend fun disableNodePositionBroadcast()
 
     fun rebootNode()
 }

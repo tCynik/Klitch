@@ -10,7 +10,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withTimeoutOrNull
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import org.meshtastic.proto.Channel
@@ -156,21 +158,24 @@ class MeshConfigRepositoryImpl(
         commandSender.setFixedPosition(destNum, Position(0.0, 0.0, 0))
     }
 
-    override fun enableNodePositionBroadcastReady() {
+    override suspend fun enableNodePositionBroadcastReady() {
         val destNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
-        val current = meshRouter.configHandler.localConfig.value.position ?: Config.PositionConfig()
+        val current = withTimeoutOrNull(POSITION_CONFIG_WAIT_MS) {
+            meshRouter.configHandler.localConfig.first { it.position != null }.position!!
+        } ?: return
         val updated = current.copy(
             position_broadcast_secs = GEO_BROADCAST_READY_SECS,
             position_broadcast_smart_enabled = false,
         )
         val payload = Config.ADAPTER.encode(Config(position = updated))
         meshRouter.actionHandler.handleSetConfig(payload, destNum)
-        writeChannelPositionPrecision(destNum, channelIndex = 0, precision = GEO_CHANNEL_PRECISION)
     }
 
-    override fun disableNodePositionBroadcast() {
+    override suspend fun disableNodePositionBroadcast() {
         val destNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
-        val current = meshRouter.configHandler.localConfig.value.position ?: Config.PositionConfig()
+        val current = withTimeoutOrNull(POSITION_CONFIG_WAIT_MS) {
+            meshRouter.configHandler.localConfig.first { it.position != null }.position!!
+        } ?: return
         val updated = current.copy(
             position_broadcast_secs = GEO_BROADCAST_DISABLED_SECS,
             position_broadcast_smart_enabled = false,
@@ -238,6 +243,7 @@ class MeshConfigRepositoryImpl(
         private const val GEO_BROADCAST_DISABLED_SECS = Int.MAX_VALUE
         private const val GEO_CHANNEL_PRECISION = 13
         private const val CHANNEL_POSITION_PRECISION = 32
+        private const val POSITION_CONFIG_WAIT_MS = 15_000L
     }
 
     private fun hasLocationPermission(): Boolean =

@@ -8,13 +8,17 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
 import ru.tcynik.meshtactics.domain.logger.Logger
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
@@ -48,6 +52,7 @@ class NetworkViewModel(
     private val observeNodes: ObserveMeshNodesUseCase,
     private val observeOurNode: ObserveOurNodeUseCase,
     private val checkContourSync: CheckNodeSyncUseCase,
+    private val observeNodeChannels: ObserveNodeChannelsUseCase,
     private val syncContoursOnConnect: SyncContoursOnConnectUseCase,
     private val rebootNode: RebootNodeUseCase,
     private val syncStateRepository: ContourSyncStateRepository,
@@ -144,6 +149,9 @@ class NetworkViewModel(
                 }
                 if (!wasConnected && !isRebooting) {
                     viewModelScope.launch {
+                        withTimeoutOrNull(10_000) {
+                            observeNodeChannels(NoParams).filter { it.isNotEmpty() }.firstOrNull()
+                        }
                         if (checkContourSync() is NodeSyncResult.NeedsSync) {
                             _uiState.update { it.copy(showSyncDialog = true) }
                         }

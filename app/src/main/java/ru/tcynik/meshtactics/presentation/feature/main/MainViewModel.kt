@@ -49,7 +49,10 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeyUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.withTimeoutOrNull
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
@@ -243,6 +246,9 @@ class MainViewModel(
                         if (rebootStateRepository.isRebooting.value) rebootStateRepository.setRebooting(false)
                         viewModelScope.launch { nodeProvisioning.provision() }
                         viewModelScope.launch {
+                            withTimeoutOrNull(10_000) {
+                                observeNodeChannels(NoParams).filter { it.isNotEmpty() }.firstOrNull()
+                            }
                             if (checkNodeSync() is NodeSyncResult.NeedsSync)
                                 syncStateRepository.setSyncRequired(true)
                             else

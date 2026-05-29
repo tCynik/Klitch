@@ -334,7 +334,7 @@ class UserSettingsViewModelLeaveDialogTest {
         runCurrent()
 
         coVerify { setGpsBroadcastEnabled.invoke(false) }
-        verify { disableNodePositionBroadcast.invoke() }
+        coVerify { disableNodePositionBroadcast.invoke() }
     }
 
     @Test
@@ -346,7 +346,7 @@ class UserSettingsViewModelLeaveDialogTest {
         runCurrent()
 
         coVerify { setGpsBroadcastEnabled.invoke(true) }
-        verify { enableNodePositionBroadcastReady.invoke() }
+        coVerify { enableNodePositionBroadcastReady.invoke() }
     }
 
     @Test
@@ -355,6 +355,6 @@ class UserSettingsViewModelLeaveDialogTest {
         runCurrent()
 
         coVerify { setGpsBroadcastEnabled.invoke(false) }
-        verify(exactly = 0) { disableNodePositionBroadcast.invoke() }
+        coVerify(exactly = 0) { disableNodePositionBroadcast.invoke() }
     }
 }

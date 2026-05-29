@@ -196,6 +196,7 @@ val presentationModule = module {
             observeNodes = get(),
             observeOurNode = get(),
             checkContourSync = get<CheckNodeSyncUseCase>(),
+            observeNodeChannels = get<ObserveNodeChannelsUseCase>(),
             syncContoursOnConnect = get<SyncContoursOnConnectUseCase>(),
             rebootNode = get<RebootNodeUseCase>(),
             syncStateRepository = get<ContourSyncStateRepository>(),

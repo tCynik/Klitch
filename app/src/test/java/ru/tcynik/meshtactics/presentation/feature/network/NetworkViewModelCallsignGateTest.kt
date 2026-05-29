@@ -19,9 +19,11 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
 import ru.tcynik.meshtactics.domain.logger.Logger
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
@@ -50,6 +52,7 @@ class NetworkViewModelCallsignGateTest {
     private val observeNodes: ObserveMeshNodesUseCase = mockk()
     private val observeOurNode: ObserveOurNodeUseCase = mockk()
     private val checkContourSync: CheckNodeSyncUseCase = mockk(relaxed = true)
+    private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
     private val syncContoursOnConnect: SyncContoursOnConnectUseCase = mockk(relaxed = true)
     private val rebootNode: RebootNodeUseCase = mockk(relaxed = true)
     private val syncStateRepository: ContourSyncStateRepository = mockk(relaxed = true)
@@ -78,6 +81,9 @@ class NetworkViewModelCallsignGateTest {
         every { observeNetworkEnabled.invoke(any()) } returns networkEnabledFlow
         coEvery { connectToDevice.invoke(any()) } returns Unit
         coEvery { saveAppUser.invoke(any()) } returns Unit
+        every { observeNodeChannels.invoke(any()) } returns flowOf(
+            listOf(NodeChannelSlot(index = 0, name = "LongFast", psk = byteArrayOf(0x01), isEnabled = true, positionPrecision = 32))
+        )
     }
 
     @After
@@ -94,6 +100,7 @@ class NetworkViewModelCallsignGateTest {
             observeNodes = observeNodes,
             observeOurNode = observeOurNode,
             checkContourSync = checkContourSync,
+            observeNodeChannels = observeNodeChannels,
             syncContoursOnConnect = syncContoursOnConnect,
             rebootNode = rebootNode,
             syncStateRepository = syncStateRepository,

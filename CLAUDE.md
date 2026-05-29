@@ -112,6 +112,7 @@
 | HUD Structure | `.claude/docs/hud-structure.md` |
 | Directional Node Markers | `.claude/docs/directional-node-markers.md` |
 | GPS Sending Logic & Location Settings | `.claude/docs/fix-gps-sending-logic.md` |
+| GPS Pipeline Debug (незавершён) | `.claude/docs/gps-pipeline-debug.md` |
 | KMZ/KML Import | `.claude/docs/kmz-kml-import.md` |
 | KMZ/KML Rendering | `.claude/docs/kmz-kml-rendering.md` |
 | GPS Background Service | `.claude/docs/gps-background-service.md` |
