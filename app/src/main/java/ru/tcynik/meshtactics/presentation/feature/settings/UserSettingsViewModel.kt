@@ -36,7 +36,9 @@ import ru.tcynik.meshtactics.domain.channel.usecase.SaveContourUseCase
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
+import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.SetPrimaryContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SlotResolution
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.CancelEmergencyUseCase
@@ -73,6 +75,8 @@ class UserSettingsViewModel(
     private val saveContour: SaveContourUseCase,
     private val deleteContour: DeleteContourUseCase,
     private val setContourActive: SetContourActiveUseCase,
+    private val setPrimaryContour: SetPrimaryContourUseCase,
+    private val contourRepository: ContourRepository,
     private val observeNodeChannels: ObserveNodeChannelsUseCase,
     private val writeChannel: WriteChannelUseCase,
     private val resolveSlot: ResolveChannelSlotUseCase,
@@ -106,6 +110,7 @@ class UserSettingsViewModel(
 
     private var cachedContours: List<Contour> = emptyList()
     private var cachedNodeChannels: List<NodeChannelSlot> = emptyList()
+    private var cachedPrimaryId: ContourId? = null
     private var connectionStatus: MeshConnectionStatus = MeshConnectionStatus.Disconnected
     private var initialized = false
     private var needsPkcRegen: Boolean = false
@@ -132,7 +137,9 @@ class UserSettingsViewModel(
             observeContours(NoParams),
             observeNodeChannels(NoParams),
             observeConnectionStatus(NoParams),
-        ) { contours, nodeChannels, status ->
+            contourRepository.observePrimaryContourId(),
+        ) { contours, nodeChannels, status, primaryId ->
+            cachedPrimaryId = primaryId
             cachedContours = contours
             cachedNodeChannels = nodeChannels
             val wasConnected = connectionStatus is MeshConnectionStatus.Connected
@@ -147,11 +154,13 @@ class UserSettingsViewModel(
                     exclusivityTime = contour.exclusivityTime,
                     isActive = contour.isActive,
                     isEmergency = contour.isEmergency,
-                    syncStatus = computeSyncStatus(contour, nodeChannels, status),
+                    isPrimary = contour.id == primaryId,
+                    syncStatus = computeSyncStatus(contour, primaryId, nodeChannels, status),
                 )
             }
             _uiState.update {
                 it.copy(
+                    primaryContourId = primaryId,
                     contours = items.toImmutableList(),
                     isNodeConnected = status is MeshConnectionStatus.Connected,
                 )
@@ -167,9 +176,9 @@ class UserSettingsViewModel(
 
     private fun onConnected(contours: List<Contour>) {
         viewModelScope.launch {
-            val emergencyActive = contours.find { it.isEmergency }?.isActive ?: false
+            val sosActive = observeEmergencyMode().first()
             val broadcastEnabled = observeGpsBroadcastEnabled().first()
-            if (emergencyActive || !broadcastEnabled) {
+            if (sosActive || !broadcastEnabled) {
                 disableNodePositionBroadcast()
             } else {
                 enableNodePositionBroadcastReady()
@@ -184,10 +193,18 @@ class UserSettingsViewModel(
 
     private fun computeSyncStatus(
         contour: Contour,
+        primaryId: ContourId,
         nodeChannels: List<NodeChannelSlot>,
         status: MeshConnectionStatus,
     ): ChannelSyncStatus {
-        if (contour.id == DefaultContour.ID) return ChannelSyncStatus.OnNode(0)
+        if (contour.id == primaryId) return ChannelSyncStatus.OnNode(0)
+        if (contour.isEmergency) {
+            if (status !is MeshConnectionStatus.Connected) return ChannelSyncStatus.NotConnected
+            val slot1 = nodeChannels.find { it.index == 1 }
+            val onSlot1 = slot1 != null && slot1.isEnabled &&
+                ContourHash.compute(slot1.name, slot1.psk) == DefaultContour.CHANNEL_HASH
+            return if (onSlot1) ChannelSyncStatus.OnNode(1) else ChannelSyncStatus.NotOnNode
+        }
         if (status !is MeshConnectionStatus.Connected) return ChannelSyncStatus.NotConnected
         val hash = contour.transport.meshtastic.channelHash
         val matched = nodeChannels.find { slot ->
@@ -195,7 +212,9 @@ class UserSettingsViewModel(
                 ContourHash.compute(slot.name, slot.psk) == hash
         }
         if (matched != null) return ChannelSyncStatus.OnNode(matched.index)
-        val hasFreeSlot = nodeChannels.any { it.index != 0 && !it.isEnabled }
+        val reservedSlots = if (primaryId == DefaultContour.ID) setOf(0) else setOf(0, 1)
+        val hasFreeSlot = nodeChannels.any { it.index !in reservedSlots && !it.isEnabled } ||
+            (2..7).any { index -> index !in reservedSlots && nodeChannels.none { it.index == index } }
         return if (hasFreeSlot) ChannelSyncStatus.NotOnNode else ChannelSyncStatus.NoFreeSlot
     }
 
@@ -231,7 +250,17 @@ class UserSettingsViewModel(
         writeChannel(slot, "", "")
     }
 
+    fun onSetPrimary(id: ContourId) {
+        val contour = cachedContours.find { it.id == id } ?: return
+        if (contour.isEmergency) return
+        if (id == cachedPrimaryId) return
+        viewModelScope.launch { setPrimaryContour(id) }
+    }
+
     fun onToggleActive(id: ContourId, isActive: Boolean) {
+        val contour = cachedContours.find { it.id == id } ?: return
+        if (contour.isEmergency) return
+        if (!isActive && id == cachedPrimaryId) return
         viewModelScope.launch {
             setContourActive(id, isActive)
             if (isActive && connectionStatus is MeshConnectionStatus.Connected) {

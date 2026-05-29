@@ -69,6 +69,10 @@
 
     <string name="user_channel_push_to_node">Записать в ноду</string>
     <string name="user_channel_delete_from_node">Удалить из ноды</string>
+    <string name="user_contour_set_primary">Сделать основным</string>
+    <string name="user_contour_enable">Включить</string>
+    <string name="user_contour_disable">Выключить</string>
+    <string name="user_contour_primary_badge">Основной</string>
 
     <!-- Channel sync status badges -->
     <string name="channel_sync_on_node">На ноде · слот %d</string>

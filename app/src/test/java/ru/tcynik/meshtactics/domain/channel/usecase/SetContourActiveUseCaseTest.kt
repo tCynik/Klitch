@@ -10,6 +10,7 @@ import ru.tcynik.meshtactics.domain.channel.model.Contour
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
+import ru.tcynik.meshtactics.domain.channel.model.DefaultActiveContour
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
@@ -36,30 +37,30 @@ class SetContourActiveUseCaseTest {
         )
     }
 
-    // ── emergency branch ──────────────────────────────────────────────────────
-
     @Test
-    fun `emergency ID — calls setEmergencyActive true, no saveContour`() = runTest {
+    fun `emergency ID — no-op`() = runTest {
         useCase(DefaultContour.ID, true)
 
-        coVerify(exactly = 1) { repository.setEmergencyActive(true) }
         coVerify(exactly = 0) { repository.saveContour(any()) }
+        coVerify(exactly = 0) { repository.getPrimaryContourId() }
     }
 
     @Test
-    fun `emergency ID — calls setEmergencyActive false, no saveContour`() = runTest {
-        useCase(DefaultContour.ID, false)
+    fun `primary ID deactivate — no-op`() = runTest {
+        val id = DefaultActiveContour.ID
+        coEvery { repository.getPrimaryContourId() } returns id
+        coEvery { repository.observeContours() } returns flowOf(listOf(makeContour(id.value, isActive = true)))
 
-        coVerify(exactly = 1) { repository.setEmergencyActive(false) }
+        useCase(id, false)
+
         coVerify(exactly = 0) { repository.saveContour(any()) }
     }
-
-    // ── regular branch ────────────────────────────────────────────────────────
 
     @Test
     fun `regular ID found — saves contour with isActive updated to true`() = runTest {
         val id = "00000000-0000-0000-0000-000000000099"
         val contour = makeContour(id, isActive = false)
+        coEvery { repository.getPrimaryContourId() } returns DefaultActiveContour.ID
         coEvery { repository.observeContours() } returns flowOf(listOf(contour))
 
         useCase(ContourId(id), true)
@@ -67,13 +68,13 @@ class SetContourActiveUseCaseTest {
         coVerify(exactly = 1) {
             repository.saveContour(match { it.id == ContourId(id) && it.isActive })
         }
-        coVerify(exactly = 0) { repository.setEmergencyActive(any()) }
     }
 
     @Test
     fun `regular ID found — saves contour with isActive updated to false`() = runTest {
         val id = "00000000-0000-0000-0000-000000000099"
         val contour = makeContour(id, isActive = true)
+        coEvery { repository.getPrimaryContourId() } returns DefaultActiveContour.ID
         coEvery { repository.observeContours() } returns flowOf(listOf(contour))
 
         useCase(ContourId(id), false)
@@ -85,6 +86,7 @@ class SetContourActiveUseCaseTest {
 
     @Test
     fun `regular ID not found — saveContour not called`() = runTest {
+        coEvery { repository.getPrimaryContourId() } returns DefaultActiveContour.ID
         coEvery { repository.observeContours() } returns flowOf(emptyList())
 
         useCase(ContourId("unknown"), true)

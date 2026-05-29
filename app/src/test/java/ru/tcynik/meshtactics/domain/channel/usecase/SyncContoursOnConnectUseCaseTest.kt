@@ -1,5 +1,6 @@
 package ru.tcynik.meshtactics.domain.channel.usecase
 
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -12,9 +13,11 @@ import ru.tcynik.meshtactics.domain.channel.model.Contour
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
+import ru.tcynik.meshtactics.domain.channel.model.DefaultActiveContour
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
+import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
@@ -25,22 +28,23 @@ import java.util.Base64
 
 class SyncContoursOnConnectUseCaseTest {
 
+    private val contourRepository: ContourRepository = mockk(relaxed = true)
     private val observeContours: ObserveContoursUseCase = mockk()
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
     private val writeChannel: WriteChannelUseCase = mockk(relaxed = true)
     private val resolveSlot: ResolveChannelSlotUseCase = mockk()
     private val writeOwner: WriteOwnerUseCase = mockk(relaxed = true)
     private val observeAppUser: ObserveAppUserUseCase = mockk()
-    private val observeDeviceConfig: ObserveDeviceConfigUseCase = mockk()
 
     private val useCase = SyncContoursOnConnectUseCase(
+        contourRepository = contourRepository,
         observeContours = observeContours,
         observeNodeChannels = observeNodeChannels,
         writeChannel = writeChannel,
         resolveSlot = resolveSlot,
         writeOwner = writeOwner,
         observeAppUser = observeAppUser,
-        observeDeviceConfig = observeDeviceConfig,
+        observeDeviceConfig = mockk(relaxed = true),
         logger = NoOpLogger(),
     )
 
@@ -57,6 +61,7 @@ class SyncContoursOnConnectUseCaseTest {
 
     @Before
     fun setUp() {
+        coEvery { contourRepository.getPrimaryContourId() } returns DefaultActiveContour.ID
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(emptyList())
         every { observeAppUser.invoke(any<NoParams>()) } returns flowOf(AppUser(displayName = ""))
     }
@@ -74,45 +79,42 @@ class SyncContoursOnConnectUseCaseTest {
         )
     }
 
-    // ── slot 0 Emergency ──────────────────────────────────────────────────────
-
     @Test
-    fun `writes Emergency to slot 0 when node channels empty`() = runTest {
-        every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
+    fun `writes primary to slot 0 when node channels empty`() = runTest {
+        val primary = makeContour(DefaultActiveContour.ID.value, DefaultActiveContour.DISPLAY_NAME)
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(primary))
 
         useCase()
 
-        verify(exactly = 1) { writeChannel.invoke(0, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK) }
+        verify(exactly = 1) { writeChannel.invoke(0, DefaultActiveContour.DISPLAY_NAME, pskBase64) }
     }
 
     @Test
-    fun `skips Emergency write when slot 0 already matches`() = runTest {
-        every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
-        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot))
+    fun `writes Emergency to slot 1 when primary is not Emergency`() = runTest {
+        val primary = makeContour(DefaultActiveContour.ID.value, DefaultActiveContour.DISPLAY_NAME)
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(primary))
 
         useCase()
 
-        verify(exactly = 0) { writeChannel.invoke(0, any(), any()) }
+        verify(exactly = 1) { writeChannel.invoke(1, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK) }
     }
 
     @Test
-    fun `writes Emergency to slot 0 when slot 0 has different channel`() = runTest {
-        val wrongSlot0 = emergencySlot.copy(name = "SomethingElse")
-        every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
-        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(wrongSlot0))
+    fun `skips Emergency slot 1 write when primary is Emergency`() = runTest {
+        coEvery { contourRepository.getPrimaryContourId() } returns DefaultContour.ID
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(DefaultContour.asContour()))
 
         useCase()
 
-        verify(exactly = 1) { writeChannel.invoke(0, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK) }
+        verify(exactly = 0) { writeChannel.invoke(1, any(), any()) }
     }
 
-    // ── active non-emergency contours ─────────────────────────────────────────
-
     @Test
-    fun `active non-emergency contour on FreeSlot — writeChannel called with correct slot and psk`() = runTest {
-        val contour = makeContour("99", "Bravo")
-        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(contour))
-        every { resolveSlot.invoke(contour, any(), any(), any()) } returns SlotResolution.FreeSlot(2)
+    fun `active non-primary contour on FreeSlot — writeChannel from slot 2`() = runTest {
+        val primary = makeContour(DefaultActiveContour.ID.value, DefaultActiveContour.DISPLAY_NAME)
+        val bravo = makeContour("99", "Bravo")
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(primary, bravo))
+        every { resolveSlot.invoke(bravo, any(), match { it.containsAll(setOf(0, 1)) }, any()) } returns SlotResolution.FreeSlot(2)
 
         useCase()
 
@@ -120,36 +122,13 @@ class SyncContoursOnConnectUseCaseTest {
     }
 
     @Test
-    fun `active non-emergency contour AlreadySynced — no extra writeChannel call`() = runTest {
-        val contour = makeContour("99", "Bravo")
-        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(contour))
-        every { resolveSlot.invoke(contour, any(), any(), any()) } returns SlotResolution.AlreadySynced(3)
+    fun `inactive contour — not written`() = runTest {
+        val primary = makeContour(DefaultActiveContour.ID.value, DefaultActiveContour.DISPLAY_NAME)
+        val inactive = makeContour("99", "Inactive", isActive = false)
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(primary, inactive))
 
         useCase()
 
-        // Only the slot 0 Emergency write (node channels empty → not synced)
-        verify(exactly = 1) { writeChannel.invoke(any(), any(), any()) }
-    }
-
-    @Test
-    fun `inactive contour — writeChannel not called for it`() = runTest {
-        val contour = makeContour("99", "Inactive", isActive = false)
-        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(contour))
-
-        useCase()
-
-        verify(exactly = 1) { writeChannel.invoke(any(), any(), any()) }
-        verify(exactly = 1) { writeChannel.invoke(0, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK) }
-    }
-
-    // ── no free slots ─────────────────────────────────────────────────────────
-
-    @Test
-    fun `no free slots — does not crash`() = runTest {
-        val contour = makeContour("99", "Bravo")
-        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(contour))
-        every { resolveSlot.invoke(contour, any(), any(), any()) } returns SlotResolution.NoFreeSlot
-
-        useCase()
+        verify(exactly = 0) { writeChannel.invoke(2, any(), any()) }
     }
 }

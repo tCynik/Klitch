@@ -36,7 +36,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.RadioButton
+import androidx.compose.ui.draw.alpha
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -243,9 +244,11 @@ fun UserTabContent(
                 } else {
                     ContourCard(
                         item = contour,
+                        onSetPrimary = { viewModel.onSetPrimary(contour.id) },
                         onEdit = { viewModel.onEditContourClick(contour.id) },
                         onDelete = { viewModel.onDeleteContourRequest(contour.id) },
                         onToggleActive = { enabled -> viewModel.onToggleActive(contour.id, enabled) },
+                        onPushToNode = { viewModel.onPushToNode(contour.id) },
                     )
                 }
             }
@@ -271,11 +274,14 @@ fun UserTabContent(
 @Composable
 private fun ContourCard(
     item: ContourItem,
+    onSetPrimary: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onToggleActive: (Boolean) -> Unit,
+    onPushToNode: () -> Unit,
 ) {
     var showDropdown by remember { mutableStateOf(false) }
+    val contentAlpha = if (item.isActive) 1f else 0.5f
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -284,19 +290,38 @@ private fun ContourCard(
                 .padding(start = 4.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Checkbox(
-                checked = item.isActive,
-                onCheckedChange = onToggleActive,
-                modifier = Modifier.padding(start = 4.dp, end = 8.dp),
+            RadioButton(
+                selected = item.isPrimary,
+                onClick = onSetPrimary,
+                modifier = Modifier.padding(start = 4.dp, end = 4.dp),
             )
-            Column(modifier = Modifier.weight(1f)) {
-                val isExpired = item.expiration != null && item.expiration.isBefore(Instant.now())
-                Text(
-                    text = item.name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    textDecoration = if (isExpired) TextDecoration.LineThrough else TextDecoration.None,
-                )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .alpha(contentAlpha),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    val isExpired = item.expiration != null && item.expiration.isBefore(Instant.now())
+                    Text(
+                        text = item.name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        textDecoration = if (isExpired) TextDecoration.LineThrough else TextDecoration.None,
+                    )
+                    if (item.isPrimary) {
+                        Badge(containerColor = MaterialTheme.colorScheme.primaryContainer) {
+                            Text(
+                                text = stringResource(R.string.user_contour_primary_badge),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        }
+                    }
+                    SyncStatusBadge(status = item.syncStatus)
+                }
                 if (!item.description.isNullOrBlank()) {
                     Text(
                         text = item.description,
@@ -313,16 +338,37 @@ private fun ContourCard(
                 expanded = showDropdown,
                 onDismissRequest = { showDropdown = false },
             ) {
-                if (!item.isEmergency) {
+                if (!item.isPrimary) {
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.user_channel_edit)) },
-                        onClick = { showDropdown = false; onEdit() },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.user_channel_delete)) },
-                        onClick = { showDropdown = false; onDelete() },
+                        text = { Text(stringResource(R.string.user_contour_set_primary)) },
+                        onClick = { showDropdown = false; onSetPrimary() },
                     )
                 }
+                if (!item.isPrimary) {
+                    if (item.isActive) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.user_contour_disable)) },
+                            onClick = { showDropdown = false; onToggleActive(false) },
+                        )
+                    } else {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.user_contour_enable)) },
+                            onClick = { showDropdown = false; onToggleActive(true) },
+                        )
+                    }
+                }
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.user_channel_push_to_node)) },
+                    onClick = { showDropdown = false; onPushToNode() },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.user_channel_edit)) },
+                    onClick = { showDropdown = false; onEdit() },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.user_channel_delete)) },
+                    onClick = { showDropdown = false; onDelete() },
+                )
             }
         }
     }

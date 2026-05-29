@@ -23,7 +23,9 @@ import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SaveContourUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ActivateExclusiveContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.SetPrimaryContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
 import ru.tcynik.meshtactics.domain.emergency.repository.EmergencyPositionBroadcastRepository
 import ru.tcynik.meshtactics.domain.mesh.repository.GpsBroadcastSettingsRepository
@@ -64,9 +66,11 @@ val userSettingsModule = module {
     single { SaveContourUseCase(get()) }
     single { DeleteContourUseCase(get()) }
     single { SetContourActiveUseCase(get()) }
+    single { SetPrimaryContourUseCase(get(), get()) }
+    single { ActivateExclusiveContourUseCase(get(), get()) }
     single { ObserveNodeChannelsUseCase(get()) }
     single { ResolveChannelSlotUseCase() }
-    single { SyncContoursOnConnectUseCase(get(), get(), get(), get(), get(), get(), get(), get()) }
+    single { SyncContoursOnConnectUseCase(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     single { CheckNodeSyncUseCase(get(), get(), get(), get(), get()) }
     single<ContourSyncStateRepository> { ContourSyncStateRepositoryImpl() }
     single<ChannelSlotResolver> { ChannelSlotResolverImpl(get()) }
@@ -75,6 +79,6 @@ val userSettingsModule = module {
         EmergencyPositionBroadcastRepositoryImpl(get(), get(), get())
     }
     single { ObserveEmergencyModeUseCase(get()) }
-    single { TriggerEmergencyUseCase(get(), get(), get(), get(), get()) }
-    single { CancelEmergencyUseCase(get(), get(), get(), get()) }
+    single { TriggerEmergencyUseCase(get(), get(), get(), get(), get(), get()) }
+    single { CancelEmergencyUseCase(get(), get(), get(), get(), get()) }
 }

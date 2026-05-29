@@ -37,7 +37,7 @@ class EmergencyPositionBroadcastRepositoryImpl(
 
     init {
         scope.launch {
-            val wasActive = contourRepository.observeEmergencyIsActive().first()
+            val wasActive = contourRepository.observeSosMode().first()
             if (wasActive) start()
         }
     }

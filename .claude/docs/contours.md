@@ -256,16 +256,7 @@ incoming packet.channel (Int)
 ## TODO (deferred)
 
 ```kotlin
-// TODO(contour): SetPrimaryContourUseCase — реализация (invoke(id): always writeChannel, no isConnected param)
-// TODO(contour): ActivateExclusiveContourUseCase — реализация (invoke(id): writeChannel 0+1+clear 2-7, always safe)
-// TODO(contour): NodeProvisioningUseCase — usedSlots pre-seed {0,1} + skip primary
-// TODO(contour): SyncContoursOnConnectUseCase — пересмотр под новую схему слотов
-// TODO(contour): SetContourActiveUseCase — убрать спецслучай Emergency, guard Primary
-// TODO(contour): TriggerEmergencyUseCase / CancelEmergencyUseCase — pre_sos_primary_id
-// TODO(contour): GeoSendPolicyImpl — observeSosMode() вместо observeEmergencyIsActive()
-// TODO(contour): ContourRepository — новые методы + DataStore-ключи
-// TODO(contour): UI — radio-button Primary, dropdown actions
-// TODO(contour): ActivateExclusiveContourUseCase — UI (следующий таск)
+// TODO(contour): ActivateExclusiveContourUseCase — UI trigger (следующий таск)
 // TODO(contour): обработать отсутствие свободных слотов (UI уведомление)
 // TODO(contour): DROP COLUMN meshtastic_slot when minSdk ≥ 35
 ```

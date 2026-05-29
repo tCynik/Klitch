@@ -234,36 +234,59 @@ class ContourRepositoryImplTest {
         assertEquals(0, rows.count { it.id == DefaultContour.ID.value })
     }
 
-    // ── Emergency isActive ────────────────────────────────────────────────────
+    // ── Primary + SOS mode ─────────────────────────────────────────────────────
 
     @Test
-    fun `setEmergencyActive true — observeEmergencyIsActive emits true`() = runTest {
-        repo.setEmergencyActive(true)
+    fun `observePrimaryContourId — default is DefaultActiveContour`() = runTest {
+        repo.observePrimaryContourId().test {
+            assertEquals(DefaultActiveContour.ID, awaitItem())
+            cancel()
+        }
+    }
 
-        repo.observeEmergencyIsActive().test {
+    @Test
+    fun `setPrimaryContour — observePrimaryContourId emits new id`() = runTest {
+        val customId = ContourId("00000000-0000-0000-0000-000000000099")
+        repo.setPrimaryContour(customId)
+
+        repo.observePrimaryContourId().test {
+            assertEquals(customId, awaitItem())
+            cancel()
+        }
+    }
+
+    @Test
+    fun `setSosMode true — observeSosMode emits true`() = runTest {
+        repo.setSosMode(true)
+
+        repo.observeSosMode().test {
             assertEquals(true, awaitItem())
             cancel()
         }
     }
 
     @Test
-    fun `observeEmergencyIsActive — emits false by default without any write`() = runTest {
-        repo.observeEmergencyIsActive().test {
+    fun `observeSosMode — emits false by default`() = runTest {
+        repo.observeSosMode().test {
             assertEquals(false, awaitItem())
             cancel()
         }
     }
 
     @Test
-    fun `observeContours — Emergency isActive reflects DataStore after setEmergencyActive true`() = runTest {
-        repo.setEmergencyActive(true)
-
+    fun `observeContours — Emergency isActive always true`() = runTest {
         repo.observeContours().test {
             val list = awaitItem()
             assertEquals(DefaultContour.ID, list[0].id)
             assertEquals(true, list[0].isActive)
             cancel()
         }
+    }
+
+    @Test
+    fun `savePreSosPrimaryId — getPreSosPrimaryId returns saved id`() = runTest {
+        repo.savePreSosPrimaryId(DefaultActiveContour.ID)
+        assertEquals(DefaultActiveContour.ID, repo.getPreSosPrimaryId())
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

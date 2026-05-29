@@ -16,6 +16,7 @@ data class UserSettingsUiState(
     val hasUnsavedUserChanges: Boolean = false,
     val isGpsBroadcastEnabled: Boolean = true,
     val showLeaveDialog: Boolean = false,
+    val primaryContourId: ContourId? = null,
     val contours: ImmutableList<ContourItem> = persistentListOf(),
     val editorSheet: ContourEditorState? = null,
     val deleteConfirmId: ContourId? = null,

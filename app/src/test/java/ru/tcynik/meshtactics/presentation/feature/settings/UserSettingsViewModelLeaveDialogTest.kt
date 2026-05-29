@@ -30,7 +30,10 @@ import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SaveContourUseCase
+import ru.tcynik.meshtactics.domain.channel.model.DefaultActiveContour
+import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.SetPrimaryContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SlotResolution
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.CancelEmergencyUseCase
@@ -65,6 +68,8 @@ class UserSettingsViewModelLeaveDialogTest {
     private val saveContour: SaveContourUseCase = mockk(relaxed = true)
     private val deleteContour: DeleteContourUseCase = mockk(relaxed = true)
     private val setContourActive: SetContourActiveUseCase = mockk(relaxed = true)
+    private val setPrimaryContour: SetPrimaryContourUseCase = mockk(relaxed = true)
+    private val contourRepository: ContourRepository = mockk()
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
     private val writeChannel: WriteChannelUseCase = mockk(relaxed = true)
     private val resolveSlot: ResolveChannelSlotUseCase = mockk()
@@ -91,6 +96,7 @@ class UserSettingsViewModelLeaveDialogTest {
 
     private val connectionStatusFlow = MutableStateFlow<MeshConnectionStatus>(MeshConnectionStatus.Disconnected)
     private val gpsBroadcastFlow = MutableStateFlow(true)
+    private val primaryIdFlow = MutableStateFlow(DefaultActiveContour.ID)
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var viewModel: UserSettingsViewModel
@@ -124,6 +130,7 @@ class UserSettingsViewModelLeaveDialogTest {
         every { channelSlotResolver.hashToSlot } returns emptyMap()
         every { resolveSlot.invoke(any(), any()) } returns SlotResolution.NoFreeSlot
         every { observeEmergencyMode.invoke() } returns flowOf(false)
+        every { contourRepository.observePrimaryContourId() } returns primaryIdFlow
         every { observeGpsBroadcastEnabled.invoke() } returns gpsBroadcastFlow
         every { observeDeviceConfig.invoke(any()) } returns flowOf(fakeDeviceConfig)
         every { syncStateRepository.syncRequired } returns MutableStateFlow(false)
@@ -135,6 +142,8 @@ class UserSettingsViewModelLeaveDialogTest {
             saveContour = saveContour,
             deleteContour = deleteContour,
             setContourActive = setContourActive,
+            setPrimaryContour = setPrimaryContour,
+            contourRepository = contourRepository,
             observeNodeChannels = observeNodeChannels,
             writeChannel = writeChannel,
             resolveSlot = resolveSlot,

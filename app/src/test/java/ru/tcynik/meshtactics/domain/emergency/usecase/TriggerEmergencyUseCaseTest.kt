@@ -12,8 +12,12 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
+import ru.tcynik.meshtactics.domain.channel.model.DefaultActiveContour
+import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
+import ru.tcynik.meshtactics.domain.channel.usecase.SetPrimaryContourUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.SendChatMessageParams
 import ru.tcynik.meshtactics.domain.chat.usecase.SendChatMessageUseCase
 import ru.tcynik.meshtactics.domain.emergency.repository.EmergencyPositionBroadcastRepository
@@ -25,6 +29,7 @@ import ru.tcynik.meshtactics.domain.user.repository.AppUserRepository
 class TriggerEmergencyUseCaseTest {
 
     private val contourRepository: ContourRepository = mockk(relaxed = true)
+    private val setPrimaryContour: SetPrimaryContourUseCase = mockk(relaxed = true)
     private val appUserRepository: AppUserRepository = mockk()
     private val gpsRepository: GpsRepository = mockk()
     private val sendChatMessage: SendChatMessageUseCase = mockk(relaxed = true)
@@ -32,20 +37,29 @@ class TriggerEmergencyUseCaseTest {
 
     private val useCase = TriggerEmergencyUseCase(
         contourRepository = contourRepository,
+        setPrimaryContour = setPrimaryContour,
         appUserRepository = appUserRepository,
         gpsRepository = gpsRepository,
         sendChatMessage = sendChatMessage,
         broadcast = broadcast,
     )
 
+    @Before
+    fun setUp() {
+        coEvery { contourRepository.getPrimaryContourId() } returns DefaultActiveContour.ID
+    }
+
     @Test
-    fun `устанавливает флаг emergencyActive в true`() = runTest {
+    fun `сохраняет preSosPrimary, включает SOS и назначает Emergency Primary`() = runTest {
+        coEvery { contourRepository.getPrimaryContourId() } returns DefaultActiveContour.ID
         every { appUserRepository.observeUser() } returns flowOf(AppUser("Иван"))
         every { gpsRepository.location } returns MutableStateFlow(null)
 
         useCase()
 
-        coVerify(exactly = 1) { contourRepository.setEmergencyActive(true) }
+        coVerify(exactly = 1) { contourRepository.savePreSosPrimaryId(DefaultActiveContour.ID) }
+        coVerify(exactly = 1) { contourRepository.setSosMode(true) }
+        coVerify(exactly = 1) { setPrimaryContour(DefaultContour.ID) }
     }
 
     @Test
@@ -108,14 +122,16 @@ class TriggerEmergencyUseCaseTest {
     }
 
     @Test
-    fun `порядок вызовов — флаг затем сообщение затем трансляция`() = runTest {
+    fun `порядок — preSos, SOS, Primary, сообщение, трансляция`() = runTest {
         every { appUserRepository.observeUser() } returns flowOf(AppUser("Иван"))
         every { gpsRepository.location } returns MutableStateFlow(null)
 
         useCase()
 
         coVerifyOrder {
-            contourRepository.setEmergencyActive(true)
+            contourRepository.savePreSosPrimaryId(any())
+            contourRepository.setSosMode(true)
+            setPrimaryContour(DefaultContour.ID)
             sendChatMessage.invoke(any())
             broadcast.start()
         }

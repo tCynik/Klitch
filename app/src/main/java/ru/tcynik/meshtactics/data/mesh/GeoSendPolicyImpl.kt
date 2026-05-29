@@ -9,5 +9,5 @@ class GeoSendPolicyImpl(
     private val contourRepository: ContourRepository,
 ) : GeoSendPolicy {
     override fun observeAllowed(): Flow<Boolean> =
-        contourRepository.observeEmergencyIsActive().map { emergencyActive -> !emergencyActive }
+        contourRepository.observeSosMode().map { sosActive -> !sosActive }
 }

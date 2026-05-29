@@ -33,7 +33,7 @@
 | Чат | ✅ Done |
 | Маркеры / заметки | ✅ Done |
 | Список гео-меток | ✅ Done |
-| Контуры (CRUD + isActive + Geo Protection) | ✅ Done |
+| Контуры (Primary + SOS + Exclusive + UI) | ✅ Done |
 | Emergency SOS (кнопка SOS, трансляция геопозиции) | ✅ Done |
 | Настройки кэша тайлов (OkHttp duration modes) | ✅ Done |
 | Настройки экрана (размер маркеров + геоточек, имена точек) | ✅ Done |

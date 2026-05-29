@@ -11,7 +11,9 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import ru.tcynik.meshtactics.domain.channel.model.DefaultActiveContour
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
+import ru.tcynik.meshtactics.domain.channel.usecase.SetPrimaryContourUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.SendChatMessageParams
 import ru.tcynik.meshtactics.domain.chat.usecase.SendChatMessageUseCase
 import ru.tcynik.meshtactics.domain.emergency.repository.EmergencyPositionBroadcastRepository
@@ -21,12 +23,14 @@ import ru.tcynik.meshtactics.domain.user.repository.AppUserRepository
 class CancelEmergencyUseCaseTest {
 
     private val contourRepository: ContourRepository = mockk(relaxed = true)
+    private val setPrimaryContour: SetPrimaryContourUseCase = mockk(relaxed = true)
     private val appUserRepository: AppUserRepository = mockk()
     private val sendChatMessage: SendChatMessageUseCase = mockk(relaxed = true)
     private val broadcast: EmergencyPositionBroadcastRepository = mockk(relaxed = true)
 
     private val useCase = CancelEmergencyUseCase(
         contourRepository = contourRepository,
+        setPrimaryContour = setPrimaryContour,
         appUserRepository = appUserRepository,
         sendChatMessage = sendChatMessage,
         broadcast = broadcast,
@@ -35,6 +39,7 @@ class CancelEmergencyUseCaseTest {
     @Test
     fun `останавливает трансляцию геопозиции`() = runTest {
         every { appUserRepository.observeUser() } returns flowOf(AppUser("Иван"))
+        coEvery { contourRepository.getPreSosPrimaryId() } returns DefaultActiveContour.ID
 
         useCase()
 
@@ -44,6 +49,7 @@ class CancelEmergencyUseCaseTest {
     @Test
     fun `отправляет сообщение что всё в порядке`() = runTest {
         every { appUserRepository.observeUser() } returns flowOf(AppUser("Иван"))
+        coEvery { contourRepository.getPreSosPrimaryId() } returns DefaultActiveContour.ID
 
         var capturedParams: SendChatMessageParams? = null
         coEvery { sendChatMessage.invoke(any()) } answers { capturedParams = firstArg() }
@@ -57,17 +63,21 @@ class CancelEmergencyUseCaseTest {
     }
 
     @Test
-    fun `снимает флаг emergencyActive`() = runTest {
+    fun `восстанавливает Primary, снимает SOS и очищает preSos`() = runTest {
         every { appUserRepository.observeUser() } returns flowOf(AppUser("Иван"))
+        coEvery { contourRepository.getPreSosPrimaryId() } returns DefaultActiveContour.ID
 
         useCase()
 
-        coVerify(exactly = 1) { contourRepository.setEmergencyActive(false) }
+        coVerify(exactly = 1) { setPrimaryContour(DefaultActiveContour.ID) }
+        coVerify(exactly = 1) { contourRepository.setSosMode(false) }
+        coVerify(exactly = 1) { contourRepository.savePreSosPrimaryId(null) }
     }
 
     @Test
     fun `использует Неизвестный при пустом callsign`() = runTest {
         every { appUserRepository.observeUser() } returns flowOf(AppUser(""))
+        coEvery { contourRepository.getPreSosPrimaryId() } returns DefaultActiveContour.ID
 
         var capturedText = ""
         coEvery { sendChatMessage.invoke(any()) } answers {
@@ -80,15 +90,18 @@ class CancelEmergencyUseCaseTest {
     }
 
     @Test
-    fun `порядок вызовов — трансляция стоп затем сообщение затем флаг снят`() = runTest {
+    fun `порядок — стоп, сообщение, Primary, SOS off, preSos clear`() = runTest {
         every { appUserRepository.observeUser() } returns flowOf(AppUser("Иван"))
+        coEvery { contourRepository.getPreSosPrimaryId() } returns DefaultActiveContour.ID
 
         useCase()
 
         coVerifyOrder {
             broadcast.stop()
             sendChatMessage.invoke(any())
-            contourRepository.setEmergencyActive(false)
+            setPrimaryContour(DefaultActiveContour.ID)
+            contourRepository.setSosMode(false)
+            contourRepository.savePreSosPrimaryId(null)
         }
     }
 }

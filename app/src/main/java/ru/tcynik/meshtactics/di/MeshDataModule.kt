@@ -156,6 +156,7 @@ val meshDataModule = module {
     single { ObserveNodeSecurityConfigUseCase(get()) }
     single {
         NodeProvisioningUseCase(
+            contourRepository = get(),
             observeContours = get<ObserveContoursUseCase>(),
             writeChannel = get(),
             observeNodeChannels = get<ObserveNodeChannelsUseCase>(),

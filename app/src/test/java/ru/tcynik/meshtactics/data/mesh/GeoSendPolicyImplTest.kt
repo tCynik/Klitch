@@ -12,15 +12,15 @@ import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 class GeoSendPolicyImplTest {
 
     private val repository: ContourRepository = mockk()
-    private val emergencyIsActiveFlow = MutableStateFlow(false)
+    private val sosModeFlow = MutableStateFlow(false)
 
     private val policy = GeoSendPolicyImpl(repository).also {
-        every { repository.observeEmergencyIsActive() } returns emergencyIsActiveFlow
+        every { repository.observeSosMode() } returns sosModeFlow
     }
 
     @Test
-    fun `emergency isActive=true — observeAllowed emits false`() = runTest {
-        emergencyIsActiveFlow.value = true
+    fun `SOS active — observeAllowed emits false`() = runTest {
+        sosModeFlow.value = true
 
         policy.observeAllowed().test {
             assertEquals(false, awaitItem())
@@ -29,8 +29,8 @@ class GeoSendPolicyImplTest {
     }
 
     @Test
-    fun `emergency isActive=false — observeAllowed emits true`() = runTest {
-        emergencyIsActiveFlow.value = false
+    fun `SOS inactive — observeAllowed emits true`() = runTest {
+        sosModeFlow.value = false
 
         policy.observeAllowed().test {
             assertEquals(true, awaitItem())
@@ -39,13 +39,13 @@ class GeoSendPolicyImplTest {
     }
 
     @Test
-    fun `flow updates when emergency status changes`() = runTest {
-        emergencyIsActiveFlow.value = false
+    fun `flow updates when SOS status changes`() = runTest {
+        sosModeFlow.value = false
 
         policy.observeAllowed().test {
             assertEquals(true, awaitItem())
 
-            emergencyIsActiveFlow.value = true
+            sosModeFlow.value = true
             assertEquals(false, awaitItem())
 
             cancelAndIgnoreRemainingEvents()
