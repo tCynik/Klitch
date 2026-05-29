@@ -365,10 +365,12 @@ private fun ContourCard(
                     text = { Text(stringResource(R.string.user_channel_edit)) },
                     onClick = { showDropdown = false; onEdit() },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.user_channel_delete)) },
-                    onClick = { showDropdown = false; onDelete() },
-                )
+                if (!item.isPrimary) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.user_channel_delete)) },
+                        onClick = { showDropdown = false; onDelete() },
+                    )
+                }
             }
         }
     }

@@ -63,6 +63,17 @@ class SyncContoursOnConnectUseCase(
         } else {
             mutableSetOf(0, 1)
         }
+        val user = observeAppUser(NoParams).first()
+        if (user.displayName.isNotBlank()) {
+            val deviceConfig = withTimeoutOrNull(5_000) {
+                observeDeviceConfig(NoParams).first { it != null }
+            }
+            if (deviceConfig?.longName != user.displayName) {
+                logger.d("Contour", "writeOwner longName='${user.displayName}'")
+                writeOwner(user.displayName, deviceConfig?.shortName ?: "")
+            }
+        }
+
         val activeNonPrimary = contours.filter { it.isActive && !it.isEmergency && it.id != primaryId }
         for (contour in activeNonPrimary) {
             when (val resolution = resolveSlot(contour, nodeChannels, usedSlots, checkPrecision = true)) {
@@ -75,17 +86,6 @@ class SyncContoursOnConnectUseCase(
                     logger.w("Contour", "no free slots for contour '${contour.name}' — skipping")
                     return
                 }
-            }
-        }
-
-        val user = observeAppUser(NoParams).first()
-        if (user.displayName.isNotBlank()) {
-            val deviceConfig = withTimeoutOrNull(5_000) {
-                observeDeviceConfig(NoParams).first { it != null }
-            }
-            if (deviceConfig?.longName != user.displayName) {
-                logger.d("Contour", "writeOwner longName='${user.displayName}'")
-                writeOwner(user.displayName, deviceConfig?.shortName ?: "")
             }
         }
     }

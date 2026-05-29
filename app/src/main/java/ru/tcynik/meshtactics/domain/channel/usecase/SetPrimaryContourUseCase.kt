@@ -13,9 +13,16 @@ class SetPrimaryContourUseCase(
 ) {
     suspend operator fun invoke(contourId: ContourId) {
         contourRepository.setPrimaryContour(contourId)
-        val contour = contourRepository.observeContours().first().find { it.id == contourId } ?: return
-        val name = if (contour.isEmergency) DefaultContour.CHANNEL_NAME else contour.name
-        val psk = if (contour.isEmergency) DefaultContour.OPEN_PSK else contour.transport.meshtastic.psk
+        val name: String
+        val psk: String
+        if (contourId == DefaultContour.ID) {
+            name = DefaultContour.CHANNEL_NAME
+            psk = DefaultContour.OPEN_PSK
+        } else {
+            val contour = contourRepository.observeContours().first().find { it.id == contourId } ?: return
+            name = contour.name
+            psk = contour.transport.meshtastic.psk
+        }
         writeChannel(0, name, psk)
     }
 }
