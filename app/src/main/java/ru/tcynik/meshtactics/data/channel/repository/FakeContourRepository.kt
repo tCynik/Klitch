@@ -67,5 +67,9 @@ class FakeContourRepository : ContourRepository {
         _contours.value = contours
     }
 
+    fun setPrimaryId(id: ContourId) {
+        _primaryContourId.value = id
+    }
+
     suspend fun currentContours(): List<Contour> = observeContours().first()
 }

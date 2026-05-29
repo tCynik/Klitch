@@ -1,5 +1,6 @@
 package ru.tcynik.meshtactics.domain.channel.usecase
 
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import ru.tcynik.meshtactics.logger.NoOpLogger
@@ -8,11 +9,13 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import ru.tcynik.meshtactics.data.channel.repository.FakeContourRepository
 import ru.tcynik.meshtactics.domain.channel.model.Contour
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
+import ru.tcynik.meshtactics.domain.channel.model.DefaultActiveContour
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
@@ -30,34 +33,50 @@ class CheckNodeSyncUseCaseTest {
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
     private val observeAppUser: ObserveAppUserUseCase = mockk()
     private val observeDeviceConfig: ObserveDeviceConfigUseCase = mockk()
+    private val contourRepo = FakeContourRepository()
 
     private val useCase = CheckNodeSyncUseCase(
         observeContours = observeContours,
         observeNodeChannels = observeNodeChannels,
         observeAppUser = observeAppUser,
         observeDeviceConfig = observeDeviceConfig,
+        contourRepository = contourRepo,
         logger = NoOpLogger(),
+    )
+
+    // Default PSK shared by Basic and Emergency (AQ== = [0x01])
+    private val defaultPsk = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
+
+    // Slot 0 = Primary (Basic by default)
+    private val primarySlot = makeSlot(0, DefaultActiveContour.DISPLAY_NAME, defaultPsk)
+
+    // Slot 1 = Emergency (LongFast always, unless SOS active)
+    private val emergencySlot = makeSlot(1, DefaultContour.CHANNEL_NAME, defaultPsk)
+
+    // Basic contour in DB (Primary)
+    private val basicContour = makeContour(
+        name = DefaultActiveContour.DISPLAY_NAME,
+        psk = defaultPsk,
+        id = DefaultActiveContour.ID,
     )
 
     @Before
     fun setUp() {
         every { observeAppUser.invoke(any<NoParams>()) } returns flowOf(AppUser(displayName = ""))
+        // Default: primary = Basic
+        contourRepo.setPrimaryId(DefaultActiveContour.ID)
     }
 
-    private val emergencyPsk = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
-
-    private val emergencySlot = NodeChannelSlot(
-        index = 0,
-        name = DefaultContour.CHANNEL_NAME,
-        psk = emergencyPsk,
-        isEnabled = true,
-    )
-
-    private fun makeContour(name: String, psk: ByteArray, isActive: Boolean = true): Contour {
+    private fun makeContour(
+        name: String,
+        psk: ByteArray,
+        isActive: Boolean = true,
+        id: ContourId = ContourId(UUID.randomUUID().toString()),
+    ): Contour {
         val pskBase64 = Base64.getEncoder().encodeToString(psk)
         val hash = ContourHash.compute(name, psk)
         return Contour(
-            id = ContourId(UUID.randomUUID().toString()),
+            id = id,
             name = name,
             description = null,
             expiration = null,
@@ -78,20 +97,20 @@ class CheckNodeSyncUseCaseTest {
     // ── InSync ────────────────────────────────────────────────────────────────
 
     @Test
-    fun `InSync — slot 0 совпадает с Emergency, активных контуров нет`() = runTest {
-        every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
-        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot))
+    fun `InSync — slot 0 Primary и slot 1 Emergency совпадают, активных контуров нет`() = runTest {
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencySlot))
 
         assertEquals(NodeSyncResult.InSync, useCase())
     }
 
     @Test
-    fun `InSync — активный контур присутствует на ноде`() = runTest {
+    fun `InSync — активный не-Primary контур присутствует на ноде в слоте 2+`() = runTest {
         val psk = byteArrayOf(0x01, 0x02)
         val contour = makeContour("Alpha", psk)
-        val contourSlot = makeSlot(1, "Alpha", psk)
-        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(contour))
-        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot, contourSlot))
+        val contourSlot = makeSlot(2, "Alpha", psk)
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour, contour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencySlot, contourSlot))
 
         assertEquals(NodeSyncResult.InSync, useCase())
     }
@@ -100,88 +119,34 @@ class CheckNodeSyncUseCaseTest {
     fun `InSync — неактивный контур не проверяется`() = runTest {
         val psk = byteArrayOf(0x05)
         val inactive = makeContour("Delta", psk, isActive = false)
-        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(inactive))
-        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot))
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour, inactive))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencySlot))
 
         assertEquals(NodeSyncResult.InSync, useCase())
     }
 
-    // ── NeedsSync ─────────────────────────────────────────────────────────────
-
     @Test
     fun `InSync — список каналов ноды пуст (данные ещё не пришли)`() = runTest {
-        every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(emptyList())
 
         assertEquals(NodeSyncResult.InSync, useCase())
     }
 
     @Test
-    fun `NeedsSync — slot 0 имеет неверное имя`() = runTest {
-        val wrongSlot0 = emergencySlot.copy(name = "WrongName")
+    fun `InSync — SOS активен, Primary = Emergency, slot 0 = LongFast`() = runTest {
+        contourRepo.setPrimaryId(DefaultContour.ID)
+        val emergencyAsSlot0 = makeSlot(0, DefaultContour.CHANNEL_NAME, defaultPsk)
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
-        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(wrongSlot0))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencyAsSlot0))
 
-        assertEquals(NodeSyncResult.NeedsSync, useCase())
-    }
-
-    @Test
-    fun `NeedsSync — slot 0 имеет неверный PSK`() = runTest {
-        val wrongSlot0 = emergencySlot.copy(psk = byteArrayOf(0xFF.toByte()))
-        every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
-        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(wrongSlot0))
-
-        assertEquals(NodeSyncResult.NeedsSync, useCase())
-    }
-
-    @Test
-    fun `NeedsSync — активный контур отсутствует на ноде`() = runTest {
-        val psk = byteArrayOf(0x03)
-        val contour = makeContour("Bravo", psk)
-        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(contour))
-        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot))
-
-        assertEquals(NodeSyncResult.NeedsSync, useCase())
-    }
-
-    @Test
-    fun `NeedsSync — контур есть на ноде но isEnabled=false`() = runTest {
-        val psk = byteArrayOf(0x04)
-        val contour = makeContour("Charlie", psk)
-        val disabledSlot = makeSlot(1, "Charlie", psk, isEnabled = false)
-        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(contour))
-        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot, disabledSlot))
-
-        assertEquals(NodeSyncResult.NeedsSync, useCase())
-    }
-
-    @Test
-    fun `NeedsSync — контур есть на ноде но position_precision = 0`() = runTest {
-        val psk = byteArrayOf(0x06)
-        val contour = makeContour("Echo", psk)
-        val noPrecisionSlot = makeSlot(1, "Echo", psk, positionPrecision = 0)
-        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(contour))
-        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot, noPrecisionSlot))
-
-        assertEquals(NodeSyncResult.NeedsSync, useCase())
-    }
-
-    @Test
-    fun `NeedsSync — позывной приложения не совпадает с именем на ноде`() = runTest {
-        every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
-        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot))
-        every { observeAppUser.invoke(any<NoParams>()) } returns flowOf(AppUser(displayName = "NewCallsign"))
-        every { observeDeviceConfig.invoke(any<NoParams>()) } returns flowOf(
-            MeshDeviceConfigModel(longName = "OldCallsign", shortName = "OLD", loraPreset = "", txPowerDbm = "", region = "", channels = emptyList())
-        )
-
-        assertEquals(NodeSyncResult.NeedsSync, useCase())
+        assertEquals(NodeSyncResult.InSync, useCase())
     }
 
     @Test
     fun `InSync — позывной приложения совпадает с именем на ноде`() = runTest {
-        every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
-        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot))
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencySlot))
         every { observeAppUser.invoke(any<NoParams>()) } returns flowOf(AppUser(displayName = "SameCallsign"))
         every { observeDeviceConfig.invoke(any<NoParams>()) } returns flowOf(
             MeshDeviceConfigModel(longName = "SameCallsign", shortName = "SC", loraPreset = "", txPowerDbm = "", region = "", channels = emptyList())
@@ -192,9 +157,111 @@ class CheckNodeSyncUseCaseTest {
 
     @Test
     fun `InSync — displayName пустой, owner check пропускается`() = runTest {
-        every { observeContours.invoke(any<NoParams>()) } returns flowOf(emptyList())
-        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(emergencySlot))
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencySlot))
 
         assertEquals(NodeSyncResult.InSync, useCase())
+    }
+
+    // ── NeedsSync ─────────────────────────────────────────────────────────────
+
+    @Test
+    fun `NeedsSync — slot 0 имеет неверное имя (не Primary)`() = runTest {
+        val wrongSlot0 = primarySlot.copy(name = "WrongName")
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(wrongSlot0, emergencySlot))
+
+        assertEquals(NodeSyncResult.NeedsSync, useCase())
+    }
+
+    @Test
+    fun `NeedsSync — slot 0 имеет неверный PSK`() = runTest {
+        val wrongSlot0 = primarySlot.copy(psk = byteArrayOf(0xFF.toByte()))
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(wrongSlot0, emergencySlot))
+
+        assertEquals(NodeSyncResult.NeedsSync, useCase())
+    }
+
+    @Test
+    fun `NeedsSync — slot 0 содержит Emergency вместо Primary (старый порядок)`() = runTest {
+        val oldSlot0 = makeSlot(0, DefaultContour.CHANNEL_NAME, defaultPsk) // LongFast на slot 0
+        val oldSlot1 = makeSlot(1, DefaultActiveContour.DISPLAY_NAME, defaultPsk) // Basic на slot 1
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(oldSlot0, oldSlot1))
+
+        assertEquals(NodeSyncResult.NeedsSync, useCase())
+    }
+
+    @Test
+    fun `NeedsSync — slot 1 не содержит Emergency (когда Primary не Emergency)`() = runTest {
+        val wrongSlot1 = emergencySlot.copy(name = "SomeOtherChannel")
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, wrongSlot1))
+
+        assertEquals(NodeSyncResult.NeedsSync, useCase())
+    }
+
+    @Test
+    fun `NeedsSync — slot 1 отсутствует (Emergency не записан)`() = runTest {
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot))
+
+        assertEquals(NodeSyncResult.NeedsSync, useCase())
+    }
+
+    @Test
+    fun `NeedsSync — активный контур отсутствует на ноде`() = runTest {
+        val psk = byteArrayOf(0x03)
+        val contour = makeContour("Bravo", psk)
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour, contour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencySlot))
+
+        assertEquals(NodeSyncResult.NeedsSync, useCase())
+    }
+
+    @Test
+    fun `NeedsSync — контур есть на ноде но isEnabled=false`() = runTest {
+        val psk = byteArrayOf(0x04)
+        val contour = makeContour("Charlie", psk)
+        val disabledSlot = makeSlot(2, "Charlie", psk, isEnabled = false)
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour, contour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencySlot, disabledSlot))
+
+        assertEquals(NodeSyncResult.NeedsSync, useCase())
+    }
+
+    @Test
+    fun `NeedsSync — контур есть на ноде но position_precision = 0`() = runTest {
+        val psk = byteArrayOf(0x06)
+        val contour = makeContour("Echo", psk)
+        val noPrecisionSlot = makeSlot(2, "Echo", psk, positionPrecision = 0)
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour, contour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencySlot, noPrecisionSlot))
+
+        assertEquals(NodeSyncResult.NeedsSync, useCase())
+    }
+
+    @Test
+    fun `NeedsSync — контур на slot 1 не считается (зарезервирован под Emergency)`() = runTest {
+        val psk = byteArrayOf(0x07)
+        val contour = makeContour("Foxtrot", psk)
+        val slotOnReserved = makeSlot(1, "Foxtrot", psk) // slot 1 занят контуром, не Emergency
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour, contour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, slotOnReserved))
+
+        assertEquals(NodeSyncResult.NeedsSync, useCase())
+    }
+
+    @Test
+    fun `NeedsSync — позывной приложения не совпадает с именем на ноде`() = runTest {
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencySlot))
+        every { observeAppUser.invoke(any<NoParams>()) } returns flowOf(AppUser(displayName = "NewCallsign"))
+        every { observeDeviceConfig.invoke(any<NoParams>()) } returns flowOf(
+            MeshDeviceConfigModel(longName = "OldCallsign", shortName = "OLD", loraPreset = "", txPowerDbm = "", region = "", channels = emptyList())
+        )
+
+        assertEquals(NodeSyncResult.NeedsSync, useCase())
     }
 }
