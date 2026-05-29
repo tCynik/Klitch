@@ -118,8 +118,7 @@
 | Universal Orientation | `.claude/docs/universal-orientation.md` |
 | Auto-connect on Start | `.claude/docs/auto-connect-on-start.md` |
 | Chat | `.claude/docs/chat.md` |
-| Contour Management | `.claude/docs/logical-channels-management.md` |
-| Contour Design Concepts | `.claude/docs/contour-design.md` |
+| Contours (единый источник) | `.claude/docs/contours.md` |
 | Emergency SOS | `.claude/docs/emergency-sos.md` |
 | Channel Sync Validation | `.claude/docs/channel-sync-validation.md` |
 | User Settings Write Mechanics | `.claude/docs/user-settings-write-mechanics.md` |

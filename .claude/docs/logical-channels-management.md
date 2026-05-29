@@ -1,7 +1,11 @@
 # Contour Management
 
+> **ARCHIVED** — содержимое перенесено в `.claude/docs/contours.md` (2026-05-29).
+> Дизайн пересмотрен: Primary mechanic, Emergency не primary по умолчанию, Exclusive mode.
+> Актуальный дизайн — в `contours.md`.
+
 **Date**: 2026-04-26
-**Status**: Done (renamed LogicalChannel → Contour 2026-04-25; isActive + geo protection 2026-04-26)
+**Status**: Archived (superseded by contours.md)
 
 ## Summary
 
