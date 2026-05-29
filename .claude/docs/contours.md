@@ -181,8 +181,9 @@ interface ContourRepository {
 | `ResolveChannelSlotUseCase` | Done | без изменений |
 | `SetContourActiveUseCase` | Done → **Revised** | убрать спецслучай Emergency; guard: нельзя деактивировать Primary |
 | `SyncContoursOnConnectUseCase` | Done → **Revised** | slot 0 = primaryContourId; slot 1 = Emergency; см. ниже |
-| `SetPrimaryContourUseCase` | **Planned** | new: сохранить id + немедленный writeChannel(0) если connected |
-| `ActivateExclusiveContourUseCase` | **Planned** | new: Primary + all inactive + clear foreign slots |
+| `SetPrimaryContourUseCase` | **Planned** | new: сохранить id + writeChannel(0) всегда (безопасен без соединения — guard в impl) |
+| `ActivateExclusiveContourUseCase` | **Planned** | new: Primary + all inactive + clear foreign slots (writeChannel safe without connection) |
+| `NodeProvisioningUseCase` | Done → **Revised** | pre-seed usedSlots={0,1}; skip primary contour; slots 2–7 only |
 | `TriggerEmergencyUseCase` | Done → **Revised** | save preSosPrimary → setPrimary(Emergency) → broadcast |
 | `CancelEmergencyUseCase` | Done → **Revised** | restore preSosPrimary → stop broadcast |
 
@@ -255,8 +256,9 @@ incoming packet.channel (Int)
 ## TODO (deferred)
 
 ```kotlin
-// TODO(contour): SetPrimaryContourUseCase — реализация
-// TODO(contour): ActivateExclusiveContourUseCase — реализация
+// TODO(contour): SetPrimaryContourUseCase — реализация (invoke(id): always writeChannel, no isConnected param)
+// TODO(contour): ActivateExclusiveContourUseCase — реализация (invoke(id): writeChannel 0+1+clear 2-7, always safe)
+// TODO(contour): NodeProvisioningUseCase — usedSlots pre-seed {0,1} + skip primary
 // TODO(contour): SyncContoursOnConnectUseCase — пересмотр под новую схему слотов
 // TODO(contour): SetContourActiveUseCase — убрать спецслучай Emergency, guard Primary
 // TODO(contour): TriggerEmergencyUseCase / CancelEmergencyUseCase — pre_sos_primary_id
