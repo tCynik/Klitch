@@ -20,6 +20,7 @@ import org.meshtastic.proto.ChannelSettings
 import org.meshtastic.proto.Config
 import org.meshtastic.proto.HardwareModel
 import org.meshtastic.proto.ModuleSettings
+import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
 import ru.tcynik.meshtactics.domain.mesh.model.GpsMode
 import ru.tcynik.meshtactics.domain.mesh.model.LocationConfigModel
@@ -70,7 +71,10 @@ class MeshConfigRepositoryImpl(
             settings = ChannelSettings(
                 name = name,
                 psk = pskBytes.toByteString(),
-                module_settings = ModuleSettings(position_precision = CHANNEL_POSITION_PRECISION),
+                module_settings = ModuleSettings(
+                    position_precision = if (name == DefaultContour.CHANNEL_NAME && pskBase64.trim() == DefaultContour.OPEN_PSK) 0
+                                        else CHANNEL_POSITION_PRECISION
+                ),
             ),
             role = if (index == 0) Channel.Role.PRIMARY else Channel.Role.SECONDARY,
         )

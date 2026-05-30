@@ -149,8 +149,12 @@ class NetworkViewModel(
                     }
                     pendingConnectAddress = null
                 }
-                if (!wasConnected && !isRebooting) {
+                if (!wasConnected) {
                     viewModelScope.launch {
+                        if (rebootStateRepository.shouldSkipSyncCheckAfterReboot()) {
+                            return@launch
+                        }
+                        if (rebootStateRepository.isRebooting.value) return@launch
                         withTimeoutOrNull(10_000) {
                             observeNodeChannels(NoParams).filter { it.isNotEmpty() }.firstOrNull()
                         }
@@ -253,8 +257,9 @@ class NetworkViewModel(
         _uiState.update { it.copy(showSyncDialog = false) }
         viewModelScope.launch {
             rebootDisconnectObserved = false
-            rebootStateRepository.setRebooting(true)
             syncContoursOnConnect()
+            rebootStateRepository.markSyncAppliedBeforeReboot()
+            rebootStateRepository.setRebooting(true)
             rebootNode()
             syncStateRepository.clear()
             reconnectAfterNodeReboot(NoParams)

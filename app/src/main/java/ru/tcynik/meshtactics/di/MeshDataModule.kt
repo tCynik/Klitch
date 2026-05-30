@@ -155,6 +155,9 @@ val meshDataModule = module {
             connectToDevice = get(),
             getLastConnectedDevice = get(),
             observeConnectionStatus = get(),
+            requestDeviceConfig = get(),
+            checkNodeSync = get(),
+            syncStateRepository = get(),
             rebootStateRepository = get(),
         )
     }

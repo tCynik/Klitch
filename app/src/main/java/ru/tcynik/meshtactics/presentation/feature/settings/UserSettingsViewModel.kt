@@ -281,6 +281,7 @@ class UserSettingsViewModel(
                 needsPkcRegen = false
             }
             syncContoursOnConnect()
+            rebootStateRepository.markSyncAppliedBeforeReboot()
             rebootStateRepository.setRebooting(true)
             rebootNode()
             syncStateRepository.clear()
@@ -357,6 +358,7 @@ class UserSettingsViewModel(
             regeneratePkcKeys()
             saveAppUser(AppUser(displayName = _uiState.value.displayName))
             _uiState.update { it.copy(hasUnsavedUserChanges = false) }
+            rebootStateRepository.markSyncAppliedBeforeReboot()
             rebootStateRepository.setRebooting(true)
             rebootNode()
             reconnectAfterNodeReboot(NoParams)

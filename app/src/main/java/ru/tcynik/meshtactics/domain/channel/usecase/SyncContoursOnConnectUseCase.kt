@@ -1,7 +1,9 @@
 package ru.tcynik.meshtactics.domain.channel.usecase
 
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
+import ru.tcynik.meshtactics.domain.channel.model.Contour
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.isEmergency
@@ -42,11 +44,15 @@ class SyncContoursOnConnectUseCase(
         } else {
             primaryContour.transport.meshtastic.psk
         }
+        val expectedSlot0Hash = expectedSlot0Hash(primaryContour)
         val slot0 = nodeChannels.find { it.index == 0 }
         val primarySynced = slot0 != null &&
-            ContourHash.compute(slot0.name, slot0.psk) == primaryContour.transport.meshtastic.channelHash
+            ContourHash.compute(slot0.name, slot0.psk) == expectedSlot0Hash
+        var wroteAny = false
         if (!primarySynced) {
+            logger.d("Contour", "write primary slot 0 name='$primaryName'")
             writeChannel(0, primaryName, primaryPsk)
+            wroteAny = true
         }
 
         if (!primaryContour.isEmergency) {
@@ -54,7 +60,9 @@ class SyncContoursOnConnectUseCase(
             val emergencySynced = slot1 != null &&
                 ContourHash.compute(slot1.name, slot1.psk) == DefaultContour.CHANNEL_HASH
             if (!emergencySynced) {
+                logger.d("Contour", "write emergency slot 1")
                 writeChannel(1, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK)
+                wroteAny = true
             }
         }
 
@@ -71,6 +79,7 @@ class SyncContoursOnConnectUseCase(
             if (deviceConfig?.longName != user.displayName) {
                 logger.d("Contour", "writeOwner longName='${user.displayName}'")
                 writeOwner(user.displayName, deviceConfig?.shortName ?: "")
+                wroteAny = true
             }
         }
 
@@ -81,6 +90,7 @@ class SyncContoursOnConnectUseCase(
                 is SlotResolution.FreeSlot -> {
                     writeChannel(resolution.slot, contour.name, contour.transport.meshtastic.psk)
                     usedSlots.add(resolution.slot)
+                    wroteAny = true
                 }
                 is SlotResolution.NoFreeSlot -> {
                     logger.w("Contour", "no free slots for contour '${contour.name}' — skipping")
@@ -88,5 +98,18 @@ class SyncContoursOnConnectUseCase(
                 }
             }
         }
+
+        if (wroteAny) {
+            delay(WRITE_SETTLE_MS)
+        }
+    }
+
+    private fun expectedSlot0Hash(primaryContour: Contour): ContourHash =
+        if (primaryContour.isEmergency) DefaultContour.CHANNEL_HASH
+        else primaryContour.transport.meshtastic.channelHash
+
+    private companion object {
+        /** Дать ноде время принять admin set_channel до reboot. */
+        const val WRITE_SETTLE_MS = 3_000L
     }
 }

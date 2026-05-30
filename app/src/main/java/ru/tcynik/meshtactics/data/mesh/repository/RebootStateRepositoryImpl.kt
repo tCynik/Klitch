@@ -9,4 +9,16 @@ class RebootStateRepositoryImpl : RebootStateRepository {
     private val _isRebooting = MutableStateFlow(false)
     override val isRebooting: StateFlow<Boolean> = _isRebooting.asStateFlow()
     override fun setRebooting(value: Boolean) { _isRebooting.value = value }
+
+    private var skipSyncCheckAfterReboot = false
+
+    override fun markSyncAppliedBeforeReboot() {
+        skipSyncCheckAfterReboot = true
+    }
+
+    override fun shouldSkipSyncCheckAfterReboot(): Boolean = skipSyncCheckAfterReboot
+
+    override fun clearSkipSyncCheckAfterReboot() {
+        skipSyncCheckAfterReboot = false
+    }
 }

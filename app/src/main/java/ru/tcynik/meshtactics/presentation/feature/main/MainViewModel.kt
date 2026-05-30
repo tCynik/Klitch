@@ -244,15 +244,18 @@ class MainViewModel(
                     _uiState.update { it.copy(connectionStatus = status) }
                     if (!wasConnected) {
                         if (rebootStateRepository.isRebooting.value) rebootStateRepository.setRebooting(false)
-                        viewModelScope.launch { nodeProvisioning.provision() }
-                        viewModelScope.launch {
-                            withTimeoutOrNull(10_000) {
-                                observeNodeChannels(NoParams).filter { it.isNotEmpty() }.firstOrNull()
+                        val skipSyncCheck = rebootStateRepository.shouldSkipSyncCheckAfterReboot()
+                        if (!skipSyncCheck) {
+                            viewModelScope.launch { nodeProvisioning.provision() }
+                            viewModelScope.launch {
+                                withTimeoutOrNull(10_000) {
+                                    observeNodeChannels(NoParams).filter { it.isNotEmpty() }.firstOrNull()
+                                }
+                                if (checkNodeSync() is NodeSyncResult.NeedsSync)
+                                    syncStateRepository.setSyncRequired(true)
+                                else
+                                    syncStateRepository.clear()
                             }
-                            if (checkNodeSync() is NodeSyncResult.NeedsSync)
-                                syncStateRepository.setSyncRequired(true)
-                            else
-                                syncStateRepository.clear()
                         }
                         _uiState.update { it.copy(showConnectionLabel = true) }
                         connectedLabelJob?.cancel()

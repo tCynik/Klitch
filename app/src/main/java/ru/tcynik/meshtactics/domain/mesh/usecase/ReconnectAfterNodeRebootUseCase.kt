@@ -4,6 +4,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
+import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
+import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
+import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
@@ -22,6 +25,9 @@ class ReconnectAfterNodeRebootUseCase(
     private val connectToDevice: ConnectToMeshDeviceUseCase,
     private val getLastConnectedDevice: GetLastConnectedDeviceUseCase,
     private val observeConnectionStatus: ObserveConnectionStatusUseCase,
+    private val requestDeviceConfig: RequestDeviceConfigUseCase,
+    private val checkNodeSync: CheckNodeSyncUseCase,
+    private val syncStateRepository: ContourSyncStateRepository,
     private val rebootStateRepository: RebootStateRepository,
 ) : UseCase<NoParams, Unit>() {
 
@@ -31,7 +37,7 @@ class ReconnectAfterNodeRebootUseCase(
         delay(POST_DISCONNECT_DELAY_MS)
 
         val lastDevice = getLastConnectedDevice() ?: run {
-            rebootStateRepository.setRebooting(false)
+            finishRebootCycle(syncVerified = false)
             return
         }
         val connectParams = ConnectToMeshDeviceParams(lastDevice.address, lastDevice.name)
@@ -43,7 +49,15 @@ class ReconnectAfterNodeRebootUseCase(
                     .filter { it is MeshConnectionStatus.Connected }
                     .first()
             }
-            if (connected != null) return
+            if (connected != null) {
+                val syncVerified = if (rebootStateRepository.shouldSkipSyncCheckAfterReboot()) {
+                    verifySyncAfterReconnect()
+                } else {
+                    true
+                }
+                finishRebootCycle(syncVerified = syncVerified)
+                return
+            }
 
             if (attempt < MAX_ATTEMPTS - 1) {
                 disconnectFromMesh(NoParams)
@@ -52,7 +66,25 @@ class ReconnectAfterNodeRebootUseCase(
         }
 
         disconnectFromMesh(NoParams)
+        finishRebootCycle(syncVerified = false)
+    }
+
+    private suspend fun verifySyncAfterReconnect(): Boolean {
+        requestDeviceConfig()
+        repeat(SYNC_VERIFY_ATTEMPTS) {
+            delay(SYNC_VERIFY_INTERVAL_MS)
+            if (checkNodeSync() is NodeSyncResult.InSync) return true
+        }
+        return false
+    }
+
+    private fun finishRebootCycle(syncVerified: Boolean) {
+        if (rebootStateRepository.shouldSkipSyncCheckAfterReboot()) {
+            if (syncVerified) syncStateRepository.clear()
+            else syncStateRepository.setSyncRequired(true)
+        }
         rebootStateRepository.setRebooting(false)
+        rebootStateRepository.clearSkipSyncCheckAfterReboot()
     }
 
     internal companion object {
@@ -61,6 +93,8 @@ class ReconnectAfterNodeRebootUseCase(
         const val POST_DISCONNECT_DELAY_MS = 500L
         const val RETRY_DELAY_MS = 2_000L
         const val CONNECT_ATTEMPT_TIMEOUT_MS = 15_000L
+        const val SYNC_VERIFY_ATTEMPTS = 5
+        const val SYNC_VERIFY_INTERVAL_MS = 2_000L
         const val MAX_ATTEMPTS = 3
     }
 }

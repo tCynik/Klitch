@@ -271,6 +271,7 @@ class UserSettingsViewModelSyncDialogTest {
         coVerify(exactly = 1) { syncContoursOnConnect.invoke() }
         verify(exactly = 1) { rebootNode.invoke() }
         coVerify(exactly = 1) { reconnectAfterNodeReboot.invoke(NoParams) }
+        verify(exactly = 1) { rebootStateRepository.markSyncAppliedBeforeReboot() }
     }
 
     @Test

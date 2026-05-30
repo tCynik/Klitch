@@ -80,6 +80,39 @@ class SyncContoursOnConnectUseCaseTest {
     }
 
     @Test
+    fun `writes primary to slot 0 when node has default LongFast channel`() = runTest {
+        val openPskBytes = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
+        val primary = Contour(
+            id = ContourId(DefaultActiveContour.ID.value),
+            name = DefaultActiveContour.DISPLAY_NAME,
+            description = null,
+            expiration = null,
+            exclusivityTime = null,
+            isActive = true,
+            transport = ContourTransport(
+                meshtastic = MeshtasticChannel(
+                    psk = DefaultContour.OPEN_PSK,
+                    channelHash = ContourHash.compute(DefaultActiveContour.DISPLAY_NAME, openPskBytes),
+                ),
+            ),
+        )
+        val defaultSlot = NodeChannelSlot(
+            index = 0,
+            name = DefaultContour.CHANNEL_NAME,
+            psk = openPskBytes,
+            isEnabled = true,
+        )
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(primary))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(defaultSlot))
+
+        useCase()
+
+        verify(exactly = 1) {
+            writeChannel.invoke(0, DefaultActiveContour.DISPLAY_NAME, DefaultContour.OPEN_PSK)
+        }
+    }
+
+    @Test
     fun `writes primary to slot 0 when node channels empty`() = runTest {
         val primary = makeContour(DefaultActiveContour.ID.value, DefaultActiveContour.DISPLAY_NAME)
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(primary))
