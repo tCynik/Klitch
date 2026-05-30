@@ -31,6 +31,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveOurNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ReconnectAfterNodeRebootUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveNetworkEnabledUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.SetNetworkEnabledUseCase
@@ -55,6 +56,7 @@ class NetworkViewModel(
     private val observeNodeChannels: ObserveNodeChannelsUseCase,
     private val syncContoursOnConnect: SyncContoursOnConnectUseCase,
     private val rebootNode: RebootNodeUseCase,
+    private val reconnectAfterNodeReboot: ReconnectAfterNodeRebootUseCase,
     private val syncStateRepository: ContourSyncStateRepository,
     private val rebootStateRepository: RebootStateRepository,
     private val observeAppUser: ObserveAppUserUseCase,
@@ -255,6 +257,7 @@ class NetworkViewModel(
             syncContoursOnConnect()
             rebootNode()
             syncStateRepository.clear()
+            reconnectAfterNodeReboot(NoParams)
         }
     }
 

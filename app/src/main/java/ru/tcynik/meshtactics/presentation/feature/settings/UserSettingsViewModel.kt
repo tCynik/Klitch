@@ -54,6 +54,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ReconnectAfterNodeRebootUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SetGpsBroadcastEnabledUseCase
@@ -92,6 +93,7 @@ class UserSettingsViewModel(
     private val syncStateRepository: ContourSyncStateRepository,
     private val disconnectFromMesh: DisconnectFromMeshUseCase,
     private val rebootNode: RebootNodeUseCase,
+    private val reconnectAfterNodeReboot: ReconnectAfterNodeRebootUseCase,
     private val rebootStateRepository: RebootStateRepository,
     private val observeGpsBroadcastEnabled: ObserveGpsBroadcastEnabledUseCase,
     private val setGpsBroadcastEnabled: SetGpsBroadcastEnabledUseCase,
@@ -282,6 +284,7 @@ class UserSettingsViewModel(
             rebootStateRepository.setRebooting(true)
             rebootNode()
             syncStateRepository.clear()
+            reconnectAfterNodeReboot(NoParams)
         }
     }
 
@@ -356,6 +359,7 @@ class UserSettingsViewModel(
             _uiState.update { it.copy(hasUnsavedUserChanges = false) }
             rebootStateRepository.setRebooting(true)
             rebootNode()
+            reconnectAfterNodeReboot(NoParams)
             _navigateBack.tryEmit(Unit)
         }
     }

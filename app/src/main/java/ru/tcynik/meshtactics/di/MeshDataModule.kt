@@ -54,6 +54,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastRead
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ReconnectAfterNodeRebootUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveNodeSecurityConfigUseCase
@@ -148,6 +149,15 @@ val meshDataModule = module {
     single { EnableNodePositionBroadcastReadyUseCase(get()) }
     single { DisableNodePositionBroadcastUseCase(get()) }
     single { RebootNodeUseCase(get()) }
+    single {
+        ReconnectAfterNodeRebootUseCase(
+            disconnectFromMesh = get(),
+            connectToDevice = get(),
+            getLastConnectedDevice = get(),
+            observeConnectionStatus = get(),
+            rebootStateRepository = get(),
+        )
+    }
     single { CheckOwnPkcHealthUseCase(get()) }
     single { RefreshNodePublicKeysUseCase(get()) }
     single { RefreshNodePublicKeyUseCase(get()) }
