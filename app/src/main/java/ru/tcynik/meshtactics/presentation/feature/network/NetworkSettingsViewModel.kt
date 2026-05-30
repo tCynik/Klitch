@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import ru.tcynik.meshtactics.domain.logger.Logger
 import ru.tcynik.meshtactics.domain.mesh.model.GpsMode
 import ru.tcynik.meshtactics.domain.mesh.model.LocationConfigModel
@@ -139,10 +140,12 @@ class NetworkSettingsViewModel(
     fun onWriteConfigClick() {
         val settings = _uiState.value.settings
         val cfg = settings.deviceConfig ?: return
-        writeOwner(cfg.longName, cfg.shortName)
-        settings.channels.forEach { ch ->
-            if (ch.pskError == null) {
-                writeChannel(ch.index, ch.channelName, ch.pskBase64)
+        viewModelScope.launch {
+            writeOwner(cfg.longName, cfg.shortName)
+            settings.channels.forEach { ch ->
+                if (ch.pskError == null) {
+                    writeChannel(ch.index, ch.channelName, ch.pskBase64)
+                }
             }
         }
         _uiState.update { state ->

@@ -71,7 +71,7 @@ val userSettingsModule = module {
     single { ActivateExclusiveContourUseCase(get(), get()) }
     single { ObserveNodeChannelsUseCase(get()) }
     single { ResolveChannelSlotUseCase() }
-    single { SyncContoursOnConnectUseCase(get(), get(), get(), get(), get(), get(), get(), get(), get()) }
+    single { SyncContoursOnConnectUseCase(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
     single { CheckNodeSyncUseCase(get(), get(), get(), get(), get(), get()) }
     single<ContourSyncStateRepository> { ContourSyncStateRepositoryImpl() }
     single<ChannelSlotResolver> { ChannelSlotResolverImpl(get()) }

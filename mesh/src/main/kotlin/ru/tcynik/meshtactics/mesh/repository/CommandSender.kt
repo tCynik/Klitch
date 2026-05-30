@@ -52,13 +52,13 @@ interface CommandSender {
     /** Sends a data packet to the mesh. */
     fun sendData(p: DataPacket)
 
-    /** Sends an admin message to a specific node. */
+    /** Sends an admin message to a specific node. Returns the mesh packet id. */
     fun sendAdmin(
         destNum: Int,
         requestId: Int = generatePacketId(),
         wantResponse: Boolean = false,
         initFn: () -> AdminMessage,
-    )
+    ): Int
 
     /** Sends our current position to the mesh. */
     fun sendPosition(pos: org.meshtastic.proto.Position, destNum: Int? = null, wantResponse: Boolean = false)

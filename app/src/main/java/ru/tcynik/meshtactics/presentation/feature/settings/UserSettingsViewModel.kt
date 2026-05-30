@@ -221,7 +221,9 @@ class UserSettingsViewModel(
     }
 
     private fun pushContourToNode(contour: Contour, slot: Int) {
-        writeChannel(slot, contour.name, contour.transport.meshtastic.psk)
+        viewModelScope.launch {
+            writeChannel(slot, contour.name, contour.transport.meshtastic.psk)
+        }
     }
 
     fun onPushToNode(id: ContourId) {
@@ -249,7 +251,9 @@ class UserSettingsViewModel(
         val hash = contour.transport.meshtastic.channelHash
         val slot = channelSlotResolver.hashToSlot[hash] ?: return
         if (slot == 0) return
-        writeChannel(slot, "", "")
+        viewModelScope.launch {
+            writeChannel(slot, "", "")
+        }
     }
 
     fun onSetPrimary(id: ContourId) {

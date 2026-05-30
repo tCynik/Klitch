@@ -49,7 +49,9 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.SendMeshMessageUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SetProvideLocationUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelPositionPrecisionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WritePositionConfigUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.BeginSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.CommitSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase
@@ -112,6 +114,7 @@ val meshDataModule = module {
             meshRouter = get(),
             nodeRepository = get(),
             commandSender = get(),
+            packetHandler = get(),
             uiPrefs = get(),
             context = androidContext(),
             logger = get(),
@@ -139,6 +142,8 @@ val meshDataModule = module {
     single { ObservePacketLogUseCase(get()) }
     single { ObserveDeviceConfigUseCase(get()) }
     single { RequestDeviceConfigUseCase(get()) }
+    single { BeginSettingsEditUseCase(get()) }
+    single { CommitSettingsEditUseCase(get()) }
     single { WriteOwnerUseCase(get()) }
     single { WriteChannelUseCase(get()) }
     single { ObserveLocationConfigUseCase(get()) }

@@ -19,8 +19,10 @@ interface MeshConfigRepository {
     fun observeNodeChannels(): Flow<List<NodeChannelSlot>>
     fun observeDeviceConfig(): Flow<MeshDeviceConfigModel?>
     fun requestDeviceConfig()
-    fun writeOwner(longName: String, shortName: String)
-    fun writeChannel(index: Int, name: String, pskBase64: String)
+    suspend fun beginSettingsEdit()
+    suspend fun commitSettingsEdit()
+    suspend fun writeOwner(longName: String, shortName: String)
+    suspend fun writeChannel(index: Int, name: String, pskBase64: String)
 
     fun observeLocationConfig(nodeNum: Int): Flow<LocationConfigModel>
     fun setProvideLocation(nodeNum: Int, provide: Boolean)

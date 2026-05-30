@@ -54,10 +54,10 @@ class ActivateExclusiveContourUseCaseTest {
         coVerify(exactly = 1) { contourRepository.setPrimaryContour(exclusiveId) }
         coVerify(exactly = 1) { contourRepository.saveContour(other.copy(isActive = false)) }
         coVerify(exactly = 0) { contourRepository.saveContour(match { it.id == DefaultContour.ID }) }
-        verify(exactly = 1) { writeChannel(0, "Race", pskBase64) }
-        verify(exactly = 1) { writeChannel(1, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK) }
+        coVerify(exactly = 1) { writeChannel(0, "Race", pskBase64) }
+        coVerify(exactly = 1) { writeChannel(1, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK) }
         (2..7).forEach { slot ->
-            verify(exactly = 1) { writeChannel(slot, "", "") }
+            coVerify(exactly = 1) { writeChannel(slot, "", "") }
         }
     }
 }

@@ -34,12 +34,16 @@ import ru.tcynik.meshtactics.mesh.model.Position
 import ru.tcynik.meshtactics.mesh.repository.CommandSender
 import ru.tcynik.meshtactics.mesh.repository.MeshRouter
 import ru.tcynik.meshtactics.mesh.repository.NodeRepository
+import ru.tcynik.meshtactics.mesh.repository.PacketHandler
 import ru.tcynik.meshtactics.mesh.repository.UiPrefs
+import kotlin.random.Random
+import kotlin.time.Duration.Companion.seconds
 
 class MeshConfigRepositoryImpl(
     private val meshRouter: MeshRouter,
     private val nodeRepository: NodeRepository,
     private val commandSender: CommandSender,
+    private val packetHandler: PacketHandler,
     private val uiPrefs: UiPrefs,
     private val context: Context,
     private val logger: Logger,
@@ -62,26 +66,35 @@ class MeshConfigRepositoryImpl(
         meshRouter.configFlowManager.triggerWantConfig()
     }
 
-    override fun writeChannel(index: Int, name: String, pskBase64: String) {
-        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
-        val pskBytes = if (pskBase64.isBlank()) ByteArray(0)
-                       else Base64.decode(pskBase64.trim(), Base64.DEFAULT)
-        val channel = Channel(
-            index = index,
-            settings = ChannelSettings(
-                name = name,
-                psk = pskBytes.toByteString(),
-                module_settings = ModuleSettings(
-                    position_precision = if (name == DefaultContour.CHANNEL_NAME && pskBase64.trim() == DefaultContour.OPEN_PSK) 0
-                                        else CHANNEL_POSITION_PRECISION
-                ),
-            ),
-            role = if (index == 0) Channel.Role.PRIMARY else Channel.Role.SECONDARY,
-        )
-        meshRouter.actionHandler.handleSetChannel(Channel.ADAPTER.encode(channel), myNodeNum)
+    override suspend fun beginSettingsEdit() {
+        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: run {
+            logger.w("Contour", "beginSettingsEdit: myNodeNum unavailable")
+            return
+        }
+        val packetId = meshRouter.actionHandler.handleBeginEditSettings(myNodeNum)
+        awaitAdminPacket("beginSettingsEdit", packetId)
     }
 
-    override fun writeOwner(longName: String, shortName: String) {
+    override suspend fun commitSettingsEdit() {
+        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: run {
+            logger.w("Contour", "commitSettingsEdit: myNodeNum unavailable")
+            return
+        }
+        val packetId = meshRouter.actionHandler.handleCommitEditSettings(myNodeNum)
+        awaitAdminPacket("commitSettingsEdit", packetId)
+    }
+
+    override suspend fun writeChannel(index: Int, name: String, pskBase64: String) {
+        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: run {
+            logger.w("Contour", "writeChannel: myNodeNum unavailable, slot=$index name='$name'")
+            return
+        }
+        val channel = buildChannel(index, name, pskBase64)
+        val packetId = meshRouter.actionHandler.handleSetChannel(Channel.ADAPTER.encode(channel), myNodeNum)
+        awaitAdminPacket("writeChannel slot=$index name='$name'", packetId)
+    }
+
+    override suspend fun writeOwner(longName: String, shortName: String) {
         val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
         val existingUser = nodeRepository.nodeDBbyNum.value[myNodeNum]?.user
         val meshUser = MeshUser(
@@ -92,7 +105,42 @@ class MeshConfigRepositoryImpl(
             isLicensed = existingUser?.is_licensed ?: false,
             role = existingUser?.role?.value ?: 0,
         )
-        meshRouter.actionHandler.handleSetOwner(meshUser, myNodeNum)
+        val packetId = meshRouter.actionHandler.handleSetOwner(meshUser, myNodeNum)
+        awaitAdminPacket("writeOwner longName='$longName'", packetId)
+    }
+
+    private fun buildChannel(index: Int, name: String, pskBase64: String): Channel {
+        val pskBytes = if (pskBase64.isBlank()) ByteArray(0)
+                       else Base64.decode(pskBase64.trim(), Base64.DEFAULT)
+        val existing = commandSender.channelSetFlow.value.settings.getOrNull(index) ?: ChannelSettings()
+        val nameChanged = existing.name != name
+        val pskChanged = !existing.psk.toByteArray().contentEquals(pskBytes)
+        val channelId = if (nameChanged || pskChanged || existing.id == 0) Random.nextInt() else existing.id
+        val updatedSettings = existing.copy(
+            name = name,
+            psk = pskBytes.toByteString(),
+            id = channelId,
+            module_settings = ModuleSettings(
+                position_precision = if (name == DefaultContour.CHANNEL_NAME && pskBase64.trim() == DefaultContour.OPEN_PSK) 0
+                                    else CHANNEL_POSITION_PRECISION
+            ),
+        )
+        return Channel(
+            index = index,
+            settings = updatedSettings,
+            role = if (index == 0) Channel.Role.PRIMARY else Channel.Role.SECONDARY,
+        )
+    }
+
+    private suspend fun awaitAdminPacket(label: String, packetId: Int) {
+        if (packetId == 0) {
+            logger.w("Contour", "$label: packet not sent")
+            return
+        }
+        val delivered = packetHandler.awaitPacketSendResult(packetId, ADMIN_PACKET_TIMEOUT)
+        if (!delivered) {
+            logger.w("Contour", "$label: delivery timeout id=${packetId.toUInt()}")
+        }
     }
 
     override fun observeLocationConfig(nodeNum: Int): Flow<LocationConfigModel> =
@@ -248,6 +296,7 @@ class MeshConfigRepositoryImpl(
         private const val GEO_CHANNEL_PRECISION = 13
         private const val CHANNEL_POSITION_PRECISION = 32
         private const val POSITION_CONFIG_WAIT_MS = 15_000L
+        private val ADMIN_PACKET_TIMEOUT = 10.seconds
     }
 
     private fun hasLocationPermission(): Boolean =

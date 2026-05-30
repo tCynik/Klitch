@@ -164,12 +164,13 @@ class CommandSenderImpl(
         packetHandler.sendToRadio(meshPacket)
     }
 
-    override fun sendAdmin(destNum: Int, requestId: Int, wantResponse: Boolean, initFn: () -> AdminMessage) {
+    override fun sendAdmin(destNum: Int, requestId: Int, wantResponse: Boolean, initFn: () -> AdminMessage): Int {
         val adminMsg = initFn().copy(session_passkey = sessionPasskey.value)
         Logger.d { "CHANNEL_DEBUG: sendAdmin to=${destNum.toUInt()} requestId=$requestId wantResponse=$wantResponse payload=${adminMsg}" }
         val packet =
             buildAdminPacket(to = destNum, id = requestId, wantResponse = wantResponse, adminMessage = adminMsg)
         packetHandler.sendToRadio(packet)
+        return packet.id
     }
 
     override fun sendPosition(pos: org.meshtastic.proto.Position, destNum: Int?, wantResponse: Boolean) {

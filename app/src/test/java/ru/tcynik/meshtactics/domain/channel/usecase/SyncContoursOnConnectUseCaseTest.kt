@@ -1,6 +1,7 @@
 package ru.tcynik.meshtactics.domain.channel.usecase
 
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -18,6 +19,8 @@ import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
+import ru.tcynik.meshtactics.domain.mesh.usecase.BeginSettingsEditUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.CommitSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
@@ -31,6 +34,8 @@ class SyncContoursOnConnectUseCaseTest {
     private val contourRepository: ContourRepository = mockk(relaxed = true)
     private val observeContours: ObserveContoursUseCase = mockk()
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
+    private val beginSettingsEdit: BeginSettingsEditUseCase = mockk(relaxed = true)
+    private val commitSettingsEdit: CommitSettingsEditUseCase = mockk(relaxed = true)
     private val writeChannel: WriteChannelUseCase = mockk(relaxed = true)
     private val resolveSlot: ResolveChannelSlotUseCase = mockk()
     private val writeOwner: WriteOwnerUseCase = mockk(relaxed = true)
@@ -40,6 +45,8 @@ class SyncContoursOnConnectUseCaseTest {
         contourRepository = contourRepository,
         observeContours = observeContours,
         observeNodeChannels = observeNodeChannels,
+        beginSettingsEdit = beginSettingsEdit,
+        commitSettingsEdit = commitSettingsEdit,
         writeChannel = writeChannel,
         resolveSlot = resolveSlot,
         writeOwner = writeOwner,
@@ -50,14 +57,6 @@ class SyncContoursOnConnectUseCaseTest {
 
     private val psk = byteArrayOf(0x01, 0x02)
     private val pskBase64 = Base64.getEncoder().encodeToString(psk)
-
-    private val emergencyPsk = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
-    private val emergencySlot = NodeChannelSlot(
-        index = 0,
-        name = DefaultContour.CHANNEL_NAME,
-        psk = emergencyPsk,
-        isEnabled = true,
-    )
 
     @Before
     fun setUp() {
@@ -83,7 +82,7 @@ class SyncContoursOnConnectUseCaseTest {
     fun `writes primary to slot 0 when node has default LongFast channel`() = runTest {
         val openPskBytes = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
         val primary = Contour(
-            id = ContourId(DefaultActiveContour.ID.value),
+            id = DefaultActiveContour.ID,
             name = DefaultActiveContour.DISPLAY_NAME,
             description = null,
             expiration = null,
@@ -107,9 +106,11 @@ class SyncContoursOnConnectUseCaseTest {
 
         useCase()
 
-        verify(exactly = 1) {
-            writeChannel.invoke(0, DefaultActiveContour.DISPLAY_NAME, DefaultContour.OPEN_PSK)
+        coVerify(exactly = 1) { beginSettingsEdit.invoke() }
+        coVerify(exactly = 1) {
+            writeChannel.invoke(0, DefaultActiveContour.CHANNEL_NAME, DefaultContour.OPEN_PSK)
         }
+        coVerify(exactly = 1) { commitSettingsEdit.invoke() }
     }
 
     @Test
@@ -119,7 +120,8 @@ class SyncContoursOnConnectUseCaseTest {
 
         useCase()
 
-        verify(exactly = 1) { writeChannel.invoke(0, DefaultActiveContour.DISPLAY_NAME, pskBase64) }
+        coVerify(exactly = 1) { writeChannel.invoke(0, DefaultActiveContour.CHANNEL_NAME, pskBase64) }
+        coVerify(exactly = 1) { commitSettingsEdit.invoke() }
     }
 
     @Test
@@ -129,7 +131,8 @@ class SyncContoursOnConnectUseCaseTest {
 
         useCase()
 
-        verify(exactly = 1) { writeChannel.invoke(1, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK) }
+        coVerify(exactly = 1) { writeChannel.invoke(1, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK) }
+        coVerify(exactly = 1) { commitSettingsEdit.invoke() }
     }
 
     @Test
@@ -139,7 +142,7 @@ class SyncContoursOnConnectUseCaseTest {
 
         useCase()
 
-        verify(exactly = 0) { writeChannel.invoke(1, any(), any()) }
+        coVerify(exactly = 0) { writeChannel.invoke(1, any(), any()) }
     }
 
     @Test
@@ -151,7 +154,7 @@ class SyncContoursOnConnectUseCaseTest {
 
         useCase()
 
-        verify(exactly = 1) { writeChannel.invoke(2, "Bravo", pskBase64) }
+        coVerify(exactly = 1) { writeChannel.invoke(2, "Bravo", pskBase64) }
     }
 
     @Test
@@ -162,6 +165,6 @@ class SyncContoursOnConnectUseCaseTest {
 
         useCase()
 
-        verify(exactly = 0) { writeChannel.invoke(2, any(), any()) }
+        coVerify(exactly = 0) { writeChannel.invoke(2, any(), any()) }
     }
 }

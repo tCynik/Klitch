@@ -49,7 +49,7 @@ class SetPrimaryContourUseCaseTest {
         useCase(DefaultActiveContour.ID)
 
         coVerify(exactly = 1) { contourRepository.setPrimaryContour(DefaultActiveContour.ID) }
-        verify(exactly = 1) { writeChannel(0, "Basic", pskBase64) }
+        coVerify(exactly = 1) { writeChannel(0, "Basic", pskBase64) }
     }
 
     @Test
@@ -59,7 +59,7 @@ class SetPrimaryContourUseCaseTest {
         useCase(DefaultContour.ID)
 
         coVerify(exactly = 1) { contourRepository.setPrimaryContour(DefaultContour.ID) }
-        verify(exactly = 1) { writeChannel(0, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK) }
+        coVerify(exactly = 1) { writeChannel(0, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK) }
     }
 
     @Test
@@ -69,6 +69,6 @@ class SetPrimaryContourUseCaseTest {
         useCase(ContourId("missing"))
 
         coVerify(exactly = 1) { contourRepository.setPrimaryContour(ContourId("missing")) }
-        verify(exactly = 0) { writeChannel(any(), any(), any()) }
+        coVerify(exactly = 0) { writeChannel(any(), any(), any()) }
     }
 }

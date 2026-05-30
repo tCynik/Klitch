@@ -179,10 +179,11 @@ class MeshActionHandlerImpl(
         }
     }
 
-    override fun handleSetOwner(u: MeshUser, myNodeNum: Int) {
+    override fun handleSetOwner(u: MeshUser, myNodeNum: Int): Int {
         val newUser = User(id = u.id, long_name = u.longName, short_name = u.shortName, is_licensed = u.isLicensed)
-        commandSender.sendAdmin(myNodeNum) { AdminMessage(set_owner = newUser) }
+        val packetId = commandSender.sendAdmin(myNodeNum) { AdminMessage(set_owner = newUser) }
         nodeManager.handleReceivedUser(myNodeNum, newUser)
+        return packetId
     }
 
     override fun handleSend(p: DataPacket, myNodeNum: Int) {
@@ -282,15 +283,15 @@ class MeshActionHandlerImpl(
         }
     }
 
-    override fun handleSetChannel(payload: ByteArray?, myNodeNum: Int) {
-        if (payload != null) {
-            val c = Channel.ADAPTER.decode(payload)
-            commandSender.sendAdmin(myNodeNum) { AdminMessage(set_channel = c) }
-            // Optimistically persist the channel settings locally so the UI
-            // reflects changes immediately instead of waiting for the next
-            // want_config handshake.
-            scope.handledLaunch { radioConfigRepository.updateChannelSettings(c) }
-        }
+    override fun handleSetChannel(payload: ByteArray?, myNodeNum: Int): Int {
+        if (payload == null) return 0
+        val c = Channel.ADAPTER.decode(payload)
+        val packetId = commandSender.sendAdmin(myNodeNum) { AdminMessage(set_channel = c) }
+        // Optimistically persist the channel settings locally so the UI
+        // reflects changes immediately instead of waiting for the next
+        // want_config handshake.
+        scope.handledLaunch { radioConfigRepository.updateChannelSettings(c) }
+        return packetId
     }
 
     override fun handleSetRemoteChannel(id: Int, destNum: Int, payload: ByteArray?) {
@@ -308,13 +309,11 @@ class MeshActionHandlerImpl(
         commandSender.requestNeighborInfo(requestId, destNum)
     }
 
-    override fun handleBeginEditSettings(destNum: Int) {
+    override fun handleBeginEditSettings(destNum: Int): Int =
         commandSender.sendAdmin(destNum) { AdminMessage(begin_edit_settings = true) }
-    }
 
-    override fun handleCommitEditSettings(destNum: Int) {
+    override fun handleCommitEditSettings(destNum: Int): Int =
         commandSender.sendAdmin(destNum) { AdminMessage(commit_edit_settings = true) }
-    }
 
     override fun handleRebootToDfu(destNum: Int) {
         commandSender.sendAdmin(destNum) { AdminMessage(enter_dfu_mode_request = true) }
