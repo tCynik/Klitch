@@ -145,6 +145,7 @@ class NetworkSettingsViewModel(
         val settings = _uiState.value.settings
         val cfg = settings.deviceConfig ?: return
         viewModelScope.launch {
+            logger.i("Node", "onWriteConfigClick: writing owner='${cfg.longName}' + ${settings.channels.count { it.pskError == null }} channels — firmware reboot expected")
             beginSettingsEdit()
             writeOwner(cfg.longName, cfg.shortName)
             settings.channels.forEach { ch ->

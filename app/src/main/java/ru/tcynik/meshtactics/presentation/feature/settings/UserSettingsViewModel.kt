@@ -20,6 +20,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.collections.immutable.toImmutableList
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.ChannelSyncStatus
+import ru.tcynik.meshtactics.domain.logger.Logger
 import ru.tcynik.meshtactics.domain.channel.model.Contour
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.ContourId
@@ -107,6 +108,7 @@ class UserSettingsViewModel(
     private val checkOwnPkcHealth: CheckOwnPkcHealthUseCase,
     private val refreshNodePublicKeys: RefreshNodePublicKeysUseCase,
     private val regeneratePkcKeys: RegeneratePkcKeysUseCase,
+    private val logger: Logger,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UserSettingsUiState())
@@ -185,6 +187,7 @@ class UserSettingsViewModel(
         viewModelScope.launch {
             val sosActive = observeEmergencyMode().first()
             val broadcastEnabled = observeGpsBroadcastEnabled().first()
+            logger.i("Node", "UserSettingsViewModel.onConnected: sosActive=$sosActive broadcastEnabled=$broadcastEnabled")
             if (sosActive || !broadcastEnabled) {
                 disableNodePositionBroadcast()
             } else {
@@ -230,6 +233,7 @@ class UserSettingsViewModel(
 
     private fun pushContourToNode(contour: Contour, slot: Int) {
         viewModelScope.launch {
+            logger.i("Node", "pushContourToNode: writing contour='${contour.name}' to slot=$slot — firmware reboot expected")
             beginSettingsEdit()
             writeChannel(slot, meshtasticChannelName(contour), contour.transport.meshtastic.psk)
             commitSettingsEdit()
@@ -262,6 +266,7 @@ class UserSettingsViewModel(
         val slot = channelSlotResolver.hashToSlot[hash] ?: return
         if (slot == 0) return
         viewModelScope.launch {
+            logger.i("Node", "onDeleteFromNode: clearing slot=$slot contour='${contour.name}' — firmware reboot expected")
             beginSettingsEdit()
             writeChannel(slot, "", "")
             commitSettingsEdit()
@@ -370,6 +375,7 @@ class UserSettingsViewModel(
             val shortName = withTimeoutOrNull(5_000) {
                 observeDeviceConfig(NoParams).first { it != null }
             }?.shortName ?: ""
+            logger.i("Node", "onSaveAndReboot: writing owner='$name' + PKC regen — firmware reboot expected")
             writeOwner(_uiState.value.displayName, shortName)
             regeneratePkcKeys()
             saveAppUser(AppUser(displayName = _uiState.value.displayName))

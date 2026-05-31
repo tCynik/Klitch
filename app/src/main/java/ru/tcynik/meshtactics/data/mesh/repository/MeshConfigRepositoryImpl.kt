@@ -199,6 +199,7 @@ class MeshConfigRepositoryImpl(
         smartMinDist: Int,
         flags: Int,
     ) {
+        logger.i("Node", "writePositionConfig: destNum=$destNum gpsMode=$gpsMode broadcastSecs=$broadcastSecs — firmware reboot expected")
         val current = meshRouter.configHandler.localConfig.value.position
             ?: Config.PositionConfig()
         val updated = current.copy(
@@ -213,6 +214,7 @@ class MeshConfigRepositoryImpl(
     }
 
     override fun writeChannelPositionPrecision(destNum: Int, channelIndex: Int, precision: Int) {
+        logger.i("Node", "writeChannelPositionPrecision: destNum=$destNum channelIndex=$channelIndex precision=$precision — firmware reboot expected")
         val channelSet = commandSender.channelSetFlow.value
         val existing = channelSet.settings.getOrNull(channelIndex) ?: ChannelSettings()
         val updated = existing.copy(
@@ -237,6 +239,7 @@ class MeshConfigRepositoryImpl(
         val current = withTimeoutOrNull(POSITION_CONFIG_WAIT_MS) {
             meshRouter.configHandler.localConfig.first { it.position != null }.position!!
         } ?: return
+        logger.i("Node", "enableNodePositionBroadcastReady: destNum=$destNum broadcastSecs=$GEO_BROADCAST_READY_SECS — firmware reboot expected")
         val updated = current.copy(
             position_broadcast_secs = GEO_BROADCAST_READY_SECS,
             position_broadcast_smart_enabled = false,
@@ -250,6 +253,7 @@ class MeshConfigRepositoryImpl(
         val current = withTimeoutOrNull(POSITION_CONFIG_WAIT_MS) {
             meshRouter.configHandler.localConfig.first { it.position != null }.position!!
         } ?: return
+        logger.i("Node", "disableNodePositionBroadcast: destNum=$destNum broadcastSecs=$GEO_BROADCAST_DISABLED_SECS — firmware reboot expected")
         val updated = current.copy(
             position_broadcast_secs = GEO_BROADCAST_DISABLED_SECS,
             position_broadcast_smart_enabled = false,
@@ -285,7 +289,11 @@ class MeshConfigRepositoryImpl(
     }
 
     override fun regeneratePkcKeys() {
-        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
+        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: run {
+            logger.w("Node", "regeneratePkcKeys: myNodeNum unavailable")
+            return
+        }
+        logger.i("Node", "regeneratePkcKeys: clearing private_key nodeNum=$myNodeNum — firmware reboot expected")
         val currentSec = meshRouter.configHandler.localConfig.value.security
             ?: Config.SecurityConfig()
         val resetSec = currentSec.copy(private_key = ByteString.EMPTY)

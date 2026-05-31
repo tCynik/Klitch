@@ -165,6 +165,7 @@ val presentationModule = module {
             checkOwnPkcHealth = get<CheckOwnPkcHealthUseCase>(),
             refreshNodePublicKeys = get<RefreshNodePublicKeysUseCase>(),
             regeneratePkcKeys = get<RegeneratePkcKeysUseCase>(),
+            logger = get(),
         )
     }
     viewModel {
@@ -173,6 +174,7 @@ val presentationModule = module {
             observeConnectionStatus = get(),
             regeneratePkcKeys = get<RegeneratePkcKeysUseCase>(),
             rebootNode = get<RebootNodeUseCase>(),
+            logger = get(),
         )
     }
     viewModelOf(::NodeStatusViewModel)
