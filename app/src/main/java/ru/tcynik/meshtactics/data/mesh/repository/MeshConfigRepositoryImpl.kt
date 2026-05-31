@@ -36,7 +36,6 @@ import ru.tcynik.meshtactics.mesh.repository.MeshRouter
 import ru.tcynik.meshtactics.mesh.repository.NodeRepository
 import ru.tcynik.meshtactics.mesh.repository.PacketHandler
 import ru.tcynik.meshtactics.mesh.repository.UiPrefs
-import kotlin.random.Random
 import kotlin.time.Duration.Companion.seconds
 
 class MeshConfigRepositoryImpl(
@@ -125,22 +124,16 @@ class MeshConfigRepositoryImpl(
     private fun buildChannel(index: Int, name: String, pskBase64: String): Channel {
         val pskBytes = if (pskBase64.isBlank()) ByteArray(0)
                        else Base64.decode(pskBase64.trim(), Base64.DEFAULT)
-        val existing = commandSender.channelSetFlow.value.settings.getOrNull(index) ?: ChannelSettings()
-        val nameChanged = existing.name != name
-        val pskChanged = !existing.psk.toByteArray().contentEquals(pskBytes)
-        val channelId = if (nameChanged || pskChanged || existing.id == 0) Random.nextInt() else existing.id
-        val updatedSettings = existing.copy(
-            name = name,
-            psk = pskBytes.toByteString(),
-            id = channelId,
-            module_settings = ModuleSettings(
-                position_precision = if (name == DefaultContour.CHANNEL_NAME && pskBase64.trim() == DefaultContour.OPEN_PSK) 0
-                                    else CHANNEL_POSITION_PRECISION
-            ),
-        )
         return Channel(
             index = index,
-            settings = updatedSettings,
+            settings = ChannelSettings(
+                name = name,
+                psk = pskBytes.toByteString(),
+                module_settings = ModuleSettings(
+                    position_precision = if (name == DefaultContour.CHANNEL_NAME && pskBase64.trim() == DefaultContour.OPEN_PSK) 0
+                                        else CHANNEL_POSITION_PRECISION
+                ),
+            ),
             role = if (index == 0) Channel.Role.PRIMARY else Channel.Role.SECONDARY,
         )
     }

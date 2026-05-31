@@ -24,6 +24,8 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.RemoveFixedPositionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RequestDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SetProvideLocationUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelPositionPrecisionUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.BeginSettingsEditUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.CommitSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WritePositionConfigUseCase
@@ -39,6 +41,8 @@ class NetworkSettingsViewModel(
     private val observeConnectionStatus: ObserveConnectionStatusUseCase,
     private val observeDeviceConfig: ObserveDeviceConfigUseCase,
     private val requestDeviceConfig: RequestDeviceConfigUseCase,
+    private val beginSettingsEdit: BeginSettingsEditUseCase,
+    private val commitSettingsEdit: CommitSettingsEditUseCase,
     private val writeOwner: WriteOwnerUseCase,
     private val writeChannel: WriteChannelUseCase,
     private val observeOurNode: ObserveOurNodeUseCase,
@@ -141,12 +145,14 @@ class NetworkSettingsViewModel(
         val settings = _uiState.value.settings
         val cfg = settings.deviceConfig ?: return
         viewModelScope.launch {
+            beginSettingsEdit()
             writeOwner(cfg.longName, cfg.shortName)
             settings.channels.forEach { ch ->
                 if (ch.pskError == null) {
                     writeChannel(ch.index, ch.channelName, ch.pskBase64)
                 }
             }
+            commitSettingsEdit()
         }
         _uiState.update { state ->
             state.copy(settings = state.settings.copy(isEditing = false))

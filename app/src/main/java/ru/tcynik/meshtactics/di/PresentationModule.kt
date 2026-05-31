@@ -19,7 +19,9 @@ import ru.tcynik.meshtactics.domain.map.usecase.ImportMapFileUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveImportedMapsUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveSelectedOverlaysUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ToggleImportedMapSelectionUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.BeginSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.CommitSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
@@ -138,6 +140,8 @@ val presentationModule = module {
             setPrimaryContour = get(),
             contourRepository = get(),
             observeNodeChannels = get(),
+            beginSettingsEdit = get<BeginSettingsEditUseCase>(),
+            commitSettingsEdit = get<CommitSettingsEditUseCase>(),
             writeChannel = get(),
             resolveSlot = get(),
             observeConnectionStatus = get(),
@@ -216,6 +220,8 @@ val presentationModule = module {
             observeConnectionStatus = get(),
             observeDeviceConfig = get(),
             requestDeviceConfig = get(),
+            beginSettingsEdit = get<BeginSettingsEditUseCase>(),
+            commitSettingsEdit = get<CommitSettingsEditUseCase>(),
             writeOwner = get(),
             writeChannel = get(),
             observeOurNode = get(),

@@ -53,6 +53,8 @@ import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.BeginSettingsEditUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.CommitSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ReconnectAfterNodeRebootUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
@@ -79,6 +81,8 @@ class UserSettingsViewModel(
     private val setPrimaryContour: SetPrimaryContourUseCase,
     private val contourRepository: ContourRepository,
     private val observeNodeChannels: ObserveNodeChannelsUseCase,
+    private val beginSettingsEdit: BeginSettingsEditUseCase,
+    private val commitSettingsEdit: CommitSettingsEditUseCase,
     private val writeChannel: WriteChannelUseCase,
     private val resolveSlot: ResolveChannelSlotUseCase,
     private val observeConnectionStatus: ObserveConnectionStatusUseCase,
@@ -222,7 +226,9 @@ class UserSettingsViewModel(
 
     private fun pushContourToNode(contour: Contour, slot: Int) {
         viewModelScope.launch {
+            beginSettingsEdit()
             writeChannel(slot, contour.name, contour.transport.meshtastic.psk)
+            commitSettingsEdit()
         }
     }
 
@@ -252,7 +258,9 @@ class UserSettingsViewModel(
         val slot = channelSlotResolver.hashToSlot[hash] ?: return
         if (slot == 0) return
         viewModelScope.launch {
+            beginSettingsEdit()
             writeChannel(slot, "", "")
+            commitSettingsEdit()
         }
     }
 
