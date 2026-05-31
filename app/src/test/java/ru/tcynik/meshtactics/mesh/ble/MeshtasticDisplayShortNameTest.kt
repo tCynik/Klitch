@@ -24,4 +24,14 @@ class MeshtasticDisplayShortNameTest {
     fun `normalizes extracted suffix to lowercase`() {
         assertEquals("76a0", "Meshtastic_76A0".toMeshtasticDisplayShortName())
     }
+
+    @Test
+    fun `extracts suffix from default long name`() {
+        assertEquals("76a0", "Meshtastic 76a0".toMeshtasticDisplayShortName())
+    }
+
+    @Test
+    fun `trims surrounding whitespace`() {
+        assertEquals("76a0", "  Meshtastic_76a0  ".toMeshtasticDisplayShortName())
+    }
 }

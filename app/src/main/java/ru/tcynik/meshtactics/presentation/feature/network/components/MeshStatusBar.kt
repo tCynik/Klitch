@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import ru.tcynik.meshtactics.mesh.ble.toMeshtasticDisplayShortName
 import ru.tcynik.meshtactics.presentation.feature.network.state.MeshConnectionStatusUi
 
 @Composable
@@ -115,9 +116,15 @@ private fun statusLabel(status: MeshConnectionStatusUi, rebootingNodeName: Strin
     is MeshConnectionStatusUi.Disconnected -> "Not connected"
     is MeshConnectionStatusUi.Scanning -> "Scanning..."
     is MeshConnectionStatusUi.Rebooting ->
-        if (rebootingNodeName.isNotBlank()) "$rebootingNodeName - Перезагрузка..."
-        else "Перезагрузка..."
-    is MeshConnectionStatusUi.Connecting -> "Connecting to ${status.deviceName}..."
-    is MeshConnectionStatusUi.Connected -> rebootingNodeName.ifBlank { status.deviceName }.ifBlank { status.nodeId }
+        if (rebootingNodeName.isNotBlank()) {
+            "${rebootingNodeName.toMeshtasticDisplayShortName()} - Перезагрузка..."
+        } else {
+            "Перезагрузка..."
+        }
+    is MeshConnectionStatusUi.Connecting -> "Connecting to ${status.deviceName.toMeshtasticDisplayShortName()}..."
+    is MeshConnectionStatusUi.Connected ->
+        rebootingNodeName.toMeshtasticDisplayShortName()
+            .ifBlank { status.deviceName.toMeshtasticDisplayShortName() }
+            .ifBlank { status.nodeId }
     is MeshConnectionStatusUi.Error -> "Error: ${status.message}"
 }

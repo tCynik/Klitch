@@ -35,6 +35,7 @@ import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.location.model.GpsSignalLevel
 import ru.tcynik.meshtactics.domain.location.usecase.ObserveGpsStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
+import ru.tcynik.meshtactics.mesh.ble.toMeshtasticDisplayShortName
 import ru.tcynik.meshtactics.domain.settings.usecase.GetGeoMarkSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetMarkerSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetShowGeoMarkNamesUseCase
@@ -1034,12 +1035,18 @@ class MainViewModel(
             else
                 HudInfoSlot(content = "Поиск...", color = Color.Red)
         is MeshConnectionStatus.Connecting ->
-            HudInfoSlot(content = "Сопряжение с ${status.deviceName}", color = Color.Black)
+            HudInfoSlot(
+                content = "Сопряжение с ${status.deviceName.toMeshtasticDisplayShortName()}",
+                color = Color.Black,
+            )
         is MeshConnectionStatus.Connected ->
             if (state.syncRequired)
                 HudInfoSlot(content = "требуется синхронизация", color = Color.Red)
             else if (state.showConnectionLabel)
-                HudInfoSlot(content = "Сопряжено с ${status.shortName}", color = Color.Black)
+                HudInfoSlot(
+                    content = "Сопряжено с ${status.shortName.toMeshtasticDisplayShortName()}",
+                    color = Color.Black,
+                )
             else if (status.batteryLevel in 1..100)
                 HudInfoSlot(
                     content = "🔋${status.batteryLevel}%",

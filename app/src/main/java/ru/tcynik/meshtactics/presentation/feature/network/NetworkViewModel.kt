@@ -23,6 +23,7 @@ import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
 import ru.tcynik.meshtactics.domain.logger.Logger
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.model.MeshNodeModel
+import ru.tcynik.meshtactics.mesh.ble.toMeshtasticDisplayShortName
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceParams
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
@@ -351,7 +352,7 @@ class NetworkViewModel(
         logger.i("App", "DBG onConnectClick: address=$address name=$deviceName")
         _uiState.update { state ->
             state.copy(
-                connectionStatus = MeshConnectionStatusUi.Connecting(deviceName),
+                connectionStatus = MeshConnectionStatusUi.Connecting(deviceName.toMeshtasticDisplayShortName()),
                 connection = state.connection.copy(isScanning = false),
             )
         }
