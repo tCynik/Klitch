@@ -16,6 +16,7 @@ import org.junit.Test
 import ru.tcynik.meshtactics.data.channel.repository.ContourSyncStateRepositoryImpl
 import ru.tcynik.meshtactics.data.mesh.repository.RebootStateRepositoryImpl
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
+import ru.tcynik.meshtactics.logger.NoOpLogger
 import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.model.MeshDeviceModel
@@ -30,7 +31,7 @@ class ReconnectAfterNodeRebootUseCaseTest {
     private val requestDeviceConfig: RequestDeviceConfigUseCase = mockk(relaxed = true)
     private val checkNodeSync: CheckNodeSyncUseCase = mockk()
     private val syncStateRepository = ContourSyncStateRepositoryImpl()
-    private val rebootStateRepository = RebootStateRepositoryImpl()
+    private val rebootStateRepository = RebootStateRepositoryImpl(NoOpLogger())
 
     private val connectionStatusFlow = MutableStateFlow<MeshConnectionStatus>(MeshConnectionStatus.Disconnected)
 

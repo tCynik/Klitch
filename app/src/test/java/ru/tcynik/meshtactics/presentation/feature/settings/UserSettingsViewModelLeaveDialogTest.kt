@@ -43,6 +43,8 @@ import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.model.MeshDeviceConfigModel
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.BeginSettingsEditUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.CommitSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
@@ -72,6 +74,8 @@ class UserSettingsViewModelLeaveDialogTest {
     private val setPrimaryContour: SetPrimaryContourUseCase = mockk(relaxed = true)
     private val contourRepository: ContourRepository = mockk()
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
+    private val beginSettingsEdit: BeginSettingsEditUseCase = mockk(relaxed = true)
+    private val commitSettingsEdit: CommitSettingsEditUseCase = mockk(relaxed = true)
     private val writeChannel: WriteChannelUseCase = mockk(relaxed = true)
     private val resolveSlot: ResolveChannelSlotUseCase = mockk()
     private val observeConnectionStatus: ObserveConnectionStatusUseCase = mockk()
@@ -147,6 +151,8 @@ class UserSettingsViewModelLeaveDialogTest {
             setPrimaryContour = setPrimaryContour,
             contourRepository = contourRepository,
             observeNodeChannels = observeNodeChannels,
+            beginSettingsEdit = beginSettingsEdit,
+            commitSettingsEdit = commitSettingsEdit,
             writeChannel = writeChannel,
             resolveSlot = resolveSlot,
             observeConnectionStatus = observeConnectionStatus,

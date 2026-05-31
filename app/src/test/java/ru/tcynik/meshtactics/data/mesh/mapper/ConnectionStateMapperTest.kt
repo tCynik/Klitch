@@ -6,9 +6,7 @@ import org.meshtastic.proto.HardwareModel
 import org.meshtastic.proto.User
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.mesh.model.ConnectionState
-import ru.tcynik.meshtactics.mesh.model.DeviceMetrics
 import ru.tcynik.meshtactics.mesh.model.Node
-import ru.tcynik.meshtactics.mesh.model.Position
 
 class ConnectionStateMapperTest {
 
@@ -48,7 +46,5 @@ class ConnectionStateMapperTest {
     private fun node(shortName: String) = Node(
         num = 1,
         user = User(id = "!00000001", short_name = shortName, long_name = "Test", hw_model = HardwareModel.TBEAM),
-        position = Position(),
-        deviceMetrics = DeviceMetrics(),
     )
 }
