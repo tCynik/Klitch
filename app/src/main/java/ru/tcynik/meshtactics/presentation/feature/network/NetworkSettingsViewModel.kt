@@ -3,6 +3,8 @@ package ru.tcynik.meshtactics.presentation.feature.network
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -58,11 +60,30 @@ class NetworkSettingsViewModel(
     val uiState: StateFlow<NetworkSettingsUiState> = _uiState.asStateFlow()
 
     private val myNodeNumFlow = MutableStateFlow<Int?>(null)
+    private var wasConnected = false
+    private var readConfigTimeoutJob: Job? = null
 
     init {
         observeConnectionStatus(NoParams)
             .onEach { status ->
-                _uiState.update { it.copy(connectionStatus = status.toUi()) }
+                val isConnected = status is MeshConnectionStatus.Connected
+                _uiState.update { state ->
+                    state.copy(
+                        connectionStatus = status.toUi(),
+                        settings = if (!isConnected && state.settings.isLoading) {
+                            state.settings.copy(isLoading = false)
+                        } else {
+                            state.settings
+                        },
+                    )
+                }
+                if (isConnected && !wasConnected) {
+                    val settings = _uiState.value.settings
+                    if (!settings.isLoading && settings.channels.isEmpty() && settings.deviceConfig == null) {
+                        requestConfigFromDevice()
+                    }
+                }
+                wasConnected = isConnected
             }
             .launchIn(viewModelScope)
 
@@ -73,12 +94,18 @@ class NetworkSettingsViewModel(
                     val updatedChannels = if (state.settings.isEditing) {
                         state.settings.channels
                     } else {
-                        config.channels.map { ch ->
+                        val mapped = config.channels.map { ch ->
                             ChannelConfigUi(
                                 index = ch.index,
                                 channelName = ch.name,
                                 pskBase64 = ch.pskBase64,
                             )
+                        }
+                        // После reconnect handleMyInfo очищает channelSet до завершения handshake.
+                        if (mapped.isEmpty() && state.settings.channels.isNotEmpty()) {
+                            state.settings.channels
+                        } else {
+                            mapped
                         }
                     }
                     state.copy(
@@ -95,6 +122,7 @@ class NetworkSettingsViewModel(
                         )
                     )
                 }
+                readConfigTimeoutJob?.cancel()
             }
         }.launchIn(viewModelScope)
 
@@ -115,10 +143,25 @@ class NetworkSettingsViewModel(
     }
 
     fun onReadConfigClick() {
+        requestConfigFromDevice()
+    }
+
+    private fun requestConfigFromDevice() {
         _uiState.update { state ->
             state.copy(settings = state.settings.copy(isLoading = true, isEditing = false))
         }
         requestDeviceConfig()
+        readConfigTimeoutJob?.cancel()
+        readConfigTimeoutJob = viewModelScope.launch {
+            delay(READ_CONFIG_TIMEOUT_MS)
+            _uiState.update { state ->
+                if (state.settings.isLoading) {
+                    state.copy(settings = state.settings.copy(isLoading = false))
+                } else {
+                    state
+                }
+            }
+        }
     }
 
     fun onEditConfigClick() {
@@ -302,5 +345,9 @@ class NetworkSettingsViewModel(
         GpsModeUi.DISABLED -> GpsMode.DISABLED
         GpsModeUi.ENABLED -> GpsMode.ENABLED
         GpsModeUi.NOT_PRESENT -> GpsMode.NOT_PRESENT
+    }
+
+    private companion object {
+        const val READ_CONFIG_TIMEOUT_MS = 15_000L
     }
 }

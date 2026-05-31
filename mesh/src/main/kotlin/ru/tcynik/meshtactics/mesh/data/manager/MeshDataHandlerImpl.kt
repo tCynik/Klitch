@@ -262,11 +262,6 @@ class MeshDataHandlerImpl(
     private fun handleAdminMessage(packet: MeshPacket, myNodeNum: Int) {
         val payload = packet.decoded?.payload ?: return
         val u = AdminMessage.ADAPTER.decode(payload)
-        if (u.session_passkey.size > 0) {
-            Logger.d("MT/Contour") { "handleAdminMessage: session_passkey received size=${u.session_passkey.size}" }
-            commandSender.setSessionPasskey(u.session_passkey)
-        }
-
         val fromNum = packet.from
         u.get_module_config_response?.let {
             if (fromNum == myNodeNum) {
@@ -276,7 +271,7 @@ class MeshDataHandlerImpl(
             }
         }
 
-        if (fromNum == myNodeNum) {
+        if (fromNum == myNodeNum || fromNum == 0) {
             u.get_config_response?.let { configHandler.value.handleDeviceConfig(it) }
             u.get_channel_response?.let { configHandler.value.handleChannel(it) }
         }
@@ -431,7 +426,11 @@ class MeshDataHandlerImpl(
             r.error_reason?.value ?: 0,
             dataPacket.relayNode,
         )
-        packet.decoded?.request_id?.let { packetHandler.removeResponse(it, complete = true) }
+        packet.decoded?.request_id?.let { requestId ->
+            val isAck = r.error_reason == Routing.Error.NONE
+            commandSender.notifyAdminRoutingResult(requestId, r.error_reason?.value ?: 0)
+            packetHandler.removeResponse(requestId, complete = isAck)
+        }
     }
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")

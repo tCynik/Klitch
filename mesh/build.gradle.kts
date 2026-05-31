@@ -72,7 +72,7 @@ dependencies {
     // AtomicFU
     implementation(libs.atomicfu)
 
-    // Kermit logging
+    // Kermit logging — use aggregator (picks android-debug / android release per build type)
     implementation(libs.kermit)
 
     // WorkManager

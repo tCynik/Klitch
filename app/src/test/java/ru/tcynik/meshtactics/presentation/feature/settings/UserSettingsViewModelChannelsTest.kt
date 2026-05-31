@@ -19,10 +19,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
+import ru.tcynik.meshtactics.logger.NoOpLogger
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.Contour
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
-import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
@@ -37,7 +37,7 @@ import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SetPrimaryContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SlotResolution
-import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ConfirmChannelSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
@@ -85,7 +85,7 @@ class UserSettingsViewModelChannelsTest {
     private val resolveSlot: ResolveChannelSlotUseCase = mockk()
     private val observeConnectionStatus: ObserveConnectionStatusUseCase = mockk()
     private val channelSlotResolver: ChannelSlotResolver = mockk()
-    private val syncContoursOnConnect: SyncContoursOnConnectUseCase = mockk(relaxed = true)
+    private val confirmChannelSync: ConfirmChannelSyncUseCase = mockk(relaxed = true)
     private val enableNodePositionBroadcastReady: EnableNodePositionBroadcastReadyUseCase = mockk(relaxed = true)
     private val disableNodePositionBroadcast: DisableNodePositionBroadcastUseCase = mockk(relaxed = true)
     private val observeEmergencyMode: ObserveEmergencyModeUseCase = mockk()
@@ -147,7 +147,7 @@ class UserSettingsViewModelChannelsTest {
             resolveSlot = resolveSlot,
             observeConnectionStatus = observeConnectionStatus,
             channelSlotResolver = channelSlotResolver,
-            syncContoursOnConnect = syncContoursOnConnect,
+            confirmChannelSync = confirmChannelSync,
             enableNodePositionBroadcastReady = enableNodePositionBroadcastReady,
             disableNodePositionBroadcast = disableNodePositionBroadcast,
             observeEmergencyMode = observeEmergencyMode,
@@ -166,6 +166,7 @@ class UserSettingsViewModelChannelsTest {
             checkOwnPkcHealth = checkOwnPkcHealth,
             refreshNodePublicKeys = refreshNodePublicKeys,
             regeneratePkcKeys = regeneratePkcKeys,
+            logger = NoOpLogger(),
         )
     }
 
@@ -313,52 +314,6 @@ class UserSettingsViewModelChannelsTest {
         runCurrent()
 
         coVerify(exactly = 1) { setContourActive.invoke(contour.id, false) }
-    }
-
-    // ── onConnected geo config ────────────────────────────────────────────────
-
-    private fun makeEmergencyContour(isActive: Boolean) = Contour(
-        id = DefaultContour.ID,
-        name = DefaultContour.DISPLAY_NAME,
-        description = null,
-        expiration = null,
-        exclusivityTime = null,
-        isActive = isActive,
-        transport = ContourTransport(
-            meshtastic = MeshtasticChannel(psk = DefaultContour.OPEN_PSK, channelHash = DefaultContour.CHANNEL_HASH),
-        ),
-    )
-
-    @Test
-    fun `Connected with SOS inactive — enableNodePositionBroadcastReady called`() = runTest(testDispatcher) {
-        emergencyModeFlow.value = false
-        contoursFlow.value = listOf(makeEmergencyContour(isActive = true))
-        connectionStatusFlow.value = connectedStatus
-        runCurrent()
-
-        coVerify(exactly = 1) { enableNodePositionBroadcastReady.invoke() }
-        coVerify(exactly = 0) { disableNodePositionBroadcast.invoke() }
-    }
-
-    @Test
-    fun `Connected with SOS active — disableNodePositionBroadcast called`() = runTest(testDispatcher) {
-        emergencyModeFlow.value = true
-        contoursFlow.value = listOf(makeEmergencyContour(isActive = true))
-        connectionStatusFlow.value = connectedStatus
-        runCurrent()
-
-        coVerify(exactly = 1) { disableNodePositionBroadcast.invoke() }
-        coVerify(exactly = 0) { enableNodePositionBroadcastReady.invoke() }
-    }
-
-    @Test
-    fun `Connected with no contours — enableNodePositionBroadcastReady when SOS inactive`() = runTest(testDispatcher) {
-        emergencyModeFlow.value = false
-        contoursFlow.value = emptyList()
-        connectionStatusFlow.value = connectedStatus
-        runCurrent()
-
-        coVerify(exactly = 1) { enableNodePositionBroadcastReady.invoke() }
     }
 
     // ── onNodeWriteEventConsumed ──────────────────────────────────────────────

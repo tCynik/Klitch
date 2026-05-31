@@ -240,11 +240,7 @@ class MeshActionHandlerImpl(
 
     override fun handleGetRemoteConfig(id: Int, destNum: Int, config: Int) {
         commandSender.sendAdmin(destNum, id, wantResponse = true) {
-            if (config == AdminMessage.ConfigType.SESSIONKEY_CONFIG.value) {
-                AdminMessage(get_device_metadata_request = true)
-            } else {
-                AdminMessage(get_config_request = AdminMessage.ConfigType.fromValue(config))
-            }
+            AdminMessage(get_config_request = AdminMessage.ConfigType.fromValue(config))
         }
     }
 

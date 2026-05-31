@@ -24,9 +24,10 @@ import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
-import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ConfirmChannelSyncUseCase
 import ru.tcynik.meshtactics.domain.logger.Logger
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
+import ru.tcynik.meshtactics.domain.mesh.model.NodeSyncCyclePhase
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceParams
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
@@ -34,8 +35,6 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveOurNodeUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.ReconnectAfterNodeRebootUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveNetworkEnabledUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.SetNetworkEnabledUseCase
@@ -54,9 +53,7 @@ class NetworkViewModelCallsignGateTest {
     private val observeOurNode: ObserveOurNodeUseCase = mockk()
     private val checkContourSync: CheckNodeSyncUseCase = mockk(relaxed = true)
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
-    private val syncContoursOnConnect: SyncContoursOnConnectUseCase = mockk(relaxed = true)
-    private val rebootNode: RebootNodeUseCase = mockk(relaxed = true)
-    private val reconnectAfterNodeReboot: ReconnectAfterNodeRebootUseCase = mockk(relaxed = true)
+    private val confirmChannelSync: ConfirmChannelSyncUseCase = mockk(relaxed = true)
     private val syncStateRepository: ContourSyncStateRepository = mockk(relaxed = true)
     private val rebootStateRepository: RebootStateRepository = mockk(relaxed = true)
     private val observeAppUser: ObserveAppUserUseCase = mockk()
@@ -79,6 +76,7 @@ class NetworkViewModelCallsignGateTest {
         every { observeNodes.invoke(any()) } returns flowOf(emptyList())
         every { observeOurNode.invoke(any()) } returns flowOf(null)
         every { rebootStateRepository.isRebooting } returns MutableStateFlow(false)
+        every { rebootStateRepository.syncCyclePhase } returns MutableStateFlow(NodeSyncCyclePhase.Idle)
         every { observeAppUser.invoke(any()) } returns appUserFlow
         every { observeNetworkEnabled.invoke(any()) } returns networkEnabledFlow
         coEvery { connectToDevice.invoke(any()) } returns Unit
@@ -103,9 +101,7 @@ class NetworkViewModelCallsignGateTest {
             observeOurNode = observeOurNode,
             checkContourSync = checkContourSync,
             observeNodeChannels = observeNodeChannels,
-            syncContoursOnConnect = syncContoursOnConnect,
-            rebootNode = rebootNode,
-            reconnectAfterNodeReboot = reconnectAfterNodeReboot,
+            confirmChannelSync = confirmChannelSync,
             syncStateRepository = syncStateRepository,
             rebootStateRepository = rebootStateRepository,
             observeAppUser = observeAppUser,

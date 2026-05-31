@@ -10,7 +10,6 @@ import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import ru.tcynik.meshtactics.data.channel.ChannelSlotResolverImpl
 import ru.tcynik.meshtactics.data.channel.repository.ContourRepositoryImpl
-import ru.tcynik.meshtactics.data.mesh.GpsBroadcastCoordinator
 import ru.tcynik.meshtactics.data.mesh.repository.GpsBroadcastSettingsRepositoryImpl
 import ru.tcynik.meshtactics.data.channel.repository.ContourSyncStateRepositoryImpl
 import ru.tcynik.meshtactics.data.emergency.EmergencyPositionBroadcastRepositoryImpl
@@ -27,6 +26,7 @@ import ru.tcynik.meshtactics.domain.channel.usecase.SaveContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ActivateExclusiveContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SetPrimaryContourUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ConfirmChannelSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
 import ru.tcynik.meshtactics.domain.emergency.repository.EmergencyPositionBroadcastRepository
 import ru.tcynik.meshtactics.domain.mesh.repository.GpsBroadcastSettingsRepository
@@ -71,16 +71,56 @@ val userSettingsModule = module {
     single { ActivateExclusiveContourUseCase(get(), get()) }
     single { ObserveNodeChannelsUseCase(get()) }
     single { ResolveChannelSlotUseCase() }
-    single { SyncContoursOnConnectUseCase(get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
-    single { CheckNodeSyncUseCase(get(), get(), get(), get(), get(), get()) }
+    single {
+        SyncContoursOnConnectUseCase(
+            contourRepository = get(),
+            observeContours = get(),
+            observeNodeChannels = get(),
+            beginSettingsEdit = get(),
+            commitSettingsEdit = get(),
+            writeChannel = get(),
+            resolveSlot = get(),
+            writeOwner = get(),
+            observeAppUser = get(),
+            observeDeviceConfig = get(),
+            enableNodePositionBroadcastReady = get(),
+            disableNodePositionBroadcast = get(),
+            observeGpsBroadcastEnabled = get(),
+            observeEmergencyMode = get(),
+            getPositionBroadcastSecs = get(),
+            logger = get(),
+        )
+    }
+    single {
+        ConfirmChannelSyncUseCase(
+            syncContoursOnConnect = get(),
+            rebootNode = get(),
+            reconnectAfterNodeReboot = get(),
+            reconnectViaBleScan = get(),
+            requestDeviceConfig = get(),
+            rebootStateRepository = get(),
+            syncStateRepository = get(),
+            logger = get(),
+        )
+    }
+    single {
+        CheckNodeSyncUseCase(
+            observeContours = get(),
+            observeNodeChannels = get(),
+            observeAppUser = get(),
+            observeDeviceConfig = get(),
+            contourRepository = get(),
+            observeGpsBroadcastEnabled = get(),
+            observeEmergencyMode = get(),
+            getPositionBroadcastSecs = get(),
+            logger = get(),
+        )
+    }
     single<ContourSyncStateRepository> { ContourSyncStateRepositoryImpl() }
     single<ChannelSlotResolver> { ChannelSlotResolverImpl(get()) }
 
     single<EmergencyPositionBroadcastRepository>(createdAtStart = true) {
         EmergencyPositionBroadcastRepositoryImpl(get(), get(), get())
-    }
-    single(createdAtStart = true) {
-        GpsBroadcastCoordinator(get(), get(), get(), get(), get())
     }
     single { ObserveEmergencyModeUseCase(get()) }
     single { TriggerEmergencyUseCase(get(), get(), get(), get(), get(), get()) }

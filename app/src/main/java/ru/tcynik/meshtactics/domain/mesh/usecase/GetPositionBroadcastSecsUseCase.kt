@@ -2,8 +2,8 @@ package ru.tcynik.meshtactics.domain.mesh.usecase
 
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshConfigRepository
 
-class BeginSettingsEditUseCase(
+class GetPositionBroadcastSecsUseCase(
     private val repository: MeshConfigRepository,
 ) {
-    suspend operator fun invoke(): Boolean = repository.beginSettingsEdit()
+    suspend operator fun invoke(): Int? = repository.getPositionBroadcastSecs()
 }

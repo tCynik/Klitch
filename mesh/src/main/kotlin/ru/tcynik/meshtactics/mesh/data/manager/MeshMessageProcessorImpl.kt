@@ -35,6 +35,7 @@ import ru.tcynik.meshtactics.mesh.common.util.nowSeconds
 import ru.tcynik.meshtactics.mesh.model.MeshLog
 import ru.tcynik.meshtactics.mesh.model.Node
 import ru.tcynik.meshtactics.mesh.model.util.isLora
+import ru.tcynik.meshtactics.mesh.repository.CommandSender
 import ru.tcynik.meshtactics.mesh.repository.FromRadioPacketHandler
 import ru.tcynik.meshtactics.mesh.repository.MeshLogRepository
 import ru.tcynik.meshtactics.mesh.repository.MeshMessageProcessor
@@ -56,6 +57,7 @@ class MeshMessageProcessorImpl(
     private val meshLogRepository: Lazy<MeshLogRepository>,
     private val router: Lazy<MeshRouter>,
     private val fromRadioDispatcher: FromRadioPacketHandler,
+    private val commandSender: CommandSender,
 ) : MeshMessageProcessor {
     private var scope: CoroutineScope = CoroutineScope(ioDispatcher + SupervisorJob())
 
@@ -109,6 +111,13 @@ class MeshMessageProcessorImpl(
         // Audit log every incoming variant
         logVariant(proto)
 
+        if (proto.rebooted == true) {
+            Logger.i("MT/Node") { "nodeReboot: firmware rebooted notification" }
+            commandSender.notifyNodeRebooted()
+            router.value.configFlowManager.triggerWantConfig()
+            return
+        }
+
         val packet = proto.packet
         if (packet != null) {
             handleReceivedMeshPacket(packet, myNodeNum)
@@ -153,6 +162,9 @@ class MeshMessageProcessorImpl(
                 packet.rx_time
             }
         val preparedPacket = packet.copy(rx_time = rxTime)
+        if (packet.decoded?.portnum == PortNum.ADMIN_APP) {
+            commandSender.ingestAdminSessionPasskey(preparedPacket)
+        }
 
         if (nodeManager.isNodeDbReady.value) {
             processReceivedMeshPacket(preparedPacket, myNodeNum)

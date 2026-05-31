@@ -18,10 +18,15 @@ import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
+import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.ChannelPositionPrecision
 import ru.tcynik.meshtactics.domain.mesh.usecase.BeginSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.CommitSettingsEditUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.GetPositionBroadcastSecsUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
 import ru.tcynik.meshtactics.domain.user.model.AppUser
@@ -40,6 +45,11 @@ class SyncContoursOnConnectUseCaseTest {
     private val resolveSlot: ResolveChannelSlotUseCase = mockk()
     private val writeOwner: WriteOwnerUseCase = mockk(relaxed = true)
     private val observeAppUser: ObserveAppUserUseCase = mockk()
+    private val enableNodePositionBroadcastReady: EnableNodePositionBroadcastReadyUseCase = mockk(relaxed = true)
+    private val disableNodePositionBroadcast: DisableNodePositionBroadcastUseCase = mockk(relaxed = true)
+    private val observeGpsBroadcastEnabled: ObserveGpsBroadcastEnabledUseCase = mockk()
+    private val observeEmergencyMode: ObserveEmergencyModeUseCase = mockk()
+    private val getPositionBroadcastSecs: GetPositionBroadcastSecsUseCase = mockk()
 
     private val useCase = SyncContoursOnConnectUseCase(
         contourRepository = contourRepository,
@@ -52,6 +62,11 @@ class SyncContoursOnConnectUseCaseTest {
         writeOwner = writeOwner,
         observeAppUser = observeAppUser,
         observeDeviceConfig = mockk(relaxed = true),
+        enableNodePositionBroadcastReady = enableNodePositionBroadcastReady,
+        disableNodePositionBroadcast = disableNodePositionBroadcast,
+        observeGpsBroadcastEnabled = observeGpsBroadcastEnabled,
+        observeEmergencyMode = observeEmergencyMode,
+        getPositionBroadcastSecs = getPositionBroadcastSecs,
         logger = NoOpLogger(),
     )
 
@@ -63,6 +78,11 @@ class SyncContoursOnConnectUseCaseTest {
         coEvery { contourRepository.getPrimaryContourId() } returns DefaultActiveContour.ID
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(emptyList())
         every { observeAppUser.invoke(any<NoParams>()) } returns flowOf(AppUser(displayName = ""))
+        coEvery { beginSettingsEdit.invoke() } returns true
+        // Default: broadcast enabled, no SOS, node already has correct secs=60 → no broadcast write
+        every { observeGpsBroadcastEnabled.invoke() } returns flowOf(true)
+        every { observeEmergencyMode.invoke() } returns flowOf(false)
+        coEvery { getPositionBroadcastSecs.invoke() } returns 60
     }
 
     private fun makeContour(id: String, name: String, isActive: Boolean = true): Contour {
@@ -220,5 +240,62 @@ class SyncContoursOnConnectUseCaseTest {
         useCase()
 
         coVerify(exactly = 0) { writeChannel.invoke(2, any(), any()) }
+    }
+
+    @Test
+    fun `broadcast mismatch — enableNodePositionBroadcastReady called inside session`() = runTest {
+        coEvery { getPositionBroadcastSecs.invoke() } returns 900 // firmware default, differs from 60
+        val primary = makeContour(DefaultActiveContour.ID.value, DefaultActiveContour.DISPLAY_NAME)
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(primary))
+
+        useCase()
+
+        coVerify(exactly = 1) { enableNodePositionBroadcastReady.invoke() }
+        coVerify(exactly = 0) { disableNodePositionBroadcast.invoke() }
+    }
+
+    @Test
+    fun `broadcast disabled desired — disableNodePositionBroadcast called`() = runTest {
+        every { observeGpsBroadcastEnabled.invoke() } returns flowOf(false)
+        coEvery { getPositionBroadcastSecs.invoke() } returns 60
+        val primary = makeContour(DefaultActiveContour.ID.value, DefaultActiveContour.DISPLAY_NAME)
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(primary))
+
+        useCase()
+
+        coVerify(exactly = 1) { disableNodePositionBroadcast.invoke() }
+        coVerify(exactly = 0) { enableNodePositionBroadcastReady.invoke() }
+    }
+
+    @Test
+    fun `broadcast already correct — no broadcast write`() = runTest {
+        coEvery { getPositionBroadcastSecs.invoke() } returns 60 // matches desired
+        val openPskBytes = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
+        val primary = Contour(
+            id = DefaultActiveContour.ID,
+            name = DefaultActiveContour.DISPLAY_NAME,
+            description = null,
+            expiration = null,
+            exclusivityTime = null,
+            isActive = true,
+            transport = ContourTransport(
+                meshtastic = MeshtasticChannel(
+                    psk = DefaultContour.OPEN_PSK,
+                    channelHash = ContourHash.compute(DefaultActiveContour.CHANNEL_NAME, openPskBytes),
+                ),
+            ),
+        )
+        val primarySlot = NodeChannelSlot(index = 0, name = DefaultActiveContour.CHANNEL_NAME, psk = openPskBytes, isEnabled = true)
+        val emergencySlot = NodeChannelSlot(
+            index = 1, name = DefaultContour.CHANNEL_NAME, psk = openPskBytes, isEnabled = true,
+            positionPrecision = ChannelPositionPrecision.DISABLED,
+        )
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(primary))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencySlot))
+
+        useCase()
+
+        coVerify(exactly = 0) { enableNodePositionBroadcastReady.invoke() }
+        coVerify(exactly = 0) { disableNodePositionBroadcast.invoke() }
     }
 }

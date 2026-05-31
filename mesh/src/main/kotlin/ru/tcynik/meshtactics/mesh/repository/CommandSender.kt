@@ -24,6 +24,8 @@ import ru.tcynik.meshtactics.mesh.model.Position
 import org.meshtastic.proto.AdminMessage
 import org.meshtastic.proto.ChannelSet
 import org.meshtastic.proto.LocalConfig
+import org.meshtastic.proto.MeshPacket
+import kotlin.time.Duration
 
 /** Interface for sending commands and packets to the mesh network. */
 @Suppress("TooManyFunctions")
@@ -51,6 +53,21 @@ interface CommandSender {
 
     /** Sets the session passkey for admin messages. */
     fun setSessionPasskey(key: ByteString)
+
+    /** Stores [AdminMessage.session_passkey] from an incoming admin packet. */
+    fun ingestAdminSessionPasskey(packet: MeshPacket)
+
+    /** Waits for admin response with passkey matching [replyId]. */
+    suspend fun awaitAdminPasskey(replyId: Int, timeout: Duration): ByteString?
+
+    /** Completes passkey waiters when firmware returns routing NAK for an admin request. */
+    fun notifyAdminRoutingResult(requestId: Int, errorReason: Int)
+
+    /** Called when firmware sends FromRadio.rebooted — admin session is invalid until reconnect. */
+    fun notifyNodeRebooted()
+
+    /** True if [notifyNodeRebooted] fired after [epochMs] (e.g. start of passkey wait). */
+    fun nodeRebootedAfter(epochMs: Long): Boolean
 
     /** Sends a data packet to the mesh. */
     fun sendData(p: DataPacket)

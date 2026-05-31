@@ -9,8 +9,11 @@ import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import ru.tcynik.meshtactics.domain.channel.model.isEmergency
 import ru.tcynik.meshtactics.domain.channel.model.meshtasticChannelName
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
+import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.ChannelPositionPrecision
+import ru.tcynik.meshtactics.domain.mesh.usecase.GetPositionBroadcastSecsUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 
@@ -20,6 +23,9 @@ class CheckNodeSyncUseCase(
     private val observeAppUser: ObserveAppUserUseCase,
     private val observeDeviceConfig: ObserveDeviceConfigUseCase,
     private val contourRepository: ContourRepository,
+    private val observeGpsBroadcastEnabled: ObserveGpsBroadcastEnabledUseCase,
+    private val observeEmergencyMode: ObserveEmergencyModeUseCase,
+    private val getPositionBroadcastSecs: GetPositionBroadcastSecsUseCase,
     private val logger: Logger,
 ) {
     suspend operator fun invoke(): NodeSyncResult {
@@ -107,7 +113,21 @@ class CheckNodeSyncUseCase(
             }
         }
 
+        val sosActive = observeEmergencyMode().first()
+        val broadcastEnabled = observeGpsBroadcastEnabled().first()
+        val desiredSecs = if (!sosActive && broadcastEnabled) BROADCAST_READY_SECS else BROADCAST_DISABLED_SECS
+        val currentSecs = getPositionBroadcastSecs()
+        if (currentSecs != null && currentSecs != desiredSecs) {
+            logger.w("Contour", "NeedsSync: position_broadcast_secs mismatch — current=$currentSecs desired=$desiredSecs")
+            return NodeSyncResult.NeedsSync
+        }
+
         logger.d("Contour", "InSync: all checks passed")
         return NodeSyncResult.InSync
+    }
+
+    private companion object {
+        const val BROADCAST_READY_SECS = 60
+        const val BROADCAST_DISABLED_SECS = Int.MAX_VALUE
     }
 }

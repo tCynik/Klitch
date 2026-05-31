@@ -34,6 +34,9 @@ interface PacketHandler {
     /** Adds a mesh packet to the queue for sending. */
     fun sendToRadio(packet: MeshPacket)
 
+    /** Sends admin to the connected local node without queue blocking (phone from=0). */
+    fun sendLocalAdminPacket(packet: MeshPacket)
+
     /** Processes queue status updates from the radio. */
     fun handleQueueStatus(queueStatus: QueueStatus)
 
@@ -42,6 +45,9 @@ interface PacketHandler {
 
     /** Stops the packet queue. */
     fun stopPacketQueue()
+
+    /** Drops queued mesh packets so admin commands are not stuck behind backlog. */
+    suspend fun prepareForAdminBurst()
 
     /**
      * Waits until [packetId] is handed off to the radio (QueueStatus) or the send job finishes.

@@ -54,9 +54,12 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.WritePositionConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.GetPositionBroadcastSecsUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ConfirmChannelSyncUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ReconnectAfterNodeRebootUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ReconnectViaBleScanUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveNodeSecurityConfigUseCase
@@ -153,17 +156,28 @@ val meshDataModule = module {
     single { RemoveFixedPositionUseCase(get()) }
     single { EnableNodePositionBroadcastReadyUseCase(get()) }
     single { DisableNodePositionBroadcastUseCase(get()) }
+    single { GetPositionBroadcastSecsUseCase(get()) }
     single { RebootNodeUseCase(get()) }
     single {
-        ReconnectAfterNodeRebootUseCase(
+        ReconnectViaBleScanUseCase(
             disconnectFromMesh = get(),
             connectToDevice = get(),
             getLastConnectedDevice = get(),
+            observeConnectionStatus = get(),
+            meshConnectionRepository = get(),
+            logger = get(),
+        )
+    }
+    single {
+        ReconnectAfterNodeRebootUseCase(
+            disconnectFromMesh = get(),
+            reconnectViaBleScan = get(),
             observeConnectionStatus = get(),
             requestDeviceConfig = get(),
             checkNodeSync = get(),
             syncStateRepository = get(),
             rebootStateRepository = get(),
+            logger = get(),
         )
     }
     single { CheckOwnPkcHealthUseCase(get()) }

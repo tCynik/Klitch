@@ -42,7 +42,7 @@ import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkPreferencesRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
-import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ConfirmChannelSyncUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
@@ -146,7 +146,7 @@ val presentationModule = module {
             resolveSlot = get(),
             observeConnectionStatus = get(),
             channelSlotResolver = get(),
-            syncContoursOnConnect = get(),
+            confirmChannelSync = get<ConfirmChannelSyncUseCase>(),
             enableNodePositionBroadcastReady = get(),
             disableNodePositionBroadcast = get(),
             observeEmergencyMode = get(),
@@ -205,9 +205,7 @@ val presentationModule = module {
             observeOurNode = get(),
             checkContourSync = get<CheckNodeSyncUseCase>(),
             observeNodeChannels = get<ObserveNodeChannelsUseCase>(),
-            syncContoursOnConnect = get<SyncContoursOnConnectUseCase>(),
-            rebootNode = get<RebootNodeUseCase>(),
-            reconnectAfterNodeReboot = get<ReconnectAfterNodeRebootUseCase>(),
+            confirmChannelSync = get<ConfirmChannelSyncUseCase>(),
             syncStateRepository = get<ContourSyncStateRepository>(),
             rebootStateRepository = get<RebootStateRepository>(),
             observeAppUser = get<ObserveAppUserUseCase>(),

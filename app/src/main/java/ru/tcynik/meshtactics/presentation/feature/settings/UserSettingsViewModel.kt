@@ -39,14 +39,15 @@ import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepositor
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
+import ru.tcynik.meshtactics.domain.channel.usecase.ConfirmChannelSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SetPrimaryContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SlotResolution
-import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.CancelEmergencyUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
+import ru.tcynik.meshtactics.domain.mesh.model.NodeSyncCyclePhase
 import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
@@ -89,7 +90,7 @@ class UserSettingsViewModel(
     private val resolveSlot: ResolveChannelSlotUseCase,
     private val observeConnectionStatus: ObserveConnectionStatusUseCase,
     private val channelSlotResolver: ChannelSlotResolver,
-    private val syncContoursOnConnect: SyncContoursOnConnectUseCase,
+    private val confirmChannelSync: ConfirmChannelSyncUseCase,
     private val enableNodePositionBroadcastReady: EnableNodePositionBroadcastReadyUseCase,
     private val disableNodePositionBroadcast: DisableNodePositionBroadcastUseCase,
     private val observeEmergencyMode: ObserveEmergencyModeUseCase,
@@ -185,15 +186,6 @@ class UserSettingsViewModel(
 
     private fun onConnected(contours: List<Contour>) {
         viewModelScope.launch {
-            val sosActive = observeEmergencyMode().first()
-            val broadcastEnabled = observeGpsBroadcastEnabled().first()
-            logger.i("Node", "UserSettingsViewModel.onConnected: sosActive=$sosActive broadcastEnabled=$broadcastEnabled")
-            if (sosActive || !broadcastEnabled) {
-                disableNodePositionBroadcast()
-            } else {
-                enableNodePositionBroadcastReady()
-            }
-
             needsPkcRegen = checkOwnPkcHealth()
             refreshNodePublicKeys()
             delay(30_000)
@@ -301,12 +293,7 @@ class UserSettingsViewModel(
                 regeneratePkcKeys()
                 needsPkcRegen = false
             }
-            syncContoursOnConnect()
-            rebootStateRepository.markSyncAppliedBeforeReboot()
-            rebootStateRepository.setRebooting(true)
-            rebootNode()
-            syncStateRepository.clear()
-            reconnectAfterNodeReboot(NoParams)
+            confirmChannelSync(NoParams)
         }
     }
 
@@ -376,12 +363,13 @@ class UserSettingsViewModel(
                 observeDeviceConfig(NoParams).first { it != null }
             }?.shortName ?: ""
             logger.i("Node", "onSaveAndReboot: writing owner='$name' + PKC regen — firmware reboot expected")
+            rebootStateRepository.setSyncCyclePhase(NodeSyncCyclePhase.Syncing)
             writeOwner(_uiState.value.displayName, shortName)
             regeneratePkcKeys()
             saveAppUser(AppUser(displayName = _uiState.value.displayName))
             _uiState.update { it.copy(hasUnsavedUserChanges = false) }
             rebootStateRepository.markSyncAppliedBeforeReboot()
-            rebootStateRepository.setRebooting(true)
+            rebootStateRepository.setSyncCyclePhase(NodeSyncCyclePhase.Rebooting)
             rebootNode()
             reconnectAfterNodeReboot(NoParams)
             _navigateBack.tryEmit(Unit)

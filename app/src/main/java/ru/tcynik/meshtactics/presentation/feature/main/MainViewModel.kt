@@ -35,6 +35,7 @@ import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.location.model.GpsSignalLevel
 import ru.tcynik.meshtactics.domain.location.usecase.ObserveGpsStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
+import ru.tcynik.meshtactics.domain.mesh.model.NodeSyncCyclePhase
 import ru.tcynik.meshtactics.mesh.ble.toMeshtasticDisplayShortName
 import ru.tcynik.meshtactics.domain.settings.usecase.GetGeoMarkSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetMarkerSizeLevelUseCase
@@ -235,6 +236,10 @@ class MainViewModel(
             .onEach { rebooting -> _uiState.update { it.copy(isRebooting = rebooting) } }
             .launchIn(viewModelScope)
 
+        rebootStateRepository.syncCyclePhase
+            .onEach { phase -> _uiState.update { it.copy(syncCyclePhase = phase) } }
+            .launchIn(viewModelScope)
+
         observeConnectionStatus(NoParams)
             .onEach { status ->
                 if (status is MeshConnectionStatus.Connected) {
@@ -244,7 +249,6 @@ class MainViewModel(
                     val wasConnected = _uiState.value.connectionStatus is MeshConnectionStatus.Connected
                     _uiState.update { it.copy(connectionStatus = status) }
                     if (!wasConnected) {
-                        if (rebootStateRepository.isRebooting.value) rebootStateRepository.setRebooting(false)
                         val skipSyncCheck = rebootStateRepository.shouldSkipSyncCheckAfterReboot()
                         if (!skipSyncCheck) {
                             viewModelScope.launch { nodeProvisioning.provision() }
@@ -270,7 +274,7 @@ class MainViewModel(
                     connectedLabelJob?.cancel()
                     connectedLabelJob = null
                     _uiState.update { it.copy(connectionStatus = status, showConnectionLabel = false) }
-                    if (wasConnected && _uiState.value.isRebooting) {
+                    if (wasConnected && _uiState.value.isRebooting && !rebootStateRepository.shouldSkipSyncCheckAfterReboot()) {
                         viewModelScope.launch {
                             delay(3_000)
                             startAutoConnectIfEnabled()
@@ -1055,10 +1059,19 @@ class MainViewModel(
             else
                 emptyInfoSlot()
         else ->
-            if (state.isRebooting)
-                HudInfoSlot(content = "Перезагрузка...", color = Color.Black)
-            else
-                emptyInfoSlot()
+            when (state.syncCyclePhase) {
+                NodeSyncCyclePhase.Syncing ->
+                    HudInfoSlot(content = "Синхронизация...", color = Color.Black)
+                NodeSyncCyclePhase.Rebooting ->
+                    HudInfoSlot(content = "Перезагрузка...", color = Color.Black)
+                NodeSyncCyclePhase.WaitingForNode ->
+                    HudInfoSlot(content = "Ожидание ноды...", color = Color.Black)
+                NodeSyncCyclePhase.Idle ->
+                    if (state.isRebooting)
+                        HudInfoSlot(content = "Перезагрузка...", color = Color.Black)
+                    else
+                        emptyInfoSlot()
+            }
     }
 
     private fun buildNodeStatusColor(state: MainUiState): Color {

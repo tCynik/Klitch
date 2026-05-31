@@ -18,11 +18,12 @@ import kotlinx.coroutines.withTimeoutOrNull
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ConfirmChannelSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
-import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
 import ru.tcynik.meshtactics.domain.logger.Logger
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.model.MeshNodeModel
+import ru.tcynik.meshtactics.domain.mesh.model.NodeSyncCyclePhase
 import ru.tcynik.meshtactics.mesh.ble.toMeshtasticDisplayShortName
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceParams
@@ -31,8 +32,6 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveOurNodeUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.ReconnectAfterNodeRebootUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveNetworkEnabledUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.SetNetworkEnabledUseCase
@@ -55,9 +54,7 @@ class NetworkViewModel(
     private val observeOurNode: ObserveOurNodeUseCase,
     private val checkContourSync: CheckNodeSyncUseCase,
     private val observeNodeChannels: ObserveNodeChannelsUseCase,
-    private val syncContoursOnConnect: SyncContoursOnConnectUseCase,
-    private val rebootNode: RebootNodeUseCase,
-    private val reconnectAfterNodeReboot: ReconnectAfterNodeRebootUseCase,
+    private val confirmChannelSync: ConfirmChannelSyncUseCase,
     private val syncStateRepository: ContourSyncStateRepository,
     private val rebootStateRepository: RebootStateRepository,
     private val observeAppUser: ObserveAppUserUseCase,
@@ -74,9 +71,9 @@ class NetworkViewModel(
 
     private var scanJob: Job? = null
     private var wasConnected = false
-    private var rebootDisconnectObserved = false
     private var userStoppedScan = false
     private var pendingConnectAddress: String? = null
+    private var lastMeshStatus: MeshConnectionStatus = MeshConnectionStatus.Disconnected
 
     init {
         observeNetworkEnabled(NoParams)
@@ -90,16 +87,17 @@ class NetworkViewModel(
             }
             .launchIn(viewModelScope)
 
-        rebootStateRepository.isRebooting
-            .onEach { rebooting ->
+        rebootStateRepository.syncCyclePhase
+            .onEach { phase ->
                 _uiState.update { state ->
+                    val uiStatus = resolveConnectionStatusUi(
+                        meshStatus = lastMeshStatus,
+                        syncPhase = phase,
+                        currentUiStatus = state.connectionStatus,
+                    ) ?: lastMeshStatus.toUi()
                     state.copy(
-                        isRebooting = rebooting,
-                        connectionStatus = if (rebooting) {
-                            MeshConnectionStatusUi.Rebooting
-                        } else {
-                            state.connectionStatus
-                        },
+                        isRebooting = phase != NodeSyncCyclePhase.Idle,
+                        connectionStatus = uiStatus,
                     )
                 }
             }
@@ -107,20 +105,15 @@ class NetworkViewModel(
 
         observeConnectionStatus(NoParams).onEach { status ->
             if (!_uiState.value.networkEnabled) return@onEach
-
-            logger.i("App", "DBG connectionStatus flow emitted: $status")
-            val isRebooting = rebootStateRepository.isRebooting.value
-            if (isRebooting && status !is MeshConnectionStatus.Connected) {
-                rebootDisconnectObserved = true
-            }
-            if (isRebooting && rebootDisconnectObserved && status is MeshConnectionStatus.Connected) {
-                rebootStateRepository.setRebooting(false)
-                rebootDisconnectObserved = false
-            }
-            val uiStatus = when {
-                isRebooting -> MeshConnectionStatusUi.Rebooting
-                userStoppedScan && status is MeshConnectionStatus.Scanning -> MeshConnectionStatusUi.Disconnected
-                else -> status.toUi()
+            lastMeshStatus = status
+            val syncPhase = rebootStateRepository.syncCyclePhase.value
+            val uiStatus = resolveConnectionStatusUi(
+                meshStatus = status,
+                syncPhase = syncPhase,
+                currentUiStatus = _uiState.value.connectionStatus,
+            ) ?: status.toUi()
+            if (syncPhase != NodeSyncCyclePhase.Idle) {
+                logger.i("Node", "syncUi: mesh=$status phase=$syncPhase ui=$uiStatus")
             }
             _uiState.update { state ->
                 val isScanInProgress = status is MeshConnectionStatus.Scanning && !userStoppedScan || scanJob != null
@@ -166,7 +159,8 @@ class NetworkViewModel(
                 }
             }
             wasConnected = status is MeshConnectionStatus.Connected
-            if (status is MeshConnectionStatus.Scanning && scanJob == null && !isRebooting && !userStoppedScan) {
+            val isSyncCycleActive = syncPhase != NodeSyncCyclePhase.Idle
+            if (status is MeshConnectionStatus.Scanning && scanJob == null && !isSyncCycleActive && !userStoppedScan) {
                 startScan()
             }
             if (status is MeshConnectionStatus.Connecting) {
@@ -257,13 +251,8 @@ class NetworkViewModel(
     fun onConfirmChannelSync() {
         _uiState.update { it.copy(showSyncDialog = false) }
         viewModelScope.launch {
-            rebootDisconnectObserved = false
-            syncContoursOnConnect()
-            rebootStateRepository.markSyncAppliedBeforeReboot()
-            rebootStateRepository.setRebooting(true)
-            rebootNode()
-            syncStateRepository.clear()
-            reconnectAfterNodeReboot(NoParams)
+            logger.i("Node", "syncConfirm: start name=${_uiState.value.lastConnectedNodeName}")
+            confirmChannelSync(NoParams)
         }
     }
 
@@ -388,6 +377,26 @@ class NetworkViewModel(
     fun onRefreshTelemetryClick() {
         _uiState.update { state ->
             state.copy(telemetry = state.telemetry.copy(isLoading = true))
+        }
+    }
+
+    private fun resolveConnectionStatusUi(
+        meshStatus: MeshConnectionStatus?,
+        syncPhase: NodeSyncCyclePhase,
+        currentUiStatus: MeshConnectionStatusUi,
+    ): MeshConnectionStatusUi? {
+        if (meshStatus is MeshConnectionStatus.Connecting && syncPhase != NodeSyncCyclePhase.Idle) {
+            return meshStatus.toUi()
+        }
+        return when (syncPhase) {
+            NodeSyncCyclePhase.Syncing -> MeshConnectionStatusUi.Syncing
+            NodeSyncCyclePhase.Rebooting -> MeshConnectionStatusUi.Rebooting
+            NodeSyncCyclePhase.WaitingForNode -> MeshConnectionStatusUi.WaitingForNode
+            NodeSyncCyclePhase.Idle -> when {
+                meshStatus == null -> null
+                userStoppedScan && meshStatus is MeshConnectionStatus.Scanning -> MeshConnectionStatusUi.Disconnected
+                else -> null
+            }
         }
     }
 

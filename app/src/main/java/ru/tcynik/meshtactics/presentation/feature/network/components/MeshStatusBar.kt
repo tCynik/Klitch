@@ -102,7 +102,9 @@ private fun StatusDot(status: MeshConnectionStatusUi) {
     val color = when (status) {
         is MeshConnectionStatusUi.Connected -> Color(0xFF4CAF50)
         is MeshConnectionStatusUi.Connecting -> Color(0xFFFFC107)
+        is MeshConnectionStatusUi.Syncing -> Color(0xFFFFC107)
         is MeshConnectionStatusUi.Rebooting -> Color(0xFFFFC107)
+        is MeshConnectionStatusUi.WaitingForNode -> Color(0xFF2196F3)
         is MeshConnectionStatusUi.Scanning -> Color(0xFF2196F3)
         is MeshConnectionStatusUi.Error -> MaterialTheme.colorScheme.error
         is MeshConnectionStatusUi.Disconnected -> MaterialTheme.colorScheme.outline
@@ -115,12 +117,12 @@ private fun StatusDot(status: MeshConnectionStatusUi) {
 private fun statusLabel(status: MeshConnectionStatusUi, rebootingNodeName: String): String = when (status) {
     is MeshConnectionStatusUi.Disconnected -> "Not connected"
     is MeshConnectionStatusUi.Scanning -> "Scanning..."
+    is MeshConnectionStatusUi.Syncing ->
+        nodeSyncLabel(rebootingNodeName, "Синхронизация...")
     is MeshConnectionStatusUi.Rebooting ->
-        if (rebootingNodeName.isNotBlank()) {
-            "${rebootingNodeName.toMeshtasticDisplayShortName()} - Перезагрузка..."
-        } else {
-            "Перезагрузка..."
-        }
+        nodeSyncLabel(rebootingNodeName, "Перезагрузка...")
+    is MeshConnectionStatusUi.WaitingForNode ->
+        nodeSyncLabel(rebootingNodeName, "Ожидание ноды...")
     is MeshConnectionStatusUi.Connecting -> "Connecting to ${status.deviceName.toMeshtasticDisplayShortName()}..."
     is MeshConnectionStatusUi.Connected ->
         rebootingNodeName.toMeshtasticDisplayShortName()
@@ -128,3 +130,10 @@ private fun statusLabel(status: MeshConnectionStatusUi, rebootingNodeName: Strin
             .ifBlank { status.nodeId }
     is MeshConnectionStatusUi.Error -> "Error: ${status.message}"
 }
+
+private fun nodeSyncLabel(nodeName: String, action: String): String =
+    if (nodeName.isNotBlank()) {
+        "${nodeName.toMeshtasticDisplayShortName()} - $action"
+    } else {
+        action
+    }

@@ -5,14 +5,20 @@ import kotlinx.coroutines.withTimeoutOrNull
 import ru.tcynik.meshtactics.domain.channel.model.Contour
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
+import ru.tcynik.meshtactics.domain.channel.model.SyncContoursResult
 import ru.tcynik.meshtactics.domain.channel.model.isEmergency
 import ru.tcynik.meshtactics.domain.channel.model.meshtasticChannelName
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
+import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
 import ru.tcynik.meshtactics.domain.logger.Logger
 import ru.tcynik.meshtactics.domain.mesh.model.ChannelPositionPrecision
 import ru.tcynik.meshtactics.domain.mesh.usecase.BeginSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.CommitSettingsEditUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.GetPositionBroadcastSecsUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
@@ -29,15 +35,20 @@ class SyncContoursOnConnectUseCase(
     private val writeOwner: WriteOwnerUseCase,
     private val observeAppUser: ObserveAppUserUseCase,
     private val observeDeviceConfig: ObserveDeviceConfigUseCase,
+    private val enableNodePositionBroadcastReady: EnableNodePositionBroadcastReadyUseCase,
+    private val disableNodePositionBroadcast: DisableNodePositionBroadcastUseCase,
+    private val observeGpsBroadcastEnabled: ObserveGpsBroadcastEnabledUseCase,
+    private val observeEmergencyMode: ObserveEmergencyModeUseCase,
+    private val getPositionBroadcastSecs: GetPositionBroadcastSecsUseCase,
     private val logger: Logger,
 ) {
-    suspend operator fun invoke() {
+    suspend operator fun invoke(): SyncContoursResult {
         val contours = observeContours(NoParams).first()
         val nodeChannels = observeNodeChannels(NoParams).first()
         val primaryId = contourRepository.getPrimaryContourId()
         val primaryContour = contours.find { it.id == primaryId }
             ?: contours.firstOrNull { !it.isEmergency }
-            ?: return
+            ?: return SyncContoursResult.NothingToWrite
 
         // Resolve owner info BEFORE opening the edit session to avoid delays inside it.
         val user = observeAppUser(NoParams).first()
@@ -50,6 +61,14 @@ class SyncContoursOnConnectUseCase(
         }
         val needsOwnerWrite = user.displayName.isNotBlank() &&
             deviceConfig?.longName != user.displayName
+
+        // Resolve desired GPS broadcast state BEFORE opening the edit session.
+        val sosActive = observeEmergencyMode().first()
+        val broadcastEnabled = observeGpsBroadcastEnabled().first()
+        val desiredBroadcastEnabled = !sosActive && broadcastEnabled
+        val currentBroadcastSecs = getPositionBroadcastSecs()
+        val desiredBroadcastSecs = if (desiredBroadcastEnabled) BROADCAST_READY_SECS else BROADCAST_DISABLED_SECS
+        val needsBroadcastWrite = currentBroadcastSecs != null && currentBroadcastSecs != desiredBroadcastSecs
 
         val primaryName = meshtasticChannelName(primaryContour)
         val primaryPsk = if (primaryContour.isEmergency) {
@@ -96,14 +115,18 @@ class SyncContoursOnConnectUseCase(
             (!primaryContour.isEmergency && !emergencySynced) ||
             extraWrites.isNotEmpty()
 
-        if (!channelsNeedWrite && !needsOwnerWrite) {
+        if (!channelsNeedWrite && !needsOwnerWrite && !needsBroadcastWrite) {
             logger.d("Contour", "nothing to write")
-            return
+            return SyncContoursResult.NothingToWrite
         }
 
         // Open edit session — channels are buffered in firmware RAM until commit_edit_settings
         // flushes them to flash. Owner write persists independently.
-        beginSettingsEdit()
+        logger.i("Contour", "session_passkey: opening edit session for channel sync")
+        if (!beginSettingsEdit.invoke()) {
+            logger.w("Contour", "session_passkey: beginSettingsEdit failed — no edit session")
+            return SyncContoursResult.FailedNoSession
+        }
 
         if (!primarySynced) {
             logger.d("Contour", "write primary slot 0 name='$primaryName'")
@@ -129,12 +152,23 @@ class SyncContoursOnConnectUseCase(
             writeOwner(user.displayName, deviceConfig?.shortName ?: "")
         }
 
+        if (needsBroadcastWrite) {
+            logger.d("Contour", "write position_broadcast_secs=$desiredBroadcastSecs (broadcastEnabled=$desiredBroadcastEnabled)")
+            if (desiredBroadcastEnabled) enableNodePositionBroadcastReady() else disableNodePositionBroadcast()
+        }
+
         // Commit flushes all buffered channel changes to flash.
         // Firmware may reboot the node as part of commit; the caller's rebootNode() is a fallback.
         commitSettingsEdit()
+        return SyncContoursResult.Success
     }
 
     private fun expectedSlot0Hash(primaryContour: Contour): ContourHash =
         if (primaryContour.isEmergency) DefaultContour.CHANNEL_HASH
         else primaryContour.transport.meshtastic.channelHash
+
+    private companion object {
+        const val BROADCAST_READY_SECS = 60
+        const val BROADCAST_DISABLED_SECS = Int.MAX_VALUE
+    }
 }

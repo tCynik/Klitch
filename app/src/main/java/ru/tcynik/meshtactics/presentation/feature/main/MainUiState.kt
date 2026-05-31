@@ -9,6 +9,7 @@ import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import ru.tcynik.meshtactics.domain.marker.model.NodeMarkerModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.model.MeshDeviceModel
+import ru.tcynik.meshtactics.domain.mesh.model.NodeSyncCyclePhase
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.OverlayRenderModel
 
 // TODO: replace default with GPS first-fix or user-configurable home position
@@ -43,6 +44,7 @@ data class MainUiState(
     val syncRequired: Boolean = false,
     val callsignRequired: Boolean = false,
     val isRebooting: Boolean = false,
+    val syncCyclePhase: NodeSyncCyclePhase = NodeSyncCyclePhase.Idle,
     val menuDrawerOpen: Boolean = false,
     val isFollowMeActive: Boolean = false,
     val isCourseUpActive: Boolean = false,

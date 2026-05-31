@@ -19,6 +19,7 @@
 package ru.tcynik.meshtactics.mesh.data.manager
 
 import co.touchlab.kermit.Logger
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -67,6 +68,7 @@ class PacketHandlerImpl(
 
     companion object {
         private val TIMEOUT = 5.seconds
+        private const val LOCAL_ADMIN_HANDOFF_MS = 400L
     }
 
     private var queueJob: Job? = null
@@ -75,8 +77,7 @@ class PacketHandlerImpl(
     private val queueMutex = Mutex()
     private val queuedPackets = mutableListOf<MeshPacket>()
 
-    private val responseMutex = Mutex()
-    private val queueResponse = mutableMapOf<Int, CompletableDeferred<Boolean>>()
+    private val queueResponse = ConcurrentHashMap<Int, CompletableDeferred<Boolean>>()
 
     override fun start(scope: CoroutineScope) {
         this.scope = scope
@@ -106,9 +107,53 @@ class PacketHandlerImpl(
     }
 
     override fun sendToRadio(packet: MeshPacket) {
+        registerSendDeferred(packet.id)
         scope.launch {
-            queueMutex.withLock { queuedPackets.add(packet) }
+            queueMutex.withLock { queuedPackets.add(0, packet) }
             startPacketQueue()
+        }
+    }
+
+    override fun sendLocalAdminPacket(packet: MeshPacket) {
+        Logger.i("MT/Contour") {
+            "sendLocalAdmin: id=${packet.id.toUInt()} to=${packet.to.toUInt()} from=${packet.from.toUInt()}"
+        }
+        val deferred = registerSendDeferred(packet.id)
+        scope.launch {
+            try {
+                if (serviceRepository.connectionState.value != ConnectionState.Connected) {
+                    Logger.w("MT/Contour") { "sendLocalAdmin skipped: not connected id=${packet.id.toUInt()}" }
+                    completeSendDeferred(packet.id, deferred, success = false)
+                    return@launch
+                }
+                sendToRadio(ToRadio(packet = packet))
+                // Local BLE admin often has no per-packet QueueStatus — hand off after radio write.
+                delay(LOCAL_ADMIN_HANDOFF_MS)
+                val stillConnected = serviceRepository.connectionState.value == ConnectionState.Connected
+                completeSendDeferred(packet.id, deferred, success = stillConnected)
+                if (stillConnected) {
+                    Logger.i("MT/Contour") { "sendLocalAdmin: handoff ok id=${packet.id.toUInt()}" }
+                }
+            } catch (ex: RadioNotConnectedException) {
+                Logger.w(ex) { "sendLocalAdmin skipped: Not connected to radio" }
+                completeSendDeferred(packet.id, deferred, success = false)
+            } catch (ex: Exception) {
+                Logger.e(ex) { "sendLocalAdmin error: ${ex.message}" }
+                completeSendDeferred(packet.id, deferred, success = false)
+            }
+        }
+    }
+
+    override suspend fun prepareForAdminBurst() {
+        queueJob?.cancel()
+        queueJob = null
+        val dropped = queueMutex.withLock {
+            val count = queuedPackets.size
+            queuedPackets.clear()
+            count
+        }
+        if (dropped > 0) {
+            Logger.i("MT/Contour") { "prepareForAdminBurst: dropped $dropped queued packets" }
         }
     }
 
@@ -119,50 +164,54 @@ class PacketHandlerImpl(
             queueJob = null
             scope.launch {
                 queueMutex.withLock { queuedPackets.clear() }
-                responseMutex.withLock {
-                    queueResponse.values.lastOrNull { !it.isCompleted }?.complete(false)
-                    queueResponse.clear()
-                }
+                queueResponse.values.lastOrNull { !it.isCompleted }?.complete(false)
+                queueResponse.clear()
             }
         }
     }
 
     override fun handleQueueStatus(queueStatus: QueueStatus) {
         Logger.d { "[queueStatus] ${queueStatus.toOneLineString()}" }
+        if (queueStatus.mesh_packet_id != 0) {
+            Logger.i("MT/Contour") {
+                "queueStatus: id=${queueStatus.mesh_packet_id.toUInt()} res=${queueStatus.res} free=${queueStatus.free}"
+            }
+        }
         val (success, isFull, requestId) = with(queueStatus) { Triple(res == 0, free == 0, mesh_packet_id) }
         // Packet accepted into the device queue (queue full afterwards) — unblock the send job.
         if (success && isFull) {
-            scope.launch { responseMutex.withLock { completeQueueResponse(requestId, success = true) } }
+            scope.launch { completeQueueResponse(requestId, success = true) }
             return
         }
 
         scope.launch {
-            responseMutex.withLock { completeQueueResponse(requestId, success) }
+            completeQueueResponse(requestId, success)
         }
     }
 
     private fun completeQueueResponse(requestId: Int, success: Boolean) {
-        if (requestId != 0) {
-            queueResponse.remove(requestId)?.complete(success)
-        } else {
-            queueResponse.values.firstOrNull { !it.isCompleted }?.complete(success)
+        if (requestId == 0) {
+            // Global queue status — must not complete unrelated admin TX waiters.
+            Logger.d { "queueStatus: ignored id=0 res=$success" }
+            return
         }
+        queueResponse.remove(requestId)?.complete(success)
     }
 
     override fun removeResponse(dataRequestId: Int, complete: Boolean) {
-        scope.launch { responseMutex.withLock { queueResponse.remove(dataRequestId)?.complete(complete) } }
+        scope.launch { queueResponse.remove(dataRequestId)?.complete(complete) }
     }
 
     override suspend fun awaitPacketSendResult(packetId: Int, timeout: Duration): Boolean {
         if (packetId == 0) return false
         return try {
             withTimeout(timeout) {
-                while (true) {
-                    val deferred = responseMutex.withLock { queueResponse[packetId] }
-                    if (deferred != null) break
-                    delay(50.milliseconds)
+                var deferred: CompletableDeferred<Boolean>? = null
+                while (deferred == null) {
+                    deferred = queueResponse[packetId]
+                    if (deferred == null) delay(50.milliseconds)
                 }
-                responseMutex.withLock { queueResponse[packetId] }?.await() ?: false
+                deferred.await()
             }
         } catch (_: TimeoutCancellationException) {
             false
@@ -183,10 +232,10 @@ class PacketHandlerImpl(
                         Logger.d { "queueJob packet id=${packet.id.toUInt()} success $success" }
                     } catch (e: TimeoutCancellationException) {
                         Logger.d { "queueJob packet id=${packet.id.toUInt()} timeout" }
+                        queueResponse.remove(packet.id)?.complete(false)
                     } catch (e: Exception) {
                         Logger.d { "queueJob packet id=${packet.id.toUInt()} failed" }
-                    } finally {
-                        responseMutex.withLock { queueResponse.remove(packet.id) }
+                        queueResponse.remove(packet.id)?.complete(false)
                     }
                 }
             } finally {
@@ -196,6 +245,22 @@ class PacketHandlerImpl(
                 }
             }
         }
+    }
+
+    private fun registerSendDeferred(packetId: Int): CompletableDeferred<Boolean> {
+        queueResponse.remove(packetId)?.takeIf { it.isCompleted }
+        return queueResponse.compute(packetId) { _, existing ->
+            if (existing == null || existing.isCompleted) CompletableDeferred() else existing
+        }!!
+    }
+
+    private fun completeSendDeferred(
+        packetId: Int,
+        deferred: CompletableDeferred<Boolean>,
+        success: Boolean,
+    ) {
+        queueResponse.remove(packetId, deferred)
+        deferred.complete(success)
     }
 
     private fun changeStatus(packetId: Int, m: MessageStatus) = scope.handledLaunch {
@@ -219,8 +284,7 @@ class PacketHandlerImpl(
 
     @Suppress("TooGenericExceptionCaught")
     private suspend fun sendPacket(packet: MeshPacket): CompletableDeferred<Boolean> {
-        val deferred = CompletableDeferred<Boolean>()
-        responseMutex.withLock { queueResponse[packet.id] = deferred }
+        val deferred = registerSendDeferred(packet.id)
         try {
             if (serviceRepository.connectionState.value != ConnectionState.Connected) {
                 throw RadioNotConnectedException()
@@ -229,14 +293,14 @@ class PacketHandlerImpl(
             // No-ack packets (incl. broadcast waypoints) do not get routing ACKs; pacing for
             // geo-marks is handled in GeoMarkSendQueue, not by blocking here on QueueStatus.
             if (packet.want_ack != true) {
-                deferred.complete(true)
+                completeSendDeferred(packet.id, deferred, success = true)
             }
         } catch (ex: RadioNotConnectedException) {
             Logger.w(ex) { "sendToRadio skipped: Not connected to radio" }
-            deferred.complete(false)
+            completeSendDeferred(packet.id, deferred, success = false)
         } catch (ex: Exception) {
             Logger.e(ex) { "sendToRadio error: ${ex.message}" }
-            deferred.complete(false)
+            completeSendDeferred(packet.id, deferred, success = false)
         }
         return deferred
     }

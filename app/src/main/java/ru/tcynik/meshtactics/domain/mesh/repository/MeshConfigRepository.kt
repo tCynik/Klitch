@@ -19,7 +19,8 @@ interface MeshConfigRepository {
     fun observeNodeChannels(): Flow<List<NodeChannelSlot>>
     fun observeDeviceConfig(): Flow<MeshDeviceConfigModel?>
     fun requestDeviceConfig()
-    suspend fun beginSettingsEdit()
+    /** @return true if session passkey acquired and edit session is open */
+    suspend fun beginSettingsEdit(): Boolean
     suspend fun commitSettingsEdit()
     suspend fun writeOwner(longName: String, shortName: String)
     suspend fun writeChannel(
@@ -47,6 +48,9 @@ interface MeshConfigRepository {
 
     /** Disables position broadcast on the connected node (position_broadcast_secs=MAX). Waits for position config. */
     suspend fun disableNodePositionBroadcast()
+
+    /** Returns the current position_broadcast_secs from local node config, or null if not yet loaded. */
+    suspend fun getPositionBroadcastSecs(): Int?
 
     fun rebootNode()
 }
