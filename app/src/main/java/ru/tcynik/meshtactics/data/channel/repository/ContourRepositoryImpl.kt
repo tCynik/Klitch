@@ -19,6 +19,7 @@ import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
 import ru.tcynik.meshtactics.domain.channel.model.DefaultActiveContour
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
+import ru.tcynik.meshtactics.domain.channel.model.meshtasticChannelName
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import java.time.Instant
 import java.util.Base64
@@ -71,7 +72,10 @@ class ContourRepositoryImpl(
 
     override suspend fun seedDefaultsIfAbsent() {
         val pskBytes = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
-        val hash = ContourHash.compute(DefaultActiveContour.DISPLAY_NAME, pskBytes)
+        val hash = ContourHash.compute(
+            meshtasticChannelName(DefaultActiveContour.ID, DefaultActiveContour.DISPLAY_NAME),
+            pskBytes,
+        )
         val existing = queries.selectAll().executeAsList().find { it.id == DefaultActiveContour.ID.value }
         queries.upsert(
             id = DefaultActiveContour.ID.value,
@@ -125,7 +129,7 @@ class ContourRepositoryImpl(
 private fun Contour.toDomain(queries: ContourQueries): ContourDomain? {
     val pskBytes = meshtastic_psk ?: return null
     val pskBase64 = Base64.getEncoder().encodeToString(pskBytes)
-    val hash = ContourHash.compute(name, pskBytes).also { computed ->
+    val hash = ContourHash.compute(meshtasticChannelName(ContourId(id), name), pskBytes).also { computed ->
         if (channel_hash != computed.value) {
             queries.updateChannelHash(channelHash = computed.value, id = id)
         }

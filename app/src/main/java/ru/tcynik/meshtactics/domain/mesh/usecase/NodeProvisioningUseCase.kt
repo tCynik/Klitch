@@ -2,6 +2,7 @@ package ru.tcynik.meshtactics.domain.mesh.usecase
 
 import kotlinx.coroutines.flow.first
 import ru.tcynik.meshtactics.domain.channel.model.isEmergency
+import ru.tcynik.meshtactics.domain.channel.model.meshtasticChannelName
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
@@ -34,8 +35,8 @@ class NodeProvisioningUseCase(
                     usedSlots.add(r.slot)
                 }
                 is SlotResolution.FreeSlot -> {
-                    logger.d("Node", "  writeChannel slot=${r.slot} name='${contour.name}'")
-                    writeChannel(r.slot, contour.name, contour.transport.meshtastic.psk)
+                    logger.d("Node", "  writeChannel slot=${r.slot} name='${meshtasticChannelName(contour)}'")
+                    writeChannel(r.slot, meshtasticChannelName(contour), contour.transport.meshtastic.psk)
                     usedSlots.add(r.slot)
                 }
                 is SlotResolution.NoFreeSlot -> logger.w("Node", "  no free slots for '${contour.name}' — skipping")

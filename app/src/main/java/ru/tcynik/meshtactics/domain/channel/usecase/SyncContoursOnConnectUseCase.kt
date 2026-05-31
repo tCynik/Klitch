@@ -4,9 +4,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import ru.tcynik.meshtactics.domain.channel.model.Contour
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
-import ru.tcynik.meshtactics.domain.channel.model.DefaultActiveContour
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.isEmergency
+import ru.tcynik.meshtactics.domain.channel.model.meshtasticChannelName
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.logger.Logger
 import ru.tcynik.meshtactics.domain.mesh.usecase.BeginSettingsEditUseCase
@@ -59,10 +59,12 @@ class SyncContoursOnConnectUseCase(
         val expectedSlot0Hash = expectedSlot0Hash(primaryContour)
         val slot0 = nodeChannels.find { it.index == 0 }
         val primarySynced = slot0 != null &&
+            slot0.name == primaryName &&
             ContourHash.compute(slot0.name, slot0.psk) == expectedSlot0Hash
 
         val slot1 = if (!primaryContour.isEmergency) nodeChannels.find { it.index == 1 } else null
         val emergencySynced = slot1 != null &&
+            slot1.name == DefaultContour.CHANNEL_NAME &&
             ContourHash.compute(slot1.name, slot1.psk) == DefaultContour.CHANNEL_HASH
 
         val usedSlots = if (primaryContour.isEmergency) {
@@ -124,13 +126,6 @@ class SyncContoursOnConnectUseCase(
         // Firmware may reboot the node as part of commit; the caller's rebootNode() is a fallback.
         commitSettingsEdit()
     }
-
-    private fun meshtasticChannelName(contour: Contour): String =
-        when (contour.id) {
-            DefaultActiveContour.ID -> DefaultActiveContour.CHANNEL_NAME
-            DefaultContour.ID -> DefaultContour.CHANNEL_NAME
-            else -> contour.name
-        }
 
     private fun expectedSlot0Hash(primaryContour: Contour): ContourHash =
         if (primaryContour.isEmergency) DefaultContour.CHANNEL_HASH

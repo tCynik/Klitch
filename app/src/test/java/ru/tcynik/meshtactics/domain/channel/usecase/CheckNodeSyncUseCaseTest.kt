@@ -19,6 +19,7 @@ import ru.tcynik.meshtactics.domain.channel.model.DefaultActiveContour
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
+import ru.tcynik.meshtactics.domain.channel.model.meshtasticChannelName
 import ru.tcynik.meshtactics.domain.mesh.model.MeshDeviceConfigModel
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.user.model.AppUser
@@ -48,7 +49,7 @@ class CheckNodeSyncUseCaseTest {
     private val defaultPsk = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
 
     // Slot 0 = Primary (Basic by default)
-    private val primarySlot = makeSlot(0, DefaultActiveContour.DISPLAY_NAME, defaultPsk)
+    private val primarySlot = makeSlot(0, DefaultActiveContour.CHANNEL_NAME, defaultPsk)
 
     // Slot 1 = Emergency (LongFast always, unless SOS active)
     private val emergencySlot = makeSlot(1, DefaultContour.CHANNEL_NAME, defaultPsk)
@@ -74,14 +75,17 @@ class CheckNodeSyncUseCaseTest {
         id: ContourId = ContourId(UUID.randomUUID().toString()),
     ): Contour {
         val pskBase64 = Base64.getEncoder().encodeToString(psk)
-        val hash = ContourHash.compute(name, psk)
-        return Contour(
+        val contour = Contour(
             id = id,
             name = name,
             description = null,
             expiration = null,
             exclusivityTime = null,
             isActive = isActive,
+            transport = ContourTransport(meshtastic = MeshtasticChannel(psk = pskBase64, channelHash = ContourHash("pending"))),
+        )
+        val hash = ContourHash.compute(meshtasticChannelName(contour), psk)
+        return contour.copy(
             transport = ContourTransport(meshtastic = MeshtasticChannel(psk = pskBase64, channelHash = hash)),
         )
     }
@@ -170,6 +174,15 @@ class CheckNodeSyncUseCaseTest {
         val wrongSlot0 = primarySlot.copy(name = "WrongName")
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(wrongSlot0, emergencySlot))
+
+        assertEquals(NodeSyncResult.NeedsSync, useCase())
+    }
+
+    @Test
+    fun `NeedsSync — slot 0 имя отличается только регистром`() = runTest {
+        val wrongCaseSlot0 = makeSlot(0, DefaultActiveContour.DISPLAY_NAME, defaultPsk)
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(wrongCaseSlot0, emergencySlot))
 
         assertEquals(NodeSyncResult.NeedsSync, useCase())
     }

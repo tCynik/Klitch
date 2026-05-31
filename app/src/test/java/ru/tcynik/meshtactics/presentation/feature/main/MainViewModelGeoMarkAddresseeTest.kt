@@ -190,7 +190,7 @@ class MainViewModelGeoMarkAddresseeTest {
     )
 
     private fun makeBasicContour(): Contour {
-        val hash = ContourHash.compute(DefaultActiveContour.DISPLAY_NAME, psk)
+        val hash = ContourHash.compute(DefaultActiveContour.CHANNEL_NAME, psk)
         return Contour(
             id = DefaultActiveContour.ID,
             name = DefaultActiveContour.DISPLAY_NAME,

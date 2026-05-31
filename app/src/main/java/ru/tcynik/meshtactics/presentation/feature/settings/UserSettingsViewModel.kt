@@ -28,6 +28,7 @@ import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.isEmergency
+import ru.tcynik.meshtactics.domain.channel.model.meshtasticChannelName
 import ru.tcynik.meshtactics.domain.channel.usecase.DeleteContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
@@ -208,13 +209,16 @@ class UserSettingsViewModel(
             if (status !is MeshConnectionStatus.Connected) return ChannelSyncStatus.NotConnected
             val slot1 = nodeChannels.find { it.index == 1 }
             val onSlot1 = slot1 != null && slot1.isEnabled &&
+                slot1.name == DefaultContour.CHANNEL_NAME &&
                 ContourHash.compute(slot1.name, slot1.psk) == DefaultContour.CHANNEL_HASH
             return if (onSlot1) ChannelSyncStatus.OnNode(1) else ChannelSyncStatus.NotOnNode
         }
         if (status !is MeshConnectionStatus.Connected) return ChannelSyncStatus.NotConnected
         val hash = contour.transport.meshtastic.channelHash
+        val expectedName = meshtasticChannelName(contour)
         val matched = nodeChannels.find { slot ->
             slot.index != 0 && slot.isEnabled &&
+                slot.name == expectedName &&
                 ContourHash.compute(slot.name, slot.psk) == hash
         }
         if (matched != null) return ChannelSyncStatus.OnNode(matched.index)
@@ -227,7 +231,7 @@ class UserSettingsViewModel(
     private fun pushContourToNode(contour: Contour, slot: Int) {
         viewModelScope.launch {
             beginSettingsEdit()
-            writeChannel(slot, contour.name, contour.transport.meshtastic.psk)
+            writeChannel(slot, meshtasticChannelName(contour), contour.transport.meshtastic.psk)
             commitSettingsEdit()
         }
     }
@@ -441,7 +445,7 @@ class UserSettingsViewModel(
 
         val id = editor.id ?: ContourId(UUID.randomUUID().toString())
         val existing = cachedContours.find { it.id == id }
-        val hash = ContourHash.compute(editor.name, pskBytes)
+        val hash = ContourHash.compute(meshtasticChannelName(id, editor.name), pskBytes)
         val contour = Contour(
             id = id,
             name = editor.name,

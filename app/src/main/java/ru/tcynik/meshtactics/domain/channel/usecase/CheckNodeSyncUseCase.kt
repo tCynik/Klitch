@@ -7,6 +7,7 @@ import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import ru.tcynik.meshtactics.domain.channel.model.isEmergency
+import ru.tcynik.meshtactics.domain.channel.model.meshtasticChannelName
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
@@ -46,18 +47,19 @@ class CheckNodeSyncUseCase(
             } else {
                 primaryContour.transport.meshtastic.channelHash
             }
+            val expectedSlot0Name = meshtasticChannelName(primaryContour)
             val slot0Hash = ContourHash.compute(slot0.name, slot0.psk)
-            if (slot0Hash != expectedSlot0Hash) {
+            if (slot0.name != expectedSlot0Name || slot0Hash != expectedSlot0Hash) {
                 val pskHex = slot0.psk.joinToString("") { "%02x".format(it) }
-                logger.w("Contour", "NeedsSync: slot0 hash mismatch — got=$slot0Hash expected=$expectedSlot0Hash name='${slot0.name}' psk=$pskHex")
+                logger.w("Contour", "NeedsSync: slot0 mismatch — got name='${slot0.name}' hash=$slot0Hash expected name='$expectedSlot0Name' hash=$expectedSlot0Hash psk=$pskHex")
                 return NodeSyncResult.NeedsSync
             }
 
             if (!primaryContour.isEmergency) {
                 val slot1 = nodeChannels.firstOrNull { it.index == 1 }
                 val slot1Hash = slot1?.let { ContourHash.compute(it.name, it.psk) }
-                if (slot1Hash != DefaultContour.CHANNEL_HASH) {
-                    logger.w("Contour", "NeedsSync: slot1 emergency hash mismatch — got=$slot1Hash expected=${DefaultContour.CHANNEL_HASH}")
+                if (slot1?.name != DefaultContour.CHANNEL_NAME || slot1Hash != DefaultContour.CHANNEL_HASH) {
+                    logger.w("Contour", "NeedsSync: slot1 emergency mismatch — got name='${slot1?.name}' hash=$slot1Hash expected name='${DefaultContour.CHANNEL_NAME}' hash=${DefaultContour.CHANNEL_HASH}")
                     return NodeSyncResult.NeedsSync
                 }
             }
@@ -68,8 +70,10 @@ class CheckNodeSyncUseCase(
 
         for (contour in activeNonPrimaryNonEmergency) {
             val hash = contour.transport.meshtastic.channelHash
+            val expectedName = meshtasticChannelName(contour)
             val matched = nodeChannels.any { slot ->
                 slot.index > 1 && slot.isEnabled && slot.positionPrecision > 0 &&
+                    slot.name == expectedName &&
                     ContourHash.compute(slot.name, slot.psk) == hash
             }
             if (!matched) {

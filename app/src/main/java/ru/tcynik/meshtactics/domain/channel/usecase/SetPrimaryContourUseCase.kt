@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.first
 import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.isEmergency
+import ru.tcynik.meshtactics.domain.channel.model.meshtasticChannelName
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 
@@ -20,7 +21,7 @@ class SetPrimaryContourUseCase(
             psk = DefaultContour.OPEN_PSK
         } else {
             val contour = contourRepository.observeContours().first().find { it.id == contourId } ?: return
-            name = contour.name
+            name = meshtasticChannelName(contour)
             psk = contour.transport.meshtastic.psk
         }
         writeChannel(0, name, psk)

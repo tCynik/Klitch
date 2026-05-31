@@ -90,7 +90,7 @@ class SyncContoursOnConnectUseCaseTest {
             transport = ContourTransport(
                 meshtastic = MeshtasticChannel(
                     psk = DefaultContour.OPEN_PSK,
-                    channelHash = ContourHash.compute(DefaultActiveContour.DISPLAY_NAME, openPskBytes),
+                    channelHash = ContourHash.compute(DefaultActiveContour.CHANNEL_NAME, openPskBytes),
                 ),
             ),
         )

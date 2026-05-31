@@ -38,17 +38,17 @@ class ContourHashTest {
     }
 
     @Test
-    fun `compute — name comparison is case-insensitive`() {
+    fun `compute — name comparison is case-sensitive`() {
         val h1 = ContourHash.compute("LongFast", psk)
         val h2 = ContourHash.compute("longfast", psk)
-        assertEquals(h1, h2)
+        assertNotEquals(h1, h2)
     }
 
     @Test
-    fun `compute — mixed case normalized to same hash`() {
+    fun `compute — mixed case produces different hash`() {
         val h1 = ContourHash.compute("LONGFAST", psk)
         val h2 = ContourHash.compute("LongFast", psk)
-        assertEquals(h1, h2)
+        assertNotEquals(h1, h2)
     }
 
     @Test

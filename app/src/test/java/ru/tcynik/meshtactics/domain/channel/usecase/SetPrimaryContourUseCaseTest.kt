@@ -43,13 +43,13 @@ class SetPrimaryContourUseCaseTest {
 
     @Test
     fun `saves primary id and writes channel 0 for regular contour`() = runTest {
-        val contour = makeContour(DefaultActiveContour.ID, "Basic")
+        val contour = makeContour(DefaultActiveContour.ID, DefaultActiveContour.DISPLAY_NAME)
         coEvery { contourRepository.observeContours() } returns flowOf(listOf(DefaultContour.asContour(), contour))
 
         useCase(DefaultActiveContour.ID)
 
         coVerify(exactly = 1) { contourRepository.setPrimaryContour(DefaultActiveContour.ID) }
-        coVerify(exactly = 1) { writeChannel(0, "Basic", pskBase64) }
+        coVerify(exactly = 1) { writeChannel(0, DefaultActiveContour.CHANNEL_NAME, pskBase64) }
     }
 
     @Test
