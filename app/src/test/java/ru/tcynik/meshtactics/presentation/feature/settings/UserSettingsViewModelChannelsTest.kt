@@ -228,7 +228,7 @@ class UserSettingsViewModelChannelsTest {
 
         viewModel.onPushToNode(contour.id)
 
-        verify(exactly = 0) { writeChannel.invoke(any(), any(), any()) }
+        coVerify(exactly = 0) { writeChannel.invoke(any(), any(), any()) }
         assertEquals(NodeWriteEvent.Sent("Alpha"), viewModel.uiState.value.nodeWriteEvent)
     }
 
@@ -242,7 +242,7 @@ class UserSettingsViewModelChannelsTest {
 
         viewModel.onPushToNode(contour.id)
 
-        verify(exactly = 1) { writeChannel.invoke(eq(3), eq("Alpha"), any()) }
+        coVerify(exactly = 1) { writeChannel.invoke(eq(3), eq("Alpha"), any()) }
         assertEquals(NodeWriteEvent.Sent("Alpha"), viewModel.uiState.value.nodeWriteEvent)
     }
 
@@ -269,7 +269,7 @@ class UserSettingsViewModelChannelsTest {
 
         viewModel.onDeleteFromNode(contour.id)
 
-        verify(exactly = 0) { writeChannel.invoke(any(), any(), any()) }
+        coVerify(exactly = 0) { writeChannel.invoke(any(), any(), any()) }
     }
 
     @Test
@@ -282,7 +282,7 @@ class UserSettingsViewModelChannelsTest {
 
         viewModel.onDeleteFromNode(contour.id)
 
-        verify(exactly = 1) { writeChannel.invoke(eq(3), eq(""), eq("")) }
+        coVerify(exactly = 1) { writeChannel.invoke(eq(3), eq(""), eq("")) }
     }
 
     // ── onToggleActive ────────────────────────────────────────────────────────

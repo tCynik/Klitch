@@ -4,7 +4,6 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
 import ru.tcynik.meshtactics.logger.NoOpLogger
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -120,6 +119,7 @@ class SyncContoursOnConnectUseCaseTest {
 
         useCase()
 
+        coVerify(exactly = 1) { beginSettingsEdit.invoke() }
         coVerify(exactly = 1) { writeChannel.invoke(0, DefaultActiveContour.CHANNEL_NAME, pskBase64) }
         coVerify(exactly = 1) { commitSettingsEdit.invoke() }
     }
@@ -131,6 +131,7 @@ class SyncContoursOnConnectUseCaseTest {
 
         useCase()
 
+        coVerify(exactly = 1) { beginSettingsEdit.invoke() }
         coVerify(exactly = 1) { writeChannel.invoke(1, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK) }
         coVerify(exactly = 1) { commitSettingsEdit.invoke() }
     }

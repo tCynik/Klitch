@@ -32,6 +32,8 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RequestDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.BeginSettingsEditUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.CommitSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMessagesUseCase
@@ -49,9 +51,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.SendMeshMessageUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SetProvideLocationUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelPositionPrecisionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WritePositionConfigUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.BeginSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.CommitSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase

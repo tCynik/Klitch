@@ -74,9 +74,8 @@ This avoids brief status flicker and prevents premature reboot-state reset that 
 ## HUD Radio Info Slot Priority (Connected state)
 
 1. `syncRequired == true` → "требуется синхронизация" (red) ← highest priority
-2. `!hasChannelOnNode` → "Настройте канал" (red)
-3. `showConnectionLabel` → "Сопряжено с ${shortName}" (green)
-4. else → empty
+2. `showConnectionLabel` → "Сопряжено с ${shortName}" (green)
+3. else → empty
 
 ## Patterns Used
 

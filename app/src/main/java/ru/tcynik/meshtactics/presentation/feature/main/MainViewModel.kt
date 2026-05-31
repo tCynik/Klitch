@@ -86,7 +86,7 @@ import ru.tcynik.meshtactics.domain.marker.usecase.DeleteGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkAddressee
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarksSheetUiState
-import ru.tcynik.meshtactics.domain.channel.model.ContourHash
+
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
@@ -374,21 +374,7 @@ class MainViewModel(
             }
             .launchIn(viewModelScope)
 
-        combine(
-            observeLogicalChannels(NoParams),
-            observeNodeChannels(NoParams),
-        ) { contours, nodeSlots ->
-            if (contours.isEmpty()) return@combine true
-            contours.any { contour ->
-                val hash = contour.transport.meshtastic.channelHash
-                nodeSlots.any { slot ->
-                    slot.index != 0 && slot.isEnabled &&
-                        ContourHash.compute(slot.name, slot.psk) == hash
-                }
-            }
-        }
-            .onEach { hasChannel -> _uiState.update { it.copy(hasChannelOnNode = hasChannel) } }
-            .launchIn(viewModelScope)
+
 
         syncStateRepository.syncRequired
             .onEach { required -> _uiState.update { it.copy(syncRequired = required) } }
@@ -1052,8 +1038,6 @@ class MainViewModel(
         is MeshConnectionStatus.Connected ->
             if (state.syncRequired)
                 HudInfoSlot(content = "требуется синхронизация", color = Color.Red)
-            else if (!state.hasChannelOnNode)
-                HudInfoSlot(content = "Настройте канал", color = Color.Red)
             else if (state.showConnectionLabel)
                 HudInfoSlot(content = "Сопряжено с ${status.shortName}", color = Color.Black)
             else if (status.batteryLevel in 1..100)

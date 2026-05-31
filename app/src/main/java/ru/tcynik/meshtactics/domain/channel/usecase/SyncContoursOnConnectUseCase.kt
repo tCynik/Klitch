@@ -1,6 +1,5 @@
 package ru.tcynik.meshtactics.domain.channel.usecase
 
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import ru.tcynik.meshtactics.domain.channel.model.Contour
@@ -39,6 +38,18 @@ class SyncContoursOnConnectUseCase(
             ?: contours.firstOrNull { !it.isEmergency }
             ?: return
 
+        // Resolve owner info BEFORE opening the edit session to avoid delays inside it.
+        val user = observeAppUser(NoParams).first()
+        val deviceConfig = if (user.displayName.isNotBlank()) {
+            withTimeoutOrNull(5_000) {
+                observeDeviceConfig(NoParams).first { it != null }
+            }
+        } else {
+            null
+        }
+        val needsOwnerWrite = user.displayName.isNotBlank() &&
+            deviceConfig?.longName != user.displayName
+
         val primaryName = meshtasticChannelName(primaryContour)
         val primaryPsk = if (primaryContour.isEmergency) {
             DefaultContour.OPEN_PSK
@@ -50,88 +61,68 @@ class SyncContoursOnConnectUseCase(
         val primarySynced = slot0 != null &&
             ContourHash.compute(slot0.name, slot0.psk) == expectedSlot0Hash
 
-        var channelEditOpen = false
-        var wroteChannels = false
-
-        suspend fun ensureChannelEditOpen() {
-            if (!channelEditOpen) {
-                beginSettingsEdit()
-                channelEditOpen = true
-            }
-        }
-
-        if (!primarySynced) {
-            logger.d("Contour", "write primary slot 0 name='$primaryName'")
-            ensureChannelEditOpen()
-            writeChannel(0, primaryName, primaryPsk)
-            wroteChannels = true
-        }
-
-        if (!primaryContour.isEmergency) {
-            val slot1 = nodeChannels.find { it.index == 1 }
-            val emergencySynced = slot1 != null &&
-                ContourHash.compute(slot1.name, slot1.psk) == DefaultContour.CHANNEL_HASH
-            if (!emergencySynced) {
-                logger.d("Contour", "write emergency slot 1")
-                ensureChannelEditOpen()
-                writeChannel(1, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK)
-                wroteChannels = true
-            }
-        }
+        val slot1 = if (!primaryContour.isEmergency) nodeChannels.find { it.index == 1 } else null
+        val emergencySynced = slot1 != null &&
+            ContourHash.compute(slot1.name, slot1.psk) == DefaultContour.CHANNEL_HASH
 
         val usedSlots = if (primaryContour.isEmergency) {
             mutableSetOf(0)
         } else {
             mutableSetOf(0, 1)
         }
-
         val activeNonPrimary = contours.filter { it.isActive && !it.isEmergency && it.id != primaryId }
+
+        // Pre-resolve extra contour slots to know ahead of time if anything needs writing.
+        data class ExtraWrite(val slot: Int, val contour: Contour)
+        val extraWrites = mutableListOf<ExtraWrite>()
         for (contour in activeNonPrimary) {
-            when (val resolution = resolveSlot(contour, nodeChannels, usedSlots, checkPrecision = true)) {
-                is SlotResolution.AlreadySynced -> usedSlots.add(resolution.slot)
+            when (val r = resolveSlot(contour, nodeChannels, usedSlots, checkPrecision = true)) {
+                is SlotResolution.AlreadySynced -> usedSlots.add(r.slot)
                 is SlotResolution.FreeSlot -> {
-                    ensureChannelEditOpen()
-                    writeChannel(resolution.slot, meshtasticChannelName(contour), contour.transport.meshtastic.psk)
-                    usedSlots.add(resolution.slot)
-                    wroteChannels = true
+                    extraWrites.add(ExtraWrite(r.slot, contour))
+                    usedSlots.add(r.slot)
                 }
                 is SlotResolution.NoFreeSlot -> {
                     logger.w("Contour", "no free slots for contour '${contour.name}' — skipping")
-                    if (channelEditOpen) commitSettingsEdit()
-                    return
                 }
             }
         }
 
-        if (wroteChannels) {
-            val user = observeAppUser(NoParams).first()
-            val deviceConfig = if (user.displayName.isNotBlank()) {
-                withTimeoutOrNull(5_000) {
-                    observeDeviceConfig(NoParams).first { it != null }
-                }
-            } else {
-                null
-            }
-            val needsOwnerWrite = user.displayName.isNotBlank() &&
-                deviceConfig?.longName != user.displayName
-            if (needsOwnerWrite) {
-                logger.d("Contour", "writeOwner longName='${user.displayName}'")
-                writeOwner(user.displayName, deviceConfig?.shortName ?: "")
-            }
-            commitSettingsEdit()
-            delay(COMMIT_SETTLE_MS)
-        } else {
-            val user = observeAppUser(NoParams).first()
-            if (user.displayName.isNotBlank()) {
-                val deviceConfig = withTimeoutOrNull(5_000) {
-                    observeDeviceConfig(NoParams).first { it != null }
-                }
-                if (deviceConfig?.longName != user.displayName) {
-                    logger.d("Contour", "writeOwner longName='${user.displayName}'")
-                    writeOwner(user.displayName, deviceConfig?.shortName ?: "")
-                }
-            }
+        val channelsNeedWrite = !primarySynced ||
+            (!primaryContour.isEmergency && !emergencySynced) ||
+            extraWrites.isNotEmpty()
+
+        if (!channelsNeedWrite && !needsOwnerWrite) {
+            logger.d("Contour", "nothing to write")
+            return
         }
+
+        // Open edit session — channels are buffered in firmware RAM until commit_edit_settings
+        // flushes them to flash. Owner write persists independently.
+        beginSettingsEdit()
+
+        if (!primarySynced) {
+            logger.d("Contour", "write primary slot 0 name='$primaryName'")
+            writeChannel(0, primaryName, primaryPsk)
+        }
+
+        if (!primaryContour.isEmergency && !emergencySynced) {
+            logger.d("Contour", "write emergency slot 1")
+            writeChannel(1, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK)
+        }
+
+        for ((slot, contour) in extraWrites) {
+            writeChannel(slot, meshtasticChannelName(contour), contour.transport.meshtastic.psk)
+        }
+
+        if (needsOwnerWrite) {
+            logger.d("Contour", "writeOwner longName='${user.displayName}'")
+            writeOwner(user.displayName, deviceConfig?.shortName ?: "")
+        }
+
+        // Commit flushes all buffered channel changes to flash.
+        // Firmware may reboot the node as part of commit; the caller's rebootNode() is a fallback.
+        commitSettingsEdit()
     }
 
     private fun meshtasticChannelName(contour: Contour): String =
@@ -144,9 +135,4 @@ class SyncContoursOnConnectUseCase(
     private fun expectedSlot0Hash(primaryContour: Contour): ContourHash =
         if (primaryContour.isEmergency) DefaultContour.CHANNEL_HASH
         else primaryContour.transport.meshtastic.channelHash
-
-    private companion object {
-        /** Дать ноде время записать commit_edit_settings на flash до reboot. */
-        const val COMMIT_SETTLE_MS = 3_000L
-    }
 }

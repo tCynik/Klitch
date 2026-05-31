@@ -16,6 +16,7 @@ import org.junit.Test
 import ru.tcynik.meshtactics.data.channel.repository.ContourSyncStateRepositoryImpl
 import ru.tcynik.meshtactics.data.mesh.repository.RebootStateRepositoryImpl
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
+import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.model.MeshDeviceModel
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams

@@ -43,6 +43,9 @@ interface CommandSender {
     /** Reactive channel set — emits whenever channels are updated from the radio. */
     val channelSetFlow: StateFlow<ChannelSet>
 
+    /** Emits the current session passkey; becomes non-empty after the first admin response. */
+    val sessionPasskeyFlow: StateFlow<ByteString>
+
     /** Generates a new unique packet ID. */
     fun generatePacketId(): Int
 

@@ -310,7 +310,7 @@ class MeshActionHandlerImpl(
     }
 
     override fun handleBeginEditSettings(destNum: Int): Int =
-        commandSender.sendAdmin(destNum) { AdminMessage(begin_edit_settings = true) }
+        commandSender.sendAdmin(destNum, wantResponse = true) { AdminMessage(begin_edit_settings = true) }
 
     override fun handleCommitEditSettings(destNum: Int): Int =
         commandSender.sendAdmin(destNum) { AdminMessage(commit_edit_settings = true) }

@@ -16,6 +16,11 @@
  */
 package ru.tcynik.meshtactics.mesh.ble
 
+private val MESHTASTIC_BLE_PREFIX_REGEX = Regex("^Meshtastic_([0-9a-fA-F]{4})$")
+
+fun String.toMeshtasticDisplayShortName(): String =
+    MESHTASTIC_BLE_PREFIX_REGEX.find(this)?.groupValues?.get(1)?.lowercase() ?: this
+
 /** Extension to convert a [BleService] to a [MeshtasticRadioProfile]. */
 fun BleService.toMeshtasticRadioProfile(): MeshtasticRadioProfile {
     val kableService = this as KableBleService

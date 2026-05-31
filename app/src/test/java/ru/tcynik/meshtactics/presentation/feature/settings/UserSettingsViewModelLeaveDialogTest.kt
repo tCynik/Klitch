@@ -230,7 +230,7 @@ class UserSettingsViewModelLeaveDialogTest {
         runCurrent()
 
         assertTrue(viewModel.uiState.value.displayNameError)
-        verify(exactly = 0) { writeOwner.invoke(any(), any()) }
+        coVerify(exactly = 0) { writeOwner.invoke(any(), any()) }
     }
 
     @Test
@@ -242,7 +242,7 @@ class UserSettingsViewModelLeaveDialogTest {
             viewModel.onSaveAndReboot()
             runCurrent()
             awaitItem()
-            verify { writeOwner.invoke("Новый позывной", "TS") }
+            coVerify { writeOwner.invoke("Новый позывной", "TS") }
             verify { rebootNode.invoke() }
             assertFalse(viewModel.uiState.value.showLeaveDialog)
             cancelAndIgnoreRemainingEvents()

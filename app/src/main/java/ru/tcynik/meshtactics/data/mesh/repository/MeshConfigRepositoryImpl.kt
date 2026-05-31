@@ -71,8 +71,21 @@ class MeshConfigRepositoryImpl(
             logger.w("Contour", "beginSettingsEdit: myNodeNum unavailable")
             return
         }
+        // Reset any stale passkey so we can detect the fresh one from the begin response.
+        // Firmware 2.5+ returns the session passkey in the begin_edit_settings response
+        // (sent with wantResponse=true). All subsequent set_channel/commit commands must
+        // carry this passkey or the firmware silently drops them.
+        commandSender.setSessionPasskey(ByteString.EMPTY)
         val packetId = meshRouter.actionHandler.handleBeginEditSettings(myNodeNum)
         awaitAdminPacket("beginSettingsEdit", packetId)
+        val passkey = withTimeoutOrNull(SESSION_PASSKEY_TIMEOUT) {
+            commandSender.sessionPasskeyFlow.first { it.size > 0 }
+        }
+        if (passkey != null) {
+            logger.d("Contour", "beginSettingsEdit: session_passkey acquired size=${passkey.size}")
+        } else {
+            logger.w("Contour", "beginSettingsEdit: passkey timeout, proceeding without")
+        }
     }
 
     override suspend fun commitSettingsEdit() {
@@ -297,6 +310,7 @@ class MeshConfigRepositoryImpl(
         private const val CHANNEL_POSITION_PRECISION = 32
         private const val POSITION_CONFIG_WAIT_MS = 15_000L
         private val ADMIN_PACKET_TIMEOUT = 10.seconds
+        private val SESSION_PASSKEY_TIMEOUT = 3.seconds
     }
 
     private fun hasLocationPermission(): Boolean =

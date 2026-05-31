@@ -71,12 +71,17 @@ class CommandSenderImpl(
     private val channelSet = MutableStateFlow(ChannelSet())
     override val channelSetFlow: StateFlow<ChannelSet> get() = channelSet
 
+    private val _sessionPasskeyFlow = MutableStateFlow(ByteString.EMPTY)
+    override val sessionPasskeyFlow: StateFlow<ByteString> get() = _sessionPasskeyFlow
+
     // We'll need a way to track connection state in shared code,
     // maybe via ServiceRepository or similar.
     // For now I'll assume it's injected or available.
 
     override fun start(scope: CoroutineScope) {
         this.scope = scope
+        sessionPasskey.value = ByteString.EMPTY
+        _sessionPasskeyFlow.value = ByteString.EMPTY
         radioConfigRepository.localConfigFlow.onEach { localConfig.value = it }.launchIn(scope)
         radioConfigRepository.channelSetFlow.onEach { channelSet.value = it }.launchIn(scope)
     }
@@ -95,6 +100,7 @@ class CommandSenderImpl(
 
     override fun setSessionPasskey(key: ByteString) {
         sessionPasskey.value = key
+        _sessionPasskeyFlow.value = key
     }
 
     private fun computeHopLimit(): Int = (localConfig.value.lora?.hop_limit ?: 0).takeIf { it > 0 } ?: DEFAULT_HOP_LIMIT
