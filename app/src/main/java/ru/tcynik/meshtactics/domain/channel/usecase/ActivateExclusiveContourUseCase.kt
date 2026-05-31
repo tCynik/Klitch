@@ -6,6 +6,7 @@ import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.isEmergency
 import ru.tcynik.meshtactics.domain.channel.model.meshtasticChannelName
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
+import ru.tcynik.meshtactics.domain.mesh.model.ChannelPositionPrecision
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 
 class ActivateExclusiveContourUseCase(
@@ -23,7 +24,12 @@ class ActivateExclusiveContourUseCase(
         val name = if (exclusive.isEmergency) DefaultContour.CHANNEL_NAME else meshtasticChannelName(exclusive)
         val psk = if (exclusive.isEmergency) DefaultContour.OPEN_PSK else exclusive.transport.meshtastic.psk
         writeChannel(0, name, psk)
-        writeChannel(1, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK)
+        writeChannel(
+            1,
+            DefaultContour.CHANNEL_NAME,
+            DefaultContour.OPEN_PSK,
+            ChannelPositionPrecision.DISABLED,
+        )
         for (slot in 2..7) {
             writeChannel(slot, "", "")
         }

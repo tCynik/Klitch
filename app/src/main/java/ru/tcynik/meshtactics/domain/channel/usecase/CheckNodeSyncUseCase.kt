@@ -9,6 +9,7 @@ import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import ru.tcynik.meshtactics.domain.channel.model.isEmergency
 import ru.tcynik.meshtactics.domain.channel.model.meshtasticChannelName
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
+import ru.tcynik.meshtactics.domain.mesh.model.ChannelPositionPrecision
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
@@ -58,8 +59,15 @@ class CheckNodeSyncUseCase(
             if (!primaryContour.isEmergency) {
                 val slot1 = nodeChannels.firstOrNull { it.index == 1 }
                 val slot1Hash = slot1?.let { ContourHash.compute(it.name, it.psk) }
-                if (slot1?.name != DefaultContour.CHANNEL_NAME || slot1Hash != DefaultContour.CHANNEL_HASH) {
-                    logger.w("Contour", "NeedsSync: slot1 emergency mismatch — got name='${slot1?.name}' hash=$slot1Hash expected name='${DefaultContour.CHANNEL_NAME}' hash=${DefaultContour.CHANNEL_HASH}")
+                if (slot1?.name != DefaultContour.CHANNEL_NAME ||
+                    slot1Hash != DefaultContour.CHANNEL_HASH ||
+                    slot1.positionPrecision != ChannelPositionPrecision.DISABLED
+                ) {
+                    logger.w(
+                        "Contour",
+                        "NeedsSync: slot1 emergency mismatch — got name='${slot1?.name}' hash=$slot1Hash precision=${slot1?.positionPrecision} " +
+                            "expected name='${DefaultContour.CHANNEL_NAME}' hash=${DefaultContour.CHANNEL_HASH} precision=${ChannelPositionPrecision.DISABLED}",
+                    )
                     return NodeSyncResult.NeedsSync
                 }
             }

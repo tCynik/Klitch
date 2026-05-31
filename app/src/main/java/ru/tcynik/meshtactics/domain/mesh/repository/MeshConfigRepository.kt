@@ -22,7 +22,12 @@ interface MeshConfigRepository {
     suspend fun beginSettingsEdit()
     suspend fun commitSettingsEdit()
     suspend fun writeOwner(longName: String, shortName: String)
-    suspend fun writeChannel(index: Int, name: String, pskBase64: String)
+    suspend fun writeChannel(
+        index: Int,
+        name: String,
+        pskBase64: String,
+        positionPrecision: Int,
+    )
 
     fun observeLocationConfig(nodeNum: Int): Flow<LocationConfigModel>
     fun setProvideLocation(nodeNum: Int, provide: Boolean)

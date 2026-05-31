@@ -84,5 +84,5 @@ val userSettingsModule = module {
     }
     single { ObserveEmergencyModeUseCase(get()) }
     single { TriggerEmergencyUseCase(get(), get(), get(), get(), get(), get()) }
-    single { CancelEmergencyUseCase(get(), get(), get(), get(), get()) }
+    single { CancelEmergencyUseCase(get(), get(), get(), get(), get(), get()) }
 }

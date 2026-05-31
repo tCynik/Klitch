@@ -18,6 +18,7 @@ import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
+import ru.tcynik.meshtactics.domain.mesh.model.ChannelPositionPrecision
 import ru.tcynik.meshtactics.domain.mesh.usecase.BeginSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.CommitSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
@@ -132,8 +133,60 @@ class SyncContoursOnConnectUseCaseTest {
         useCase()
 
         coVerify(exactly = 1) { beginSettingsEdit.invoke() }
-        coVerify(exactly = 1) { writeChannel.invoke(1, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK) }
+        coVerify(exactly = 1) {
+            writeChannel.invoke(
+                1,
+                DefaultContour.CHANNEL_NAME,
+                DefaultContour.OPEN_PSK,
+                ChannelPositionPrecision.DISABLED,
+            )
+        }
         coVerify(exactly = 1) { commitSettingsEdit.invoke() }
+    }
+
+    @Test
+    fun `rewrites Emergency slot 1 when geo precision enabled`() = runTest {
+        val openPskBytes = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
+        val primary = Contour(
+            id = DefaultActiveContour.ID,
+            name = DefaultActiveContour.DISPLAY_NAME,
+            description = null,
+            expiration = null,
+            exclusivityTime = null,
+            isActive = true,
+            transport = ContourTransport(
+                meshtastic = MeshtasticChannel(
+                    psk = DefaultContour.OPEN_PSK,
+                    channelHash = ContourHash.compute(DefaultActiveContour.CHANNEL_NAME, openPskBytes),
+                ),
+            ),
+        )
+        val primarySlot = NodeChannelSlot(
+            index = 0,
+            name = DefaultActiveContour.CHANNEL_NAME,
+            psk = openPskBytes,
+            isEnabled = true,
+        )
+        val emergencyWithGeo = NodeChannelSlot(
+            index = 1,
+            name = DefaultContour.CHANNEL_NAME,
+            psk = openPskBytes,
+            isEnabled = true,
+            positionPrecision = ChannelPositionPrecision.ENABLED,
+        )
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(primary))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencyWithGeo))
+
+        useCase()
+
+        coVerify(exactly = 1) {
+            writeChannel.invoke(
+                1,
+                DefaultContour.CHANNEL_NAME,
+                DefaultContour.OPEN_PSK,
+                ChannelPositionPrecision.DISABLED,
+            )
+        }
     }
 
     @Test

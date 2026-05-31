@@ -20,6 +20,7 @@ import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
 import ru.tcynik.meshtactics.domain.channel.model.meshtasticChannelName
+import ru.tcynik.meshtactics.domain.mesh.model.ChannelPositionPrecision
 import ru.tcynik.meshtactics.domain.mesh.model.MeshDeviceConfigModel
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.user.model.AppUser
@@ -51,8 +52,13 @@ class CheckNodeSyncUseCaseTest {
     // Slot 0 = Primary (Basic by default)
     private val primarySlot = makeSlot(0, DefaultActiveContour.CHANNEL_NAME, defaultPsk)
 
-    // Slot 1 = Emergency (LongFast always, unless SOS active)
-    private val emergencySlot = makeSlot(1, DefaultContour.CHANNEL_NAME, defaultPsk)
+    // Slot 1 = Emergency (LongFast, geo toggles off when not in SOS)
+    private val emergencySlot = makeSlot(
+        1,
+        DefaultContour.CHANNEL_NAME,
+        defaultPsk,
+        positionPrecision = ChannelPositionPrecision.DISABLED,
+    )
 
     // Basic contour in DB (Primary)
     private val basicContour = makeContour(
@@ -202,6 +208,15 @@ class CheckNodeSyncUseCaseTest {
         val oldSlot1 = makeSlot(1, DefaultActiveContour.DISPLAY_NAME, defaultPsk) // Basic на slot 1
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(oldSlot0, oldSlot1))
+
+        assertEquals(NodeSyncResult.NeedsSync, useCase())
+    }
+
+    @Test
+    fun `NeedsSync — slot 1 Emergency с включённой геопозицией`() = runTest {
+        val emergencyWithGeo = makeSlot(1, DefaultContour.CHANNEL_NAME, defaultPsk, positionPrecision = 32)
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencyWithGeo))
 
         assertEquals(NodeSyncResult.NeedsSync, useCase())
     }

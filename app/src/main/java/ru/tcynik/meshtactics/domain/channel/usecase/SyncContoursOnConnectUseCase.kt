@@ -9,6 +9,7 @@ import ru.tcynik.meshtactics.domain.channel.model.isEmergency
 import ru.tcynik.meshtactics.domain.channel.model.meshtasticChannelName
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.logger.Logger
+import ru.tcynik.meshtactics.domain.mesh.model.ChannelPositionPrecision
 import ru.tcynik.meshtactics.domain.mesh.usecase.BeginSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.CommitSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
@@ -65,7 +66,8 @@ class SyncContoursOnConnectUseCase(
         val slot1 = if (!primaryContour.isEmergency) nodeChannels.find { it.index == 1 } else null
         val emergencySynced = slot1 != null &&
             slot1.name == DefaultContour.CHANNEL_NAME &&
-            ContourHash.compute(slot1.name, slot1.psk) == DefaultContour.CHANNEL_HASH
+            ContourHash.compute(slot1.name, slot1.psk) == DefaultContour.CHANNEL_HASH &&
+            slot1.positionPrecision == ChannelPositionPrecision.DISABLED
 
         val usedSlots = if (primaryContour.isEmergency) {
             mutableSetOf(0)
@@ -110,7 +112,12 @@ class SyncContoursOnConnectUseCase(
 
         if (!primaryContour.isEmergency && !emergencySynced) {
             logger.d("Contour", "write emergency slot 1")
-            writeChannel(1, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK)
+            writeChannel(
+                1,
+                DefaultContour.CHANNEL_NAME,
+                DefaultContour.OPEN_PSK,
+                ChannelPositionPrecision.DISABLED,
+            )
         }
 
         for ((slot, contour) in extraWrites) {

@@ -16,6 +16,7 @@ import ru.tcynik.meshtactics.domain.channel.model.DefaultActiveContour
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
+import ru.tcynik.meshtactics.domain.mesh.model.ChannelPositionPrecision
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 import java.util.Base64
 
@@ -55,7 +56,9 @@ class ActivateExclusiveContourUseCaseTest {
         coVerify(exactly = 1) { contourRepository.saveContour(other.copy(isActive = false)) }
         coVerify(exactly = 0) { contourRepository.saveContour(match { it.id == DefaultContour.ID }) }
         coVerify(exactly = 1) { writeChannel(0, "Race", pskBase64) }
-        coVerify(exactly = 1) { writeChannel(1, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK) }
+        coVerify(exactly = 1) {
+            writeChannel(1, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK, ChannelPositionPrecision.DISABLED)
+        }
         (2..7).forEach { slot ->
             coVerify(exactly = 1) { writeChannel(slot, "", "") }
         }

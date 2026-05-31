@@ -104,12 +104,17 @@ class MeshConfigRepositoryImpl(
         settingsEditOpen = false
     }
 
-    override suspend fun writeChannel(index: Int, name: String, pskBase64: String) {
+    override suspend fun writeChannel(
+        index: Int,
+        name: String,
+        pskBase64: String,
+        positionPrecision: Int,
+    ) {
         val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: run {
             logger.w("Contour", "writeChannel: myNodeNum unavailable, slot=$index name='$name'")
             return
         }
-        val channel = buildChannel(index, name, pskBase64)
+        val channel = buildChannel(index, name, pskBase64, positionPrecision)
         val passkeySize = commandSender.sessionPasskeyFlow.value.size
         logger.d("Contour", "writeChannel slot=$index name='$name' passkeySize=$passkeySize settingsEditOpen=$settingsEditOpen")
         val packetId = meshRouter.actionHandler.handleSetChannel(Channel.ADAPTER.encode(channel), myNodeNum)
@@ -135,7 +140,7 @@ class MeshConfigRepositoryImpl(
         awaitAdminPacket("writeOwner longName='$longName'", packetId)
     }
 
-    private fun buildChannel(index: Int, name: String, pskBase64: String): Channel {
+    private fun buildChannel(index: Int, name: String, pskBase64: String, positionPrecision: Int): Channel {
         val pskBytes = if (pskBase64.isBlank()) ByteArray(0)
                        else Base64.decode(pskBase64.trim(), Base64.DEFAULT)
         return Channel(
@@ -143,7 +148,7 @@ class MeshConfigRepositoryImpl(
             settings = ChannelSettings(
                 name = name,
                 psk = pskBytes.toByteString(),
-                module_settings = ModuleSettings(position_precision = CHANNEL_POSITION_PRECISION),
+                module_settings = ModuleSettings(position_precision = positionPrecision),
             ),
             role = if (index == 0) Channel.Role.PRIMARY else Channel.Role.SECONDARY,
         )
@@ -316,7 +321,6 @@ class MeshConfigRepositoryImpl(
         private const val GEO_BROADCAST_READY_SECS = 60
         private const val GEO_BROADCAST_DISABLED_SECS = Int.MAX_VALUE
         private const val GEO_CHANNEL_PRECISION = 13
-        private const val CHANNEL_POSITION_PRECISION = 32
         private const val POSITION_CONFIG_WAIT_MS = 15_000L
         private val ADMIN_PACKET_TIMEOUT = 10.seconds
     }
