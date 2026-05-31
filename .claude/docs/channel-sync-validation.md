@@ -1,6 +1,6 @@
 # Channel Sync Validation
 
-**Status**: Done (2026-04-27), updated 2026-05-13
+**Status**: Done (2026-04-27), updated 2026-05-31
 
 ## Summary
 
@@ -76,6 +76,38 @@ This avoids brief status flicker and prevents premature reboot-state reset that 
 1. `syncRequired == true` → "требуется синхронизация" (red) ← highest priority
 2. `showConnectionLabel` → "Сопряжено с ${shortName}" (green)
 3. else → empty
+
+## Session Passkey (firmware 2.5+)
+
+**Проблема**: firmware 2.5+ молча дропает любые admin-команды (`set_channel`, `set_config`, `set_owner`), в которых поле `session_passkey` пустое или устаревшее. Никакого error response — команда просто игнорируется, UI показывает применённые изменения (оптимистичный апдейт), но после перезагрузки ноды всё откатывается к предыдущему состоянию.
+
+**Механизм**:
+1. Клиент шлёт `begin_edit_settings` с `want_response = true`
+2. Firmware генерирует случайный 8-байтный passkey и возвращает его в admin response (`AdminMessage.session_passkey`)
+3. Все последующие `set_channel`, `commit_edit_settings` должны нести этот passkey в том же поле
+4. `commit_edit_settings` закрывает сессию и сбрасывает passkey на firmware
+
+**Важно**: `get_device_metadata_request` passkey **не возвращает** — источник только `begin_edit_settings` response.
+
+**Реализация** (см. `MeshConfigRepositoryImpl.beginSettingsEdit`):
+```
+commandSender.setSessionPasskey(EMPTY)         // сброс устаревшего passkey
+begin_edit_settings (wantResponse=true)        // firmware вернёт passkey
+awaitAdminPacket(TX ACK)
+withTimeoutOrNull(3s) { sessionPasskeyFlow.first { it.size > 0 } }
+```
+После этого каждый `commandSender.sendAdmin(...)` автоматически вставляет текущий `sessionPasskey.value` в поле `AdminMessage.session_passkey`.
+
+**Ловушка**: `handleAdminMessage` вызывается для КАЖДОГО входящего admin-пакета. Wire proto возвращает `ByteString.EMPTY` для отсутствующего `session_passkey`. Нельзя вызывать `setSessionPasskey(EMPTY)` на каждый ответ — это сотрёт только что полученный passkey ещё до того, как уйдут `set_channel` команды.  
+Правило: `if (u.session_passkey.size > 0) commandSender.setSessionPasskey(u.session_passkey)`.
+
+**Debug логи** (тег `Contour`):
+
+| Лог | Значение |
+|---|---|
+| `D handleAdminMessage: session_passkey received size=8` | Firmware вернул passkey |
+| `D beginSettingsEdit: session_passkey acquired size=8` | Passkey получен, `set_channel` пойдут с ним |
+| `W beginSettingsEdit: passkey timeout, proceeding without` | Firmware **не** вернул passkey (< 2.5 или BLE timeout) |
 
 ## Patterns Used
 

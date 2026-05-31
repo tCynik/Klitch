@@ -178,3 +178,53 @@ AdminMessage(factory_reset = true)
 ```
 
 Admin-пакеты: `Priority.RELIABLE`, `want_ack = true`, идут на admin-канал (см. `meshtastic-contacts-channels.md`).
+
+---
+
+## Session Passkey — защита edit-сессии (firmware 2.5+)
+
+Firmware 2.5+ требует `session_passkey` в поле `AdminMessage.session_passkey` для всех команд внутри edit-сессии. Без корректного passkey команды **молча дропаются** — без error response, без ACK/NAK.
+
+### Правильная последовательность записи каналов
+
+```
+begin_edit_settings (want_response=true)
+  → firmware генерирует 8-байтный passkey и возвращает его в AdminMessage ответе
+set_channel × N     (session_passkey = <полученный>)
+set_owner           (session_passkey = <полученный>)
+commit_edit_settings (session_passkey = <полученный>)
+  → firmware записывает всё в flash, сбрасывает passkey
+```
+
+`CommandSenderImpl.sendAdmin()` автоматически копирует `sessionPasskey.value` во все исходящие admin-сообщения (`initFn().copy(session_passkey = sessionPasskey.value)`).
+
+### Получение passkey в коде
+
+```kotlin
+// MeshConfigRepositoryImpl.beginSettingsEdit():
+commandSender.setSessionPasskey(ByteString.EMPTY)          // сброс устаревшего
+val packetId = actionHandler.handleBeginEditSettings(num)  // wantResponse=true внутри
+awaitAdminPacket("beginSettingsEdit", packetId)            // TX ACK
+withTimeoutOrNull(3.seconds) {
+    commandSender.sessionPasskeyFlow.first { it.size > 0 } // ждём ответ firmware
+}
+```
+
+`handleAdminMessage` слушает все входящие admin-пакеты. Когда firmware отвечает на `begin_edit_settings`, Wire proto заполняет `AdminMessage.session_passkey` — `CommandSenderImpl.setSessionPasskey()` сохраняет его.
+
+### Критическая ловушка
+
+Wire proto возвращает `ByteString.EMPTY` для ЛЮБОГО поля, которое не задано в protobuf-сообщении.  
+Если вызвать `setSessionPasskey(ByteString.EMPTY)` для каждого входящего admin-ответа (а у большинства ответов passkey отсутствует) — ранее полученный passkey будет уничтожен.  
+
+**Правило:** вызывать `setSessionPasskey` только когда `key.size > 0`:
+```kotlin
+// MeshDataHandlerImpl.handleAdminMessage:
+if (u.session_passkey.size > 0) commandSender.setSessionPasskey(u.session_passkey)
+```
+
+### Что НЕ работает
+
+- `get_device_metadata_request` — **не возвращает** session passkey, только метаданные устройства
+- `begin_edit_settings` без `wantResponse=true` — firmware не шлёт ответ, passkey никогда не придёт
+- Хранение passkey между сессиями — firmware генерирует новый passkey на каждый `begin_edit_settings`
