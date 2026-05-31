@@ -20,7 +20,6 @@ import org.meshtastic.proto.ChannelSettings
 import org.meshtastic.proto.Config
 import org.meshtastic.proto.HardwareModel
 import org.meshtastic.proto.ModuleSettings
-import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
 import ru.tcynik.meshtactics.domain.mesh.model.GpsMode
 import ru.tcynik.meshtactics.domain.mesh.model.LocationConfigModel
@@ -48,6 +47,8 @@ class MeshConfigRepositoryImpl(
     private val logger: Logger,
 ) : MeshConfigRepository {
 
+    private var settingsEditOpen = false
+
     override fun observeNodeChannels(): Flow<List<NodeChannelSlot>> =
         commandSender.channelSetFlow.map { channelSet ->
             channelSet.settings.mapIndexed { index, settings ->
@@ -70,14 +71,19 @@ class MeshConfigRepositoryImpl(
             logger.w("Contour", "beginSettingsEdit: myNodeNum unavailable")
             return
         }
-        // Reset any stale passkey so we can detect the fresh one from the begin response.
-        // Firmware 2.5+ returns the session passkey in the begin_edit_settings response
-        // (sent with wantResponse=true). All subsequent set_channel/commit commands must
-        // carry this passkey or the firmware silently drops them.
+        // Reset any stale passkey. Firmware generates a new session key on begin_edit_settings.
+        // Per admin.proto: "sends it with any get_x_response packets" — the passkey is NOT
+        // returned in the begin_edit_settings response itself; it is embedded in the response
+        // to the first get_x_request sent within the edit session.
         commandSender.setSessionPasskey(ByteString.EMPTY)
-        val packetId = meshRouter.actionHandler.handleBeginEditSettings(myNodeNum)
-        awaitAdminPacket("beginSettingsEdit", packetId)
-        val passkey = withTimeoutOrNull(SESSION_PASSKEY_TIMEOUT) {
+        val beginPacketId = meshRouter.actionHandler.handleBeginEditSettings(myNodeNum)
+        settingsEditOpen = true
+        // Wait for begin_edit_settings to be queued into the radio before sending get request.
+        awaitAdminPacket("beginSettingsEdit/begin", beginPacketId)
+        // Provoke a get_channel_response so firmware includes session_passkey in the reply.
+        val reqId = commandSender.generatePacketId()
+        meshRouter.actionHandler.handleGetRemoteChannel(reqId, myNodeNum, 0)
+        val passkey = withTimeoutOrNull(ADMIN_PACKET_TIMEOUT) {
             commandSender.sessionPasskeyFlow.first { it.size > 0 }
         }
         if (passkey != null) {
@@ -92,8 +98,10 @@ class MeshConfigRepositoryImpl(
             logger.w("Contour", "commitSettingsEdit: myNodeNum unavailable")
             return
         }
+        logger.i("Node", "commitSettingsEdit: committing channel changes nodeNum=$myNodeNum — firmware reboot expected")
         val packetId = meshRouter.actionHandler.handleCommitEditSettings(myNodeNum)
         awaitAdminPacket("commitSettingsEdit", packetId)
+        settingsEditOpen = false
     }
 
     override suspend fun writeChannel(index: Int, name: String, pskBase64: String) {
@@ -102,12 +110,18 @@ class MeshConfigRepositoryImpl(
             return
         }
         val channel = buildChannel(index, name, pskBase64)
+        val passkeySize = commandSender.sessionPasskeyFlow.value.size
+        logger.d("Contour", "writeChannel slot=$index name='$name' passkeySize=$passkeySize settingsEditOpen=$settingsEditOpen")
         val packetId = meshRouter.actionHandler.handleSetChannel(Channel.ADAPTER.encode(channel), myNodeNum)
         awaitAdminPacket("writeChannel slot=$index name='$name'", packetId)
     }
 
     override suspend fun writeOwner(longName: String, shortName: String) {
-        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
+        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: run {
+            logger.w("Node", "writeOwner: myNodeNum unavailable longName='$longName'")
+            return
+        }
+        logger.i("Node", "writeOwner: set_owner longName='$longName' nodeNum=$myNodeNum — firmware reboot expected")
         val existingUser = nodeRepository.nodeDBbyNum.value[myNodeNum]?.user
         val meshUser = MeshUser(
             id = existingUser?.id ?: "",
@@ -129,10 +143,7 @@ class MeshConfigRepositoryImpl(
             settings = ChannelSettings(
                 name = name,
                 psk = pskBytes.toByteString(),
-                module_settings = ModuleSettings(
-                    position_precision = if (name == DefaultContour.CHANNEL_NAME && pskBase64.trim() == DefaultContour.OPEN_PSK) 0
-                                        else CHANNEL_POSITION_PRECISION
-                ),
+                module_settings = ModuleSettings(position_precision = CHANNEL_POSITION_PRECISION),
             ),
             role = if (index == 0) Channel.Role.PRIMARY else Channel.Role.SECONDARY,
         )
@@ -243,8 +254,13 @@ class MeshConfigRepositoryImpl(
     }
 
     override fun rebootNode() {
-        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
-        meshRouter.actionHandler.handleRequestReboot(commandSender.generatePacketId(), myNodeNum)
+        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: run {
+            logger.w("Node", "rebootNode: myNodeNum unavailable")
+            return
+        }
+        val requestId = commandSender.generatePacketId()
+        logger.i("Node", "rebootNode: initiating reboot nodeNum=$myNodeNum requestId=${requestId.toUInt()}")
+        meshRouter.actionHandler.handleRequestReboot(requestId, myNodeNum)
     }
 
     override fun isOwnPkcKeyBroken(): Boolean {
@@ -303,7 +319,6 @@ class MeshConfigRepositoryImpl(
         private const val CHANNEL_POSITION_PRECISION = 32
         private const val POSITION_CONFIG_WAIT_MS = 15_000L
         private val ADMIN_PACKET_TIMEOUT = 10.seconds
-        private val SESSION_PASSKEY_TIMEOUT = 3.seconds
     }
 
     private fun hasLocationPermission(): Boolean =

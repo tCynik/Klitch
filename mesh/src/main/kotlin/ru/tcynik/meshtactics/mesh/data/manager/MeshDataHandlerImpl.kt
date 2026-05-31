@@ -263,7 +263,7 @@ class MeshDataHandlerImpl(
         val payload = packet.decoded?.payload ?: return
         val u = AdminMessage.ADAPTER.decode(payload)
         if (u.session_passkey.size > 0) {
-            Logger.d("Contour") { "handleAdminMessage: session_passkey received size=${u.session_passkey.size}" }
+            Logger.d("MT/Contour") { "handleAdminMessage: session_passkey received size=${u.session_passkey.size}" }
             commandSender.setSessionPasskey(u.session_passkey)
         }
 
