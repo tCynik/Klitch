@@ -1,5 +1,6 @@
 package ru.tcynik.meshtactics.presentation.feature.network.components
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,6 +13,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -31,17 +33,23 @@ fun MeshStatusBar(
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val isInProgress = status is MeshConnectionStatusUi.Connecting
+            || status is MeshConnectionStatusUi.Syncing
+            || status is MeshConnectionStatusUi.Rebooting
+            || status is MeshConnectionStatusUi.WaitingForNode
+
     Surface(
         modifier = modifier.fillMaxWidth(),
         tonalElevation = 2.dp,
         color = MaterialTheme.colorScheme.surfaceVariant,
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
             StatusDot(status = status)
             Spacer(modifier = Modifier.width(8.dp))
             Text(
@@ -92,6 +100,10 @@ fun MeshStatusBar(
                         )
                     }
                 }
+            }
+        }
+            if (isInProgress) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
         }
     }

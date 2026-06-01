@@ -116,7 +116,8 @@ class NetworkViewModel(
                 logger.i("Node", "syncUi: mesh=$status phase=$syncPhase ui=$uiStatus")
             }
             _uiState.update { state ->
-                val isScanInProgress = status is MeshConnectionStatus.Scanning && !userStoppedScan || scanJob != null
+                val isScanInProgress = (status is MeshConnectionStatus.Scanning && !userStoppedScan || scanJob != null)
+                    && state.connection.connectingAddress == null
                 state.copy(
                     connectionStatus = uiStatus,
                     lastConnectedNodeName = when (status) {
@@ -138,6 +139,7 @@ class NetworkViewModel(
                                 scannedDevices = state.connection.scannedDevices
                                     .filterNot { it.address == connectedAddress }
                                     .toImmutableList(),
+                                connectingAddress = null,
                             )
                         )
                     }
@@ -332,7 +334,13 @@ class NetworkViewModel(
             }
             return
         }
-        viewModelScope.launch { connectToPendingDevice(address, deviceName) }
+        viewModelScope.launch {
+            val currentConnecting = _uiState.value.connection.connectingAddress
+            if (currentConnecting != null && currentConnecting != address) {
+                disconnectFromMesh(NoParams)
+            }
+            connectToPendingDevice(address, deviceName)
+        }
     }
 
     private suspend fun connectToPendingDevice(address: String, deviceName: String) {
@@ -342,7 +350,7 @@ class NetworkViewModel(
         _uiState.update { state ->
             state.copy(
                 connectionStatus = MeshConnectionStatusUi.Connecting(deviceName.toMeshtasticDisplayShortName()),
-                connection = state.connection.copy(isScanning = false),
+                connection = state.connection.copy(isScanning = false, connectingAddress = address),
             )
         }
         runCatching { connectToDevice(ConnectToMeshDeviceParams(address, deviceName)) }
@@ -350,7 +358,10 @@ class NetworkViewModel(
                 pendingConnectAddress = null
                 logger.e("App", "DBG onConnectClick: connectToDevice failed: ${e.message}", e)
                 _uiState.update {
-                    it.copy(connectionStatus = MeshConnectionStatusUi.Error(e.message ?: "Connection failed"))
+                    it.copy(
+                        connectionStatus = MeshConnectionStatusUi.Error(e.message ?: "Connection failed"),
+                        connection = it.connection.copy(connectingAddress = null),
+                    )
                 }
             }
     }
