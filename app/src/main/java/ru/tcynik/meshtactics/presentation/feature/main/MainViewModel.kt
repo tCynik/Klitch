@@ -175,7 +175,7 @@ class MainViewModel(
     private val _uiState = MutableStateFlow(MainUiState())
     private val _formState = MutableStateFlow(GeoMarksFormState())
     private val _trackFormState = MutableStateFlow(TrackRecordingFormState())
-    private val _showTrackStopDialog = MutableStateFlow(false)
+    private val _stopDialogRequestedAt = MutableStateFlow<Long?>(null)
     private var connectedLabelJob: Job? = null
     private var scanJob: Job? = null
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
@@ -231,12 +231,15 @@ class MainViewModel(
                 kotlinx.coroutines.delay(1000)
             }
         },
-        _showTrackStopDialog,
-    ) { trackForm, trackState, nowSeconds, showStopDialog ->
-        val durationSeconds = if (trackState is TrackRecordingState.Recording) {
-            nowSeconds - trackState.startedAtSeconds
-        } else 0L
-        buildTrackRecordingSheetUiState(trackForm, trackState, durationSeconds, showStopDialog)
+        _stopDialogRequestedAt,
+    ) { trackForm, trackState, nowSeconds, stopRequestedAt ->
+        val durationSeconds = when {
+            trackState !is TrackRecordingState.Recording -> 0L
+            trackState.isPaused -> trackState.accumulatedSeconds
+            stopRequestedAt != null -> trackState.accumulatedSeconds + (stopRequestedAt - trackState.activeFromSeconds)
+            else -> trackState.accumulatedSeconds + (nowSeconds - trackState.activeFromSeconds)
+        }
+        buildTrackRecordingSheetUiState(trackForm, trackState, durationSeconds, stopRequestedAt != null)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
@@ -589,21 +592,21 @@ class MainViewModel(
     }
 
     fun stopTrackRecordingAction() {
-        _showTrackStopDialog.value = true
+        _stopDialogRequestedAt.value = System.currentTimeMillis() / 1000L
     }
 
     fun confirmTrackStopSave(name: String) {
-        _showTrackStopDialog.value = false
+        _stopDialogRequestedAt.value = null
         viewModelScope.launch { stopTrackRecording(name) }
     }
 
     fun confirmTrackStopDiscard() {
-        _showTrackStopDialog.value = false
+        _stopDialogRequestedAt.value = null
         viewModelScope.launch { discardTrackRecording() }
     }
 
     fun cancelTrackStopDialog() {
-        _showTrackStopDialog.value = false
+        _stopDialogRequestedAt.value = null
     }
 
     fun setTrackPreset(preset: TrackRecordingPreset) {

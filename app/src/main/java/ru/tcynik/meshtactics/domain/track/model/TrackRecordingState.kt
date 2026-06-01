@@ -12,5 +12,9 @@ sealed interface TrackRecordingState {
         val distanceMeters: Double = 0.0,
         val pointCount: Int = 0,
         val isPaused: Boolean = false,
+        /** Total active recording seconds accumulated across all pause/resume cycles before current active period. */
+        val accumulatedSeconds: Long = 0L,
+        /** Unix seconds when the current active period started (reset on each resume). */
+        val activeFromSeconds: Long = startedAtSeconds,
     ) : TrackRecordingState
 }

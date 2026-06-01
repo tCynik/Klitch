@@ -12,10 +12,11 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import ru.tcynik.meshtactics.domain.logger.Logger
 import org.koin.android.ext.android.inject
@@ -41,7 +42,6 @@ class GpsService : Service() {
     private val logger: Logger by inject()
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private var collectionJob: Job? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -77,13 +77,19 @@ class GpsService : Service() {
 
     private fun startTrackRecordingObserver() {
         serviceScope.launch {
-            trackRecordingRepository.state.collectLatest { state ->
-                collectionJob?.cancel()
-                collectionJob = null
-                if (state is TrackRecordingState.Recording) {
-                    collectionJob = launch { collectGpsForTrack(state) }
+            trackRecordingRepository.state
+                .map { state ->
+                    (state as? TrackRecordingState.Recording)
+                        ?.takeIf { !it.isPaused }
+                        ?.trackId
                 }
-            }
+                .distinctUntilChanged()
+                .collectLatest { activeTrackId ->
+                    if (activeTrackId == null) return@collectLatest
+                    val state = trackRecordingRepository.state.value as? TrackRecordingState.Recording
+                        ?: return@collectLatest
+                    collectGpsForTrack(state)
+                }
         }
     }
 

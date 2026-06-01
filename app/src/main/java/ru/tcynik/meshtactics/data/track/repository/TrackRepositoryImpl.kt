@@ -124,7 +124,11 @@ class TrackRepositoryImpl(
     override suspend fun pause() {
         val current = _state.value as? TrackRecordingState.Recording ?: return
         if (!current.isPaused) {
-            _state.value = current.copy(isPaused = true)
+            val nowSeconds = System.currentTimeMillis() / 1_000
+            _state.value = current.copy(
+                isPaused = true,
+                accumulatedSeconds = current.accumulatedSeconds + (nowSeconds - current.activeFromSeconds),
+            )
             logger.d(TAG, "Paused track ${current.trackId}")
         }
     }
@@ -133,7 +137,11 @@ class TrackRepositoryImpl(
         val current = _state.value as? TrackRecordingState.Recording ?: return
         if (current.isPaused) {
             lastRecordedPoint = null
-            _state.value = current.copy(isPaused = false)
+            val nowSeconds = System.currentTimeMillis() / 1_000
+            _state.value = current.copy(
+                isPaused = false,
+                activeFromSeconds = nowSeconds,
+            )
             logger.d(TAG, "Resumed track ${current.trackId}")
         }
     }
