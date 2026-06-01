@@ -11,5 +11,6 @@ interface TrackRecordingRepository {
     suspend fun addPoint(point: TrackPoint)
     suspend fun pause()
     suspend fun resume()
-    suspend fun stop()
+    suspend fun stop(name: String? = null)
+    suspend fun discard()
 }

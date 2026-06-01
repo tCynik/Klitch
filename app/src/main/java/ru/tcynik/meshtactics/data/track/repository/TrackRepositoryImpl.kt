@@ -138,8 +138,12 @@ class TrackRepositoryImpl(
         }
     }
 
-    override suspend fun stop() {
+    override suspend fun stop(name: String?) {
         val current = _state.value as? TrackRecordingState.Recording ?: return
+        val finalName = name?.trim()?.takeIf { it.isNotEmpty() }
+        if (finalName != null && finalName != current.name) {
+            trackQueries.updateName(name = finalName, id = current.trackId)
+        }
         val nowSeconds = System.currentTimeMillis() / 1_000
         val totalDistance = computeTotalDistance(current.trackId)
         trackQueries.updateFinished(
@@ -150,6 +154,15 @@ class TrackRepositoryImpl(
         lastRecordedPoint = null
         _state.value = TrackRecordingState.Idle
         logger.d(TAG, "Stopped track ${current.trackId}, distance=${totalDistance}m")
+    }
+
+    override suspend fun discard() {
+        val current = _state.value as? TrackRecordingState.Recording ?: return
+        pointQueries.deleteByTrackId(current.trackId)
+        trackQueries.deleteById(current.trackId)
+        lastRecordedPoint = null
+        _state.value = TrackRecordingState.Idle
+        logger.d(TAG, "Discarded track ${current.trackId}")
     }
 
     private fun computeTotalDistance(trackId: String): Double {

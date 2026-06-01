@@ -14,6 +14,7 @@ import ru.tcynik.meshtactics.data.track.repository.TrackRepositoryImpl
 import ru.tcynik.meshtactics.domain.track.repository.RecordedTrackRepository
 import ru.tcynik.meshtactics.domain.track.repository.TrackRecordingRepository
 import ru.tcynik.meshtactics.domain.track.usecase.DeleteRecordedTracksUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.DiscardTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTracksUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.ObserveTrackRecordingStateUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.PauseTrackRecordingUseCase
@@ -45,6 +46,7 @@ val trackDataModule = module {
     single { PauseTrackRecordingUseCase(get()) }
     single { ResumeTrackRecordingUseCase(get()) }
     single { StopTrackRecordingUseCase(get()) }
+    single { DiscardTrackRecordingUseCase(get()) }
     single { ToggleRecordedTrackVisibilityUseCase(get()) }
     single { DeleteRecordedTracksUseCase(get()) }
 }

@@ -2,8 +2,8 @@ package ru.tcynik.meshtactics.domain.track.usecase
 
 import ru.tcynik.meshtactics.domain.track.repository.TrackRecordingRepository
 
-class StopTrackRecordingUseCase(
+class DiscardTrackRecordingUseCase(
     private val repository: TrackRecordingRepository,
 ) {
-    suspend operator fun invoke(name: String? = null) = repository.stop(name)
+    suspend operator fun invoke() = repository.discard()
 }

@@ -10,6 +10,7 @@ data class TrackRecordingSheetUiState(
     val settings: TrackRecordingSettings = TrackRecordingSettings(),
     val recordingState: TrackRecordingState = TrackRecordingState.Idle,
     val durationSeconds: Long = 0L,
+    val showStopDialog: Boolean = false,
     // Callbacks
     val onClose: () -> Unit = {},
     val onToggleCollapsed: () -> Unit = {},
@@ -17,6 +18,9 @@ data class TrackRecordingSheetUiState(
     val onPause: () -> Unit = {},
     val onResume: () -> Unit = {},
     val onStop: () -> Unit = {},
+    val onStopDialogSave: (String) -> Unit = {},
+    val onStopDialogDiscard: () -> Unit = {},
+    val onStopDialogCancel: () -> Unit = {},
     val onPresetSelected: (TrackRecordingPreset) -> Unit = {},
     val onIntervalSelected: (Int?) -> Unit = {},
     val onMinDistanceSelected: (Int) -> Unit = {},

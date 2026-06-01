@@ -109,6 +109,7 @@ import ru.tcynik.meshtactics.data.track.datasource.TrackSettingsDataSource
 import ru.tcynik.meshtactics.domain.track.model.TrackRecordingPreset
 import ru.tcynik.meshtactics.domain.track.model.TrackRecordingState
 import ru.tcynik.meshtactics.domain.track.usecase.ObserveTrackRecordingStateUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.DiscardTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.PauseTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.ResumeTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.StartTrackRecordingUseCase
@@ -167,12 +168,14 @@ class MainViewModel(
     private val pauseTrackRecording: PauseTrackRecordingUseCase,
     private val resumeTrackRecording: ResumeTrackRecordingUseCase,
     private val stopTrackRecording: StopTrackRecordingUseCase,
+    private val discardTrackRecording: DiscardTrackRecordingUseCase,
     private val trackSettingsDataSource: TrackSettingsDataSource,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
     private val _formState = MutableStateFlow(GeoMarksFormState())
     private val _trackFormState = MutableStateFlow(TrackRecordingFormState())
+    private val _showTrackStopDialog = MutableStateFlow(false)
     private var connectedLabelJob: Job? = null
     private var scanJob: Job? = null
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
@@ -228,15 +231,16 @@ class MainViewModel(
                 kotlinx.coroutines.delay(1000)
             }
         },
-    ) { trackForm, trackState, nowSeconds ->
+        _showTrackStopDialog,
+    ) { trackForm, trackState, nowSeconds, showStopDialog ->
         val durationSeconds = if (trackState is TrackRecordingState.Recording) {
             nowSeconds - trackState.startedAtSeconds
         } else 0L
-        buildTrackRecordingSheetUiState(trackForm, trackState, durationSeconds)
+        buildTrackRecordingSheetUiState(trackForm, trackState, durationSeconds, showStopDialog)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
-        initialValue = buildTrackRecordingSheetUiState(TrackRecordingFormState(), TrackRecordingState.Idle, 0L),
+        initialValue = buildTrackRecordingSheetUiState(TrackRecordingFormState(), TrackRecordingState.Idle, 0L, false),
     )
 
     // Geo marks sheet state — contains lambdas → separate StateFlow.
@@ -585,7 +589,21 @@ class MainViewModel(
     }
 
     fun stopTrackRecordingAction() {
-        viewModelScope.launch { stopTrackRecording() }
+        _showTrackStopDialog.value = true
+    }
+
+    fun confirmTrackStopSave(name: String) {
+        _showTrackStopDialog.value = false
+        viewModelScope.launch { stopTrackRecording(name) }
+    }
+
+    fun confirmTrackStopDiscard() {
+        _showTrackStopDialog.value = false
+        viewModelScope.launch { discardTrackRecording() }
+    }
+
+    fun cancelTrackStopDialog() {
+        _showTrackStopDialog.value = false
     }
 
     fun setTrackPreset(preset: TrackRecordingPreset) {
@@ -1404,18 +1422,23 @@ class MainViewModel(
         form: TrackRecordingFormState,
         trackState: TrackRecordingState,
         durationSeconds: Long,
+        showStopDialog: Boolean,
     ): TrackRecordingSheetUiState = TrackRecordingSheetUiState(
         isVisible            = form.isSheetVisible,
         isCollapsed          = form.isCollapsed,
         settings             = form.settings,
         recordingState       = trackState,
         durationSeconds      = durationSeconds,
+        showStopDialog       = showStopDialog,
         onClose              = ::closeTrackRecordingSheetVisibility,
         onToggleCollapsed    = ::toggleTrackSheetCollapsed,
         onStart              = ::startTrackRecordingAction,
         onPause              = ::pauseTrackRecordingAction,
         onResume             = ::resumeTrackRecordingAction,
         onStop               = ::stopTrackRecordingAction,
+        onStopDialogSave     = ::confirmTrackStopSave,
+        onStopDialogDiscard  = ::confirmTrackStopDiscard,
+        onStopDialogCancel   = ::cancelTrackStopDialog,
         onPresetSelected     = ::setTrackPreset,
         onIntervalSelected   = ::setTrackInterval,
         onMinDistanceSelected = ::setTrackMinDistance,

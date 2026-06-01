@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -42,6 +43,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -87,6 +89,16 @@ fun TrackRecordingSheet(
     modifier: Modifier = Modifier,
 ) {
     BackHandler(enabled = state.isVisible, onBack = state.onClose)
+
+    val rs = state.recordingState
+    if (state.showStopDialog && rs is TrackRecordingState.Recording) {
+        TrackStopConfirmDialog(
+            initialName = rs.name,
+            onSave      = state.onStopDialogSave,
+            onDiscard   = state.onStopDialogDiscard,
+            onCancel    = state.onStopDialogCancel,
+        )
+    }
 
     AnimatedVisibility(
         visible = state.isVisible,
@@ -489,4 +501,41 @@ private val TrackRecordingPreset.displayName: String get() = when (this) {
     TrackRecordingPreset.CAR      -> "Авто"
     TrackRecordingPreset.AIRPLANE -> "Авиа"
     TrackRecordingPreset.CUSTOM   -> "Ручной"
+}
+
+@Composable
+private fun TrackStopConfirmDialog(
+    initialName: String,
+    onSave: (String) -> Unit,
+    onDiscard: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    var name by remember(initialName) { mutableStateOf(initialName) }
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text("Сохранить трек перед остановкой?") },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Название") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            Button(onClick = { onSave(name) }) { Text("Сохранить") }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(
+                    onClick = onDiscard,
+                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) { Text("Удалить") }
+                TextButton(onClick = onCancel) { Text("Отменить") }
+            }
+        },
+    )
 }

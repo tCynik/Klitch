@@ -69,6 +69,7 @@ import ru.tcynik.meshtactics.domain.track.usecase.PauseTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.ResumeTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.StartTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.StopTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.DiscardTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTracksUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.ToggleRecordedTrackVisibilityUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.DeleteRecordedTracksUseCase
@@ -121,6 +122,7 @@ val presentationModule = module {
             pauseTrackRecording = get<PauseTrackRecordingUseCase>(),
             resumeTrackRecording = get<ResumeTrackRecordingUseCase>(),
             stopTrackRecording = get<StopTrackRecordingUseCase>(),
+            discardTrackRecording = get<DiscardTrackRecordingUseCase>(),
             trackSettingsDataSource = get<TrackSettingsDataSource>(),
         )
     }
