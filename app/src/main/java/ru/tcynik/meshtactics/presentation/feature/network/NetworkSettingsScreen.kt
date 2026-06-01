@@ -47,9 +47,8 @@ fun NetworkSettingsScreen(
         NetworkSettingsContent(
             state = state.settings,
             connectionStatus = state.connectionStatus,
-            onReadConfigClick = viewModel::onReadConfigClick,
-            onEditConfigClick = viewModel::onEditConfigClick,
-            onWriteConfigClick = viewModel::onWriteConfigClick,
+            onRefresh = viewModel::onReadConfigClick,
+            onSaveClick = viewModel::onWriteConfigClick,
             onLongNameChange = viewModel::onConfigLongNameChange,
             onShortNameChange = viewModel::onConfigShortNameChange,
             onChannelNameChange = viewModel::onChannelNameChange,

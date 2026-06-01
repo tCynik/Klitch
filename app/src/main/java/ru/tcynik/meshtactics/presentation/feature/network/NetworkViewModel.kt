@@ -30,6 +30,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceParams
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveOurNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
@@ -61,6 +62,7 @@ class NetworkViewModel(
     private val saveAppUser: SaveAppUserUseCase,
     private val observeNetworkEnabled: ObserveNetworkEnabledUseCase,
     private val setNetworkEnabled: SetNetworkEnabledUseCase,
+    private val observeDeviceConfig: ObserveDeviceConfigUseCase,
     private val logger: Logger,
 ) : ViewModel() {
 
@@ -76,6 +78,12 @@ class NetworkViewModel(
     private var lastMeshStatus: MeshConnectionStatus = MeshConnectionStatus.Disconnected
 
     init {
+        observeDeviceConfig(NoParams)
+            .onEach { config ->
+                _uiState.update { it.copy(hasNodeConfig = config != null) }
+            }
+            .launchIn(viewModelScope)
+
         observeNetworkEnabled(NoParams)
             .onEach { enabled ->
                 val wasEnabled = _uiState.value.networkEnabled

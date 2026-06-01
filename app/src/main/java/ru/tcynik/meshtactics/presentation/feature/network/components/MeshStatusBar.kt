@@ -29,10 +29,15 @@ import ru.tcynik.meshtactics.presentation.feature.network.state.MeshConnectionSt
 fun MeshStatusBar(
     status: MeshConnectionStatusUi,
     rebootingNodeName: String,
+    hasNodeConfig: Boolean,
     onDisconnectClick: () -> Unit,
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val showSettingsIcon = status !is MeshConnectionStatusUi.Disconnected
+            && status !is MeshConnectionStatusUi.Scanning
+            && status !is MeshConnectionStatusUi.Error
+
     val isInProgress = status is MeshConnectionStatusUi.Connecting
             || status is MeshConnectionStatusUi.Syncing
             || status is MeshConnectionStatusUi.Rebooting
@@ -88,17 +93,18 @@ fun MeshStatusBar(
                         style = MaterialTheme.typography.labelSmall,
                     )
                 }
-                if (status is MeshConnectionStatusUi.Connected) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    IconButton(
-                        onClick = onSettingsClick,
-                        modifier = Modifier.size(32.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Настройки ноды",
-                        )
-                    }
+            }
+            if (showSettingsIcon) {
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = onSettingsClick,
+                    enabled = hasNodeConfig,
+                    modifier = Modifier.size(32.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Настройки ноды",
+                    )
                 }
             }
         }

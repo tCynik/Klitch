@@ -4,11 +4,15 @@ import ru.tcynik.meshtactics.presentation.feature.network.state.models.LocationC
 
 data class NetworkSettingsState(
     val isLoading: Boolean = false,
-    val isEditing: Boolean = false,
     val deviceConfig: DeviceConfigUi? = null,
     val channels: List<ChannelConfigUi> = emptyList(),
     val locationConfig: LocationConfigUi? = null,
-)
+    val originalDeviceConfig: DeviceConfigUi? = null,
+    val originalChannels: List<ChannelConfigUi> = emptyList(),
+) {
+    val hasChanges: Boolean
+        get() = deviceConfig != originalDeviceConfig || channels != originalChannels
+}
 
 data class DeviceConfigUi(
     val longName: String,

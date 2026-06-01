@@ -1,23 +1,30 @@
 package ru.tcynik.meshtactics.presentation.feature.network.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,13 +35,13 @@ import ru.tcynik.meshtactics.presentation.feature.network.state.MeshConnectionSt
 import ru.tcynik.meshtactics.presentation.feature.network.state.NetworkSettingsState
 import ru.tcynik.meshtactics.presentation.feature.network.state.models.GpsModeUi
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NetworkSettingsContent(
     state: NetworkSettingsState,
     connectionStatus: MeshConnectionStatusUi,
-    onReadConfigClick: () -> Unit,
-    onEditConfigClick: () -> Unit,
-    onWriteConfigClick: () -> Unit,
+    onRefresh: () -> Unit,
+    onSaveClick: () -> Unit,
     onLongNameChange: (String) -> Unit = {},
     onShortNameChange: (String) -> Unit = {},
     onChannelNameChange: (index: Int, value: String) -> Unit = { _, _ -> },
@@ -50,101 +57,92 @@ fun NetworkSettingsContent(
     modifier: Modifier = Modifier,
 ) {
     val isConnected = connectionStatus is MeshConnectionStatusUi.Connected
+    val hasPskErrors = state.channels.any { it.pskError != null }
+    val canSave = isConnected && !state.isLoading && !hasPskErrors
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
+    PullToRefreshBox(
+        isRefreshing = state.isLoading,
+        onRefresh = onRefresh,
+        modifier = modifier,
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            OutlinedButton(
-                onClick = onReadConfigClick,
-                enabled = isConnected && !state.isLoading,
-                modifier = Modifier.weight(1f),
-            ) {
-                if (state.isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.padding(end = 8.dp),
-                        strokeWidth = 2.dp,
-                    )
-                }
-                Text("Read")
-            }
-            if (state.isEditing) {
-                Button(
-                    onClick = onWriteConfigClick,
-                    enabled = isConnected && !state.isLoading,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Write")
-                }
-            } else {
-                OutlinedButton(
-                    onClick = onEditConfigClick,
-                    enabled = isConnected && state.deviceConfig != null,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Edit")
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Column(
-            modifier = Modifier.verticalScroll(rememberScrollState()),
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                top = 16.dp,
+                start = 16.dp,
+                end = 16.dp,
+                bottom = if (state.hasChanges) 88.dp else 16.dp,
+            ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            state.deviceConfig?.let { config ->
-                DeviceConfigCard(
-                    config = config,
-                    isEditing = state.isEditing,
-                    onLongNameChange = onLongNameChange,
-                    onShortNameChange = onShortNameChange,
-                )
-            } ?: run {
-                if (!state.isLoading) {
+            if (state.deviceConfig != null) {
+                item(key = "device_config") {
+                    DeviceConfigCard(
+                        config = state.deviceConfig,
+                        onLongNameChange = onLongNameChange,
+                        onShortNameChange = onShortNameChange,
+                    )
+                }
+            } else if (!state.isLoading) {
+                item(key = "empty_state") {
                     Text(
-                        text = "No config loaded. Press Read to fetch from device.",
+                        text = "Нет данных. Подключитесь к ноде.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
 
-            state.channels.forEach { channel ->
+            items(state.channels, key = { "ch_${it.index}" }) { channel ->
                 ChannelConfigCard(
                     config = channel,
-                    isEditing = state.isEditing,
                     onNameChange = { onChannelNameChange(channel.index, it) },
                     onPskChange = { onChannelPskChange(channel.index, it) },
                 )
             }
 
-            if (state.isEditing && state.channels.size < 8) {
-                OutlinedButton(
-                    onClick = onAddChannelClick,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("+ Add Channel")
+            if (state.deviceConfig != null && state.channels.size < 8) {
+                item(key = "add_channel") {
+                    OutlinedButton(
+                        onClick = onAddChannelClick,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("+ Добавить канал")
+                    }
                 }
             }
 
             state.locationConfig?.let { locationConfig ->
-                LocationConfigCard(
-                    config = locationConfig,
-                    isConnected = isConnected,
-                    onProvideLocationToggle = onProvideLocationToggle,
-                    onGpsModeChange = onGpsModeChange,
-                    onRemoveFixedPosition = onRemoveFixedPosition,
-                    onBroadcastIntervalChange = onBroadcastIntervalChange,
-                    onSmartBroadcastToggle = onSmartBroadcastToggle,
-                    onPositionFlagsChange = onPositionFlagsChange,
-                    onChannelPositionPrecisionChange = onChannelPositionPrecisionChange,
-                )
+                item(key = "location_config") {
+                    LocationConfigCard(
+                        config = locationConfig,
+                        isConnected = isConnected,
+                        onProvideLocationToggle = onProvideLocationToggle,
+                        onGpsModeChange = onGpsModeChange,
+                        onRemoveFixedPosition = onRemoveFixedPosition,
+                        onBroadcastIntervalChange = onBroadcastIntervalChange,
+                        onSmartBroadcastToggle = onSmartBroadcastToggle,
+                        onPositionFlagsChange = onPositionFlagsChange,
+                        onChannelPositionPrecisionChange = onChannelPositionPrecisionChange,
+                    )
+                }
+            }
+        }
+
+        AnimatedVisibility(
+            visible = state.hasChanges,
+            enter = slideInVertically { it } + fadeIn(),
+            exit = slideOutVertically { it } + fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter),
+        ) {
+            Button(
+                onClick = onSaveClick,
+                enabled = canSave,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            ) {
+                Text("Сохранить")
             }
         }
     }
@@ -153,7 +151,6 @@ fun NetworkSettingsContent(
 @Composable
 private fun DeviceConfigCard(
     config: DeviceConfigUi,
-    isEditing: Boolean,
     onLongNameChange: (String) -> Unit,
     onShortNameChange: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -165,9 +162,9 @@ private fun DeviceConfigCard(
                 style = MaterialTheme.typography.titleSmall,
             )
             Spacer(modifier = Modifier.height(12.dp))
-            ConfigRow(label = "Long name", value = config.longName, isEditing = isEditing, onValueChange = onLongNameChange)
+            ConfigRow(label = "Long name", value = config.longName, isEditing = true, onValueChange = onLongNameChange)
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-            ConfigRow(label = "Short name", value = config.shortName, isEditing = isEditing, onValueChange = onShortNameChange)
+            ConfigRow(label = "Short name", value = config.shortName, isEditing = true, onValueChange = onShortNameChange)
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
             ConfigRow(label = "LoRa preset", value = config.loraPreset, isEditing = false)
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
@@ -181,7 +178,6 @@ private fun DeviceConfigCard(
 @Composable
 private fun ChannelConfigCard(
     config: ChannelConfigUi,
-    isEditing: Boolean,
     onNameChange: (String) -> Unit,
     onPskChange: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -196,30 +192,22 @@ private fun ChannelConfigCard(
             ConfigRow(
                 label = "Name",
                 value = config.channelName,
-                isEditing = isEditing,
+                isEditing = true,
                 onValueChange = onNameChange,
             )
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-            if (isEditing) {
-                OutlinedTextField(
-                    value = config.pskBase64,
-                    onValueChange = onPskChange,
-                    label = { Text("PSK (Base64)") },
-                    placeholder = { Text("empty = no encryption") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    isError = config.pskError != null,
-                    supportingText = config.pskError?.let { err ->
-                        { Text(err, color = MaterialTheme.colorScheme.error) }
-                    },
-                )
-            } else {
-                ConfigRow(
-                    label = "PSK",
-                    value = if (config.pskBase64.isBlank()) "none" else "••••••••",
-                    isEditing = false,
-                )
-            }
+            OutlinedTextField(
+                value = config.pskBase64,
+                onValueChange = onPskChange,
+                label = { Text("PSK (Base64)") },
+                placeholder = { Text("empty = no encryption") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                isError = config.pskError != null,
+                supportingText = config.pskError?.let { err ->
+                    { Text(err, color = MaterialTheme.colorScheme.error) }
+                },
+            )
         }
     }
 }

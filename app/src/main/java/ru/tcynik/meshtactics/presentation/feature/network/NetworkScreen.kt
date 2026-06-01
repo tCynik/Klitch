@@ -110,6 +110,7 @@ fun NetworkScreen(
                     MeshStatusBar(
                         status = state.connectionStatus,
                         rebootingNodeName = state.lastConnectedNodeName,
+                        hasNodeConfig = state.hasNodeConfig,
                         onDisconnectClick = viewModel::onDisconnectClick,
                         onSettingsClick = onNavigateToSettings,
                     )
