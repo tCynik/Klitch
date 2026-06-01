@@ -1,7 +1,7 @@
 # Contours
 
-**Date**: 2026-05-29
-**Status**: Revised design (Primary mechanic + Exclusive mode)
+**Date**: 2026-06-01
+**Status**: Revised design (Primary mechanic + Exclusive mode + isolation guarantees)
 
 Единый источник знаний по фиче Контур. Заменяет:
 - `.claude/docs/contour-design.md` (archived)
@@ -17,6 +17,7 @@
 - **транспорт**: имя канала + PSK для записи на ноду Meshtastic
 - **маршрутизацию входящих пакетов**: `slot → hash → Contour`
 - **участие в обмене**: `isActive` контролирует приём/передачу сообщений, геолокации, телеметрии
+- **изоляцию групп**: неактивный контур не отображает чужие метки/ноды и не раскрывает свою геопозицию
 
 Контур без транспорта невозможен: `transport: ContourTransport` non-nullable.
 
@@ -27,12 +28,27 @@
 ### Emergency
 
 - Hardcoded объект, **не хранится в DB**
-- `isActive = true` принудительно — инвариант, не настраивается пользователем
-  - Rationale: Emergency-канал принимает запросы помощи от любых участников, в т.ч. без приложения
+- **Не имеет `isActive` флага** — поведение определяется исключительно SOS-режимом
 - **Primary только при активном SOS-режиме** (не по умолчанию)
-- При не-SOS состоянии: занимает один из вторичных слотов (1–7)
-- Нельзя удалить, нельзя редактировать, нельзя деактивировать
-- `isActive` в UI не отображается как переключатель
+- При не-SOS состоянии: занимает slot 1 (фиксировано)
+- Нельзя удалить, нельзя редактировать
+- В UI не отображается переключатель активности
+
+#### Поведение Emergency в зависимости от SOS-режима
+
+| Аспект | SOS выкл | SOS вкл |
+|---|---|---|
+| Приём пакетов | Да (всегда) | Да |
+| Чужие ноды на карте | Нет¹ | Да |
+| Входящие сообщения: уведомления | Нет (тихо) | Да |
+| Входящие сообщения: счётчик непрочитанных | Нет | Да |
+| Отправка геопозиции | Нет | Да (30s broadcast) |
+| Отправка сообщений | Нет | Да |
+| Signal tag на исходящих | — | Да (future) |
+
+¹ **Future**: при наличии signal-tag в сообщении — показать ноду на карте даже без SOS-режима у получателя (обработка реального дистресса от чужих участников).
+
+**Rationale**: Emergency-канал (LongFast, `AQ==`) — публичный канал, им пользуются все Meshtastic-устройства по умолчанию. Без фильтрации по SOS-режиму LongFast-трафик засоряет карту и чат. При этом пакеты всегда принимаются — для будущей обработки signal-tag.
 
 ### Default (Basic)
 
@@ -65,19 +81,21 @@
 
 ### isActive
 
-Контролирует участие контура в обмене:
+Контролирует участие контура в обмене. **Применяется ко всем контурам кроме Emergency** (у Emergency — SOS-режим, см. выше).
 
-| isActive | Входящие | Исходящие | Гео (recv) | Гео (send) | Телеметрия |
-|---|---|---|---|---|---|
-| `true`  | доставляются в UI | разрешены | обрабатывается | отправляется | обрабатывается |
-| `false` | дропаются | блокируются | дроп | блокируется | дроп |
+| isActive | Входящие сообщения | Исходящие сообщения | Гео (recv) | Гео (send) | Ноды на карте | Телеметрия |
+|---|---|---|---|---|---|---|
+| `true`  | доставляются в UI | разрешены | метки сохраняются + отображаются | отправляется | отображаются | обрабатывается |
+| `false` | дропаются | блокируются | метки дропаются | блокируется | скрыты | дроп |
+
+**Ноды на карте** (`ObserveNodeMarkersUseCase`) фильтруются по `isActive` контура, через который пришла позиция. Для этого `MeshNodeModel` должен нести `receivedOnSlot: Int?` (см. секцию Архитектура).
 
 Правила:
-- **Emergency**: всегда `true`, не изменяется
+- **Emergency**: управляется SOS-режимом, не `isActive`
 - **Primary контур**: принудительно `true` пока Primary
 - **Остальные**: user-configurable через dropdown-меню
 
-Хранение: DB-колонка `is_active` для всех контуров кроме Emergency (у Emergency не хранится — hardcoded).
+Хранение: DB-колонка `is_active` для всех контуров кроме Emergency (у Emergency не хранится).
 
 ### Exclusive Contour
 
@@ -100,19 +118,19 @@ UI для выбора эксклюзивного режима — **deferred** 
 
 ## SOS-режим и Emergency как Primary
 
-SOS-режим — отдельный концепт, не тождественен `isActive` Emergency.
+SOS-режим — отдельный концепт. Emergency не имеет `isActive` — только SOS-флаг управляет его поведением.
 
 ### При активации SOS (`TriggerEmergencyUseCase`)
 
 1. Сохранить `pre_sos_primary_id` в DataStore
 2. `setPrimaryContour(Emergency.id)` → `writeChannel(0, "LongFast", "AQ==")`
 3. Запустить broadcast геопозиции (интервал 30s)
-4. Отправить дистресс-сообщение
+4. Отправить дистресс-сообщение с signal-tag (future)
 
 ### При отмене SOS (`CancelEmergencyUseCase`)
 
 1. Остановить broadcast
-2. Отправить all-clear сообщение
+2. Отправить all-clear сообщение с signal-tag (future)
 3. Восстановить `pre_sos_primary_id` → `setPrimaryContour(preSosId)`
 4. Очистить `pre_sos_primary_id`
 
@@ -124,13 +142,21 @@ pre_sos_primary_id      String?   null когда SOS не активен
 sos_mode_active         Boolean   default = false
 ```
 
-### Geo protection
+### Geo send policy
+
+Геопозиция отправляется **только на Primary контур** (slot 0). Канал определяется автоматически — тем, какой контур является Primary в данный момент:
+- Нормальный режим → Basic (или любой пользовательский) в slot 0 → гео на Basic
+- SOS-режим → Emergency становится Primary (slot 0) → гео на LongFast
+
+`GeoSendPolicyImpl` не блокирует отправку по SOS-флагу. Отправка на неактивный контур невозможна структурно: гео всегда уходит на slot 0, а slot 0 = Primary = всегда `isActive`.
 
 ```kotlin
-// GeoSendPolicyImpl
-observeAllowed() = observeSosMode().map { !it }
-// НЕ observeEmergencyIsActive() — SOS-режим отвязан от isActive Emergency
+// GeoSendPolicyImpl — гео разрешено всегда; канал = Primary (slot 0)
+observeAllowed() = flowOf(true)
+// Канал выбирается mesh-слоем автоматически по slot 0
 ```
+
+> **Удалить**: старый `observeAllowed() = observeSosMode().map { !it }` — логика инвертирована и некорректна.
 
 ---
 
@@ -151,6 +177,18 @@ observeAllowed() = observeSosMode().map { !it }
 | `domain/channel/model/NodeChannelSlot.kt` | Один слот на физической ноде |
 | `domain/channel/model/ChannelSyncStatus.kt` | `NotConnected / OnNode(slot) / NotOnNode / NoFreeSlot` |
 | `domain/channel/ChannelSlotResolver.kt` | Interface: live-маппинг slot↔hash |
+
+#### Изменения в MeshNodeModel (требуется)
+
+Добавить поле:
+```kotlin
+data class MeshNodeModel(
+    // ... existing fields ...
+    val receivedOnSlot: Int? = null,  // slot из MeshPacket.channel последней позиции
+)
+```
+
+Заполняется в `NodeMapper` из `MeshPacket.channel` при обработке position-пакетов. Без этого поля фильтрация нод на карте по активному контуру невозможна.
 
 ### Repository interface
 
@@ -186,15 +224,20 @@ interface ContourRepository {
 | `NodeProvisioningUseCase` | Done → **Revised** | pre-seed usedSlots={0,1}; skip primary contour; slots 2–7 only |
 | `TriggerEmergencyUseCase` | Done → **Revised** | save preSosPrimary → setPrimary(Emergency) → broadcast |
 | `CancelEmergencyUseCase` | Done → **Revised** | restore preSosPrimary → stop broadcast |
+| `ObserveNodeMarkersUseCase` | Done → **Revised** | фильтр по `receivedOnSlot` + активности контура; Emergency-ноды — по SOS-режиму |
+| `ObserveGeoNodesUseCase` | Done → **Revised** | то же: фильтр по `receivedOnSlot` + активности контура |
 
 ### Data layer
 
 - `ContourRepositoryImpl`:
-  - `observeContours()` = DB flow, Emergency всегда prepend (isActive = true hardcoded)
+  - `observeContours()` = DB flow, Emergency всегда prepend (без `isActive` — SOS-режим)
   - DataStore-ключи: `primary_contour_id`, `pre_sos_primary_id`, `sos_mode_active`
   - Старый ключ `emergency_is_active` → мигрирует в `sos_mode_active`
 - `GeoSendPolicyImpl`:
-  - `observeAllowed() = contourRepo.observeSosMode().map { !it }`
+  - `observeAllowed() = flowOf(true)` — гео всегда разрешено; канал = slot 0 (Primary)
+  - Удалить: `observeAllowed() = observeSosMode().map { !it }` (инвертированная логика — баг)
+- `NodeMapper`:
+  - Добавить маппинг `MeshPacket.channel → MeshNodeModel.receivedOnSlot`
 - `ChannelSlotResolverImpl`: без изменений
 
 ---
@@ -233,13 +276,53 @@ writeChannel(0, newPrimary.name, newPrimary.pskBase64)
 ```
 incoming packet.channel (Int)
   slot == 0  → primaryContour (читаем из observePrimaryContourId)
-  slot == 1  → DefaultContour.asContour() (Emergency, isActive = true)
+               takeIf { isActive = true по инварианту Primary }
+  slot == 1  → Emergency
+               SOS active  → deliver normally
+               SOS inactive →
+                 message: store silently (no notification, skip unread counter)
+                 position/geo: drop  [future: check signal-tag → deliver if present]
   slot N     → ChannelSlotResolver.slotToHash[N] → ContourHash (или drop + Log.w)
              → contours.find { hash match } (или drop + Log.w)
-  takeIf { it.isActive } → deliver (или drop если inactive)
+               takeIf { it.isActive } → deliver (или drop если inactive)
 ```
 
-Используется в: `IngestReceivedGeoMarksUseCase`, `MeshToChatAdapter`.
+**Ноды на карте** — отдельный путь от пакетного routing. Фильтруются в `ObserveNodeMarkersUseCase`:
+```
+node.receivedOnSlot
+  == 0         → показать (Primary, всегда активен)
+  == 1         → показать только если SOS active
+                 [future: или если у ноды есть signal-tag]
+  == N         → resolver: slotToHash[N] → contour → показать если isActive
+  == null      → показать (нет данных о слоте — fallback до реализации receivedOnSlot)
+```
+
+Используется в: `IngestReceivedGeoMarksUseCase`, `MeshToChatAdapter`, `ObserveNodeMarkersUseCase`, `ObserveGeoNodesUseCase`.
+
+---
+
+## Изоляция групп
+
+Контуры обеспечивают изоляцию групп пользователей: команды на разных контурах не видят друг друга и не компрометируют свою геопозицию.
+
+**Типичный кейс**: спортивные соревнования — две команды на разных контурах (уникальный PSK), эксклюзивный режим.
+
+### Гарантии изоляции
+
+| Вектор утечки | Механизм защиты |
+|---|---|
+| Входящие сообщения чужого контура | `isActive = false` → дроп в routing |
+| Входящие гео-метки чужого контура | `isActive = false` → дроп в `IngestReceivedGeoMarksUseCase` |
+| Ноды чужого контура на карте | `receivedOnSlot` + `isActive` фильтр в `ObserveNodeMarkersUseCase` |
+| Отправка своей геопозиции в чужой контур | Гео уходит только на slot 0 (Primary); неактивные слоты не получают гео |
+| Чужие ноды через Emergency (LongFast) | SOS = false → Emergency-ноды скрыты с карты |
+| Расшифровка чужих пакетов | Уровень Meshtastic: PSK-шифрование; без ключа payload недоступен |
+
+### Ограничения (known)
+
+- Заголовок `MeshPacket` (nodeNum, shortName) нешифрован — противник видит факт существования наших нод в сети. Защита от этого — вне возможностей приложения.
+- Emergency slot 1 присутствует на ноде всегда (публичный LongFast). Это осознанный компромисс: Emergency-трафик принимается для будущей обработки signal-tag. Позиция НЕ отправляется на Emergency вне SOS-режима.
+- `receivedOnSlot` в `MeshNodeModel` — **planned**, пока не реализован. До реализации ноды отображаются без контурной фильтрации (fallback `null → show`).
 
 ---
 
@@ -259,4 +342,17 @@ incoming packet.channel (Int)
 // TODO(contour): ActivateExclusiveContourUseCase — UI trigger (следующий таск)
 // TODO(contour): обработать отсутствие свободных слотов (UI уведомление)
 // TODO(contour): DROP COLUMN meshtastic_slot when minSdk ≥ 35
+
+// TODO(contour/isolation): добавить MeshNodeModel.receivedOnSlot: Int?
+//   → NodeMapper: маппинг из MeshPacket.channel
+//   → ObserveNodeMarkersUseCase: фильтр по слоту + isActive контура
+//   → ObserveGeoNodesUseCase: то же
+//   Без этого ноды на карте не фильтруются по контурам
+
+// TODO(contour/isolation): GeoSendPolicyImpl.observeAllowed() исправить на flowOf(true)
+//   Текущая логика observeSosMode().map { !it } инвертирована и некорректна
+
+// TODO(contour/emergency): signal-tag в дистресс-сообщениях Emergency
+//   Формат: TBD (префикс или поле DataPacket)
+//   Использование: при SOS inactive — Emergency-сообщение с tag → уведомить + показать ноду на карте
 ```
