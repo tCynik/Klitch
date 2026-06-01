@@ -98,7 +98,7 @@ fun MeshStatusBar(
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
                     onClick = onSettingsClick,
-                    enabled = hasNodeConfig,
+                    enabled = status is MeshConnectionStatusUi.Connected && hasNodeConfig,
                     modifier = Modifier.size(32.dp),
                 ) {
                     Icon(

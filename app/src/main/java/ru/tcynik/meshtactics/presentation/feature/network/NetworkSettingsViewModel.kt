@@ -170,7 +170,7 @@ class NetworkSettingsViewModel(
     fun onConfigShortNameChange(value: String) {
         _uiState.update { state ->
             val cfg = state.settings.deviceConfig ?: return@update state
-            state.copy(settings = state.settings.copy(deviceConfig = cfg.copy(shortName = value)))
+            state.copy(settings = state.settings.copy(deviceConfig = cfg.copy(shortName = value.take(4))))
         }
     }
 

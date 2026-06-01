@@ -58,7 +58,7 @@ fun NetworkSettingsContent(
 ) {
     val isConnected = connectionStatus is MeshConnectionStatusUi.Connected
     val hasPskErrors = state.channels.any { it.pskError != null }
-    val canSave = isConnected && !state.isLoading && !hasPskErrors
+    val canSave = isConnected && !state.isLoading && !hasPskErrors && state.shortNameError == null
 
     PullToRefreshBox(
         isRefreshing = state.isLoading,
@@ -79,6 +79,7 @@ fun NetworkSettingsContent(
                 item(key = "device_config") {
                     DeviceConfigCard(
                         config = state.deviceConfig,
+                        shortNameError = state.shortNameError,
                         onLongNameChange = onLongNameChange,
                         onShortNameChange = onShortNameChange,
                     )
@@ -151,6 +152,7 @@ fun NetworkSettingsContent(
 @Composable
 private fun DeviceConfigCard(
     config: DeviceConfigUi,
+    shortNameError: String?,
     onLongNameChange: (String) -> Unit,
     onShortNameChange: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -162,9 +164,20 @@ private fun DeviceConfigCard(
                 style = MaterialTheme.typography.titleSmall,
             )
             Spacer(modifier = Modifier.height(12.dp))
-            ConfigRow(label = "Long name", value = config.longName, isEditing = true, onValueChange = onLongNameChange)
+            ConfigRow(label = "Long name", value = config.longName, isEditing = false)
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-            ConfigRow(label = "Short name", value = config.shortName, isEditing = true, onValueChange = onShortNameChange)
+            OutlinedTextField(
+                value = config.shortName,
+                onValueChange = onShortNameChange,
+                label = { Text("Short name") },
+                placeholder = { Text("1–4 символа") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                isError = shortNameError != null,
+                supportingText = shortNameError?.let { err ->
+                    { Text(err, color = MaterialTheme.colorScheme.error) }
+                },
+            )
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
             ConfigRow(label = "LoRa preset", value = config.loraPreset, isEditing = false)
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))

@@ -12,6 +12,9 @@ data class NetworkSettingsState(
 ) {
     val hasChanges: Boolean
         get() = deviceConfig != originalDeviceConfig || channels != originalChannels
+
+    val shortNameError: String?
+        get() = if (deviceConfig?.shortName?.isEmpty() == true) "Минимум 1 символ" else null
 }
 
 data class DeviceConfigUi(
