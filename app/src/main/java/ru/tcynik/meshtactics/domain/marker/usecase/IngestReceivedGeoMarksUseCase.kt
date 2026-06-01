@@ -8,7 +8,7 @@ import ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapter
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.Contour
 import ru.tcynik.meshtactics.domain.channel.model.ChannelSlotMaps
-import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
+import ru.tcynik.meshtactics.domain.channel.model.isEmergency
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.logger.Logger
 import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkRepository
@@ -27,11 +27,12 @@ class IngestReceivedGeoMarksUseCase(
         packetRepository.getWaypoints(),
         channelRepository.observeContours(),
         channelSlotResolver.mapsFlow,
-    ) { packets, contours, maps ->
-        Triple(packets, contours, maps)
-    }.flatMapConcat { (packets, contours, maps) ->
+        channelRepository.observeSosMode(),
+    ) { packets, contours, maps, sosMode ->
+        IngestArgs(packets, contours, maps, sosMode)
+    }.flatMapConcat { args ->
         flow {
-            ingestPackets(packets, contours, maps)
+            ingestPackets(args.packets, args.contours, args.maps, args.sosMode)
             emit(Unit)
         }
     }
@@ -40,7 +41,9 @@ class IngestReceivedGeoMarksUseCase(
         packets: List<DataPacket>,
         contours: List<Contour>,
         maps: ChannelSlotMaps,
+        sosMode: Boolean,
     ) {
+        val primaryId = channelRepository.getPrimaryContourId()
         val activeIds = geoMarkRepository.getActiveMarkIds()
         val activeWaypointIds = geoMarkRepository.getActiveWaypointIds()
         val dismissedIds = geoMarkRepository.getDismissedMarkIds()
@@ -51,7 +54,14 @@ class IngestReceivedGeoMarksUseCase(
             if (packet.from == DataPacket.ID_LOCAL) return@forEach
 
             val contour = when (packet.channel) {
-                0 -> contours.find { it.id == DefaultContour.ID }?.takeIf { it.isActive }
+                0 -> contours.find { it.id == primaryId }
+                1 -> {
+                    if (!sosMode) {
+                        logger.d("Map", "slot 1 outside SOS, drop geo packet")
+                        return@forEach
+                    }
+                    contours.find { it.isEmergency }
+                }
                 else -> {
                     val hash = maps.slotToHash[packet.channel]
                     if (hash == null) {
@@ -80,4 +90,11 @@ class IngestReceivedGeoMarksUseCase(
             geoMarkRepository.persistReceived(model, contour.id)
         }
     }
+
+    private data class IngestArgs(
+        val packets: List<DataPacket>,
+        val contours: List<Contour>,
+        val maps: ChannelSlotMaps,
+        val sosMode: Boolean,
+    )
 }

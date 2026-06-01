@@ -79,7 +79,7 @@ class NetworkSettingsViewModel(
                 }
                 if (isConnected && !wasConnected) {
                     val settings = _uiState.value.settings
-                    if (!settings.isLoading && settings.channels.isEmpty() && settings.deviceConfig == null) {
+                    if (!settings.isLoading && settings.originalDeviceConfig == null) {
                         requestConfigFromDevice()
                     }
                 }
@@ -91,34 +91,30 @@ class NetworkSettingsViewModel(
             logger.i("App", "DBG observeDeviceConfig emitted: config=${config?.let { "longName=${it.longName}" } ?: "null"}")
             if (config != null) {
                 _uiState.update { state ->
-                    val updatedChannels = if (state.settings.isEditing) {
-                        state.settings.channels
-                    } else {
-                        val mapped = config.channels.map { ch ->
-                            ChannelConfigUi(
-                                index = ch.index,
-                                channelName = ch.name,
-                                pskBase64 = ch.pskBase64,
-                            )
-                        }
-                        // После reconnect handleMyInfo очищает channelSet до завершения handshake.
-                        if (mapped.isEmpty() && state.settings.channels.isNotEmpty()) {
-                            state.settings.channels
-                        } else {
-                            mapped
-                        }
+                    val mapped = config.channels.map { ch ->
+                        ChannelConfigUi(index = ch.index, channelName = ch.name, pskBase64 = ch.pskBase64)
                     }
+                    // После reconnect handleMyInfo очищает channelSet до завершения handshake.
+                    val safeChannels = if (mapped.isEmpty() && state.settings.originalChannels.isNotEmpty()) {
+                        state.settings.originalChannels
+                    } else {
+                        mapped
+                    }
+                    val newDeviceConfig = DeviceConfigUi(
+                        longName = config.longName,
+                        shortName = config.shortName,
+                        loraPreset = config.loraPreset,
+                        txPowerDbm = config.txPowerDbm,
+                        region = config.region,
+                    )
+                    val hasUnsaved = state.settings.hasChanges
                     state.copy(
                         settings = state.settings.copy(
                             isLoading = false,
-                            deviceConfig = DeviceConfigUi(
-                                longName = config.longName,
-                                shortName = config.shortName,
-                                loraPreset = config.loraPreset,
-                                txPowerDbm = config.txPowerDbm,
-                                region = config.region,
-                            ),
-                            channels = updatedChannels,
+                            deviceConfig = if (hasUnsaved) state.settings.deviceConfig else newDeviceConfig,
+                            channels = if (hasUnsaved) state.settings.channels else safeChannels,
+                            originalDeviceConfig = newDeviceConfig,
+                            originalChannels = safeChannels,
                         )
                     )
                 }
@@ -148,7 +144,7 @@ class NetworkSettingsViewModel(
 
     private fun requestConfigFromDevice() {
         _uiState.update { state ->
-            state.copy(settings = state.settings.copy(isLoading = true, isEditing = false))
+            state.copy(settings = state.settings.copy(isLoading = true))
         }
         requestDeviceConfig()
         readConfigTimeoutJob?.cancel()
@@ -164,12 +160,6 @@ class NetworkSettingsViewModel(
         }
     }
 
-    fun onEditConfigClick() {
-        _uiState.update { state ->
-            state.copy(settings = state.settings.copy(isEditing = true))
-        }
-    }
-
     fun onConfigLongNameChange(value: String) {
         _uiState.update { state ->
             val cfg = state.settings.deviceConfig ?: return@update state
@@ -180,7 +170,7 @@ class NetworkSettingsViewModel(
     fun onConfigShortNameChange(value: String) {
         _uiState.update { state ->
             val cfg = state.settings.deviceConfig ?: return@update state
-            state.copy(settings = state.settings.copy(deviceConfig = cfg.copy(shortName = value)))
+            state.copy(settings = state.settings.copy(deviceConfig = cfg.copy(shortName = value.take(4))))
         }
     }
 
@@ -199,7 +189,12 @@ class NetworkSettingsViewModel(
             commitSettingsEdit()
         }
         _uiState.update { state ->
-            state.copy(settings = state.settings.copy(isEditing = false))
+            state.copy(
+                settings = state.settings.copy(
+                    originalDeviceConfig = state.settings.deviceConfig,
+                    originalChannels = state.settings.channels,
+                )
+            )
         }
     }
 
@@ -228,16 +223,6 @@ class NetworkSettingsViewModel(
                     }
                 )
             )
-        }
-    }
-
-    fun onAddChannelClick() {
-        _uiState.update { state ->
-            val channels = state.settings.channels
-            if (channels.size >= 8) return@update state
-            val nextIndex = channels.size
-            val newChannel = ChannelConfigUi(index = nextIndex, channelName = "", pskBase64 = "")
-            state.copy(settings = state.settings.copy(channels = channels + newChannel))
         }
     }
 

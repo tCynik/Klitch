@@ -25,12 +25,7 @@ fun NetworkSettingsScreen(
     viewModel: NetworkSettingsViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val title = when (val connectionStatus = state.connectionStatus) {
-        is MeshConnectionStatusUi.Connected -> {
-            connectionStatus.deviceName.ifBlank { "Настройки ноды" }
-        }
-        else -> "Настройки ноды"
-    }
+    val title = "Настройки ноды ${state.settings.deviceConfig?.shortName.orEmpty()}".trim()
 
     Scaffold(
         topBar = {
@@ -47,14 +42,12 @@ fun NetworkSettingsScreen(
         NetworkSettingsContent(
             state = state.settings,
             connectionStatus = state.connectionStatus,
-            onReadConfigClick = viewModel::onReadConfigClick,
-            onEditConfigClick = viewModel::onEditConfigClick,
-            onWriteConfigClick = viewModel::onWriteConfigClick,
+            onRefresh = viewModel::onReadConfigClick,
+            onSaveClick = viewModel::onWriteConfigClick,
             onLongNameChange = viewModel::onConfigLongNameChange,
             onShortNameChange = viewModel::onConfigShortNameChange,
             onChannelNameChange = viewModel::onChannelNameChange,
             onChannelPskChange = viewModel::onChannelPskChange,
-            onAddChannelClick = viewModel::onAddChannelClick,
             onProvideLocationToggle = viewModel::onProvideLocationToggle,
             onGpsModeChange = viewModel::onGpsModeChange,
             onRemoveFixedPosition = viewModel::onRemoveFixedPosition,

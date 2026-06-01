@@ -1,5 +1,6 @@
 package ru.tcynik.meshtactics.presentation.feature.network.components
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,6 +13,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -27,21 +29,32 @@ import ru.tcynik.meshtactics.presentation.feature.network.state.MeshConnectionSt
 fun MeshStatusBar(
     status: MeshConnectionStatusUi,
     rebootingNodeName: String,
+    hasNodeConfig: Boolean,
     onDisconnectClick: () -> Unit,
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val showSettingsIcon = status !is MeshConnectionStatusUi.Disconnected
+            && status !is MeshConnectionStatusUi.Scanning
+            && status !is MeshConnectionStatusUi.Error
+
+    val isInProgress = status is MeshConnectionStatusUi.Connecting
+            || status is MeshConnectionStatusUi.Syncing
+            || status is MeshConnectionStatusUi.Rebooting
+            || status is MeshConnectionStatusUi.WaitingForNode
+
     Surface(
         modifier = modifier.fillMaxWidth(),
         tonalElevation = 2.dp,
         color = MaterialTheme.colorScheme.surfaceVariant,
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
             StatusDot(status = status)
             Spacer(modifier = Modifier.width(8.dp))
             Text(
@@ -80,18 +93,23 @@ fun MeshStatusBar(
                         style = MaterialTheme.typography.labelSmall,
                     )
                 }
-                if (status is MeshConnectionStatusUi.Connected) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    IconButton(
-                        onClick = onSettingsClick,
-                        modifier = Modifier.size(32.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Настройки ноды",
-                        )
-                    }
+            }
+            if (showSettingsIcon) {
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = onSettingsClick,
+                    enabled = status is MeshConnectionStatusUi.Connected && hasNodeConfig,
+                    modifier = Modifier.size(32.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Настройки ноды",
+                    )
                 }
+            }
+        }
+            if (isInProgress) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
         }
     }

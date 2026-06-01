@@ -33,6 +33,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceParams
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveOurNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
@@ -60,6 +61,7 @@ class NetworkViewModelCallsignGateTest {
     private val saveAppUser: SaveAppUserUseCase = mockk(relaxed = true)
     private val observeNetworkEnabled: ObserveNetworkEnabledUseCase = mockk()
     private val setNetworkEnabled: SetNetworkEnabledUseCase = mockk(relaxed = true)
+    private val observeDeviceConfig: ObserveDeviceConfigUseCase = mockk()
     private val logger: Logger = mockk(relaxed = true)
 
     private val appUserFlow = MutableStateFlow(AppUser(displayName = ""))
@@ -84,6 +86,7 @@ class NetworkViewModelCallsignGateTest {
         every { observeNodeChannels.invoke(any()) } returns flowOf(
             listOf(NodeChannelSlot(index = 0, name = "LongFast", psk = byteArrayOf(0x01), isEnabled = true, positionPrecision = 32))
         )
+        every { observeDeviceConfig.invoke(any()) } returns flowOf(null)
     }
 
     @After
@@ -108,6 +111,7 @@ class NetworkViewModelCallsignGateTest {
             saveAppUser = saveAppUser,
             observeNetworkEnabled = observeNetworkEnabled,
             setNetworkEnabled = setNetworkEnabled,
+            observeDeviceConfig = observeDeviceConfig,
             logger = logger,
         )
     }

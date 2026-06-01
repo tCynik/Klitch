@@ -232,6 +232,7 @@ val presentationModule = module {
             saveAppUser = get<SaveAppUserUseCase>(),
             observeNetworkEnabled = get(),
             setNetworkEnabled = get(),
+            observeDeviceConfig = get(),
             logger = get(),
         )
     }

@@ -30,6 +30,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceParams
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveOurNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
@@ -61,6 +62,7 @@ class NetworkViewModel(
     private val saveAppUser: SaveAppUserUseCase,
     private val observeNetworkEnabled: ObserveNetworkEnabledUseCase,
     private val setNetworkEnabled: SetNetworkEnabledUseCase,
+    private val observeDeviceConfig: ObserveDeviceConfigUseCase,
     private val logger: Logger,
 ) : ViewModel() {
 
@@ -76,6 +78,12 @@ class NetworkViewModel(
     private var lastMeshStatus: MeshConnectionStatus = MeshConnectionStatus.Disconnected
 
     init {
+        observeDeviceConfig(NoParams)
+            .onEach { config ->
+                _uiState.update { it.copy(hasNodeConfig = config != null) }
+            }
+            .launchIn(viewModelScope)
+
         observeNetworkEnabled(NoParams)
             .onEach { enabled ->
                 val wasEnabled = _uiState.value.networkEnabled
@@ -116,7 +124,8 @@ class NetworkViewModel(
                 logger.i("Node", "syncUi: mesh=$status phase=$syncPhase ui=$uiStatus")
             }
             _uiState.update { state ->
-                val isScanInProgress = status is MeshConnectionStatus.Scanning && !userStoppedScan || scanJob != null
+                val isScanInProgress = (status is MeshConnectionStatus.Scanning && !userStoppedScan || scanJob != null)
+                    && state.connection.connectingAddress == null
                 state.copy(
                     connectionStatus = uiStatus,
                     lastConnectedNodeName = when (status) {
@@ -138,6 +147,7 @@ class NetworkViewModel(
                                 scannedDevices = state.connection.scannedDevices
                                     .filterNot { it.address == connectedAddress }
                                     .toImmutableList(),
+                                connectingAddress = null,
                             )
                         )
                     }
@@ -332,7 +342,13 @@ class NetworkViewModel(
             }
             return
         }
-        viewModelScope.launch { connectToPendingDevice(address, deviceName) }
+        viewModelScope.launch {
+            val currentConnecting = _uiState.value.connection.connectingAddress
+            if (currentConnecting != null && currentConnecting != address) {
+                disconnectFromMesh(NoParams)
+            }
+            connectToPendingDevice(address, deviceName)
+        }
     }
 
     private suspend fun connectToPendingDevice(address: String, deviceName: String) {
@@ -342,7 +358,7 @@ class NetworkViewModel(
         _uiState.update { state ->
             state.copy(
                 connectionStatus = MeshConnectionStatusUi.Connecting(deviceName.toMeshtasticDisplayShortName()),
-                connection = state.connection.copy(isScanning = false),
+                connection = state.connection.copy(isScanning = false, connectingAddress = address),
             )
         }
         runCatching { connectToDevice(ConnectToMeshDeviceParams(address, deviceName)) }
@@ -350,7 +366,10 @@ class NetworkViewModel(
                 pendingConnectAddress = null
                 logger.e("App", "DBG onConnectClick: connectToDevice failed: ${e.message}", e)
                 _uiState.update {
-                    it.copy(connectionStatus = MeshConnectionStatusUi.Error(e.message ?: "Connection failed"))
+                    it.copy(
+                        connectionStatus = MeshConnectionStatusUi.Error(e.message ?: "Connection failed"),
+                        connection = it.connection.copy(connectingAddress = null),
+                    )
                 }
             }
     }

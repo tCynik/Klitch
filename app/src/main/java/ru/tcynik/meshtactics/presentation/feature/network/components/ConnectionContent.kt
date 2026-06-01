@@ -140,8 +140,7 @@ fun ConnectionContent(
                         BleDeviceRow(
                             device = device,
                             onConnectClick = { onConnectClick(device.address) },
-                            isConnecting = connectionStatus is MeshConnectionStatusUi.Connecting
-                                    && connectionStatus.deviceName == device.name,
+                            isConnecting = state.connectingAddress == device.address,
                         )
                     }
                 }
