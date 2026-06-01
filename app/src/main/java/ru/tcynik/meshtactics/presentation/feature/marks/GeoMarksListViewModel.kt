@@ -66,6 +66,8 @@ class GeoMarksListViewModel(
     private var nowSeconds: Long = System.currentTimeMillis() / 1000
     private val visibleDeliveryFilters = mutableSetOf<GeoMarkDeliveryState>()
     private var knownPresentTypes = emptySet<GeoMarkDeliveryState>()
+    private var allCachedTracks: List<RecordedTrackListItemUiModel> = emptyList()
+    private var tracksFilterEnabled = true
 
     init {
         viewModelScope.launch {
@@ -100,8 +102,8 @@ class GeoMarksListViewModel(
         }
         viewModelScope.launch {
             observeRecordedTracks(NoParams).collect { tracks ->
-                val items = tracks.map { it.toUiModel() }
-                _uiState.update { it.copy(recordedTracks = items.toImmutableList()) }
+                allCachedTracks = tracks.map { it.toUiModel() }
+                rebuildTracksState()
             }
         }
     }
@@ -302,6 +304,28 @@ class GeoMarksListViewModel(
         type !in presentTypes -> GeoMarkDeliveryFilterStatus.INACTIVE
         type in visibleDeliveryFilters -> GeoMarkDeliveryFilterStatus.SELECTED
         else -> GeoMarkDeliveryFilterStatus.UNSELECTED
+    }
+
+    fun onTracksFilterToggle() {
+        tracksFilterEnabled = !tracksFilterEnabled
+        rebuildTracksState()
+        logger.d("Tracks", "tracks filter toggled: enabled=$tracksFilterEnabled")
+    }
+
+    private fun rebuildTracksState() {
+        val hasTracks = allCachedTracks.isNotEmpty()
+        val status = when {
+            !hasTracks -> GeoMarkDeliveryFilterStatus.INACTIVE
+            tracksFilterEnabled -> GeoMarkDeliveryFilterStatus.SELECTED
+            else -> GeoMarkDeliveryFilterStatus.UNSELECTED
+        }
+        val visibleTracks = if (tracksFilterEnabled) allCachedTracks else emptyList()
+        _uiState.update {
+            it.copy(
+                recordedTracks = visibleTracks.toImmutableList(),
+                tracksFilterStatus = status,
+            )
+        }
     }
 
     fun onTrackVisibilityToggle(id: String, visible: Boolean) {

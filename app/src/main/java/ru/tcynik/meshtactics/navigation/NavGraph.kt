@@ -19,6 +19,8 @@ import ru.tcynik.meshtactics.presentation.feature.groups.GroupsViewModel
 import ru.tcynik.meshtactics.presentation.feature.main.HudNavCallbacks
 import ru.tcynik.meshtactics.presentation.feature.main.MainScreen
 import ru.tcynik.meshtactics.presentation.feature.main.MainViewModel
+import ru.tcynik.meshtactics.domain.track.model.TrackRecordingState
+import ru.tcynik.meshtactics.presentation.feature.main.osd.TrackStopConfirmDialog
 import ru.tcynik.meshtactics.presentation.feature.marks.GeoMarksListScreen
 import ru.tcynik.meshtactics.presentation.feature.marks.GeoMarksListViewModel
 import ru.tcynik.meshtactics.presentation.feature.markers.MarkerManagementScreen
@@ -42,6 +44,25 @@ import ru.tcynik.meshtactics.service.GpsService
 fun NavGraph() {
     val navController = rememberNavController()
     val context = LocalContext.current
+    val mainViewModel: MainViewModel = koinViewModel()
+    val trackState by mainViewModel.trackRecordingSheetUiState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        mainViewModel.exitAppEvent.collect {
+            context.stopService(GpsService.createIntent(context))
+            (context as? Activity)?.finishAndRemoveTask()
+        }
+    }
+
+    val stopDialogRs = trackState.recordingState
+    if (trackState.showStopDialog && stopDialogRs is TrackRecordingState.Recording) {
+        TrackStopConfirmDialog(
+            initialName = stopDialogRs.name,
+            onSave      = trackState.onStopDialogSave,
+            onDiscard   = trackState.onStopDialogDiscard,
+            onCancel    = trackState.onStopDialogCancel,
+        )
+    }
 
     BlePermissionGuard {
         NavHost(
@@ -51,21 +72,20 @@ fun NavGraph() {
 
             // ── Primary destination ──────────────────────────────────────────
             composable<Route.Main> {
-                val viewModel: MainViewModel = koinViewModel()
-                val uiState by viewModel.uiState.collectAsState()
-                val hudConfig by viewModel.hudConfig.collectAsState()
-                val hudUiState by viewModel.hudUiState.collectAsState()
-                val menuDrawerUiState by viewModel.menuDrawerUiState.collectAsState()
-                val geoMarksSheetUiState by viewModel.geoMarksSheetUiState.collectAsState()
-                val trackRecordingSheetUiState by viewModel.trackRecordingSheetUiState.collectAsState()
+                val uiState by mainViewModel.uiState.collectAsState()
+                val hudConfig by mainViewModel.hudConfig.collectAsState()
+                val hudUiState by mainViewModel.hudUiState.collectAsState()
+                val menuDrawerUiState by mainViewModel.menuDrawerUiState.collectAsState()
+                val geoMarksSheetUiState by mainViewModel.geoMarksSheetUiState.collectAsState()
+                val trackRecordingSheetUiState by mainViewModel.trackRecordingSheetUiState.collectAsState()
                 val locationProvider: LocationProvider = koinInject()
                 val orientationProvider: DeviceOrientationProvider = koinInject()
 
                 // Provide navigation callbacks to ViewModel once navController is available.
                 // Unit key — callbacks are stable for the lifetime of this destination.
                 LaunchedEffect(Unit) {
-                    viewModel.onMainDestinationVisible()
-                    viewModel.provideNavCallbacks(
+                    mainViewModel.onMainDestinationVisible()
+                    mainViewModel.provideNavCallbacks(
                         HudNavCallbacks(
                             onRadioClick           = { navController.navigate(Route.Network) },
                             onMeshClick            = { navController.navigate(Route.Nodes) },
@@ -75,10 +95,7 @@ fun NavGraph() {
                             onDisplaySettingsClick = { navController.navigate(Route.DisplaySettings) },
                             onUserSettingsClick    = { navController.navigate(Route.UserSettings) },
                             onGeoMarksList         = { navController.navigate(Route.GeoMarksList) },
-                            onExitApp              = {
-                                context.stopService(GpsService.createIntent(context))
-                                (context as? Activity)?.finishAndRemoveTask()
-                            },
+                            onExitApp              = mainViewModel::requestExitApp,
                         )
                     )
                 }
@@ -87,29 +104,29 @@ fun NavGraph() {
                     uiState = uiState,
                     hudConfig = hudConfig,
                     hudUiState = hudUiState,
-                    onCameraPositionChanged = viewModel::onCameraPositionChanged,
+                    onCameraPositionChanged = mainViewModel::onCameraPositionChanged,
                     locationProvider = locationProvider,
                     orientationProvider = orientationProvider,
-                    onMapClick = viewModel::onMapClick,
-                    onMapDoubleClick = viewModel::onMapDoubleClick,
-                    onMapLongClick = viewModel::onMapLongClick,
-                    contextMenuEvents = viewModel.contextMenuEvent,
-                    onHideGeoMark = viewModel::hideGeoMark,
-                    onDeleteGeoMark = viewModel::requestDeleteGeoMark,
-                    onConfirmDeleteGeoMark = viewModel::confirmDeleteGeoMark,
-                    onDismissDeleteGeoMarkConfirm = viewModel::dismissDeleteGeoMarkConfirm,
-                    onSendGeoMark = viewModel::prepareGeoMarkForResend,
+                    onMapClick = mainViewModel::onMapClick,
+                    onMapDoubleClick = mainViewModel::onMapDoubleClick,
+                    onMapLongClick = mainViewModel::onMapLongClick,
+                    contextMenuEvents = mainViewModel.contextMenuEvent,
+                    onHideGeoMark = mainViewModel::hideGeoMark,
+                    onDeleteGeoMark = mainViewModel::requestDeleteGeoMark,
+                    onConfirmDeleteGeoMark = mainViewModel::confirmDeleteGeoMark,
+                    onDismissDeleteGeoMarkConfirm = mainViewModel::dismissDeleteGeoMarkConfirm,
+                    onSendGeoMark = mainViewModel::prepareGeoMarkForResend,
                     menuDrawerUiState = menuDrawerUiState,
                     geoMarksSheetUiState = geoMarksSheetUiState,
                     trackRecordingSheetUiState = trackRecordingSheetUiState,
-                    onFollowMeDeactivated = viewModel::onFollowMeDeactivated,
-                    resetBearingEvents = viewModel.resetBearingEvent,
-                    restoreZoomEvents = viewModel.restoreZoomEvent,
-                    onMapBearingChanged = viewModel::onMapBearingChanged,
-                    onMapRotatedByUser = viewModel::onMapRotatedByUser,
-                    onCourseUpToggle = viewModel::onCourseUpToggle,
-                    onFollowMeRestoreZoom = viewModel::onFollowMeRestoreZoom,
-                    onClearGeoMarkSelection = viewModel::clearSelectedGeoMark,
+                    onFollowMeDeactivated = mainViewModel::onFollowMeDeactivated,
+                    resetBearingEvents = mainViewModel.resetBearingEvent,
+                    restoreZoomEvents = mainViewModel.restoreZoomEvent,
+                    onMapBearingChanged = mainViewModel::onMapBearingChanged,
+                    onMapRotatedByUser = mainViewModel::onMapRotatedByUser,
+                    onCourseUpToggle = mainViewModel::onCourseUpToggle,
+                    onFollowMeRestoreZoom = mainViewModel::onFollowMeRestoreZoom,
+                    onClearGeoMarkSelection = mainViewModel::clearSelectedGeoMark,
                 )
             }
 
@@ -126,10 +143,7 @@ fun NavGraph() {
             composable<Route.MainSettings> {
                 MainSettingsScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onExitApp = {
-                        context.stopService(GpsService.createIntent(context))
-                        (context as? Activity)?.finishAndRemoveTask()
-                    },
+                    onExitApp = mainViewModel::requestExitApp,
                 )
             }
 
@@ -200,6 +214,7 @@ fun NavGraph() {
                     onDismissSendContourPicker = viewModel::onDismissSendContourPicker,
                     onTrackVisibilityToggle = viewModel::onTrackVisibilityToggle,
                     onTrackDeleteClick = viewModel::onTrackDeleteClick,
+                    onTracksFilterToggle = viewModel::onTracksFilterToggle,
                     onBack = { navController.popBackStack() },
                 )
             }

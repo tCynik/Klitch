@@ -124,6 +124,7 @@ val presentationModule = module {
             stopTrackRecording = get<StopTrackRecordingUseCase>(),
             discardTrackRecording = get<DiscardTrackRecordingUseCase>(),
             trackSettingsDataSource = get<TrackSettingsDataSource>(),
+            gpsRepository = get(),
         )
     }
 

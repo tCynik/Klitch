@@ -15,5 +15,8 @@ data class GeoMarksListUiState(
     val deleteEnabled: Boolean = false,
     val deleteConfirm: GeoMarksDeleteConfirmUi? = null,
     val sendContourPicker: GeoMarksSendContourPickerUi? = null,
+    /** Треки, видимые в списке (пусто, если фильтр выключен или треков нет). */
     val recordedTracks: ImmutableList<RecordedTrackListItemUiModel> = persistentListOf(),
+    /** Состояние кнопки фильтра треков. */
+    val tracksFilterStatus: GeoMarkDeliveryFilterStatus = GeoMarkDeliveryFilterStatus.INACTIVE,
 )

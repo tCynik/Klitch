@@ -108,6 +108,7 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.models.TrackRecording
 import ru.tcynik.meshtactics.data.track.datasource.TrackSettingsDataSource
 import ru.tcynik.meshtactics.domain.track.model.TrackRecordingPreset
 import ru.tcynik.meshtactics.domain.track.model.TrackRecordingState
+import ru.tcynik.meshtactics.domain.gps.repository.GpsRepository
 import ru.tcynik.meshtactics.domain.track.usecase.ObserveTrackRecordingStateUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.DiscardTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.PauseTrackRecordingUseCase
@@ -170,12 +171,16 @@ class MainViewModel(
     private val stopTrackRecording: StopTrackRecordingUseCase,
     private val discardTrackRecording: DiscardTrackRecordingUseCase,
     private val trackSettingsDataSource: TrackSettingsDataSource,
+    private val gpsRepository: GpsRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
     private val _formState = MutableStateFlow(GeoMarksFormState())
     private val _trackFormState = MutableStateFlow(TrackRecordingFormState())
     private val _stopDialogRequestedAt = MutableStateFlow<Long?>(null)
+    private val _pendingExitOnStop = MutableStateFlow(false)
+    private val _exitAppEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val exitAppEvent: SharedFlow<Unit> = _exitAppEvent.asSharedFlow()
     private var connectedLabelJob: Job? = null
     private var scanJob: Job? = null
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
@@ -232,18 +237,19 @@ class MainViewModel(
             }
         },
         _stopDialogRequestedAt,
-    ) { trackForm, trackState, nowSeconds, stopRequestedAt ->
+        gpsRepository.location,
+    ) { trackForm, trackState, nowSeconds, stopRequestedAt, gpsLocation ->
         val durationSeconds = when {
             trackState !is TrackRecordingState.Recording -> 0L
             trackState.isPaused -> trackState.accumulatedSeconds
             stopRequestedAt != null -> trackState.accumulatedSeconds + (stopRequestedAt - trackState.activeFromSeconds)
             else -> trackState.accumulatedSeconds + (nowSeconds - trackState.activeFromSeconds)
         }
-        buildTrackRecordingSheetUiState(trackForm, trackState, durationSeconds, stopRequestedAt != null)
+        buildTrackRecordingSheetUiState(trackForm, trackState, durationSeconds, stopRequestedAt != null, gpsLocation?.speed)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
-        initialValue = buildTrackRecordingSheetUiState(TrackRecordingFormState(), TrackRecordingState.Idle, 0L, false),
+        initialValue = buildTrackRecordingSheetUiState(TrackRecordingFormState(), TrackRecordingState.Idle, 0L, false, null),
     )
 
     // Geo marks sheet state — contains lambdas → separate StateFlow.
@@ -595,18 +601,39 @@ class MainViewModel(
         _stopDialogRequestedAt.value = System.currentTimeMillis() / 1000L
     }
 
+    fun requestExitApp() {
+        _uiState.update { it.copy(menuDrawerOpen = false) }
+        if (trackRecordingSheetUiState.value.recordingState is TrackRecordingState.Recording) {
+            _pendingExitOnStop.value = true
+            stopTrackRecordingAction()
+        } else {
+            viewModelScope.launch { _exitAppEvent.emit(Unit) }
+        }
+    }
+
     fun confirmTrackStopSave(name: String) {
+        val shouldExit = _pendingExitOnStop.value
         _stopDialogRequestedAt.value = null
-        viewModelScope.launch { stopTrackRecording(name) }
+        _pendingExitOnStop.value = false
+        viewModelScope.launch {
+            stopTrackRecording(name)
+            if (shouldExit) _exitAppEvent.emit(Unit)
+        }
     }
 
     fun confirmTrackStopDiscard() {
+        val shouldExit = _pendingExitOnStop.value
         _stopDialogRequestedAt.value = null
-        viewModelScope.launch { discardTrackRecording() }
+        _pendingExitOnStop.value = false
+        viewModelScope.launch {
+            discardTrackRecording()
+            if (shouldExit) _exitAppEvent.emit(Unit)
+        }
     }
 
     fun cancelTrackStopDialog() {
         _stopDialogRequestedAt.value = null
+        _pendingExitOnStop.value = false
     }
 
     fun setTrackPreset(preset: TrackRecordingPreset) {
@@ -1426,12 +1453,14 @@ class MainViewModel(
         trackState: TrackRecordingState,
         durationSeconds: Long,
         showStopDialog: Boolean,
+        speedMps: Float?,
     ): TrackRecordingSheetUiState = TrackRecordingSheetUiState(
         isVisible            = form.isSheetVisible,
         isCollapsed          = form.isCollapsed,
         settings             = form.settings,
         recordingState       = trackState,
         durationSeconds      = durationSeconds,
+        speedMps             = speedMps,
         showStopDialog       = showStopDialog,
         onClose              = ::closeTrackRecordingSheetVisibility,
         onToggleCollapsed    = ::toggleTrackSheetCollapsed,

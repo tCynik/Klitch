@@ -10,6 +10,7 @@ data class TrackRecordingSheetUiState(
     val settings: TrackRecordingSettings = TrackRecordingSettings(),
     val recordingState: TrackRecordingState = TrackRecordingState.Idle,
     val durationSeconds: Long = 0L,
+    val speedMps: Float? = null,
     val showStopDialog: Boolean = false,
     // Callbacks
     val onClose: () -> Unit = {},

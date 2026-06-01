@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -90,16 +91,6 @@ fun TrackRecordingSheet(
 ) {
     BackHandler(enabled = state.isVisible, onBack = state.onClose)
 
-    val rs = state.recordingState
-    if (state.showStopDialog && rs is TrackRecordingState.Recording) {
-        TrackStopConfirmDialog(
-            initialName = rs.name,
-            onSave      = state.onStopDialogSave,
-            onDiscard   = state.onStopDialogDiscard,
-            onCancel    = state.onStopDialogCancel,
-        )
-    }
-
     AnimatedVisibility(
         visible = state.isVisible,
         modifier = modifier,
@@ -137,6 +128,7 @@ fun TrackRecordingSheet(
                             TrackStatsSection(
                                 recordingState = rs,
                                 durationSeconds = state.durationSeconds,
+                                speedMps = state.speedMps,
                             )
                             HorizontalDivider()
                             TrackActionRow {
@@ -200,16 +192,27 @@ private fun TrackSheetHeader(state: TrackRecordingSheetUiState) {
                 modifier = Modifier.padding(end = 8.dp),
             )
         }
-        Text(
-            text = buildHeaderTitle(state),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.weight(1f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        if (!state.isCollapsed) {
+            Text(
+                text = buildHeaderTitle(state),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        } else {
+            Spacer(Modifier.weight(1f))
+        }
         if (state.isCollapsed && isRecording) {
             Text(
                 text = formatDuration(state.durationSeconds),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                modifier = Modifier.padding(end = 8.dp),
+            )
+            Text(
+                text = formatSpeed(state.speedMps),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
@@ -233,6 +236,7 @@ private fun TrackSheetHeader(state: TrackRecordingSheetUiState) {
 private fun TrackStatsSection(
     recordingState: TrackRecordingState.Recording,
     durationSeconds: Long,
+    speedMps: Float?,
 ) {
     Row(
         modifier = Modifier
@@ -242,6 +246,7 @@ private fun TrackStatsSection(
     ) {
         StatItem(label = "Время",     value = formatDuration(durationSeconds))
         StatItem(label = "Дистанция", value = formatDistance(recordingState.distanceMeters))
+        StatItem(label = "Скорость",  value = formatSpeed(speedMps))
         StatItem(label = "Точки",     value = recordingState.pointCount.toString())
     }
 }
@@ -494,6 +499,12 @@ private fun formatDistance(meters: Double): String = when {
     else             -> "%.0f м".format(meters)
 }
 
+private fun formatSpeed(mps: Float?): String = when {
+    mps == null -> "—"
+    mps >= 1000f / 3.6f -> "%.0f км/ч".format(mps * 3.6f)
+    else -> "%.1f км/ч".format(mps * 3.6f)
+}
+
 private val TrackRecordingPreset.displayName: String get() = when (this) {
     TrackRecordingPreset.WALKING  -> "Пешком"
     TrackRecordingPreset.BICYCLE  -> "Велосипед"
@@ -504,7 +515,7 @@ private val TrackRecordingPreset.displayName: String get() = when (this) {
 }
 
 @Composable
-private fun TrackStopConfirmDialog(
+internal fun TrackStopConfirmDialog(
     initialName: String,
     onSave: (String) -> Unit,
     onDiscard: () -> Unit,
