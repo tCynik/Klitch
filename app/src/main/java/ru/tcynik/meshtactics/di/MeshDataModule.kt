@@ -126,7 +126,7 @@ val meshDataModule = module {
 
     single<RebootStateRepository> { RebootStateRepositoryImpl(get()) }
 
-    single<GeoSendPolicy> { GeoSendPolicyImpl(get()) }
+    single<GeoSendPolicy> { GeoSendPolicyImpl() }
 
     single<LastConnectedDeviceRepository> { LastConnectedDeviceRepositoryImpl(get()) }
     single { GetLastConnectedDeviceUseCase(get()) }
@@ -139,7 +139,7 @@ val meshDataModule = module {
     single { DisconnectFromMeshUseCase(get()) }
     single { ObserveMeshNodesUseCase(get()) }
     single { ObserveOurNodeUseCase(get()) }
-    single { ObserveGeoNodesUseCase(get()) }
+    single { ObserveGeoNodesUseCase(get(), get(), get()) }
     single { ObserveMessagesUseCase(get()) }
     single { SendMeshMessageUseCase(get()) }
     single { ObservePacketLogUseCase(get()) }

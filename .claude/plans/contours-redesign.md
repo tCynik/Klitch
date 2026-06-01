@@ -357,23 +357,7 @@ File: `domain/mesh/usecase/ObserveGeoNodesUseCase.kt`
 Same filter logic as Step 3.20. Add same constructor deps.
 
 #### Step 3.22 — `MeshToChatAdapter` — Emergency silent mode
-File: `data/chat/adapter/MeshToChatAdapter.kt`
-
-Incoming message on slot 1 (Emergency), SOS inactive:
-- **Store in DB** — do not drop (preserves real distress messages for future signal-tag processing)
-- **Skip unread counter increment**
-- **Skip notification trigger**
-- Mark stored message with `isSilent = true` (add field to chat message model if absent)
-
-Locate where unread counter and notification are triggered after message storage. Add SOS-mode gate:
-```kotlin
-val isSilentEmergency = slot == 1 && !sosMode
-if (!isSilentEmergency) {
-    incrementUnread(contactKey)
-    triggerNotification(...)
-}
-```
-Add `ContourRepository` to constructor for `observeSosMode()`.
+⚠️ **DEFERRED** — Incoming message unread counter increment happens in `mesh/PacketRepositoryImpl` (mesh library layer), not in `MeshToChatAdapter`. `MeshToChatAdapter` only observes already-stored messages. Modifying the mesh library for SOS gating requires a separate task. The message is still stored (correct per spec); only unread counter and notification suppression are missing.
 
 #### Step 3.23 — DI updates for isolation steps
 File: `di/UserSettingsModule.kt` (or relevant DI modules)
@@ -567,3 +551,4 @@ DataStore. Resolve in Step 3.16b.
 - 2026-05-29: Phase 1 complete — call-site audit done; `isConnected` param removed; `NodeProvisioningUseCase` added to scope; slot-clearing approach confirmed
 - 2026-06-01: expanded scope — isolation guarantees: node map filter, Emergency silent mode, IngestReceivedGeoMarksUseCase routing fix, GeoSendPolicy bug correction; Steps 3.18–3.23 added; Phase 4 extended
 - 2026-06-01: заменён Step 3.24 (runtime debug override) на процессные гейты Phase 3.5 / Phase 4.5 — временная замена DefaultContour-констант перед тестом, обязательный возврат после подтверждения тестировщика
+- 2026-06-01: Phase 3 завершена (сборка OK). Исправлены баги: 3.4 GeoSendPolicyImpl (flowOf(true)), 3.18 IngestReceivedGeoMarksUseCase (slot 0→primary, slot 1→Emergency+SOS gate). Добавлены: 3.19 MeshNodeModel.receivedOnSlot, 3.20/3.21 контур-фильтры в ObserveNodeMarkersUseCase/ObserveGeoNodesUseCase. Step 3.22 deferred (unread gate в mesh-библиотеке, вне scope).
