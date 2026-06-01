@@ -226,16 +226,6 @@ class NetworkSettingsViewModel(
         }
     }
 
-    fun onAddChannelClick() {
-        _uiState.update { state ->
-            val channels = state.settings.channels
-            if (channels.size >= 8) return@update state
-            val nextIndex = channels.size
-            val newChannel = ChannelConfigUi(index = nextIndex, channelName = "", pskBase64 = "")
-            state.copy(settings = state.settings.copy(channels = channels + newChannel))
-        }
-    }
-
     fun onProvideLocationToggle(enabled: Boolean) {
         val nodeNum = myNodeNumFlow.value ?: return
         setProvideLocation(nodeNum, enabled)

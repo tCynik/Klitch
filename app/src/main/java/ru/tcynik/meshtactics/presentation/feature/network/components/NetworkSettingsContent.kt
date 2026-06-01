@@ -21,7 +21,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -46,7 +45,6 @@ fun NetworkSettingsContent(
     onShortNameChange: (String) -> Unit = {},
     onChannelNameChange: (index: Int, value: String) -> Unit = { _, _ -> },
     onChannelPskChange: (index: Int, value: String) -> Unit = { _, _ -> },
-    onAddChannelClick: () -> Unit = {},
     onProvideLocationToggle: (Boolean) -> Unit = {},
     onGpsModeChange: (GpsModeUi) -> Unit = {},
     onRemoveFixedPosition: () -> Unit = {},
@@ -94,22 +92,13 @@ fun NetworkSettingsContent(
                 }
             }
 
-            items(state.channels, key = { "ch_${it.index}" }) { channel ->
-                ChannelConfigCard(
-                    config = channel,
-                    onNameChange = { onChannelNameChange(channel.index, it) },
-                    onPskChange = { onChannelPskChange(channel.index, it) },
-                )
-            }
-
-            if (state.deviceConfig != null && state.channels.size < 8) {
-                item(key = "add_channel") {
-                    OutlinedButton(
-                        onClick = onAddChannelClick,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("+ Добавить канал")
-                    }
+            if (state.channels.isNotEmpty()) {
+                item(key = "channels") {
+                    ChannelsCard(
+                        channels = state.channels,
+                        onNameChange = onChannelNameChange,
+                        onPskChange = onChannelPskChange,
+                    )
                 }
             }
 
@@ -189,38 +178,49 @@ private fun DeviceConfigCard(
 }
 
 @Composable
-private fun ChannelConfigCard(
-    config: ChannelConfigUi,
-    onNameChange: (String) -> Unit,
-    onPskChange: (String) -> Unit,
+private fun ChannelsCard(
+    channels: List<ChannelConfigUi>,
+    onNameChange: (index: Int, value: String) -> Unit,
+    onPskChange: (index: Int, value: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Channel ${config.index}",
+                text = "Channels",
                 style = MaterialTheme.typography.titleSmall,
             )
-            Spacer(modifier = Modifier.height(12.dp))
-            ConfigRow(
-                label = "Name",
-                value = config.channelName,
-                isEditing = true,
-                onValueChange = onNameChange,
-            )
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-            OutlinedTextField(
-                value = config.pskBase64,
-                onValueChange = onPskChange,
-                label = { Text("PSK (Base64)") },
-                placeholder = { Text("empty = no encryption") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                isError = config.pskError != null,
-                supportingText = config.pskError?.let { err ->
-                    { Text(err, color = MaterialTheme.colorScheme.error) }
-                },
-            )
+            channels.forEachIndexed { i, channel ->
+                Spacer(modifier = Modifier.height(12.dp))
+                if (i > 0) {
+                    HorizontalDivider(modifier = Modifier.padding(bottom = 12.dp))
+                }
+                Text(
+                    text = "Channel ${channel.index}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                ConfigRow(
+                    label = "Name",
+                    value = channel.channelName,
+                    isEditing = true,
+                    onValueChange = { onNameChange(channel.index, it) },
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = channel.pskBase64,
+                    onValueChange = { onPskChange(channel.index, it) },
+                    label = { Text("PSK (Base64)") },
+                    placeholder = { Text("empty = no encryption") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    isError = channel.pskError != null,
+                    supportingText = channel.pskError?.let { err ->
+                        { Text(err, color = MaterialTheme.colorScheme.error) }
+                    },
+                )
+            }
         }
     }
 }
