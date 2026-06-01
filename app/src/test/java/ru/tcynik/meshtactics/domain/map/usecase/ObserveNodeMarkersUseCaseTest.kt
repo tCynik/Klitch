@@ -3,14 +3,25 @@ package ru.tcynik.meshtactics.domain.map.usecase
 import app.cash.turbine.test
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
+import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
+import ru.tcynik.meshtactics.domain.channel.model.ChannelSlotMaps
+import ru.tcynik.meshtactics.domain.channel.model.Contour
+import ru.tcynik.meshtactics.domain.channel.model.ContourHash
+import ru.tcynik.meshtactics.domain.channel.model.ContourId
+import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
+import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
+import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
+import java.util.Base64
 import ru.tcynik.meshtactics.domain.mesh.model.MeshNodeModel
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshNetworkRepository
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
@@ -18,7 +29,16 @@ import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 class ObserveNodeMarkersUseCaseTest {
 
     private val repository: MeshNetworkRepository = mockk()
-    private val useCase = ObserveNodeMarkersUseCase(repository)
+    private val contourRepository: ContourRepository = mockk()
+    private val channelSlotResolver: ChannelSlotResolver = mockk()
+    private val useCase = ObserveNodeMarkersUseCase(repository, contourRepository, channelSlotResolver)
+
+    @Before
+    fun setUp() {
+        every { contourRepository.observeContours() } returns flowOf(emptyList())
+        every { contourRepository.observeSosMode() } returns flowOf(false)
+        every { channelSlotResolver.mapsFlow } returns MutableStateFlow(ChannelSlotMaps())
+    }
 
     // ── Filtering ────────────────────────────────────────────────────────────
 
@@ -230,6 +250,97 @@ class ObserveNodeMarkersUseCaseTest {
         }
     }
 
+    // ── Contour filter ───────────────────────────────────────────────────────
+
+    @Test
+    fun `node receivedOnSlot=null — always included (fallback)`() = runTest {
+        val peer = node(nodeId = "A", receivedOnSlot = null)
+        every { repository.observeNodes() } returns flowOf(listOf(peer))
+        every { repository.observeOurNode() } returns flowOf(null)
+        every { contourRepository.observeSosMode() } returns flowOf(false)
+
+        useCase(NoParams).test {
+            assertEquals(1, awaitItem().size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `node receivedOnSlot=1 SOS inactive — excluded`() = runTest {
+        val peer = node(nodeId = "A", receivedOnSlot = 1)
+        every { repository.observeNodes() } returns flowOf(listOf(peer))
+        every { repository.observeOurNode() } returns flowOf(null)
+        every { contourRepository.observeSosMode() } returns flowOf(false)
+
+        useCase(NoParams).test {
+            assertTrue(awaitItem().isEmpty())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `node receivedOnSlot=1 SOS active — included`() = runTest {
+        val peer = node(nodeId = "A", receivedOnSlot = 1)
+        every { repository.observeNodes() } returns flowOf(listOf(peer))
+        every { repository.observeOurNode() } returns flowOf(null)
+        every { contourRepository.observeSosMode() } returns flowOf(true)
+
+        useCase(NoParams).test {
+            assertEquals(1, awaitItem().size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `node receivedOnSlot=N inactive contour — excluded`() = runTest {
+        val psk = byteArrayOf(0x01)
+        val hash = ContourHash.compute("test", psk)
+        val inactiveContour = Contour(
+            id = ContourId("ccc"),
+            name = "test",
+            description = null,
+            expiration = null,
+            exclusivityTime = null,
+            isActive = false,
+            transport = ContourTransport(MeshtasticChannel(Base64.getEncoder().encodeToString(psk), hash)),
+        )
+        val maps = ChannelSlotMaps(slotToHash = mapOf(3 to hash), hashToSlot = mapOf(hash to 3))
+        every { repository.observeNodes() } returns flowOf(listOf(node(nodeId = "A", receivedOnSlot = 3)))
+        every { repository.observeOurNode() } returns flowOf(null)
+        every { contourRepository.observeContours() } returns flowOf(listOf(inactiveContour))
+        every { channelSlotResolver.mapsFlow } returns MutableStateFlow(maps)
+
+        useCase(NoParams).test {
+            assertTrue(awaitItem().isEmpty())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `node receivedOnSlot=N active contour — included`() = runTest {
+        val psk = byteArrayOf(0x01)
+        val hash = ContourHash.compute("test", psk)
+        val activeContour = Contour(
+            id = ContourId("ccc"),
+            name = "test",
+            description = null,
+            expiration = null,
+            exclusivityTime = null,
+            isActive = true,
+            transport = ContourTransport(MeshtasticChannel(Base64.getEncoder().encodeToString(psk), hash)),
+        )
+        val maps = ChannelSlotMaps(slotToHash = mapOf(3 to hash), hashToSlot = mapOf(hash to 3))
+        every { repository.observeNodes() } returns flowOf(listOf(node(nodeId = "A", receivedOnSlot = 3)))
+        every { repository.observeOurNode() } returns flowOf(null)
+        every { contourRepository.observeContours() } returns flowOf(listOf(activeContour))
+        every { channelSlotResolver.mapsFlow } returns MutableStateFlow(maps)
+
+        useCase(NoParams).test {
+            assertEquals(1, awaitItem().size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private fun node(
@@ -243,6 +354,7 @@ class ObserveNodeMarkersUseCaseTest {
         groundSpeed: Int = 0,
         groundTrack: Int = 0,
         longName: String = nodeId,
+        receivedOnSlot: Int? = null,
     ) = MeshNodeModel(
         num = 0,
         nodeId = nodeId,
@@ -264,5 +376,6 @@ class ObserveNodeMarkersUseCaseTest {
         isOnline = isOnline,
         groundSpeed = groundSpeed,
         groundTrack = groundTrack,
+        receivedOnSlot = receivedOnSlot,
     )
 }

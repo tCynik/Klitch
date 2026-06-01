@@ -19,6 +19,7 @@ import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.ChannelSlotMaps
 import ru.tcynik.meshtactics.domain.channel.model.Contour
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
+import ru.tcynik.meshtactics.domain.channel.model.DefaultActiveContour
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
@@ -57,8 +58,8 @@ class IngestReceivedGeoMarksUseCaseTest {
         transport = ContourTransport(meshtastic = MeshtasticChannel(psk = pskBase64, channelHash = hash)),
     )
     private val resolvedMaps = ChannelSlotMaps(
-        slotToHash = mapOf(1 to hash),
-        hashToSlot = mapOf(hash to 1),
+        slotToHash = mapOf(2 to hash),
+        hashToSlot = mapOf(hash to 2),
     )
 
     private val senderNodeNum = 0x00ab_c123
@@ -73,11 +74,11 @@ class IngestReceivedGeoMarksUseCaseTest {
         expiresAt = null,
         isSelf = false,
     )
-    // MT1 waypoint on slot 1 (slot 0 is reserved for Emergency)
+    // MT1 waypoint on slot 2 (slot 0 = Primary, slot 1 = Emergency)
     private val packet = adapter.encode(mt1SourceMark, senderNodeNum, mt1SourceMark.authorNodeId, fixtureNowSeconds)
         .apply {
             from = mt1SourceMark.authorNodeId
-            channel = 1
+            channel = 2
             id = 99
             time = fixtureNowSeconds * 1_000
         }
@@ -164,7 +165,9 @@ class IngestReceivedGeoMarksUseCaseTest {
 
     @Test
     fun `adapter decode returns null — dropped`() = runTest {
-        val nonMt1 = DataPacket(bytes = null, dataType = 0, channel = 1)
+        val nonMt1 = DataPacket(bytes = null, dataType = 0, channel = 2).apply {
+            from = "!abc12345"
+        }
         setupMocks(packets = listOf(nonMt1), maps = resolvedMaps)
 
         useCase.observe().test {
@@ -186,7 +189,7 @@ class IngestReceivedGeoMarksUseCaseTest {
             fixtureNowSeconds,
         ).apply {
             from = mt1SourceMark.authorNodeId
-            channel = 1
+            channel = 2
             id = 100
         }
         setupMocks(packets = listOf(expiredPacket), maps = resolvedMaps)
@@ -208,7 +211,7 @@ class IngestReceivedGeoMarksUseCaseTest {
             fixtureNowSeconds,
         ).apply {
             from = mt1SourceMark.authorNodeId
-            channel = 1
+            channel = 2
             id = 100
             time = fixtureNowSeconds * 1_000
         }
@@ -250,7 +253,12 @@ class IngestReceivedGeoMarksUseCaseTest {
                 time = fixtureNowSeconds * 1_000
             }
         val activeEmergency = makeEmergencyContour(isActive = true)
-        setupMocks(packets = listOf(slot0Packet), contours = listOf(activeEmergency), maps = resolvedMaps)
+        setupMocks(
+            packets = listOf(slot0Packet),
+            contours = listOf(activeEmergency),
+            maps = resolvedMaps,
+            primaryId = DefaultContour.ID,
+        )
 
         useCase.observe().test {
             awaitItem()
@@ -265,7 +273,12 @@ class IngestReceivedGeoMarksUseCaseTest {
     fun `slot 0 Emergency isActive=false — packet dropped`() = runTest {
         val slot0Packet = DataPacket(bytes = null, dataType = 0, channel = 0)
         val inactiveEmergency = makeEmergencyContour(isActive = false)
-        setupMocks(packets = listOf(slot0Packet), contours = listOf(inactiveEmergency), maps = resolvedMaps)
+        setupMocks(
+            packets = listOf(slot0Packet),
+            contours = listOf(inactiveEmergency),
+            maps = resolvedMaps,
+            primaryId = DefaultContour.ID,
+        )
         useCase.observe().test {
             awaitItem()
             cancelAndIgnoreRemainingEvents()
@@ -356,9 +369,13 @@ class IngestReceivedGeoMarksUseCaseTest {
         packets: List<DataPacket>,
         contours: List<Contour> = listOf(contour),
         maps: ChannelSlotMaps,
+        sosMode: Boolean = false,
+        primaryId: ContourId = DefaultActiveContour.ID,
     ) {
         every { packetRepository.getWaypoints() } returns flowOf(packets)
         every { channelRepository.observeContours() } returns flowOf(contours)
+        every { channelRepository.observeSosMode() } returns flowOf(sosMode)
+        coEvery { channelRepository.getPrimaryContourId() } returns primaryId
         every { channelSlotResolver.mapsFlow } returns MutableStateFlow(maps)
     }
 }
