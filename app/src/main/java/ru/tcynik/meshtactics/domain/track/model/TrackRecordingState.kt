@@ -11,5 +11,6 @@ sealed interface TrackRecordingState {
         val settings: TrackRecordingSettings,
         val distanceMeters: Double = 0.0,
         val pointCount: Int = 0,
+        val isPaused: Boolean = false,
     ) : TrackRecordingState
 }

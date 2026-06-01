@@ -112,6 +112,7 @@ class GpsService : Service() {
             if (isFirst || timeTriggered || distTriggered) {
                 val currentState = trackRecordingRepository.state.value
                 if (currentState !is TrackRecordingState.Recording) return@collectLatest
+                if (currentState.isPaused) return@collectLatest
                 trackRecordingRepository.addPoint(
                     TrackPoint(
                         trackId = currentState.trackId,

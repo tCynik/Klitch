@@ -128,13 +128,24 @@ fun TrackRecordingSheet(
                             )
                             HorizontalDivider()
                             TrackActionRow {
+                                if (rs.isPaused) {
+                                    OutlinedButton(
+                                        onClick = state.onResume,
+                                        modifier = Modifier.padding(end = 8.dp),
+                                    ) { Text("Продолжить") }
+                                } else {
+                                    OutlinedButton(
+                                        onClick = state.onPause,
+                                        modifier = Modifier.padding(end = 8.dp),
+                                    ) { Text("Пауза") }
+                                }
                                 Button(
                                     onClick = state.onStop,
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.error,
                                         contentColor = MaterialTheme.colorScheme.onError,
                                     ),
-                                ) { Text("Остановить запись") }
+                                ) { Text("Остановить") }
                             }
                         } else {
                             TrackSettingsSection(state = state)
@@ -152,7 +163,8 @@ fun TrackRecordingSheet(
 
 @Composable
 private fun TrackSheetHeader(state: TrackRecordingSheetUiState) {
-    val isRecording = state.recordingState is TrackRecordingState.Recording
+    val rs = state.recordingState
+    val isRecording = rs is TrackRecordingState.Recording
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -166,11 +178,12 @@ private fun TrackSheetHeader(state: TrackRecordingSheetUiState) {
                 .padding(start = 12.dp, end = 8.dp)
                 .size(24.dp),
         )
-        if (isRecording) {
+        if (rs is TrackRecordingState.Recording) {
             Text(
-                text = "● REC",
+                text = if (rs.isPaused) "⏸ ПАУЗА" else "● REC",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.error,
+                color = if (rs.isPaused) MaterialTheme.colorScheme.onSurfaceVariant
+                        else MaterialTheme.colorScheme.error,
                 maxLines = 1,
                 modifier = Modifier.padding(end = 8.dp),
             )

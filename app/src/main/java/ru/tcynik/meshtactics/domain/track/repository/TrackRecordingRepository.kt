@@ -9,5 +9,7 @@ interface TrackRecordingRepository {
     val state: StateFlow<TrackRecordingState>
     suspend fun start(settings: TrackRecordingSettings)
     suspend fun addPoint(point: TrackPoint)
+    suspend fun pause()
+    suspend fun resume()
     suspend fun stop()
 }

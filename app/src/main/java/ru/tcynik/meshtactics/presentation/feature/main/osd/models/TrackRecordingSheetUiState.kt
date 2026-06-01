@@ -14,6 +14,8 @@ data class TrackRecordingSheetUiState(
     val onClose: () -> Unit = {},
     val onToggleCollapsed: () -> Unit = {},
     val onStart: () -> Unit = {},
+    val onPause: () -> Unit = {},
+    val onResume: () -> Unit = {},
     val onStop: () -> Unit = {},
     val onPresetSelected: (TrackRecordingPreset) -> Unit = {},
     val onIntervalSelected: (Int?) -> Unit = {},

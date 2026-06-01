@@ -109,6 +109,8 @@ import ru.tcynik.meshtactics.data.track.datasource.TrackSettingsDataSource
 import ru.tcynik.meshtactics.domain.track.model.TrackRecordingPreset
 import ru.tcynik.meshtactics.domain.track.model.TrackRecordingState
 import ru.tcynik.meshtactics.domain.track.usecase.ObserveTrackRecordingStateUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.PauseTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ResumeTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.StartTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.StopTrackRecordingUseCase
 import java.util.UUID
@@ -162,6 +164,8 @@ class MainViewModel(
     private val geoMarkPrefsRepository: GeoMarkPreferencesRepository,
     private val observeTrackRecordingState: ObserveTrackRecordingStateUseCase,
     private val startTrackRecording: StartTrackRecordingUseCase,
+    private val pauseTrackRecording: PauseTrackRecordingUseCase,
+    private val resumeTrackRecording: ResumeTrackRecordingUseCase,
     private val stopTrackRecording: StopTrackRecordingUseCase,
     private val trackSettingsDataSource: TrackSettingsDataSource,
 ) : ViewModel() {
@@ -570,6 +574,14 @@ class MainViewModel(
             _trackFormState.update { it.copy(settings = s.copy(nameCounter = nextCounter)) }
             viewModelScope.launch { persistTrackSettings(_trackFormState.value.settings) }
         }
+    }
+
+    fun pauseTrackRecordingAction() {
+        viewModelScope.launch { pauseTrackRecording() }
+    }
+
+    fun resumeTrackRecordingAction() {
+        viewModelScope.launch { resumeTrackRecording() }
     }
 
     fun stopTrackRecordingAction() {
@@ -1401,6 +1413,8 @@ class MainViewModel(
         onClose              = ::closeTrackRecordingSheetVisibility,
         onToggleCollapsed    = ::toggleTrackSheetCollapsed,
         onStart              = ::startTrackRecordingAction,
+        onPause              = ::pauseTrackRecordingAction,
+        onResume             = ::resumeTrackRecordingAction,
         onStop               = ::stopTrackRecordingAction,
         onPresetSelected     = ::setTrackPreset,
         onIntervalSelected   = ::setTrackInterval,

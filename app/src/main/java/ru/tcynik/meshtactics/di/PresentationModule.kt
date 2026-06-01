@@ -65,6 +65,8 @@ import ru.tcynik.meshtactics.domain.settings.usecase.SetTileCacheModeUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.ObserveTrackRecordingStateUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.PauseTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ResumeTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.StartTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.StopTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTracksUseCase
@@ -116,6 +118,8 @@ val presentationModule = module {
             geoMarkPrefsRepository = get<GeoMarkPreferencesRepository>(),
             observeTrackRecordingState = get<ObserveTrackRecordingStateUseCase>(),
             startTrackRecording = get<StartTrackRecordingUseCase>(),
+            pauseTrackRecording = get<PauseTrackRecordingUseCase>(),
+            resumeTrackRecording = get<ResumeTrackRecordingUseCase>(),
             stopTrackRecording = get<StopTrackRecordingUseCase>(),
             trackSettingsDataSource = get<TrackSettingsDataSource>(),
         )
