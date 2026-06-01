@@ -355,4 +355,10 @@ node.receivedOnSlot
 // TODO(contour/emergency): signal-tag в дистресс-сообщениях Emergency
 //   Формат: TBD (префикс или поле DataPacket)
 //   Использование: при SOS inactive — Emergency-сообщение с tag → уведомить + показать ноду на карте
+
+// NOTE(contour/testing): SOS-тест на реальных девайсах = спам на публичный LongFast
+//   Протокол: перед тестом временно изменить DefaultContour.CHANNEL_NAME + OPEN_PSK
+//   на изолированные тестовые значения (см. Phase 3.5 в плане contours-redesign.md).
+//   После подтверждения тестировщика — обязательно восстановить дефолты (Phase 4.5).
+//   Тестовые значения НЕ коммитятся.
 ```

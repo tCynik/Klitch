@@ -1,7 +1,7 @@
 # Plan: Contours Redesign — Primary Mechanic + Exclusive Mode
 
-**Date**: 2026-05-29
-**Status**: Approved
+**Date**: 2026-05-29 (updated 2026-06-01)
+**Status**: Approved — expanded scope (isolation guarantees)
 
 ## Summary
 
@@ -9,6 +9,10 @@ Reworks the Contour feature to introduce a **Primary Contour** concept (exactly 
 slot 0), decouple Emergency's `isActive` from SOS mode, and add an **Exclusive Contour** mechanic
 that forces all other contours inactive and clears foreign node slots. Also updates the UI from
 checkbox toggles to a radio-button Primary selector with a per-contour dropdown menu.
+
+**Expanded scope (2026-06-01):** Full group isolation guarantees — inactive contours hide node
+markers on map, block incoming geo/chat, prevent position leak. Emergency operates in silent mode
+outside SOS (store-only, no notifications, no map markers).
 
 Design source: `.claude/docs/contours.md`
 
@@ -44,11 +48,24 @@ Design source: `.claude/docs/contours.md`
 - Tests: update broken unit tests; add new tests for `SetPrimaryContourUseCase`,
   `ActivateExclusiveContourUseCase`, revised `TriggerEmergencyUseCase/CancelEmergencyUseCase`
 
+**New in scope (isolation):**
+- `MeshNodeModel.receivedOnSlot: Int?` + tracking via incoming position packets
+- `ObserveNodeMarkersUseCase` — contour filter by slot + SOS mode
+- `ObserveGeoNodesUseCase` — same filter
+- `IngestReceivedGeoMarksUseCase` — fix Emergency routing (slot 1, not slot 0); SOS gate
+- `MeshToChatAdapter` — Emergency silent mode (no notification, no unread counter) outside SOS
+- `GeoSendPolicyImpl` — fix inverted logic (Step 3.4 correction)
+
+**Testing protocol (не код, процесс):**
+- Phase 3.5: перед ручным тестом — временная замена констант Emergency-канала в `DefaultContour.kt`
+- Phase 4.5: после подтверждения тестировщика — возврат констант к дефолту; план не закрывается без этого шага
+
 **Out of scope:**
 - `ActivateExclusiveContourUseCase` UI trigger (deferred to next task)
 - Custom contour creation (waiting for QR/import sharing)
 - No-free-slot UI notification
 - `exclusivityTime` expiry logic in UI
+- signal-tag parsing (future)
 
 ---
 
@@ -193,9 +210,11 @@ File: `data/channel/repository/ContourRepositoryImpl.kt`
 File: `data/channel/repository/FakeContourRepository.kt`
 - Implement all new interface methods with in-memory state (for tests)
 
-#### Step 3.4 — `GeoSendPolicyImpl`
+#### Step 3.4 — `GeoSendPolicyImpl` ⚠️ CORRECTION
 File: `data/mesh/GeoSendPolicyImpl.kt`
-- `observeAllowed()` = `contourRepository.observeSosMode().map { !it }`
+- ~~`observeAllowed()` = `contourRepository.observeSosMode().map { !it }`~~ — **BUG**: инвертирована логика, блокирует гео при активном SOS
+- Correct: `observeAllowed() = flowOf(true)`
+- Rationale: гео всегда отправляется на slot 0 (Primary). В SOS-режиме Primary = Emergency → гео на LongFast автоматически. Блокировка по SOS-флагу не нужна и вредна.
 
 #### Step 3.5 — `ObserveEmergencyModeUseCase`
 File: `domain/emergency/usecase/ObserveEmergencyModeUseCase.kt`
@@ -281,7 +300,113 @@ File: `di/UserSettingsModule.kt`
 - Update `TriggerEmergencyUseCase` binding (new params)
 - Update `CancelEmergencyUseCase` binding (new params)
 
+#### Step 3.18 — `IngestReceivedGeoMarksUseCase` (routing fix)
+File: `domain/marker/usecase/IngestReceivedGeoMarksUseCase.kt`
+
+Current code incorrectly maps **slot 0 → Emergency**. After redesign: slot 0 = Primary, slot 1 = Emergency.
+
+New routing:
+```
+packet.channel
+  == 0 → primaryContourId (read from ContourRepository.getPrimaryContourId())
+          find contour → isActive = true by Primary invariant → process
+  == 1 → Emergency
+          SOS active  → process (geo saved + displayed)
+          SOS inactive → drop (geo from LongFast ignored outside SOS)
+  == N → existing: slotToHash[N] → contour → takeIf { isActive }
+```
+Add `ContourRepository` to constructor if not already present.
+
+#### Step 3.19 — `MeshNodeModel` + node slot tracking
+File: `domain/mesh/model/MeshNodeModel.kt`
+```kotlin
+data class MeshNodeModel(
+    // ... existing fields ...
+    val receivedOnSlot: Int? = null,
+)
+```
+
+**Implementation note — source of `receivedOnSlot`:**
+`NodeMapper.toMeshNodeModel()` maps from `Node` (BLE library model), which does **not** carry packet channel info. The channel is available only in `MeshPacket.channel` at receive time.
+
+Required additional infrastructure in `MeshNetworkRepositoryImpl` (or new helper):
+- Subscribe to incoming position `MeshPacket` stream from mesh layer
+- Maintain `Map<Int, Int>` (`nodeNum → lastPositionSlot`)
+- When building `MeshNodeModel`: look up `lastPositionSlot[node.num]`
+
+Confirm with `/architect` whether the mesh layer exposes a raw packet stream or if a hook in the existing position-packet processing path is needed.
+
+#### Step 3.20 — `ObserveNodeMarkersUseCase` (contour filter)
+File: `domain/map/usecase/ObserveNodeMarkersUseCase.kt`
+
+Add to constructor: `ContourRepository`, `ChannelSlotResolver`.
+
+Filter nodes after existing age/validity checks:
+```
+node.receivedOnSlot
+  == null → show (fallback until Step 3.19 fully implemented)
+  == 0    → show (Primary, always active)
+  == 1    → show only if sosMode == true
+  == N    → slotToHash[N] → find contour → show if isActive; else hide
+```
+Combine with `observeContours()` + `observeSosMode()` reactive flows so filter re-evaluates on contour activation change.
+
+#### Step 3.21 — `ObserveGeoNodesUseCase` (contour filter)
+File: `domain/mesh/usecase/ObserveGeoNodesUseCase.kt`
+
+Same filter logic as Step 3.20. Add same constructor deps.
+
+#### Step 3.22 — `MeshToChatAdapter` — Emergency silent mode
+File: `data/chat/adapter/MeshToChatAdapter.kt`
+
+Incoming message on slot 1 (Emergency), SOS inactive:
+- **Store in DB** — do not drop (preserves real distress messages for future signal-tag processing)
+- **Skip unread counter increment**
+- **Skip notification trigger**
+- Mark stored message with `isSilent = true` (add field to chat message model if absent)
+
+Locate where unread counter and notification are triggered after message storage. Add SOS-mode gate:
+```kotlin
+val isSilentEmergency = slot == 1 && !sosMode
+if (!isSilentEmergency) {
+    incrementUnread(contactKey)
+    triggerNotification(...)
+}
+```
+Add `ContourRepository` to constructor for `observeSosMode()`.
+
+#### Step 3.23 — DI updates for isolation steps
+File: `di/UserSettingsModule.kt` (or relevant DI modules)
+- `ObserveNodeMarkersUseCase`: add `ContourRepository`, `ChannelSlotResolver` to binding
+- `ObserveGeoNodesUseCase`: same
+- `MeshToChatAdapter`: add `ContourRepository` to binding
+- `IngestReceivedGeoMarksUseCase`: add `ContourRepository` to binding if not present
+
 After all steps: `/simplify` on changed files.
+
+---
+
+### Phase 3.5 — Pre-test: изоляция Emergency-канала
+
+**Цель:** предотвратить спам в публичную LongFast-сеть при ручном SOS-тестировании на реальных девайсах.
+
+**⚠️ ОБЯЗАТЕЛЬНЫЙ ШАГ перед любым ручным тестом. Phase 4 не начинается без выполнения этого шага.**
+
+**Действие:** временно изменить константы в `DefaultContour.kt`:
+
+```kotlin
+// ВРЕМЕННО — только для тестирования, НЕ КОММИТИТЬ
+const val CHANNEL_NAME = "MTTestSOS"   // вместо "LongFast"
+const val OPEN_PSK     = "<согласованный тестовый PSK base64>"  // вместо "AQ=="
+```
+
+Тестовый PSK согласовывается командой заранее и одинаков на всех тестовых девайсах.
+Собрать и установить APK на все тестовые устройства.
+
+**Проверка перед тестом:**
+- [ ] `DefaultContour.CHANNEL_NAME != "LongFast"` (не дефолт)
+- [ ] Все тестовые устройства установили одинаковый APK
+- [ ] `git diff DefaultContour.kt` показывает изменённые константы (не закоммичено)
 
 ---
 
@@ -302,8 +427,54 @@ After all steps: `/simplify` on changed files.
   → no-op; regular id → updates DB
 - `SyncContoursOnConnectUseCase` (revised) — unit test: slot 0 = primary; slot 1 = Emergency;
   free slots start from 2; SOS active → Emergency on slot 0, others from slot 1
+
+**Isolation (new):**
+- `GeoSendPolicyImpl` — unit test: `observeAllowed()` emits `true` always (not gated by SOS flag)
+- `IngestReceivedGeoMarksUseCase` (routing fix) — unit test:
+  - slot 0 packet → resolves to primaryContour → geo accepted
+  - slot 1 + SOS inactive → geo dropped
+  - slot 1 + SOS active → geo accepted
+  - slot N + inactive contour → dropped
+- `ObserveNodeMarkersUseCase` — unit test:
+  - node with `receivedOnSlot=1`, SOS inactive → excluded
+  - node with `receivedOnSlot=1`, SOS active → included
+  - node with `receivedOnSlot=N`, contour inactive → excluded
+  - node with `receivedOnSlot=null` → included (fallback)
+- `ObserveGeoNodesUseCase` — same filter cases
+- `MeshToChatAdapter` silent mode — unit test:
+  - slot 1 message + SOS inactive → stored, no notification, no unread increment
+  - slot 1 message + SOS active → stored + notification + unread increment
+
 **Skill:** `/tester` for scaffolding; direct coding for implementation
 **Output:** passing test suite
+
+---
+
+### Phase 4.5 — Post-test: восстановление дефолтных значений
+
+**Цель:** гарантировать, что production-код использует официальные Emergency-константы.
+
+**⚠️ ОБЯЗАТЕЛЬНЫЙ ШАГ. Тестировщик подтверждает корректную работу → выполняется этот шаг → только тогда Phase 5.**
+
+**Условие перехода:** тестировщик явно подтвердил:
+- [ ] SOS-активация работает корректно
+- [ ] Гео-трансляция работает корректно
+- [ ] Отмена SOS работает корректно
+- [ ] Silent-режим Emergency вне SOS работает корректно
+
+**Действие:** вернуть константы в `DefaultContour.kt` к дефолту:
+
+```kotlin
+// ВОССТАНОВИТЬ дефолтные значения
+const val CHANNEL_NAME = "LongFast"
+const val OPEN_PSK     = "AQ=="
+```
+
+**Проверка:**
+- [ ] `git diff DefaultContour.kt` — файл не изменён относительно исходного состояния (или показывает только запланированные изменения, не тестовые константы)
+- [ ] `grep "MTTestSOS" DefaultContour.kt` — пусто (тестовые значения не остались)
+
+**План не может быть закрыт без прохождения этого шага.**
 
 ---
 
@@ -338,10 +509,12 @@ stays in domain; presentation doesn't call `ContourRepository` directly.
 ---
 
 ### Phase 7 — Commit Preparation
+**Предусловие:** `grep "MTTestSOS" DefaultContour.kt` — пусто. Тестовые константы не попадают в коммит.
+
 **Tasks:** `git status` → stage by name → propose Russian commit message → wait for confirmation.
 Suggested message:
 ```
-feat(contours): Primary-контур, SOS-отвязка, Exclusive-механика
+feat(contours): Primary-контур, SOS-отвязка, изоляция контуров
 ```
 
 ---
@@ -349,16 +522,23 @@ feat(contours): Primary-контур, SOS-отвязка, Exclusive-механи
 ## Coordination Map
 
 ```
-Phase 0: skip
-Phase 1: direct code review (call-site audit) → [/compact]
-Phase 2: /ui-designer component: ContourItem card + dropdown
-Phase 3: direct coding in order 3.1→3.17 → /simplify
-Phase 4: /tester scaffolding + direct coding
-Phase 5: direct review
-Phase 6: direct skill updates
-Phase 6b: docs & memory
-Phase 7: git stage → commit message → confirmation → git commit
+Phase 0:   skip
+Phase 1:   direct code review (call-site audit) → [/compact]
+Phase 2:   /ui-designer component: ContourItem card + dropdown
+Phase 3:   direct coding in order 3.1→3.23 → /simplify
+Phase 3.5: ⚠️ временная замена DefaultContour-констант → сборка → установка на тест-девайсы
+Phase 4:   /tester scaffolding + direct coding (unit tests)
+Phase 4.5: ⚠️ тестировщик подтверждает OK → восстановить DefaultContour-константы → проверить git diff
+Phase 5:   direct review (Clean Architecture)
+Phase 6:   direct skill updates
+Phase 6b:  docs & memory
+Phase 7:   git stage → commit message → confirmation → git commit
 ```
+
+**Жёсткие гейты:**
+- Phase 4 не начинается без Phase 3.5 (тест-константы установлены)
+- Phase 5 не начинается без Phase 4.5 (константы восстановлены, тестировщик ОК)
+- Phase 7 не выполняется если `DefaultContour.kt` содержит тестовые значения
 
 ---
 
@@ -385,3 +565,5 @@ DataStore. Resolve in Step 3.16b.
 
 - 2026-05-29: created
 - 2026-05-29: Phase 1 complete — call-site audit done; `isConnected` param removed; `NodeProvisioningUseCase` added to scope; slot-clearing approach confirmed
+- 2026-06-01: expanded scope — isolation guarantees: node map filter, Emergency silent mode, IngestReceivedGeoMarksUseCase routing fix, GeoSendPolicy bug correction; Steps 3.18–3.23 added; Phase 4 extended
+- 2026-06-01: заменён Step 3.24 (runtime debug override) на процессные гейты Phase 3.5 / Phase 4.5 — временная замена DefaultContour-констант перед тестом, обязательный возврат после подтверждения тестировщика
