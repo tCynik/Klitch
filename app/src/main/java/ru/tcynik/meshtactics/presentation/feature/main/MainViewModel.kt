@@ -104,6 +104,13 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.models.DraftPointCont
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.ExistingMarkContextMenuEvent
 import ru.tcynik.meshtactics.presentation.feature.marks.GeoMarkTitleFormatter
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MenuDrawerUiState
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.TrackRecordingSheetUiState
+import ru.tcynik.meshtactics.data.track.datasource.TrackSettingsDataSource
+import ru.tcynik.meshtactics.domain.track.model.TrackRecordingPreset
+import ru.tcynik.meshtactics.domain.track.model.TrackRecordingState
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveTrackRecordingStateUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.StartTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.StopTrackRecordingUseCase
 import java.util.UUID
 import kotlin.math.cos
 
@@ -153,10 +160,15 @@ class MainViewModel(
     private val refreshNodePublicKey: RefreshNodePublicKeyUseCase,
     private val observeAppUser: ObserveAppUserUseCase,
     private val geoMarkPrefsRepository: GeoMarkPreferencesRepository,
+    private val observeTrackRecordingState: ObserveTrackRecordingStateUseCase,
+    private val startTrackRecording: StartTrackRecordingUseCase,
+    private val stopTrackRecording: StopTrackRecordingUseCase,
+    private val trackSettingsDataSource: TrackSettingsDataSource,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
     private val _formState = MutableStateFlow(GeoMarksFormState())
+    private val _trackFormState = MutableStateFlow(TrackRecordingFormState())
     private var connectedLabelJob: Job? = null
     private var scanJob: Job? = null
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
@@ -188,12 +200,39 @@ class MainViewModel(
 
     // Portrait HUD state — named buttons replace the generic slot list.
     // Contains lambdas → separate StateFlow, same pattern as hudConfig.
-    val hudUiState: StateFlow<HudUiState> = combine(_uiState, _navCallbacks, _formState) { state, nav, form ->
-        buildHudUiState(state, nav, form)
+    val hudUiState: StateFlow<HudUiState> = combine(
+        _uiState,
+        _navCallbacks,
+        _formState,
+        _trackFormState,
+        observeTrackRecordingState(NoParams),
+    ) { state, nav, form, trackForm, trackState ->
+        buildHudUiState(state, nav, form, trackState)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
-        initialValue = buildHudUiState(MainUiState(), HudNavCallbacks(), GeoMarksFormState()),
+        initialValue = buildHudUiState(MainUiState(), HudNavCallbacks(), GeoMarksFormState(), TrackRecordingState.Idle),
+    )
+
+    // Track recording sheet state — contains lambdas → separate StateFlow.
+    val trackRecordingSheetUiState: StateFlow<TrackRecordingSheetUiState> = combine(
+        _trackFormState,
+        observeTrackRecordingState(NoParams),
+        kotlinx.coroutines.flow.flow {
+            while (true) {
+                emit(System.currentTimeMillis() / 1000L)
+                kotlinx.coroutines.delay(1000)
+            }
+        },
+    ) { trackForm, trackState, nowSeconds ->
+        val durationSeconds = if (trackState is TrackRecordingState.Recording) {
+            nowSeconds - trackState.startedAtSeconds
+        } else 0L
+        buildTrackRecordingSheetUiState(trackForm, trackState, durationSeconds)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = buildTrackRecordingSheetUiState(TrackRecordingFormState(), TrackRecordingState.Idle, 0L),
     )
 
     // Geo marks sheet state — contains lambdas → separate StateFlow.
@@ -410,6 +449,12 @@ class MainViewModel(
             .launchIn(viewModelScope)
 
         startAutoConnectIfEnabled()
+
+        trackSettingsDataSource.observeSettings()
+            .onEach { settings ->
+                _trackFormState.update { it.copy(settings = settings) }
+            }
+            .launchIn(viewModelScope)
     }
 
     fun onCameraPositionChanged(position: MapCameraPosition) {
@@ -476,6 +521,7 @@ class MainViewModel(
 
     fun toggleGeoMarksSheet() {
         val isOpening = !_formState.value.isSheetVisible
+        if (isOpening) closeTrackRecordingSheetVisibility()
         _formState.update { it.copy(isSheetVisible = isOpening) }
         if (isOpening) {
             _uiState.update { it.copy(markToolActive = true) }
@@ -498,6 +544,98 @@ class MainViewModel(
         if (_uiState.value.markToolActive) {
             _uiState.update { it.copy(markToolActive = false).withPendingMarkPoints(persistentListOf()) }
         }
+    }
+
+    // ── Track recording ───────────────────────────────────────────────────────
+
+    fun toggleTrackRecordingSheet() {
+        val isOpening = !_trackFormState.value.isSheetVisible
+        if (isOpening) closeGeoMarksSheet()
+        _trackFormState.update { it.copy(isSheetVisible = isOpening) }
+    }
+
+    fun closeTrackRecordingSheetVisibility() {
+        _trackFormState.update { it.copy(isSheetVisible = false) }
+    }
+
+    fun toggleTrackSheetCollapsed() {
+        _trackFormState.update { it.copy(isCollapsed = !it.isCollapsed) }
+    }
+
+    fun startTrackRecordingAction() {
+        viewModelScope.launch {
+            startTrackRecording(_trackFormState.value.settings)
+            val s = _trackFormState.value.settings
+            val nextCounter = s.nameCounter?.plus(1)
+            _trackFormState.update { it.copy(settings = s.copy(nameCounter = nextCounter)) }
+            viewModelScope.launch { persistTrackSettings(_trackFormState.value.settings) }
+        }
+    }
+
+    fun stopTrackRecordingAction() {
+        viewModelScope.launch { stopTrackRecording() }
+    }
+
+    fun setTrackPreset(preset: TrackRecordingPreset) {
+        _trackFormState.update { form ->
+            form.copy(
+                settings = form.settings.copy(
+                    preset = preset,
+                    intervalSeconds = preset.defaultIntervalSeconds(),
+                    minDistanceMeters = preset.defaultMinDistanceMeters(),
+                ),
+            )
+        }
+        viewModelScope.launch { persistTrackSettings(_trackFormState.value.settings) }
+    }
+
+    fun setTrackInterval(seconds: Int?) {
+        _trackFormState.update { form ->
+            form.copy(
+                settings = form.settings.copy(
+                    intervalSeconds = seconds,
+                    preset = TrackRecordingPreset.CUSTOM,
+                ),
+            )
+        }
+        viewModelScope.launch { persistTrackSettings(_trackFormState.value.settings) }
+    }
+
+    fun setTrackMinDistance(meters: Int) {
+        _trackFormState.update { form ->
+            form.copy(
+                settings = form.settings.copy(
+                    minDistanceMeters = meters,
+                    preset = TrackRecordingPreset.CUSTOM,
+                ),
+            )
+        }
+        viewModelScope.launch { persistTrackSettings(_trackFormState.value.settings) }
+    }
+
+    fun setTrackName(name: String) {
+        _trackFormState.update { form ->
+            form.copy(settings = form.settings.copy(name = name))
+        }
+        viewModelScope.launch { persistTrackSettings(_trackFormState.value.settings) }
+    }
+
+    fun setTrackNameCounter(counter: Int?) {
+        _trackFormState.update { form ->
+            form.copy(settings = form.settings.copy(nameCounter = counter?.coerceAtLeast(1)))
+        }
+        viewModelScope.launch { persistTrackSettings(_trackFormState.value.settings) }
+    }
+
+    fun setTrackColor(colorIndex: Int) {
+        _trackFormState.update { form ->
+            form.copy(settings = form.settings.copy(color = colorIndex))
+        }
+        viewModelScope.launch { persistTrackSettings(_trackFormState.value.settings) }
+    }
+
+    private suspend fun persistTrackSettings(settings: ru.tcynik.meshtactics.domain.track.model.TrackRecordingSettings) {
+        trackSettingsDataSource.saveSettings(settings)
     }
 
     fun setMarkType(type: GeoMarkType) {
@@ -802,7 +940,7 @@ class MainViewModel(
         right = buildRightColumn(state, nav),
     )
 
-    private fun buildHudUiState(state: MainUiState, nav: HudNavCallbacks, form: GeoMarksFormState): HudUiState = HudUiState(
+    private fun buildHudUiState(state: MainUiState, nav: HudNavCallbacks, form: GeoMarksFormState, trackState: TrackRecordingState): HudUiState = HudUiState(
         menuDrawer = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_menu, label = "меню", onClick = { toggleMenuDrawer() }), info = emptyInfoSlot()),
         zoomIn   = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_zoom_in,  label = "+", onClick = {}), info = emptyInfoSlot()),
         zoomOut  = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_zoom_out, label = "-", onClick = {}), info = emptyInfoSlot()),
@@ -870,6 +1008,15 @@ class MainViewModel(
                 label     = "чаты",
                 onClick   = nav.onChatClick,
                 infoBadge = state.unreadChatCount.takeIf { it > 0 }?.toString(),
+            ),
+            info = emptyInfoSlot(),
+        ),
+        trackRecord = HudRowConfig(
+            button = HudButtonSlot(
+                iconRes  = R.drawable.ic_track_record,
+                label    = "трек",
+                selected = trackState is TrackRecordingState.Recording,
+                onClick  = { toggleTrackRecordingSheet() },
             ),
             info = emptyInfoSlot(),
         ),
@@ -1240,4 +1387,26 @@ class MainViewModel(
                 GeoTrackDistance.totalMeters(points),
             ),
         )
+
+    private fun buildTrackRecordingSheetUiState(
+        form: TrackRecordingFormState,
+        trackState: TrackRecordingState,
+        durationSeconds: Long,
+    ): TrackRecordingSheetUiState = TrackRecordingSheetUiState(
+        isVisible            = form.isSheetVisible,
+        isCollapsed          = form.isCollapsed,
+        settings             = form.settings,
+        recordingState       = trackState,
+        durationSeconds      = durationSeconds,
+        onClose              = ::closeTrackRecordingSheetVisibility,
+        onToggleCollapsed    = ::toggleTrackSheetCollapsed,
+        onStart              = ::startTrackRecordingAction,
+        onStop               = ::stopTrackRecordingAction,
+        onPresetSelected     = ::setTrackPreset,
+        onIntervalSelected   = ::setTrackInterval,
+        onMinDistanceSelected = ::setTrackMinDistance,
+        onNameChanged        = ::setTrackName,
+        onNameCounterChanged = ::setTrackNameCounter,
+        onColorSelected      = ::setTrackColor,
+    )
 }

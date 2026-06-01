@@ -30,6 +30,7 @@ import ru.tcynik.meshtactics.di.meshDataModule
 import ru.tcynik.meshtactics.di.orientationModule
 import ru.tcynik.meshtactics.di.presentationModule
 import ru.tcynik.meshtactics.di.userDataModule
+import ru.tcynik.meshtactics.di.trackDataModule
 import ru.tcynik.meshtactics.di.userSettingsModule
 import ru.tcynik.meshtactics.mesh.common.ContextServices
 import ru.tcynik.meshtactics.mesh.di.meshModule
@@ -55,6 +56,7 @@ class MyMeshApplication : Application() {
                 mapDataModule,
                 markerDataModule,
                 geoMarkDataModule,
+                trackDataModule,
                 userDataModule,
                 userSettingsModule,
                 locationDomainModule,

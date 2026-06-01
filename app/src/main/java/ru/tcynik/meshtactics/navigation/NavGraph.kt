@@ -57,6 +57,7 @@ fun NavGraph() {
                 val hudUiState by viewModel.hudUiState.collectAsState()
                 val menuDrawerUiState by viewModel.menuDrawerUiState.collectAsState()
                 val geoMarksSheetUiState by viewModel.geoMarksSheetUiState.collectAsState()
+                val trackRecordingSheetUiState by viewModel.trackRecordingSheetUiState.collectAsState()
                 val locationProvider: LocationProvider = koinInject()
                 val orientationProvider: DeviceOrientationProvider = koinInject()
 
@@ -100,6 +101,7 @@ fun NavGraph() {
                     onSendGeoMark = viewModel::prepareGeoMarkForResend,
                     menuDrawerUiState = menuDrawerUiState,
                     geoMarksSheetUiState = geoMarksSheetUiState,
+                    trackRecordingSheetUiState = trackRecordingSheetUiState,
                     onFollowMeDeactivated = viewModel::onFollowMeDeactivated,
                     resetBearingEvents = viewModel.resetBearingEvent,
                     restoreZoomEvents = viewModel.restoreZoomEvent,
@@ -196,6 +198,8 @@ fun NavGraph() {
                     onItemSendClick = viewModel::onItemSendClick,
                     onSendContourSelected = viewModel::onSendContourSelected,
                     onDismissSendContourPicker = viewModel::onDismissSendContourPicker,
+                    onTrackVisibilityToggle = viewModel::onTrackVisibilityToggle,
+                    onTrackDeleteClick = viewModel::onTrackDeleteClick,
                     onBack = { navController.popBackStack() },
                 )
             }

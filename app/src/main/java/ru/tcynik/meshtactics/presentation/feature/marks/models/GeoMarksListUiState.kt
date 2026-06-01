@@ -15,4 +15,5 @@ data class GeoMarksListUiState(
     val deleteEnabled: Boolean = false,
     val deleteConfirm: GeoMarksDeleteConfirmUi? = null,
     val sendContourPicker: GeoMarksSendContourPickerUi? = null,
+    val recordedTracks: ImmutableList<RecordedTrackListItemUiModel> = persistentListOf(),
 )

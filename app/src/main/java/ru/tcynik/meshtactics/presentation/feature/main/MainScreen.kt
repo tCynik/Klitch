@@ -55,10 +55,12 @@ import org.maplibre.spatialk.geojson.Position
 import ru.tcynik.meshtactics.di.orientation.DeviceOrientationProvider
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.presentation.feature.main.osd.GeoMarksSheet
+import ru.tcynik.meshtactics.presentation.feature.main.osd.TrackRecordingSheet
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkContextMenuEvent
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.DraftPointContextMenuEvent
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.ExistingMarkContextMenuEvent
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarksSheetUiState
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.TrackRecordingSheetUiState
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudUiState
 import ru.tcynik.meshtactics.presentation.feature.main.osd.HudControlsLayer
@@ -91,6 +93,7 @@ fun MainScreen(
     onSendGeoMark: (String) -> Unit = {},
     menuDrawerUiState: MenuDrawerUiState,
     geoMarksSheetUiState: GeoMarksSheetUiState,
+    trackRecordingSheetUiState: TrackRecordingSheetUiState,
     onFollowMeDeactivated: () -> Unit = {},
     resetBearingEvents: Flow<Unit> = emptyFlow(),
     restoreZoomEvents: Flow<Double> = emptyFlow(),
@@ -352,6 +355,14 @@ fun MainScreen(
                 state = geoMarksSheetUiState,
                 pendingPoints = uiState.pendingMarkPoints,
                 trackDistanceLabel = uiState.trackDraftDistanceLabel,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
+
+        // z5 — track recording sheet (portrait only)
+        if (!isLandscape) {
+            TrackRecordingSheet(
+                state = trackRecordingSheetUiState,
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }

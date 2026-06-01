@@ -1,0 +1,18 @@
+CREATE TABLE recorded_track_point (
+    track_id  TEXT    NOT NULL,
+    timestamp INTEGER NOT NULL,
+    lat       REAL    NOT NULL,
+    lon       REAL    NOT NULL,
+    accuracy  REAL    NOT NULL DEFAULT 0.0,
+    PRIMARY KEY (track_id, timestamp)
+);
+
+insertPoint:
+INSERT OR IGNORE INTO recorded_track_point(track_id, timestamp, lat, lon, accuracy)
+VALUES (:trackId, :timestamp, :lat, :lon, :accuracy);
+
+selectByTrackId:
+SELECT * FROM recorded_track_point WHERE track_id = :trackId ORDER BY timestamp ASC;
+
+deleteByTrackId:
+DELETE FROM recorded_track_point WHERE track_id = :trackId;

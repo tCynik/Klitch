@@ -50,6 +50,8 @@ val commonModule: Module = module {
     single { get<AppDatabase>().geoMarkQueries }
     single { get<AppDatabase>().contourQueries }
     single { get<AppDatabase>().chatMessageQueries }
+    single { get<AppDatabase>().recordedTrackQueries }
+    single { get<AppDatabase>().recordedTrackPointQueries }
 
     // Data — settings (Settings предоставляется платформенным модулем)
     single { AppSettings(get()) }
