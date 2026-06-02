@@ -101,7 +101,7 @@ class ObserveNodeMarkersUseCase(
         }
 
         logger.i("Node", "contour filter: sos=$sosMode slots=${maps.slotToHash.keys} " +
-                "[${recentEnough.joinToString { "${it.longName}(slot=${it.receivedOnSlot})" }}]")
+                ", nodes: ${recentEnough.joinToString { "\n     ${it.longName}_${it.shortName} (slot=${it.receivedOnSlot})" }}")
 
         val filtered = recentEnough.filter { node ->
             passesContourFilter(node.receivedOnSlot, contourByHash, maps, sosMode)
@@ -112,8 +112,8 @@ class ObserveNodeMarkersUseCase(
             effectiveTime > freshnessThreshold
         }
         logger.d("Node", "ObserveNodeMarkersUseCase: myPos=${ourNode?.latitude}/${ourNode?.longitude} " +
-                "nodes=${nodes.size}/${peers.size} withPos=${withPosition.size} recent=${recentEnough.size} " +
-                "filtered=${filtered.size} fresh=$freshCount [${filtered.joinToString { it.toLogString(nowSeconds) }}]")
+                "nodesSize=${nodes.size}/${peers.size} withPos=${withPosition.size} recent=${recentEnough.size} " +
+                "filtered=${filtered.size} fresh=$freshCount, nodes: ${filtered.joinToString { "\n     ${it.toLogString(nowSeconds)}" }}")
         return filtered.map { node ->
             val effectiveTime = if (node.positionTime > 0) node.positionTime else node.lastHeard
             val isStale = effectiveTime <= freshnessThreshold
