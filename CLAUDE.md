@@ -111,6 +111,7 @@
 | Phone GPS to Radio | `.claude/docs/phone-gps-to-radio.md` |
 | HUD Structure | `.claude/docs/hud-structure.md` |
 | Directional Node Markers | `.claude/docs/directional-node-markers.md` |
+| MapLibre Layer Architecture + Fonts | `.claude/docs/map-layer.md` |
 | GPS Sending Logic & Location Settings | `.claude/docs/fix-gps-sending-logic.md` |
 | GPS Pipeline Debug (незавершён) | `.claude/docs/gps-pipeline-debug.md` |
 | KMZ/KML Import | `.claude/docs/kmz-kml-import.md` |

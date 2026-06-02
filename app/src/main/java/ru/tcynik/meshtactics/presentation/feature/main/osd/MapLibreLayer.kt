@@ -78,9 +78,10 @@ import ru.tcynik.meshtactics.presentation.feature.main.markToolMapTapGestures
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.OverlayRenderModel
 
 // BaseStyle.Empty has no `glyphs` URL — SymbolLayer text rendering fails without it and breaks
-// all other layers too. This style adds the MapLibre demotiles glyph server.
+// all other layers too. Glyphs are served from bundled assets to avoid network dependency on
+// external glyph servers (which can fail on some devices and silently break all SymbolLayers).
 private val BASE_STYLE_WITH_GLYPHS = BaseStyle.Json(
-    """{"version":8,"glyphs":"https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf","sources":{},"layers":[{"id":"background","type":"background","paint":{"background-color":"#f5f3e7"}}]}"""
+    """{"version":8,"glyphs":"asset://fonts/{fontstack}/{range}.pbf","sources":{},"layers":[{"id":"background","type":"background","paint":{"background-color":"#f5f3e7"}}]}"""
 )
 
 // Animation duration for marker position interpolation, in milliseconds.
@@ -289,6 +290,13 @@ fun MapLibreLayer(
         val peerOnlineSource  = rememberGeoJsonSource(GeoJsonData.JsonString(animatedOnlineJson))
         val peerOfflineSource = rememberGeoJsonSource(GeoJsonData.JsonString(animatedOfflineJson))
         val peerStaleSource   = rememberGeoJsonSource(GeoJsonData.JsonString(animatedStaleJson))
+        // rememberGeoJsonSource uses LaunchedEffect keyed by lambda — unreliable when style is
+        // loading. SideEffect runs synchronously after every recomposition, bypassing isUnloaded.
+        androidx.compose.runtime.SideEffect {
+            peerOnlineSource.setData(GeoJsonData.JsonString(animatedOnlineJson))
+            peerOfflineSource.setData(GeoJsonData.JsonString(animatedOfflineJson))
+            peerStaleSource.setData(GeoJsonData.JsonString(animatedStaleJson))
+        }
 
         val markerSize = MarkerSizeConfig.fromLevel(markerSizeLevel)
         val nodeMarkerRadius = MarkerSizeConfig.nodeMarkerRadius(markerSize)
@@ -309,6 +317,7 @@ fun MapLibreLayer(
             id = "node-stale-label",
             source = peerStaleSource,
             textField = format(span(feature["longName"].asString())),
+            textFont = const(listOf("Noto Sans Regular")),
             textAnchor = const(SymbolAnchor.Bottom),
             textOffset = offset(0f.em, (-1.2f).em),
             textSize = const(12.sp),
@@ -357,6 +366,7 @@ fun MapLibreLayer(
             id = "node-remote-online-label",
             source = peerOnlineSource,
             textField = format(span(feature["longName"].asString())),
+            textFont = const(listOf("Noto Sans Regular")),
             textAnchor = const(SymbolAnchor.Bottom),
             textOffset = offset(0f.em, (-1.2f).em),
             textSize = const(12.sp),
@@ -369,6 +379,7 @@ fun MapLibreLayer(
             id = "node-remote-offline-label",
             source = peerOfflineSource,
             textField = format(span(feature["longName"].asString())),
+            textFont = const(listOf("Noto Sans Regular")),
             textAnchor = const(SymbolAnchor.Bottom),
             textOffset = offset(0f.em, (-1.2f).em),
             textSize = const(12.sp),
@@ -481,6 +492,7 @@ fun MapLibreLayer(
                 id = "geo-received-point-labels",
                 source = receivedPointsSource,
                 textField = format(span(feature["name"].asString())),
+                textFont = const(listOf("Noto Sans Regular")),
                 textAnchor = const(SymbolAnchor.Top),
                 textOffset = offset(0f.em, 1.2f.em),
                 textSize = const(11.sp),
@@ -601,19 +613,15 @@ private fun animateGeoJsonInterpolation(
         val target = nodeMarkers.toList()
         animationState = MarkerAnimationState(previous, target)
 
-        // Build lookup: previous positions keyed by nodeId.
         val previousPositions = previous.associateBy { it.nodeId }
-
         val totalFrames = (MARKER_ANIMATION_MS / FRAME_INTERVAL_MS).toInt()
         for (frame in 0..totalFrames) {
             val rawT = frame.toFloat() / totalFrames
             val t = quadraticEaseInOut(rawT)
 
-            // Interpolate each marker's position.
             val interpolated = target.map { targetNode ->
                 val prev = previousPositions[targetNode.nodeId]
                 if (prev != null) {
-                    // Only interpolate if the position actually changed.
                     val startLon = prev.position.longitude
                     val startLat = prev.position.latitude
                     val endLon = targetNode.position.longitude
@@ -628,7 +636,6 @@ private fun animateGeoJsonInterpolation(
                         targetNode
                     }
                 } else {
-                    // New marker — no previous position to interpolate from.
                     targetNode
                 }
             }
