@@ -213,6 +213,10 @@
     <string name="network_precision_21m">~21 м</string>
     <string name="network_precision_full">Полная</string>
 
+    <!-- Track Recording Reminder Notification -->
+    <string name="track_reminder_channel_name">Запись трека</string>
+    <string name="track_reminder_notification_title">Запись трека активна</string>
+
     <!-- Tile Cache Settings -->
     <string name="tile_cache_section_label">Кэш тайлов</string>
     <string name="tile_cache_mode_default">По умолчанию</string>
