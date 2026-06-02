@@ -253,6 +253,7 @@ private fun TrackSheetHeader(state: TrackRecordingSheetUiState) {
             Spacer(Modifier.weight(1f))
         }
         if (state.isCollapsed && isRecording) {
+            val dist = (rs as? TrackRecordingState.Recording)?.distanceMeters
             Text(
                 text = formatDuration(state.durationSeconds),
                 style = MaterialTheme.typography.bodyMedium,
@@ -260,6 +261,15 @@ private fun TrackSheetHeader(state: TrackRecordingSheetUiState) {
                 maxLines = 1,
                 modifier = Modifier.padding(end = 8.dp),
             )
+            if (dist != null) {
+                Text(
+                    text = formatDistance(dist),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    modifier = Modifier.padding(end = 8.dp),
+                )
+            }
             Text(
                 text = formatSpeed(state.speedMps),
                 style = MaterialTheme.typography.bodyMedium,
