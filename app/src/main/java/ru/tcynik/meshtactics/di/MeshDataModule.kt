@@ -99,7 +99,7 @@ val meshDataModule = module {
         )
     }
     single<MeshNetworkRepository> {
-        MeshNetworkRepositoryImpl(meshNodeRepository = get(), nodePositionSlotCache = get())
+        MeshNetworkRepositoryImpl(meshNodeRepository = get())
     }
     single<MeshMessagingRepository> {
         MeshMessagingRepositoryImpl(

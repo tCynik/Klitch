@@ -3,7 +3,7 @@ package ru.tcynik.meshtactics.data.mesh.mapper
 import ru.tcynik.meshtactics.domain.mesh.model.MeshNodeModel
 import ru.tcynik.meshtactics.mesh.model.Node
 
-fun Node.toMeshNodeModel(receivedOnSlot: Int? = null): MeshNodeModel = MeshNodeModel(
+fun Node.toMeshNodeModel(): MeshNodeModel = MeshNodeModel(
     num = num,
     nodeId = user.id,
     shortName = user.short_name.ifBlank { "??" },
@@ -24,5 +24,5 @@ fun Node.toMeshNodeModel(receivedOnSlot: Int? = null): MeshNodeModel = MeshNodeM
     isOnline = isOnline,
     groundSpeed = position.ground_speed ?: 0,
     groundTrack = position.ground_track ?: 0,
-    receivedOnSlot = receivedOnSlot,
+    receivedOnSlot = channel,
 )
