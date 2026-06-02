@@ -1,6 +1,5 @@
 package ru.tcynik.meshtactics.service
 
-import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -8,14 +7,12 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.ProcessLifecycleOwner
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -39,10 +36,9 @@ class GpsService : Service() {
 
     companion object {
         private const val NOTIFICATION_ID = 201
-        private const val REMINDER_NOTIFICATION_ID = 202
-        private const val CHANNEL_ID = "gps_service_channel"
-        private const val REMINDER_CHANNEL_ID = "track_reminder"
-        private const val RECORDING_REMINDER_INTERVAL_MS = 2 * 60 * 60 * 1000L
+        private const val CHANNEL_GPS_IDLE = "gps_service_idle"
+        private const val CHANNEL_GPS_RECORDING = "gps_service_recording"
+        private const val RECORDING_NOTIFICATION_UPDATE_INTERVAL_MS = 30_000L
 
         fun createIntent(context: Context): Intent = Intent(context, GpsService::class.java)
     }
@@ -69,7 +65,7 @@ class GpsService : Service() {
         logger.d("GPS", "GpsService.onStartCommand")
         gpsLifecycle.start()
         startTrackRecordingObserver()
-        startReminderObserver()
+        startRecordingNotificationObserver()
         return START_STICKY
     }
 
@@ -147,31 +143,51 @@ class GpsService : Service() {
         }
     }
 
-    private fun startReminderObserver() {
+    private fun startRecordingNotificationObserver() {
+        logger.d("GPS", "startRecordingNotificationObserver launched")
         serviceScope.launch {
             trackRecordingRepository.state
                 .map { it is TrackRecordingState.Recording }
                 .distinctUntilChanged()
                 .collectLatest { isRecording ->
+                    logger.d("GPS", "RecordingNotificationObserver: isRecording=$isRecording")
                     if (!isRecording) {
-                        NotificationManagerCompat.from(this@GpsService)
-                            .cancel(REMINDER_NOTIFICATION_ID)
+                        updateForegroundNotification(buildNotification())
                         return@collectLatest
                     }
                     while (true) {
-                        delay(RECORDING_REMINDER_INTERVAL_MS)
                         val state = trackRecordingRepository.state.value
-                            as? TrackRecordingState.Recording ?: break
-                        val isForegrounded = ProcessLifecycleOwner.get().lifecycle
-                            .currentState.isAtLeast(Lifecycle.State.RESUMED)
-                        if (isForegrounded) continue
-                        showReminderNotification(state)
+                        logger.d("GPS", "RecordingNotificationObserver: state=${state::class.simpleName}")
+                        val recording = state as? TrackRecordingState.Recording ?: break
+                        logger.d("GPS", "RecordingNotificationObserver: updating notification, isPaused=${recording.isPaused}, name=${recording.name}")
+                        updateForegroundNotification(buildRecordingNotification(recording))
+                        logger.d("GPS", "RecordingNotificationObserver: startForeground called, sleeping ${RECORDING_NOTIFICATION_UPDATE_INTERVAL_MS}ms")
+                        delay(RECORDING_NOTIFICATION_UPDATE_INTERVAL_MS)
                     }
+                    logger.d("GPS", "RecordingNotificationObserver: while loop exited (state no longer Recording)")
                 }
         }
     }
 
-    private fun showReminderNotification(state: TrackRecordingState.Recording) {
+    private fun updateForegroundNotification(notification: Notification) {
+        Handler(Looper.getMainLooper()).post {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+            logger.d("GPS", "updateForegroundNotification: posted to main thread OK")
+        }
+    }
+
+    private fun mainActivityIntent(): PendingIntent = PendingIntent.getActivity(
+        this,
+        0,
+        Intent(this, MainActivity::class.java).apply { flags = Intent.FLAG_ACTIVITY_SINGLE_TOP },
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+
+    private fun buildRecordingNotification(state: TrackRecordingState.Recording): Notification {
         val nowSeconds = System.currentTimeMillis() / 1000
         val totalSeconds = state.accumulatedSeconds +
                 if (!state.isPaused) (nowSeconds - state.activeFromSeconds) else 0L
@@ -181,32 +197,18 @@ class GpsService : Service() {
         val distanceKm = state.distanceMeters / 1000.0
         val distanceLabel = if (distanceKm >= 1.0) "%.2f км".format(distanceKm)
         else "${state.distanceMeters.toInt()} м"
+        val statusLabel = if (state.isPaused)
+            getString(R.string.track_recording_notification_paused)
+        else
+            getString(R.string.track_recording_notification_active)
 
-        val contentIntent = PendingIntent.getActivity(
-            this,
-            0,
-            Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
-            },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-
-        val notification = NotificationCompat.Builder(this, REMINDER_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_triangle_arrow)
-            .setContentTitle(getString(R.string.track_reminder_notification_title))
-            .setContentText("${state.name} • $durationLabel • $distanceLabel")
-            .setContentIntent(contentIntent)
-            .setAutoCancel(true)
+        return NotificationCompat.Builder(this, CHANNEL_GPS_RECORDING)
+            .setSmallIcon(R.drawable.ic_track_record)
+            .setContentTitle("$statusLabel ${state.name}")
+            .setContentText("$durationLabel • $distanceLabel")
+            .setContentIntent(mainActivityIntent())
+            .setOngoing(true)
             .build()
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            logger.w("Track", "POST_NOTIFICATIONS not granted — reminder skipped")
-            return
-        }
-        NotificationManagerCompat.from(this).notify(REMINDER_NOTIFICATION_ID, notification)
-        logger.i("Track", "Reminder notification sent for track ${state.trackId}")
     }
 
     private fun ensureNotificationChannel() {
@@ -214,23 +216,26 @@ class GpsService : Service() {
             val nm = getSystemService(NotificationManager::class.java)
             nm.createNotificationChannel(
                 NotificationChannel(
-                    CHANNEL_ID,
+                    CHANNEL_GPS_IDLE,
                     getString(R.string.gps_notification_channel_name),
-                    NotificationManager.IMPORTANCE_LOW,
+                    NotificationManager.IMPORTANCE_MIN,
                 )
             )
             nm.createNotificationChannel(
                 NotificationChannel(
-                    REMINDER_CHANNEL_ID,
-                    getString(R.string.track_reminder_channel_name),
+                    CHANNEL_GPS_RECORDING,
+                    getString(R.string.track_recording_notification_channel_name),
                     NotificationManager.IMPORTANCE_DEFAULT,
-                )
+                ).apply {
+                    setSound(null, null)
+                    enableVibration(false)
+                }
             )
         }
     }
 
     private fun buildNotification(): Notification =
-        NotificationCompat.Builder(this, CHANNEL_ID)
+        NotificationCompat.Builder(this, CHANNEL_GPS_IDLE)
             .setSmallIcon(R.drawable.ic_triangle_arrow)
             .setContentTitle(getString(R.string.gps_notification_title))
             .setContentText(getString(R.string.gps_notification_text))

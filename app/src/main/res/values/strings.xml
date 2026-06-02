@@ -2,7 +2,7 @@
     <string name="app_name">MeshTactics</string>
     <string name="gps_notification_channel_name">GPS Background</string>
     <string name="gps_notification_title">GPS активен</string>
-    <string name="gps_notification_text">Отслеживание местоположения</string>
+    <string name="gps_notification_text">Работа GPS в фоне</string>
     <string name="settings_title">Настройки</string>
     <string name="settings_main_title">Главная</string>
     <string name="settings_map_title">Карта</string>
@@ -213,9 +213,10 @@
     <string name="network_precision_21m">~21 м</string>
     <string name="network_precision_full">Полная</string>
 
-    <!-- Track Recording Reminder Notification -->
-    <string name="track_reminder_channel_name">Запись трека</string>
-    <string name="track_reminder_notification_title">Запись трека активна</string>
+    <!-- Track Recording Notification -->
+    <string name="track_recording_notification_channel_name">Запись трека</string>
+    <string name="track_recording_notification_active">Запись трека:</string>
+    <string name="track_recording_notification_paused">Пауза:</string>
 
     <!-- Tile Cache Settings -->
     <string name="tile_cache_section_label">Кэш тайлов</string>
