@@ -152,6 +152,21 @@ class TrackRepositoryImpl(
         }
     }
 
+    override suspend fun updateName(name: String) {
+        val current = _state.value as? TrackRecordingState.Recording ?: return
+        val trimmed = name.trim().takeIf { it.isNotEmpty() } ?: return
+        trackQueries.updateName(name = trimmed, id = current.trackId)
+        _state.value = current.copy(name = trimmed)
+        logger.d(TAG, "Updated name of track ${current.trackId} to: $trimmed")
+    }
+
+    override suspend fun updateColor(colorIndex: Int) {
+        val current = _state.value as? TrackRecordingState.Recording ?: return
+        trackQueries.updateColor(color = colorIndex.toLong(), id = current.trackId)
+        _state.value = current.copy(settings = current.settings.copy(color = colorIndex))
+        logger.d(TAG, "Updated color of track ${current.trackId} to index $colorIndex")
+    }
+
     override suspend fun stop(name: String?) {
         val current = _state.value as? TrackRecordingState.Recording ?: return
         val finalName = name?.trim()?.takeIf { it.isNotEmpty() }

@@ -74,6 +74,8 @@ import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTracksUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTrackPointsUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.ToggleRecordedTrackVisibilityUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.DeleteRecordedTracksUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.UpdateTrackRecordingNameUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.UpdateTrackRecordingColorUseCase
 import ru.tcynik.meshtactics.data.track.datasource.TrackSettingsDataSource
 import ru.tcynik.meshtactics.presentation.feature.settings.SettingsViewModel
 import ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModel
@@ -124,6 +126,8 @@ val presentationModule = module {
             resumeTrackRecording = get<ResumeTrackRecordingUseCase>(),
             stopTrackRecording = get<StopTrackRecordingUseCase>(),
             discardTrackRecording = get<DiscardTrackRecordingUseCase>(),
+            updateTrackRecordingName = get<UpdateTrackRecordingNameUseCase>(),
+            updateTrackRecordingColor = get<UpdateTrackRecordingColorUseCase>(),
             trackSettingsDataSource = get<TrackSettingsDataSource>(),
             gpsRepository = get(),
             observeRecordedTracks = get<ObserveRecordedTracksUseCase>(),

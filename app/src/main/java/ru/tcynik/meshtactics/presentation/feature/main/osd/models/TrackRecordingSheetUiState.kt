@@ -28,4 +28,5 @@ data class TrackRecordingSheetUiState(
     val onNameChanged: (String) -> Unit = {},
     val onNameCounterChanged: (Int?) -> Unit = {},
     val onColorSelected: (Int) -> Unit = {},
+    val onTrackNameChanged: (String) -> Unit = {},
 )

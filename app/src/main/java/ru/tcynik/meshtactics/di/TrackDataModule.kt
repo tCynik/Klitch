@@ -23,6 +23,8 @@ import ru.tcynik.meshtactics.domain.track.usecase.ResumeTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.StartTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.StopTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.ToggleRecordedTrackVisibilityUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.UpdateTrackRecordingColorUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.UpdateTrackRecordingNameUseCase
 
 val trackDataModule = module {
     single<androidx.datastore.core.DataStore<androidx.datastore.preferences.core.Preferences>>(named("TrackSettingsDataStore")) {
@@ -51,4 +53,6 @@ val trackDataModule = module {
     single { DiscardTrackRecordingUseCase(get()) }
     single { ToggleRecordedTrackVisibilityUseCase(get()) }
     single { DeleteRecordedTracksUseCase(get()) }
+    single { UpdateTrackRecordingNameUseCase(get()) }
+    single { UpdateTrackRecordingColorUseCase(get()) }
 }

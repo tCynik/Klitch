@@ -114,6 +114,8 @@ import ru.tcynik.meshtactics.domain.track.usecase.DiscardTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.PauseTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.ResumeTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.StartTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.UpdateTrackRecordingColorUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.UpdateTrackRecordingNameUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.StopTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTracksUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTrackPointsUseCase
@@ -173,6 +175,8 @@ class MainViewModel(
     private val resumeTrackRecording: ResumeTrackRecordingUseCase,
     private val stopTrackRecording: StopTrackRecordingUseCase,
     private val discardTrackRecording: DiscardTrackRecordingUseCase,
+    private val updateTrackRecordingName: UpdateTrackRecordingNameUseCase,
+    private val updateTrackRecordingColor: UpdateTrackRecordingColorUseCase,
     private val trackSettingsDataSource: TrackSettingsDataSource,
     private val gpsRepository: GpsRepository,
     observeRecordedTracks: ObserveRecordedTracksUseCase,
@@ -717,7 +721,14 @@ class MainViewModel(
         _trackFormState.update { form ->
             form.copy(settings = form.settings.copy(color = colorIndex))
         }
-        viewModelScope.launch { persistTrackSettings(_trackFormState.value.settings) }
+        viewModelScope.launch {
+            persistTrackSettings(_trackFormState.value.settings)
+            updateTrackRecordingColor(colorIndex)
+        }
+    }
+
+    fun setRecordingTrackName(name: String) {
+        viewModelScope.launch { updateTrackRecordingName(name) }
     }
 
     private suspend fun persistTrackSettings(settings: ru.tcynik.meshtactics.domain.track.model.TrackRecordingSettings) {
@@ -1503,5 +1514,6 @@ class MainViewModel(
         onNameChanged        = ::setTrackName,
         onNameCounterChanged = ::setTrackNameCounter,
         onColorSelected      = ::setTrackColor,
+        onTrackNameChanged   = ::setRecordingTrackName,
     )
 }
