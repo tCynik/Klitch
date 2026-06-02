@@ -248,7 +248,7 @@ class MeshDataHandlerImpl(
         val payload = packet.decoded?.payload ?: return
         val p = Position.ADAPTER.decodeOrNull(payload, Logger) ?: return
         Logger.d { "Position from ${packet.from}: ${Position.ADAPTER.toOneLiner(p)}" }
-        nodeManager.handleReceivedPosition(packet.from, myNodeNum, p, dataPacket.time)
+        nodeManager.handleReceivedPosition(packet.from, myNodeNum, p, dataPacket.time, packet.channel)
     }
 
     private fun handleWaypoint(packet: MeshPacket, dataPacket: DataPacket, myNodeNum: Int) {

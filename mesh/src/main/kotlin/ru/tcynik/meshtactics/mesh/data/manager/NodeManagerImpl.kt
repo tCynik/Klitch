@@ -210,7 +210,7 @@ class NodeManagerImpl(
         }
     }
 
-    override fun handleReceivedPosition(fromNum: Int, myNodeNum: Int, p: ProtoPosition, defaultTime: Long) {
+    override fun handleReceivedPosition(fromNum: Int, myNodeNum: Int, p: ProtoPosition, defaultTime: Long, channel: Int) {
         val isZeroPos = (p.latitude_i ?: 0) == 0 && (p.longitude_i ?: 0) == 0
         @Suppress("ComplexCondition")
         if (myNodeNum == fromNum && isZeroPos && p.sats_in_view == 0 && p.time == 0) {
@@ -235,7 +235,7 @@ class NodeManagerImpl(
                     p.copy(time = posTime)
                 }
 
-            node.copy(position = newPos, lastHeard = newLastHeard)
+            node.copy(position = newPos, lastHeard = newLastHeard, channel = channel)
         }
     }
 

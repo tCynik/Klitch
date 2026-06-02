@@ -76,7 +76,7 @@ interface NodeManager : NodeIdLookup {
     fun handleReceivedUser(fromNum: Int, p: User, channel: Int = 0, manuallyVerified: Boolean = false)
 
     /** Processes a received position packet. */
-    fun handleReceivedPosition(fromNum: Int, myNodeNum: Int, p: ProtoPosition, defaultTime: Long)
+    fun handleReceivedPosition(fromNum: Int, myNodeNum: Int, p: ProtoPosition, defaultTime: Long, channel: Int = 0)
 
     /** Processes a received telemetry packet. */
     fun handleReceivedTelemetry(fromNum: Int, telemetry: Telemetry)
