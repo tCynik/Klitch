@@ -141,7 +141,7 @@ private fun statusLabel(status: MeshConnectionStatusUi, rebootingNodeName: Strin
         nodeSyncLabel(rebootingNodeName, "Перезагрузка...")
     is MeshConnectionStatusUi.WaitingForNode ->
         nodeSyncLabel(rebootingNodeName, "Ожидание ноды...")
-    is MeshConnectionStatusUi.Connecting -> "Connecting to ${status.deviceName.toMeshtasticDisplayShortName()}..."
+    is MeshConnectionStatusUi.Connecting -> "Подключаюсь к ноде ${status.deviceName.toMeshtasticDisplayShortName()}..."
     is MeshConnectionStatusUi.Connected ->
         rebootingNodeName.toMeshtasticDisplayShortName()
             .ifBlank { status.deviceName.toMeshtasticDisplayShortName() }

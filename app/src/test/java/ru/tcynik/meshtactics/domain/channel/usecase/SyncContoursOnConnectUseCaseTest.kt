@@ -101,6 +101,7 @@ class SyncContoursOnConnectUseCaseTest {
     @Test
     fun `writes primary to slot 0 when node has default LongFast channel`() = runTest {
         val openPskBytes = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
+        val defaultPskBytes = Base64.getDecoder().decode(DefaultActiveContour.DEFAULT_PSK)
         val primary = Contour(
             id = DefaultActiveContour.ID,
             name = DefaultActiveContour.DISPLAY_NAME,
@@ -110,8 +111,8 @@ class SyncContoursOnConnectUseCaseTest {
             isActive = true,
             transport = ContourTransport(
                 meshtastic = MeshtasticChannel(
-                    psk = DefaultContour.OPEN_PSK,
-                    channelHash = ContourHash.compute(DefaultActiveContour.CHANNEL_NAME, openPskBytes),
+                    psk = DefaultActiveContour.DEFAULT_PSK,
+                    channelHash = ContourHash.compute(DefaultActiveContour.CHANNEL_NAME, defaultPskBytes),
                 ),
             ),
         )
@@ -128,7 +129,7 @@ class SyncContoursOnConnectUseCaseTest {
 
         coVerify(exactly = 1) { beginSettingsEdit.invoke() }
         coVerify(exactly = 1) {
-            writeChannel.invoke(0, DefaultActiveContour.CHANNEL_NAME, DefaultContour.OPEN_PSK)
+            writeChannel.invoke(0, DefaultActiveContour.CHANNEL_NAME, DefaultActiveContour.DEFAULT_PSK)
         }
         coVerify(exactly = 1) { commitSettingsEdit.invoke() }
     }
@@ -167,6 +168,7 @@ class SyncContoursOnConnectUseCaseTest {
     @Test
     fun `rewrites Emergency slot 1 when geo precision enabled`() = runTest {
         val openPskBytes = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
+        val defaultPskBytes = Base64.getDecoder().decode(DefaultActiveContour.DEFAULT_PSK)
         val primary = Contour(
             id = DefaultActiveContour.ID,
             name = DefaultActiveContour.DISPLAY_NAME,
@@ -176,15 +178,15 @@ class SyncContoursOnConnectUseCaseTest {
             isActive = true,
             transport = ContourTransport(
                 meshtastic = MeshtasticChannel(
-                    psk = DefaultContour.OPEN_PSK,
-                    channelHash = ContourHash.compute(DefaultActiveContour.CHANNEL_NAME, openPskBytes),
+                    psk = DefaultActiveContour.DEFAULT_PSK,
+                    channelHash = ContourHash.compute(DefaultActiveContour.CHANNEL_NAME, defaultPskBytes),
                 ),
             ),
         )
         val primarySlot = NodeChannelSlot(
             index = 0,
             name = DefaultActiveContour.CHANNEL_NAME,
-            psk = openPskBytes,
+            psk = defaultPskBytes,
             isEnabled = true,
         )
         val emergencyWithGeo = NodeChannelSlot(
@@ -271,6 +273,7 @@ class SyncContoursOnConnectUseCaseTest {
     fun `broadcast already correct — no broadcast write`() = runTest {
         coEvery { getPositionBroadcastSecs.invoke() } returns 60 // matches desired
         val openPskBytes = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
+        val defaultPskBytes = Base64.getDecoder().decode(DefaultActiveContour.DEFAULT_PSK)
         val primary = Contour(
             id = DefaultActiveContour.ID,
             name = DefaultActiveContour.DISPLAY_NAME,
@@ -280,12 +283,12 @@ class SyncContoursOnConnectUseCaseTest {
             isActive = true,
             transport = ContourTransport(
                 meshtastic = MeshtasticChannel(
-                    psk = DefaultContour.OPEN_PSK,
-                    channelHash = ContourHash.compute(DefaultActiveContour.CHANNEL_NAME, openPskBytes),
+                    psk = DefaultActiveContour.DEFAULT_PSK,
+                    channelHash = ContourHash.compute(DefaultActiveContour.CHANNEL_NAME, defaultPskBytes),
                 ),
             ),
         )
-        val primarySlot = NodeChannelSlot(index = 0, name = DefaultActiveContour.CHANNEL_NAME, psk = openPskBytes, isEnabled = true)
+        val primarySlot = NodeChannelSlot(index = 0, name = DefaultActiveContour.CHANNEL_NAME, psk = defaultPskBytes, isEnabled = true)
         val emergencySlot = NodeChannelSlot(
             index = 1, name = DefaultContour.CHANNEL_NAME, psk = openPskBytes, isEnabled = true,
             positionPrecision = ChannelPositionPrecision.DISABLED,

@@ -2,6 +2,7 @@ package ru.tcynik.meshtactics.domain.map.usecase
 
 import app.cash.turbine.test
 import io.mockk.every
+import ru.tcynik.meshtactics.logger.NoOpLogger
 import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -31,7 +32,7 @@ class ObserveNodeMarkersUseCaseTest {
     private val repository: MeshNetworkRepository = mockk()
     private val contourRepository: ContourRepository = mockk()
     private val channelSlotResolver: ChannelSlotResolver = mockk()
-    private val useCase = ObserveNodeMarkersUseCase(repository, contourRepository, channelSlotResolver)
+    private val useCase = ObserveNodeMarkersUseCase(repository, contourRepository, channelSlotResolver, NoOpLogger())
 
     @Before
     fun setUp() {

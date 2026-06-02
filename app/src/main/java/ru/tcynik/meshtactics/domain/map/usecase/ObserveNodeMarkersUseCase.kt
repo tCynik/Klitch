@@ -1,6 +1,5 @@
 package ru.tcynik.meshtactics.domain.map.usecase
 
-import co.touchlab.kermit.Logger
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -13,6 +12,7 @@ import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import ru.tcynik.meshtactics.domain.marker.model.NodeMarkerModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshNodeModel
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshNetworkRepository
+import ru.tcynik.meshtactics.domain.logger.Logger
 import ru.tcynik.meshtactics.domain.usecase.base.FlowUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 
@@ -55,6 +55,7 @@ class ObserveNodeMarkersUseCase(
     private val repository: MeshNetworkRepository,
     private val contourRepository: ContourRepository,
     private val channelSlotResolver: ChannelSlotResolver,
+    private val logger: Logger,
 ) : FlowUseCase<NoParams, List<NodeMarkerModel>>() {
 
     override fun invoke(params: NoParams): Flow<List<NodeMarkerModel>> =
@@ -99,6 +100,9 @@ class ObserveNodeMarkersUseCase(
             effectiveTime > maxAgeThreshold
         }
 
+        logger.i("Node", "contour filter: sos=$sosMode slots=${maps.slotToHash.keys} " +
+                ", nodes: ${recentEnough.joinToString { "\n     ${it.longName}_${it.shortName} (slot=${it.receivedOnSlot})" }}")
+
         val filtered = recentEnough.filter { node ->
             passesContourFilter(node.receivedOnSlot, contourByHash, maps, sosMode)
         }
@@ -107,9 +111,9 @@ class ObserveNodeMarkersUseCase(
             val effectiveTime = if (it.positionTime > 0) it.positionTime else it.lastHeard
             effectiveTime > freshnessThreshold
         }
-        Logger.d { "update: myPosition = '${ourNode?.latitude}/${ourNode?.longitude}', nodes=${nodes.size}/${peers.size} " +
-                "withPosition=${withPosition.size} recent=${recentEnough.size} filtered=${filtered.size} fresh=$freshCount " +
-                "[${filtered.joinToString { it.toLogString(nowSeconds) }}]" }
+        logger.d("Node", "ObserveNodeMarkersUseCase: myPos=${ourNode?.latitude}/${ourNode?.longitude} " +
+                "nodesSize=${nodes.size}/${peers.size} withPos=${withPosition.size} recent=${recentEnough.size} " +
+                "filtered=${filtered.size} fresh=$freshCount, nodes: ${filtered.joinToString { "\n     ${it.toLogString(nowSeconds)}" }}")
         return filtered.map { node ->
             val effectiveTime = if (node.positionTime > 0) node.positionTime else node.lastHeard
             val isStale = effectiveTime <= freshnessThreshold
@@ -143,5 +147,5 @@ class ObserveNodeMarkersUseCase(
 private fun MeshNodeModel.toLogString(nowSeconds: Long): String {
     val ageStr = if (positionTime > 0) "${nowSeconds - positionTime}s ago" else "no time"
     val coordStr = "%.5f,%.5f".format(latitude, longitude)
-    return "$longName($ageStr $coordStr)"
+    return "$longName(slot=$receivedOnSlot $ageStr $coordStr)"
 }

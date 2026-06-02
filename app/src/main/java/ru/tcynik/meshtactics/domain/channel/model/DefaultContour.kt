@@ -24,5 +24,4 @@ object DefaultContour {
         isActive = IS_ACTIVE_DEFAULT,
         transport = TRANSPORT,
     )
-    // TODO(contour): SOS mode — activate Primary automatically on alarm trigger
 }

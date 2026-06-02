@@ -12,9 +12,7 @@ class MeshNetworkRepositoryImpl(
 ) : MeshNetworkRepository {
 
     override fun observeNodes(): Flow<List<MeshNodeModel>> =
-        meshNodeRepository.getNodes().map { nodes ->
-            nodes.map { it.toMeshNodeModel() }
-        }
+        meshNodeRepository.getNodes().map { nodes -> nodes.map { it.toMeshNodeModel() } }
 
     override fun observeOurNode(): Flow<MeshNodeModel?> =
         meshNodeRepository.ourNodeInfo.map { node ->
