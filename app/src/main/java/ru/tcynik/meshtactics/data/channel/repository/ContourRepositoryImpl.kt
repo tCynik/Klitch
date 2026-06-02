@@ -71,7 +71,7 @@ class ContourRepositoryImpl(
     }
 
     override suspend fun seedDefaultsIfAbsent() {
-        val pskBytes = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
+        val pskBytes = Base64.getDecoder().decode(DefaultActiveContour.DEFAULT_PSK)
         val hash = ContourHash.compute(
             meshtasticChannelName(DefaultActiveContour.ID, DefaultActiveContour.DISPLAY_NAME),
             pskBytes,
