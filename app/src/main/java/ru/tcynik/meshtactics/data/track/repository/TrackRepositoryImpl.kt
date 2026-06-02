@@ -71,6 +71,12 @@ class TrackRepositoryImpl(
             .mapToList(Dispatchers.IO)
             .map { rows -> rows.map { it.toModel() } }
 
+    override fun observeAllPoints(): Flow<List<TrackPoint>> =
+        pointQueries.selectAll()
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+            .map { rows -> rows.map { it.toTrackPoint() } }
+
     override suspend fun setVisible(id: String, visible: Boolean) {
         trackQueries.setVisible(isVisible = if (visible) 1L else 0L, id = id)
     }
@@ -184,6 +190,14 @@ class TrackRepositoryImpl(
         }
         return total
     }
+
+    private fun ru.tcynik.meshtactics.data.local.Recorded_track_point.toTrackPoint() = TrackPoint(
+        trackId = track_id,
+        timestampMs = timestamp,
+        lat = lat,
+        lon = lon,
+        accuracy = accuracy.toFloat(),
+    )
 
     private fun ru.tcynik.meshtactics.data.local.Recorded_track.toModel() = RecordedTrack(
         id = id,

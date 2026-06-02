@@ -76,6 +76,7 @@ import androidx.compose.runtime.setValue
 import ru.tcynik.meshtactics.presentation.feature.main.MarkToolTapDispatcher
 import ru.tcynik.meshtactics.presentation.feature.main.markToolMapTapGestures
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.OverlayRenderModel
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.RecordedTrackRenderModel
 
 // BaseStyle.Empty has no `glyphs` URL — SymbolLayer text rendering fails without it and breaks
 // all other layers too. This style adds the MapLibre demotiles glyph server.
@@ -112,6 +113,7 @@ fun MapLibreLayer(
     selectedOverlays: ImmutableList<OverlayRenderModel> = persistentListOf(),
     geoMarks: ImmutableList<GeoMarkModel> = persistentListOf(),
     selectedGeoMarkId: String? = null,
+    recordedTracks: ImmutableList<RecordedTrackRenderModel> = persistentListOf(),
     pendingMarkPoints: ImmutableList<ru.tcynik.meshtactics.domain.marker.model.GeoPoint> = persistentListOf(),
     pendingMarkColor: Int = 0,
     pendingMarkShape: GeoMarkShape = GeoMarkShape.CIRCLE,
@@ -542,6 +544,22 @@ fun MapLibreLayer(
             iconAllowOverlap = const(true),
         )
 
+        val recordedTracksSource = rememberGeoJsonSource(
+            GeoJsonData.JsonString(buildRecordedTracksGeoJson(recordedTracks))
+        )
+        LineLayer(
+            id = "recorded-tracks-outline",
+            source = recordedTracksSource,
+            color = const(Color(0x80000000)),
+            width = const(5.dp),
+        )
+        LineLayer(
+            id = "recorded-tracks",
+            source = recordedTracksSource,
+            color = feature["color"].convertToColor(const(Color(0xFF43A047))),
+            width = const(3.dp),
+        )
+
     }
 }
 
@@ -701,6 +719,18 @@ private fun buildReceivedPointsGeoJson(marks: List<GeoMarkModel>): String {
 }
 
 private fun String.jsonEscape(): String = replace("\\", "\\\\").replace("\"", "\\\"")
+
+private fun buildRecordedTracksGeoJson(tracks: List<RecordedTrackRenderModel>): String {
+    if (tracks.isEmpty()) return """{"type":"FeatureCollection","features":[]}"""
+    val features = tracks
+        .filter { it.points.size >= 2 }
+        .joinToString(",") { track ->
+            val coords = track.points.joinToString(",") { (lat, lon) -> "[$lon,$lat]" }
+            val hex = markColorHex(track.color)
+            """{"type":"Feature","geometry":{"type":"LineString","coordinates":[$coords]},"properties":{"color":"$hex"}}"""
+        }
+    return """{"type":"FeatureCollection","features":[$features]}"""
+}
 
 private fun buildReceivedTracksGeoJson(marks: List<GeoMarkModel>): String {
     if (marks.isEmpty()) return """{"type":"FeatureCollection","features":[]}"""

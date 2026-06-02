@@ -272,6 +272,7 @@ fun MainScreen(
                 selectedOverlays = uiState.selectedOverlays,
                 geoMarks = uiState.geoMarks,
                 selectedGeoMarkId = uiState.selectedGeoMarkId,
+                recordedTracks = uiState.recordedTracks,
                 pendingMarkPoints = uiState.pendingMarkPoints,
                 pendingMarkColor = geoMarksSheetUiState.selectedColor,
                 pendingMarkShape = geoMarksSheetUiState.selectedShape,

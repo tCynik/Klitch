@@ -115,6 +115,9 @@ import ru.tcynik.meshtactics.domain.track.usecase.PauseTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.ResumeTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.StartTrackRecordingUseCase
 import ru.tcynik.meshtactics.domain.track.usecase.StopTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTracksUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTrackPointsUseCase
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.RecordedTrackRenderModel
 import java.util.UUID
 import kotlin.math.cos
 
@@ -172,6 +175,8 @@ class MainViewModel(
     private val discardTrackRecording: DiscardTrackRecordingUseCase,
     private val trackSettingsDataSource: TrackSettingsDataSource,
     private val gpsRepository: GpsRepository,
+    observeRecordedTracks: ObserveRecordedTracksUseCase,
+    observeRecordedTrackPoints: ObserveRecordedTrackPointsUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -403,6 +408,27 @@ class MainViewModel(
             .launchIn(viewModelScope)
 
         autoExpireGeoMarks.observe().launchIn(viewModelScope)
+
+        combine(
+            observeRecordedTracks(NoParams),
+            observeRecordedTrackPoints(NoParams),
+            observeTrackRecordingState(NoParams),
+        ) { tracks, allPoints, recordingState ->
+            val recordingId = (recordingState as? TrackRecordingState.Recording)?.trackId
+            val pointsByTrack = allPoints.groupBy { it.trackId }
+            val renderModels = tracks
+                .filter { it.isVisible }
+                .map { track ->
+                    RecordedTrackRenderModel(
+                        id = track.id,
+                        color = track.color,
+                        isRecording = track.id == recordingId,
+                        points = (pointsByTrack[track.id] ?: emptyList())
+                            .map { it.lat to it.lon },
+                    )
+                }
+            _uiState.update { it.copy(recordedTracks = renderModels.toImmutableList()) }
+        }.launchIn(viewModelScope)
 
         combine(
             observeLogicalChannels(NoParams),

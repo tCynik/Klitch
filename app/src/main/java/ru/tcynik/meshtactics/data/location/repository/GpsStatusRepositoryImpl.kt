@@ -1,7 +1,9 @@
 package ru.tcynik.meshtactics.data.location.repository
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Application
+import android.content.pm.PackageManager
 import android.location.GnssStatus
 import android.location.LocationManager
 import android.os.Handler
@@ -40,6 +42,12 @@ class GpsStatusRepositoryImpl(
 
     @SuppressLint("MissingPermission")
     private val satelliteCountFlow = callbackFlow {
+        if (context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED) {
+            close()
+            return@callbackFlow
+        }
+
         val locationManager = context.getSystemService(LocationManager::class.java)
 
         val callback = object : GnssStatus.Callback() {
@@ -65,6 +73,12 @@ class GpsStatusRepositoryImpl(
 
     @SuppressLint("MissingPermission")
     private val accuracyFlow = callbackFlow<Float?> {
+        if (context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED) {
+            close()
+            return@callbackFlow
+        }
+
         val locationManager = context.getSystemService(LocationManager::class.java)
 
         val listener = LocationListenerCompat { location ->

@@ -11,6 +11,7 @@ import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.model.MeshDeviceModel
 import ru.tcynik.meshtactics.domain.mesh.model.NodeSyncCyclePhase
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.OverlayRenderModel
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.RecordedTrackRenderModel
 
 // TODO: replace default with GPS first-fix or user-configurable home position
 private val DEFAULT_CAMERA_POSITION = MapCameraPosition(lat = 56.0184, lon = 92.8672, zoom = 10.0)
@@ -54,4 +55,5 @@ data class MainUiState(
     // current map camera bearing in degrees [0, 360); used to rotate compass icon
     val mapBearing: Float = 0f,
     val networkEnabled: Boolean = true,
+    val recordedTracks: ImmutableList<RecordedTrackRenderModel> = persistentListOf(),
 )

@@ -14,5 +14,8 @@ VALUES (:trackId, :timestamp, :lat, :lon, :accuracy);
 selectByTrackId:
 SELECT * FROM recorded_track_point WHERE track_id = :trackId ORDER BY timestamp ASC;
 
+selectAll:
+SELECT * FROM recorded_track_point ORDER BY track_id, timestamp ASC;
+
 deleteByTrackId:
 DELETE FROM recorded_track_point WHERE track_id = :trackId;
