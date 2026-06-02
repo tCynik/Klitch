@@ -21,6 +21,7 @@ class ActivateExclusiveContourUseCase(
             .forEach { contourRepository.saveContour(it.copy(isActive = false)) }
 
         val exclusive = contours.find { it.id == contourId } ?: return
+        if (!exclusive.isActive) contourRepository.saveContour(exclusive.copy(isActive = true))
         val name = if (exclusive.isEmergency) DefaultContour.CHANNEL_NAME else meshtasticChannelName(exclusive)
         val psk = if (exclusive.isEmergency) DefaultContour.OPEN_PSK else exclusive.transport.meshtastic.psk
         writeChannel(0, name, psk)

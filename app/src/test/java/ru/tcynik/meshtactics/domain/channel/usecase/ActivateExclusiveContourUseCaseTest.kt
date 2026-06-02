@@ -55,6 +55,7 @@ class ActivateExclusiveContourUseCaseTest {
         coVerify(exactly = 1) { contourRepository.setPrimaryContour(exclusiveId) }
         coVerify(exactly = 1) { contourRepository.saveContour(other.copy(isActive = false)) }
         coVerify(exactly = 0) { contourRepository.saveContour(match { it.id == DefaultContour.ID }) }
+        coVerify(exactly = 0) { contourRepository.saveContour(exclusive.copy(isActive = true)) }
         coVerify(exactly = 1) { writeChannel(0, "Race", pskBase64) }
         coVerify(exactly = 1) {
             writeChannel(1, DefaultContour.CHANNEL_NAME, DefaultContour.OPEN_PSK, ChannelPositionPrecision.DISABLED)
@@ -62,5 +63,18 @@ class ActivateExclusiveContourUseCaseTest {
         (2..7).forEach { slot ->
             coVerify(exactly = 1) { writeChannel(slot, "", "") }
         }
+    }
+
+    @Test
+    fun `inactive exclusive contour gets activated`() = runTest {
+        val exclusiveId = ContourId("00000000-0000-0000-0000-000000000099")
+        val exclusive = makeContour(exclusiveId, "Race", isActive = false)
+        val other = makeContour(DefaultActiveContour.ID, "Basic")
+        val emergency = DefaultContour.asContour()
+        coEvery { contourRepository.observeContours() } returns flowOf(listOf(emergency, other, exclusive))
+
+        useCase(exclusiveId)
+
+        coVerify(exactly = 1) { contourRepository.saveContour(exclusive.copy(isActive = true)) }
     }
 }

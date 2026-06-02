@@ -320,7 +320,7 @@ class EmergencyPositionBroadcastRepositoryImpl(
     init {
         // Restore persisted state on startup
         scope.launch {
-            val wasActive = contourRepository.observeEmergencyIsActive().first()
+            val wasActive = contourRepository.observeSosMode().first()
             if (wasActive) start()
         }
     }
@@ -397,6 +397,84 @@ class ChannelSlotResolverImpl(
 **When to use:** Any "live node state → domain lookup" need (e.g., slot index → channel hash, node id → display name). Prefer over: storing ephemeral node state in DB, or calling `observeX().first()` on each packet.
 
 See: `data/channel/ChannelSlotResolverImpl.kt`, `domain/channel/ChannelSlotResolver.kt`
+
+---
+
+### Channel Slot Reservation Pattern (usedSlots pre-seeding)
+
+When syncing contours to node slots, reserve system-owned slots **before** iterating user contours to prevent accidental overwrites.
+
+**Rule:** always seed `usedSlots = mutableSetOf(0, 1)` before calling `ResolveChannelSlotUseCase`:
+- Slot 0 — Primary contour (exclusive, written by `SetPrimaryContourUseCase` / `SyncContoursOnConnectUseCase`)
+- Slot 1 — Emergency contour (always written explicitly in sync/exclusive paths)
+
+User contours land in slots 2–7 only.
+
+```kotlin
+// SyncContoursOnConnectUseCase
+val usedSlots = mutableSetOf(0, 1) // reserve primary + emergency
+for (contour in activeNonPrimaryNonEmergency) {
+    val resolution = resolveSlot(contour, nodeChannels, usedSlots)
+    when (resolution) {
+        is AlreadySynced -> usedSlots.add(resolution.slot)
+        is FreeSlot -> { writeChannel(resolution.slot, ...); usedSlots.add(resolution.slot) }
+        is NoFreeSlot -> { log.w(...); return }
+    }
+}
+```
+
+**Also applies to `NodeProvisioningUseCase`:** same pre-seeding — primary is already handled by `SyncContoursOnConnectUseCase`, provision handles slots 2–7 only.
+
+**When to use:** any use case that iterates contours and allocates node slots. Never let `ResolveChannelSlotUseCase` see slots 0 or 1 as candidates.
+
+See: `domain/channel/usecase/SyncContoursOnConnectUseCase.kt`, `domain/mesh/usecase/NodeProvisioningUseCase.kt`
+
+---
+
+### Primary Contour Mechanic (DataStore single-source-of-truth)
+
+Exactly one contour owns slot 0 at all times — the **Primary** contour. Primary ID is persisted in DataStore as `primary_contour_id`.
+
+**Invariants:**
+- Primary contour is always `isActive = true` (cannot be deactivated — `SetContourActiveUseCase` guards this)
+- Emergency contour is never toggled via `isActive` — it is always present on the radio (slot 1 when not primary, slot 0 during SOS)
+- SOS mode is a separate DataStore key `sos_mode_active`; during SOS, Emergency becomes Primary
+
+**Single write path for Primary:** `SetPrimaryContourUseCase`
+```kotlin
+class SetPrimaryContourUseCase(
+    private val contourRepository: ContourRepository,
+    private val writeChannel: WriteChannelUseCase,
+) {
+    suspend operator fun invoke(contourId: ContourId) {
+        contourRepository.setPrimaryContour(contourId)   // persist to DataStore
+        // resolve name/psk (Emergency uses LongFast/AQ==, others use contour transport)
+        writeChannel(0, name, psk)                        // always write slot 0; no-op if disconnected
+    }
+}
+```
+
+**SOS flow:**
+```
+TriggerEmergencyUseCase:
+  savePreSosPrimaryId(currentPrimary) → setSosMode(true) → setPrimaryContour(Emergency.id)
+
+CancelEmergencyUseCase:
+  stopBroadcast → send all-clear → setPrimaryContour(presosPrimaryId) → setSosMode(false) → savePreSosPrimaryId(null)
+```
+
+**DataStore keys** (all in `contour_ds`):
+```
+primary_contour_id   StringPreferencesKey  default = DefaultActiveContour.ID.value
+sos_mode_active      BooleanPreferencesKey default = false
+pre_sos_primary_id   StringPreferencesKey? null when SOS inactive
+```
+
+**Emergency `isActive` is not persisted.** `ContourRepositoryImpl.observeContours()` prepends Emergency with `isActive = true` hardcoded — no DataStore key for it.
+
+**When to use this pattern:** any feature that reads which contour owns slot 0, changes Primary, or needs to know SOS state. All SOS state flows through `observeSosMode()` — not `observeEmergencyIsActive()` (removed).
+
+See: `domain/channel/usecase/SetPrimaryContourUseCase.kt`, `domain/channel/usecase/ActivateExclusiveContourUseCase.kt`, `data/channel/repository/ContourRepositoryImpl.kt`
 
 ---
 

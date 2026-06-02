@@ -1,7 +1,7 @@
 # Plan: Contours Redesign — Primary Mechanic + Exclusive Mode
 
-**Date**: 2026-05-29 (updated 2026-06-01)
-**Status**: Approved — expanded scope (isolation guarantees)
+**Date**: 2026-05-29 (updated 2026-06-02)
+**Status**: Done — Phase 5/6/6b complete; Phase 7 (commit) next; Phase 3.5/4.5 (ручной тест) — ожидает сигнала от тестировщика
 
 ## Summary
 
@@ -553,3 +553,4 @@ DataStore. Resolve in Step 3.16b.
 - 2026-06-01: заменён Step 3.24 (runtime debug override) на процессные гейты Phase 3.5 / Phase 4.5 — временная замена DefaultContour-констант перед тестом, обязательный возврат после подтверждения тестировщика
 - 2026-06-01: Phase 3 завершена (сборка OK). Исправлены баги: 3.4 GeoSendPolicyImpl (flowOf(true)), 3.18 IngestReceivedGeoMarksUseCase (slot 0→primary, slot 1→Emergency+SOS gate). Добавлены: 3.19 MeshNodeModel.receivedOnSlot, 3.20/3.21 контур-фильтры в ObserveNodeMarkersUseCase/ObserveGeoNodesUseCase. Step 3.22 deferred (unread gate в mesh-библиотеке, вне scope).
 - 2026-06-01: Phase 4 завершена (407 тестов, 0 failures). Исправлены сломанные тесты: GeoSendPolicyImplTest (новая логика flowOf(true)), ObserveNodeMarkersUseCaseTest (новые зависимости), NetworkViewModelCallsignGateTest (observeDeviceConfig), IngestReceivedGeoMarksUseCaseTest (slot 2 вместо 1, observeSosMode/getPrimaryContourId моки). Добавлены тесты фильтра контуров в ObserveNodeMarkersUseCaseTest и новый ObserveGeoNodesUseCaseTest.
+- 2026-06-02: Phase 5 завершена (нарушений нет: новые UseCase чистые, data-слой в presentation не появился, pre-existing ContourSyncStateRepository паттерн). Phase 6 завершена: architect.md — добавлены Channel Slot Reservation Pattern и Primary Contour Mechanic Pattern; исправлена устаревшая ссылка observeEmergencyIsActive→observeSosMode. Phase 6b: ui-designer.md — добавлен ContourCard в Component Library с полной spec dropdown+radio; статус CLAUDE.md уже Done. Ручной тест (Phase 3.5/4.5) отложен по решению команды.

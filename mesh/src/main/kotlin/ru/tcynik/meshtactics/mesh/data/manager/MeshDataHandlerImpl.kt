@@ -28,6 +28,7 @@ import kotlinx.coroutines.sync.withLock
 import org.koin.core.annotation.Single
 import ru.tcynik.meshtactics.mesh.common.util.handledLaunch
 import ru.tcynik.meshtactics.mesh.common.util.ioDispatcher
+import ru.tcynik.meshtactics.mesh.data.NodePositionSlotCache
 import ru.tcynik.meshtactics.mesh.common.util.nowMillis
 import ru.tcynik.meshtactics.mesh.common.util.nowSeconds
 import ru.tcynik.meshtactics.mesh.model.DataPacket
@@ -108,6 +109,7 @@ class MeshDataHandlerImpl(
     private val radioConfigRepository: RadioConfigRepository,
     private val messageFilter: MessageFilter,
     private val storeForwardHandler: StoreForwardPacketHandler,
+    private val nodePositionSlotCache: NodePositionSlotCache,
 ) : MeshDataHandler {
     private var scope: CoroutineScope = CoroutineScope(ioDispatcher + SupervisorJob())
 
@@ -248,6 +250,7 @@ class MeshDataHandlerImpl(
         val payload = packet.decoded?.payload ?: return
         val p = Position.ADAPTER.decodeOrNull(payload, Logger) ?: return
         Logger.d { "Position from ${packet.from}: ${Position.ADAPTER.toOneLiner(p)}" }
+        nodePositionSlotCache.record(packet.from, packet.channel)
         nodeManager.handleReceivedPosition(packet.from, myNodeNum, p, dataPacket.time)
     }
 
