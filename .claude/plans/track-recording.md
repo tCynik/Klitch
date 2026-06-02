@@ -342,6 +342,111 @@ After all tasks: run `/simplify` on changed files.
 
 ---
 
+### Phase 3c — Service Robustness (Non-User-Initiated Termination)
+
+**Goal**: Корректное завершение записи во всех сценариях, когда пользователь не нажал «Стоп».
+
+#### Сценарии и обработка
+
+| Сценарий | `onDestroy`? | Обработка |
+|---|---|---|
+| Явный выход через диалог | ✓ (после `stopService`) | Уже корректно ✓ |
+| Система убила сервис (OOM) | ✓ | `GpsService.onDestroy()` → `finishIfRecording()` |
+| Force-stop / kill процесса | ✗ | Orphan recovery при старте |
+| Перезагрузка устройства | ✗ | Orphan recovery при старте |
+
+#### Задачи
+
+1. **`TrackRecordingRepository`** — добавить метод `suspend fun finishIfRecording()` в интерфейс.
+
+2. **`TrackRecordingRepositoryImpl.finishIfRecording()`**:
+   ```kotlin
+   override suspend fun finishIfRecording() {
+       val state = _state.value as? TrackRecordingState.Recording ?: return
+       db.updateFinished(
+           id           = state.trackId,
+           finishedAt   = System.currentTimeMillis() / 1000,
+           totalDistance = state.distanceMeters,
+       )
+       _state.value = TrackRecordingState.Idle
+   }
+   ```
+   Только один `UPDATE` — завершается за ~1–2 мс, ANR не угрожает.
+
+3. **`GpsService.onDestroy()`**:
+   ```kotlin
+   override fun onDestroy() {
+       runBlocking { trackRecordingRepository.finishIfRecording() }
+       serviceScope.cancel()
+       super.onDestroy()
+   }
+   ```
+
+4. **SQL** — добавить запрос `selectAllOpenTracks` в `RecordedTrack.sq`:
+   ```sql
+   selectAllOpenTracks:
+   SELECT * FROM recorded_track WHERE finished_at IS NULL;
+   ```
+
+5. **Orphan recovery** — вызывается в `TrackRecordingRepositoryImpl.init` (приватный suspend-метод, запускается через `CoroutineScope(SupervisorJob()).launch`):
+
+   **Константа**: `ORPHAN_RECOVERY_DEADLINE_MS = 12 * 60 * 60 * 1000L` (12 часов).
+
+   **Логика**:
+   ```
+   lastActivityMs = MAX(point.timestamp) FOR track
+                    ?: track.startedAt * 1000   // если точек ещё не было
+
+   if (now - lastActivityMs ≤ 12 ч):
+       → auto-save: updateFinished(id, lastActivityMs/1000, calculatedDist)
+       → logger.i("Track", "Recovered orphaned track $id")
+   else:
+       → discard: deleteByTrackId(points) + deleteById(track)
+       → logger.w("Track", "Discarded stale orphaned track $id")
+   ```
+
+   **Обоснование дедлайна**: 12 часов — достаточно, чтобы сохранить трек при перезагрузке устройства в походе и возврате на следующее утро; достаточно коротко, чтобы «забытая» запись недельной давности не появилась в списке.
+
+6. Вспомогательный метод `calculateTotalDistanceFromPoints(points: List<TrackPoint>): Double` — переиспользует `GeoTrackDistance.latLongToMeter`; размещается в `TrackRecordingRepositoryImpl` (private).
+
+**Logger checklist**: `finishIfRecording` и orphan recovery логируют через тег `"Track"`.
+
+---
+
+### Phase 3d — Background Recording Reminder Notification
+
+**Goal**: Каждые 2 часа активной фоновой записи пользователь получает push-напоминание с актуальной статистикой.
+
+**Условие показа**: запись активна (`TrackRecordingState.Recording`) **и** приложение не на переднем плане.
+
+#### Задачи
+
+1. **Константа** в `GpsService`:
+   ```kotlin
+   private const val RECORDING_REMINDER_INTERVAL_MS = 2 * 60 * 60 * 1000L
+   ```
+
+2. **Канал уведомлений** — создать отдельный канал `"track_reminder"` (importance `IMPORTANCE_DEFAULT`) при инициализации `GpsService`. Отдельный канал нужен, чтобы пользователь мог отключить напоминания, не трогая постоянное foreground-уведомление GPS.
+
+3. **Periodic reminder coroutine** в `GpsService`:
+   - Запускается/перезапускается при переходе в `Recording`; отменяется при `Idle`.
+   - Внутри: `delay(RECORDING_REMINDER_INTERVAL_MS)`, затем — проверка `ProcessLifecycleOwner.get().lifecycle.currentState` (если `RESUMED` — пропустить, приложение активно; иначе — отправить уведомление).
+   - Цикл продолжается до отмены job.
+
+4. **Текст уведомления**:
+   - Заголовок: `"Запись трека активна"`
+   - Текст: `"${rs.name} • ${formatDuration(accumulatedSeconds)} • ${formatDistance(distanceMeters)}"`
+   - `contentIntent`: PendingIntent открывает `MainActivity` (app to front).
+   - `autoCancel = true`.
+
+5. **Отмена**: при `Idle` отозвать уведомление через `NotificationManagerCompat.cancel(REMINDER_NOTIFICATION_ID)`.
+
+6. **Reminder job** хранится как поле `GpsService` (аналогично inner collection job), управляется из coroutine, которая наблюдает за `TrackRecordingRepository.observeState()`.
+
+**ProcessLifecycleOwner** требует зависимости `androidx.lifecycle:lifecycle-process` (скорее всего уже есть в проекте).
+
+---
+
 ### Phase 4 — Testing
 
 **Tasks**:
@@ -397,15 +502,17 @@ Stage by name, propose commit message in Russian, wait for confirmation.
 ## Coordination Map
 
 ```
-Phase 0: — (skipped)
-Phase 1: /architect feature: track recording … → [/compact]
-Phase 2: /icon-designer create: ic_track_record
-Phase 3: [direct coding, 15 tasks] → /simplify
-Phase 4: [direct coding — tests]
-Phase 5: /architect review: domain/track/, data/track/, GpsService.kt, MainViewModel.kt
-Phase 6: [skill updates: /architect, /ui-designer, /icon-designer, /planner]
+Phase 0:  — (skipped)
+Phase 1:  /architect feature: track recording … → [/compact]
+Phase 2:  /icon-designer create: ic_track_record
+Phase 3:  [direct coding, 15 tasks] → /simplify              ✅ Done
+Phase 3c: [direct coding — service robustness]
+Phase 3d: [direct coding — background reminder notification]
+Phase 4:  [direct coding — tests]
+Phase 5:  /architect review: domain/track/, data/track/, GpsService.kt, MainViewModel.kt
+Phase 6:  [skill updates: /architect, /ui-designer, /icon-designer, /planner]
 Phase 6b: [CLAUDE.md, .claude/docs/track-recording.md, archive plan, memory/]
-Phase 7: [stage by name → propose commit → wait → git commit]
+Phase 7:  [stage by name → propose commit → wait → git commit]
 ```
 
 ---
@@ -420,3 +527,4 @@ Phase 7: [stage by name → propose commit → wait → git commit]
 ## Change Log
 
 - 2026-06-01: created; Q2–Q5 from user review incorporated (presets, mutual exclusion, sheet-close ≠ stop, GpsService scope)
+- 2026-06-02: added Phase 3c (service robustness: finishIfRecording on onDestroy + orphan recovery with 12-hour deadline); added Phase 3d (background reminder notification every 2 h via ProcessLifecycleOwner)
