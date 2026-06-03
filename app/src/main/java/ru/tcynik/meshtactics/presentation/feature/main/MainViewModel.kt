@@ -654,6 +654,7 @@ class MainViewModel(
         val trimToMovement = _stopDialogState.value.trimToMovement
         _stopDialogState.value = StopDialogState()
         _pendingExitOnStop.value = false
+        closeTrackRecordingSheetVisibility()
         viewModelScope.launch {
             val result = stopTrackRecording(name, trimToMovement)
             if (result == StopResult.DiscardedNoMovement) {
@@ -667,6 +668,7 @@ class MainViewModel(
         val shouldExit = _pendingExitOnStop.value
         _stopDialogState.value = StopDialogState()
         _pendingExitOnStop.value = false
+        closeTrackRecordingSheetVisibility()
         viewModelScope.launch {
             discardTrackRecording()
             if (shouldExit) _exitAppEvent.emit(Unit)

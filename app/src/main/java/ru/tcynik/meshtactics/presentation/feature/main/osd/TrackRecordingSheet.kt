@@ -637,7 +637,7 @@ internal fun TrackStopConfirmDialog(
                         contentColor = MaterialTheme.colorScheme.error,
                     ),
                 ) { Text("Удалить") }
-                TextButton(onClick = onCancel) { Text("Отменить") }
+                TextButton(onClick = onCancel) { Text("Отмена") }
             }
         },
     )
