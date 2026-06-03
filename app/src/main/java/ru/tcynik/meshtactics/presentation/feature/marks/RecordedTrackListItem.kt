@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -78,7 +79,7 @@ fun RecordedTrackListItem(
             IconButton(onClick = { menuExpanded = true }) {
                 Icon(
                     painter = painterResource(R.drawable.ic_more_vert),
-                    contentDescription = "Меню",
+                    contentDescription = stringResource(R.string.track_cd_menu),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -87,7 +88,7 @@ fun RecordedTrackListItem(
                 onDismissRequest = { menuExpanded = false },
             ) {
                 DropdownMenuItem(
-                    text = { Text("Удалить") },
+                    text = { Text(stringResource(R.string.track_action_delete)) },
                     onClick = {
                         menuExpanded = false
                         onMenuDelete()

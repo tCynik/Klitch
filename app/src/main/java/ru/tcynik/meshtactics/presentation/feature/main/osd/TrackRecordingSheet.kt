@@ -61,6 +61,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -70,27 +71,6 @@ import ru.tcynik.meshtactics.domain.marker.model.GeoMarkColor
 import ru.tcynik.meshtactics.domain.track.model.TrackRecordingPreset
 import ru.tcynik.meshtactics.domain.track.model.TrackRecordingState
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.TrackRecordingSheetUiState
-
-private val INTERVAL_OPTIONS: List<Pair<Int?, String>> = listOf(
-    null to "нет",
-    5    to "5 сек",
-    10   to "10 сек",
-    30   to "30 сек",
-    60   to "1 мин",
-    120  to "2 мин",
-    300  to "5 мин",
-)
-
-private val MIN_DISTANCE_OPTIONS: List<Pair<Int, String>> = listOf(
-    0   to "нет",
-    5   to "5 м",
-    10  to "10 м",
-    15  to "15 м",
-    30  to "30 м",
-    50  to "50 м",
-    100 to "100 м",
-    200 to "200 м",
-)
 
 @Composable
 fun TrackRecordingSheet(
@@ -154,9 +134,13 @@ fun TrackRecordingSheet(
                                 )
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     if (rs.isPaused) {
-                                        OutlinedButton(onClick = state.onResume) { Text("Продолжить") }
+                                        OutlinedButton(onClick = state.onResume) {
+                                            Text(stringResource(R.string.track_action_resume))
+                                        }
                                     } else {
-                                        OutlinedButton(onClick = state.onPause) { Text("Пауза") }
+                                        OutlinedButton(onClick = state.onPause) {
+                                            Text(stringResource(R.string.track_action_pause))
+                                        }
                                     }
                                     Button(
                                         onClick = state.onStop,
@@ -164,14 +148,16 @@ fun TrackRecordingSheet(
                                             containerColor = MaterialTheme.colorScheme.error,
                                             contentColor = MaterialTheme.colorScheme.onError,
                                         ),
-                                    ) { Text("Остановить") }
+                                    ) { Text(stringResource(R.string.track_action_stop)) }
                                 }
                             }
                         } else {
                             TrackSettingsSection(state = state)
                             HorizontalDivider()
                             TrackActionRow {
-                                Button(onClick = state.onStart) { Text("Начать запись") }
+                                Button(onClick = state.onStart) {
+                                    Text(stringResource(R.string.track_action_start))
+                                }
                             }
                         }
                     }
@@ -210,7 +196,8 @@ private fun TrackSheetHeader(state: TrackRecordingSheetUiState) {
         )
         if (rs is TrackRecordingState.Recording) {
             Text(
-                text = if (rs.isPaused) "⏸ ПАУЗА" else "● REC",
+                text = if (rs.isPaused) stringResource(R.string.track_status_paused)
+                       else stringResource(R.string.track_status_rec),
                 style = MaterialTheme.typography.titleMedium,
                 color = if (rs.isPaused) MaterialTheme.colorScheme.onSurfaceVariant
                         else MaterialTheme.colorScheme.error,
@@ -283,11 +270,12 @@ private fun TrackSheetHeader(state: TrackRecordingSheetUiState) {
             Icon(
                 imageVector = if (state.isCollapsed) Icons.Default.KeyboardArrowUp
                               else Icons.Default.KeyboardArrowDown,
-                contentDescription = if (state.isCollapsed) "Развернуть" else "Свернуть",
+                contentDescription = if (state.isCollapsed) stringResource(R.string.track_cd_expand)
+                                     else stringResource(R.string.track_cd_collapse),
             )
         }
         IconButton(onClick = state.onClose) {
-            Icon(Icons.Default.Close, contentDescription = "Закрыть")
+            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.track_cd_close))
         }
     }
 }
@@ -304,10 +292,10 @@ private fun TrackStatsSection(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
-        StatItem(label = "Время",     value = formatDuration(durationSeconds))
-        StatItem(label = "Дистанция", value = formatDistance(recordingState.distanceMeters))
-        StatItem(label = "Скорость",  value = formatSpeed(speedMps))
-        StatItem(label = "Точки",     value = recordingState.pointCount.toString())
+        StatItem(label = stringResource(R.string.track_stat_time),     value = formatDuration(durationSeconds))
+        StatItem(label = stringResource(R.string.track_stat_distance), value = formatDistance(recordingState.distanceMeters))
+        StatItem(label = stringResource(R.string.track_stat_speed),    value = formatSpeed(speedMps))
+        StatItem(label = stringResource(R.string.track_stat_points),   value = recordingState.pointCount.toString())
     }
 }
 
@@ -348,10 +336,10 @@ private fun PresetAndColorRow(state: TrackRecordingSheetUiState) {
             modifier = Modifier.weight(1f),
         ) {
             OutlinedTextField(
-                value = state.settings.preset.displayName,
+                value = state.settings.preset.displayName(),
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Режим") },
+                label = { Text(stringResource(R.string.track_label_preset)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -361,7 +349,7 @@ private fun PresetAndColorRow(state: TrackRecordingSheetUiState) {
             ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 TrackRecordingPreset.entries.forEach { preset ->
                     DropdownMenuItem(
-                        text = { Text(preset.displayName) },
+                        text = { Text(preset.displayName()) },
                         onClick = { state.onPresetSelected(preset); expanded = false },
                     )
                 }
@@ -378,6 +366,9 @@ private fun PresetAndColorRow(state: TrackRecordingSheetUiState) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TriggerRow(state: TrackRecordingSheetUiState) {
+    val intervalOptions = intervalOptions()
+    val distanceOptions = minDistanceOptions()
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -385,9 +376,10 @@ private fun TriggerRow(state: TrackRecordingSheetUiState) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         var intervalExpanded by remember { mutableStateOf(false) }
-        val intervalLabel = INTERVAL_OPTIONS
+        val intervalLabel = intervalOptions
             .firstOrNull { it.first == state.settings.intervalSeconds }?.second
-            ?: state.settings.intervalSeconds?.let { "${it}с" } ?: "нет"
+            ?: state.settings.intervalSeconds?.let { stringResource(R.string.track_interval_unknown_s, it) }
+            ?: stringResource(R.string.track_option_none)
 
         ExposedDropdownMenuBox(
             expanded = intervalExpanded,
@@ -398,7 +390,7 @@ private fun TriggerRow(state: TrackRecordingSheetUiState) {
                 value = intervalLabel,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Интервал") },
+                label = { Text(stringResource(R.string.track_label_interval)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(intervalExpanded) },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -406,7 +398,7 @@ private fun TriggerRow(state: TrackRecordingSheetUiState) {
                 colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
             )
             ExposedDropdownMenu(expanded = intervalExpanded, onDismissRequest = { intervalExpanded = false }) {
-                INTERVAL_OPTIONS.forEach { (value, label) ->
+                intervalOptions.forEach { (value, label) ->
                     DropdownMenuItem(
                         text = { Text(label) },
                         onClick = { state.onIntervalSelected(value); intervalExpanded = false },
@@ -416,9 +408,9 @@ private fun TriggerRow(state: TrackRecordingSheetUiState) {
         }
 
         var distExpanded by remember { mutableStateOf(false) }
-        val distLabel = MIN_DISTANCE_OPTIONS
+        val distLabel = distanceOptions
             .firstOrNull { it.first == state.settings.minDistanceMeters }?.second
-            ?: "${state.settings.minDistanceMeters} м"
+            ?: stringResource(R.string.track_distance_unknown_m, state.settings.minDistanceMeters)
 
         ExposedDropdownMenuBox(
             expanded = distExpanded,
@@ -429,7 +421,7 @@ private fun TriggerRow(state: TrackRecordingSheetUiState) {
                 value = distLabel,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Мин. дист.") },
+                label = { Text(stringResource(R.string.track_label_min_dist)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(distExpanded) },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -437,7 +429,7 @@ private fun TriggerRow(state: TrackRecordingSheetUiState) {
                 colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
             )
             ExposedDropdownMenu(expanded = distExpanded, onDismissRequest = { distExpanded = false }) {
-                MIN_DISTANCE_OPTIONS.forEach { (value, label) ->
+                distanceOptions.forEach { (value, label) ->
                     DropdownMenuItem(
                         text = { Text(label) },
                         onClick = { state.onMinDistanceSelected(value); distExpanded = false },
@@ -460,7 +452,7 @@ private fun NameRow(state: TrackRecordingSheetUiState) {
         OutlinedTextField(
             value = state.settings.name,
             onValueChange = state.onNameChanged,
-            label = { Text("Название") },
+            label = { Text(stringResource(R.string.track_label_name)) },
             modifier = Modifier.weight(1f),
             singleLine = true,
         )
@@ -472,7 +464,7 @@ private fun NameRow(state: TrackRecordingSheetUiState) {
                     else -> v.toIntOrNull()?.let { state.onNameCounterChanged(it) }
                 }
             },
-            label = { Text("№") },
+            label = { Text(stringResource(R.string.track_label_counter)) },
             modifier = Modifier.size(width = 72.dp, height = 56.dp),
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -499,7 +491,7 @@ private fun ColorPickerDropdown(
             value = " ",
             onValueChange = {},
             readOnly = true,
-            label = { Text("Цвет") },
+            label = { Text(stringResource(R.string.track_label_color)) },
             leadingIcon = {
                 Box(
                     modifier = Modifier
@@ -578,14 +570,38 @@ private fun formatSpeed(mps: Float?): String = when {
     else -> "%.1f км/ч".format(mps * 3.6f)
 }
 
-private val TrackRecordingPreset.displayName: String get() = when (this) {
-    TrackRecordingPreset.WALKING  -> "Пешком"
-    TrackRecordingPreset.BICYCLE  -> "Велосипед"
-    TrackRecordingPreset.MOTO     -> "Мото"
-    TrackRecordingPreset.CAR      -> "Авто"
-    TrackRecordingPreset.AIRPLANE -> "Авиа"
-    TrackRecordingPreset.CUSTOM   -> "Ручной"
+@Composable
+private fun TrackRecordingPreset.displayName(): String = when (this) {
+    TrackRecordingPreset.WALKING  -> stringResource(R.string.track_preset_walking)
+    TrackRecordingPreset.BICYCLE  -> stringResource(R.string.track_preset_bicycle)
+    TrackRecordingPreset.MOTO     -> stringResource(R.string.track_preset_moto)
+    TrackRecordingPreset.CAR      -> stringResource(R.string.track_preset_car)
+    TrackRecordingPreset.AIRPLANE -> stringResource(R.string.track_preset_airplane)
+    TrackRecordingPreset.CUSTOM   -> stringResource(R.string.track_preset_custom)
 }
+
+@Composable
+private fun intervalOptions(): List<Pair<Int?, String>> = listOf(
+    null to stringResource(R.string.track_option_none),
+    5    to stringResource(R.string.track_interval_5s),
+    10   to stringResource(R.string.track_interval_10s),
+    30   to stringResource(R.string.track_interval_30s),
+    60   to stringResource(R.string.track_interval_1m),
+    120  to stringResource(R.string.track_interval_2m),
+    300  to stringResource(R.string.track_interval_5m),
+)
+
+@Composable
+private fun minDistanceOptions(): List<Pair<Int, String>> = listOf(
+    0   to stringResource(R.string.track_option_none),
+    5   to stringResource(R.string.track_distance_5m),
+    10  to stringResource(R.string.track_distance_10m),
+    15  to stringResource(R.string.track_distance_15m),
+    30  to stringResource(R.string.track_distance_30m),
+    50  to stringResource(R.string.track_distance_50m),
+    100 to stringResource(R.string.track_distance_100m),
+    200 to stringResource(R.string.track_distance_200m),
+)
 
 @Composable
 internal fun TrackStopConfirmDialog(
@@ -599,13 +615,13 @@ internal fun TrackStopConfirmDialog(
     var name by remember(initialName) { mutableStateOf(initialName) }
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("Сохранить трек перед остановкой?") },
+        title = { Text(stringResource(R.string.track_stop_dialog_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Название") },
+                    label = { Text(stringResource(R.string.track_label_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -620,24 +636,24 @@ internal fun TrackStopConfirmDialog(
                         onCheckedChange = onTrimToMovementChanged,
                     )
                     Text(
-                        text = "Обрезать до начала движения",
+                        text = stringResource(R.string.track_stop_trim_label),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
             }
         },
         confirmButton = {
-            Button(onClick = { onSave(name) }) { Text("Сохранить") }
+            Button(onClick = { onSave(name) }) { Text(stringResource(R.string.track_action_save)) }
         },
         dismissButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(
                     onClick = onDiscard,
-                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                    colors = ButtonDefaults.textButtonColors(
                         contentColor = MaterialTheme.colorScheme.error,
                     ),
-                ) { Text("Удалить") }
-                TextButton(onClick = onCancel) { Text("Отмена") }
+                ) { Text(stringResource(R.string.track_action_delete)) }
+                TextButton(onClick = onCancel) { Text(stringResource(R.string.track_action_cancel)) }
             }
         },
     )
