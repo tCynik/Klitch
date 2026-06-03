@@ -20,7 +20,7 @@ class EmergencyNodeNotificationFilter(
 
     @Volatile private var sosMode: Boolean = false
     @Volatile private var emergencySlot: Int? = null
-    private val slotToName = mutableMapOf<Int, String>()
+    @Volatile private var emergencyContourName: String? = null
 
     init {
         androidNotificationManager.nodeEventFilter = ::filter
@@ -31,26 +31,25 @@ class EmergencyNodeNotificationFilter(
                 channelSlotResolver.mapsFlow,
             ) { sos, contours, maps ->
                 sosMode = sos
-                emergencySlot = contours
-                    .find { it.isEmergency }
+                val emergency = contours.find { it.isEmergency }
+                emergencySlot = emergency
                     ?.transport?.meshtastic?.channelHash
                     ?.let { maps.hashToSlot[it] }
-                slotToName.clear()
-                contours.forEach { c ->
-                    val hash = c.transport.meshtastic.channelHash
-                    val slot = maps.hashToSlot[hash] ?: return@forEach
-                    slotToName[slot] = c.name
-                }
+                emergencyContourName = emergency?.name
             }.collect {}
         }
     }
 
     private fun filter(notification: Notification): Notification? {
         val slot = notification.channelSlot
-        if (slot != null && slot == emergencySlot && !sosMode) return null
-        val contourName = slot?.let { slotToName[it] } ?: return notification
-        return notification.copy(
-            title = "Новая нода ${notification.title}_${notification.message} в $contourName",
-        )
+        val isEmergency = slot != null && slot == emergencySlot
+        if (isEmergency && !sosMode) return null
+        if (isEmergency) {
+            val name = emergencyContourName ?: return notification
+            return notification.copy(
+                title = "Новая нода ${notification.title}_${notification.message} в $name",
+            )
+        }
+        return notification
     }
 }
