@@ -20,7 +20,6 @@ import ru.tcynik.meshtactics.domain.channel.model.Contour
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
-import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.chat.model.ChatMessageModel
@@ -105,13 +104,12 @@ class IngestReceivedChatMessagesUseCaseTest {
         }
     }
 
-    // ── slot 0 routing (Emergency) ────────────────────────────────────────────
+    // ── slot 0 routing (Primary) ──────────────────────────────────────────────
 
     @Test
-    fun `slot 0 Emergency isActive=true — inserted with Emergency contour id`() = runTest {
-        val emergencyMsg = channelMsg.copy(channelId = "0^all")
-        val activeEmergency = makeEmergencyContour(isActive = true)
-        setupMocks(messages = listOf(emergencyMsg), contours = listOf(activeEmergency), maps = resolvedMaps)
+    fun `slot 0 — inserted with primary contour id`() = runTest {
+        val slot0Msg = channelMsg.copy(channelId = "0^all")
+        setupMocks(messages = listOf(slot0Msg), primaryId = contourId, maps = resolvedMaps)
 
         useCase.observe().test {
             awaitItem()
@@ -120,8 +118,8 @@ class IngestReceivedChatMessagesUseCaseTest {
 
         coVerify(exactly = 1) {
             chatMessageRepository.insertIfAbsent(
-                id = emergencyMsg.id,
-                logicalChannelId = DefaultContour.ID.value,
+                id = slot0Msg.id,
+                logicalChannelId = contourId.value,
                 senderNodeId = any(),
                 senderCallsign = any(),
                 text = any(),
@@ -132,10 +130,10 @@ class IngestReceivedChatMessagesUseCaseTest {
     }
 
     @Test
-    fun `slot 0 Emergency isActive=false — dropped`() = runTest {
-        val emergencyMsg = channelMsg.copy(channelId = "0^all")
-        val inactiveEmergency = makeEmergencyContour(isActive = false)
-        setupMocks(messages = listOf(emergencyMsg), contours = listOf(inactiveEmergency), maps = resolvedMaps)
+    fun `slot 0 primary contour not found — dropped`() = runTest {
+        val slot0Msg = channelMsg.copy(channelId = "0^all")
+        val unknownPrimaryId = ContourId("unknown-primary")
+        setupMocks(messages = listOf(slot0Msg), primaryId = unknownPrimaryId, maps = resolvedMaps)
 
         useCase.observe().test {
             awaitItem()
@@ -230,23 +228,15 @@ class IngestReceivedChatMessagesUseCaseTest {
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
-    private fun makeEmergencyContour(isActive: Boolean) = Contour(
-        id = DefaultContour.ID,
-        name = DefaultContour.DISPLAY_NAME,
-        description = null,
-        expiration = null,
-        exclusivityTime = null,
-        isActive = isActive,
-        transport = DefaultContour.TRANSPORT,
-    )
-
     private fun setupMocks(
         messages: List<ChatMessageModel>,
         contours: List<Contour> = listOf(contour),
+        primaryId: ContourId = contourId,
         maps: ChannelSlotMaps,
     ) {
         every { adapter.observeMessagesAsFlow(emptySet(), "") } returns flowOf(messages)
         every { channelRepository.observeContours() } returns flowOf(contours)
+        every { channelRepository.observePrimaryContourId() } returns flowOf(primaryId)
         every { channelSlotResolver.mapsFlow } returns MutableStateFlow(maps)
     }
 }
