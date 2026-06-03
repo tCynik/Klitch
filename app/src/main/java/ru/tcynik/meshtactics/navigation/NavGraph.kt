@@ -54,13 +54,25 @@ fun NavGraph() {
         }
     }
 
+    LaunchedEffect(Unit) {
+        mainViewModel.trackNoMovementDiscardedEvent.collect {
+            android.widget.Toast.makeText(
+                context,
+                context.getString(ru.tcynik.meshtactics.R.string.track_no_movement_discarded),
+                android.widget.Toast.LENGTH_SHORT,
+            ).show()
+        }
+    }
+
     val stopDialogRs = trackState.recordingState
     if (trackState.showStopDialog && stopDialogRs is TrackRecordingState.Recording) {
         TrackStopConfirmDialog(
-            initialName = stopDialogRs.name,
-            onSave      = trackState.onStopDialogSave,
-            onDiscard   = trackState.onStopDialogDiscard,
-            onCancel    = trackState.onStopDialogCancel,
+            initialName            = stopDialogRs.name,
+            trimToMovement         = trackState.trimToMovement,
+            onTrimToMovementChanged = trackState.onTrimToMovementChanged,
+            onSave                 = trackState.onStopDialogSave,
+            onDiscard              = trackState.onStopDialogDiscard,
+            onCancel               = trackState.onStopDialogCancel,
         )
     }
 

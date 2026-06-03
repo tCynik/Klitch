@@ -19,6 +19,7 @@ import ru.tcynik.meshtactics.domain.track.model.TrackPoint
 import ru.tcynik.meshtactics.domain.track.model.TrackRecordingSettings
 import ru.tcynik.meshtactics.domain.track.model.TrackRecordingState
 import ru.tcynik.meshtactics.domain.track.repository.RecordedTrackRepository
+import ru.tcynik.meshtactics.domain.track.repository.StopResult
 import ru.tcynik.meshtactics.domain.track.repository.TrackRecordingRepository
 import ru.tcynik.meshtactics.domain.track.util.haversineMeters
 import java.util.UUID
@@ -167,8 +168,25 @@ class TrackRepositoryImpl(
         logger.d(TAG, "Updated color of track ${current.trackId} to index $colorIndex")
     }
 
-    override suspend fun stop(name: String?) {
-        val current = _state.value as? TrackRecordingState.Recording ?: return
+    override suspend fun stop(name: String?, trimToMovement: Boolean): StopResult {
+        val current = _state.value as? TrackRecordingState.Recording ?: return StopResult.Saved
+        val points = pointQueries.selectByTrackId(current.trackId).executeAsList()
+
+        // Always discard tracks with no significant movement, regardless of checkbox.
+        if (!hasMovement(points)) {
+            pointQueries.deleteByTrackId(current.trackId)
+            trackQueries.deleteById(current.trackId)
+            lastRecordedPoint = null
+            _state.value = TrackRecordingState.Idle
+            logger.d(TAG, "Discarded track ${current.trackId} — no movement detected")
+            return StopResult.DiscardedNoMovement
+        }
+
+        // Trim leading/trailing static points only if checkbox is set.
+        if (trimToMovement) {
+            applyMovementTrim(current.trackId, points)
+        }
+
         val finalName = name?.trim()?.takeIf { it.isNotEmpty() }
         if (finalName != null && finalName != current.name) {
             trackQueries.updateName(name = finalName, id = current.trackId)
@@ -183,6 +201,48 @@ class TrackRepositoryImpl(
         lastRecordedPoint = null
         _state.value = TrackRecordingState.Idle
         logger.d(TAG, "Stopped track ${current.trackId}, distance=${totalDistance}m")
+        return StopResult.Saved
+    }
+
+    private fun hasMovement(points: List<ru.tcynik.meshtactics.data.local.Recorded_track_point>): Boolean {
+        if (points.size < 2) return false
+        return points.zipWithNext().any { (a, b) ->
+            haversineMeters(a.lat, a.lon, b.lat, b.lon) >= TRIM_MOVEMENT_THRESHOLD_METERS
+        }
+    }
+
+    private fun applyMovementTrim(
+        trackId: String,
+        points: List<ru.tcynik.meshtactics.data.local.Recorded_track_point>,
+    ) {
+        var firstMovingIdx = -1
+        for (i in 1 until points.size) {
+            val dist = haversineMeters(points[i - 1].lat, points[i - 1].lon, points[i].lat, points[i].lon)
+            if (dist >= TRIM_MOVEMENT_THRESHOLD_METERS) {
+                firstMovingIdx = i - 1
+                break
+            }
+        }
+        if (firstMovingIdx == -1) return  // already checked above, shouldn't happen
+
+        var lastMovingIdx = firstMovingIdx + 1
+        for (i in points.size - 1 downTo firstMovingIdx + 1) {
+            val dist = haversineMeters(points[i - 1].lat, points[i - 1].lon, points[i].lat, points[i].lon)
+            if (dist >= TRIM_MOVEMENT_THRESHOLD_METERS) {
+                lastMovingIdx = i
+                break
+            }
+        }
+
+        if (firstMovingIdx > 0) {
+            pointQueries.deleteBeforeTimestamp(trackId = trackId, timestampMs = points[firstMovingIdx].timestamp)
+            logger.d(TAG, "Trimmed $firstMovingIdx leading static point(s) from track $trackId")
+        }
+        val trailingCount = points.size - 1 - lastMovingIdx
+        if (trailingCount > 0) {
+            pointQueries.deleteAfterTimestamp(trackId = trackId, timestampMs = points[lastMovingIdx].timestamp)
+            logger.d(TAG, "Trimmed $trailingCount trailing static point(s) from track $trackId")
+        }
     }
 
     override suspend fun discard() {
@@ -226,5 +286,6 @@ class TrackRepositoryImpl(
 
     companion object {
         private const val TAG = "Track"
+        private const val TRIM_MOVEMENT_THRESHOLD_METERS = 10.0
     }
 }

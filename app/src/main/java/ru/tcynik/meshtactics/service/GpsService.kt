@@ -239,6 +239,7 @@ class GpsService : Service() {
             .setSmallIcon(R.drawable.ic_triangle_arrow)
             .setContentTitle(getString(R.string.gps_notification_title))
             .setContentText(getString(R.string.gps_notification_text))
+            .setContentIntent(mainActivityIntent())
             .setOngoing(true)
             .build()
 }

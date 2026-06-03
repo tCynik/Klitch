@@ -217,6 +217,7 @@
     <string name="track_recording_notification_channel_name">Запись трека</string>
     <string name="track_recording_notification_active">Запись трека:</string>
     <string name="track_recording_notification_paused">Пауза:</string>
+    <string name="track_no_movement_discarded">Трек не имеет движений и был удалён</string>
 
     <!-- Tile Cache Settings -->
     <string name="tile_cache_section_label">Кэш тайлов</string>

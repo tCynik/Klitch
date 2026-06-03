@@ -19,3 +19,9 @@ SELECT * FROM recorded_track_point ORDER BY track_id, timestamp ASC;
 
 deleteByTrackId:
 DELETE FROM recorded_track_point WHERE track_id = :trackId;
+
+deleteBeforeTimestamp:
+DELETE FROM recorded_track_point WHERE track_id = :trackId AND timestamp < :timestampMs;
+
+deleteAfterTimestamp:
+DELETE FROM recorded_track_point WHERE track_id = :trackId AND timestamp > :timestampMs;

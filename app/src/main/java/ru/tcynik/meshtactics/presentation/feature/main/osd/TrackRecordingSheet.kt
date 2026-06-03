@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -589,6 +590,8 @@ private val TrackRecordingPreset.displayName: String get() = when (this) {
 @Composable
 internal fun TrackStopConfirmDialog(
     initialName: String,
+    trimToMovement: Boolean,
+    onTrimToMovementChanged: (Boolean) -> Unit,
     onSave: (String) -> Unit,
     onDiscard: () -> Unit,
     onCancel: () -> Unit,
@@ -598,13 +601,30 @@ internal fun TrackStopConfirmDialog(
         onDismissRequest = onCancel,
         title = { Text("Сохранить трек перед остановкой?") },
         text = {
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Название") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Название") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onTrimToMovementChanged(!trimToMovement) },
+                ) {
+                    Checkbox(
+                        checked = trimToMovement,
+                        onCheckedChange = onTrimToMovementChanged,
+                    )
+                    Text(
+                        text = "Обрезать до начала движения",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
         },
         confirmButton = {
             Button(onClick = { onSave(name) }) { Text("Сохранить") }
