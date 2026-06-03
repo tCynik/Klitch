@@ -69,6 +69,8 @@ import ru.tcynik.meshtactics.data.mesh.GeoSendPolicyImpl
 import ru.tcynik.meshtactics.data.mesh.repository.RebootStateRepositoryImpl
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.mesh.repository.GeoSendPolicy
+import ru.tcynik.meshtactics.data.notification.EmergencyNodeNotificationFilter
+import ru.tcynik.meshtactics.mesh.service.AndroidNotificationManager
 
 val meshDataModule = module {
 
@@ -128,6 +130,14 @@ val meshDataModule = module {
     single<RebootStateRepository> { RebootStateRepositoryImpl(get()) }
 
     single<GeoSendPolicy> { GeoSendPolicyImpl() }
+
+    single {
+        EmergencyNodeNotificationFilter(
+            androidNotificationManager = get<AndroidNotificationManager>(),
+            contourRepository = get(),
+            channelSlotResolver = get(),
+        )
+    }
 
     single<LastConnectedDeviceRepository> { LastConnectedDeviceRepositoryImpl(get()) }
     single { GetLastConnectedDeviceUseCase(get()) }

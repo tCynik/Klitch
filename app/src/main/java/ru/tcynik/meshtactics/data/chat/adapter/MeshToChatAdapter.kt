@@ -127,6 +127,28 @@ class MeshToChatAdapter(
             }
         }
 
+    // ==================== EMERGENCY MUTE SYNC ====================
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun observeEmergencyMuteSync(): Flow<Unit> = combine(
+        channelRepository.observeSosMode(),
+        channelRepository.observeContours(),
+        channelSlotResolver.mapsFlow,
+    ) { sosMode, contours, maps ->
+        Triple(sosMode, contours, maps)
+    }.flatMapLatest { (sosMode, contours, maps) ->
+        flow {
+            val emergencyHash = contours.find { it.isEmergency }?.transport?.meshtastic?.channelHash
+            val emergencySlot = emergencyHash?.let { maps.hashToSlot[it] }
+            if (emergencySlot != null) {
+                val emergencyKey = "${emergencySlot}${DataPacket.ID_BROADCAST}"
+                val muteUntil = if (sosMode) 0L else Long.MAX_VALUE
+                packetRepository.setMuteUntil(listOf(emergencyKey), muteUntil)
+            }
+            emit(Unit)
+        }
+    }
+
     // ==================== MESSAGES ====================
 
     @OptIn(ExperimentalCoroutinesApi::class)

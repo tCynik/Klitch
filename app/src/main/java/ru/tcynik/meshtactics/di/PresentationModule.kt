@@ -32,6 +32,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.SyncEmergencyMuteUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.AutoExpireGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ToggleGeoMarkVisibilityUseCase
@@ -99,6 +100,7 @@ val presentationModule = module {
             ingestReceivedGeoMarks = get<IngestReceivedGeoMarksUseCase>(),
             autoExpireGeoMarks = get<AutoExpireGeoMarksUseCase>(),
             ingestReceivedChatMessages = get<IngestReceivedChatMessagesUseCase>(),
+            syncEmergencyMute = get<SyncEmergencyMuteUseCase>(),
             observeLogicalChannels = get<ObserveContoursUseCase>(),
             observeNodeChannels = get<ObserveNodeChannelsUseCase>(),
             syncStateRepository = get<ContourSyncStateRepository>(),

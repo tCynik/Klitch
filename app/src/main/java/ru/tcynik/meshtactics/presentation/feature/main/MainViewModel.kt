@@ -86,6 +86,7 @@ import android.os.SystemClock
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkParams
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.SyncEmergencyMuteUseCase
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkAddressee
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarksSheetUiState
 
@@ -144,6 +145,7 @@ class MainViewModel(
     ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase,
     autoExpireGeoMarks: AutoExpireGeoMarksUseCase,
     ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase,
+    syncEmergencyMute: SyncEmergencyMuteUseCase,
     observeLogicalChannels: ObserveContoursUseCase,
     observeNodeChannels: ObserveNodeChannelsUseCase,
     private val checkNodeSync: CheckNodeSyncUseCase,
@@ -344,6 +346,9 @@ class MainViewModel(
             .launchIn(viewModelScope)
 
         ingestReceivedChatMessages.observe()
+            .launchIn(viewModelScope)
+
+        syncEmergencyMute.observe()
             .launchIn(viewModelScope)
 
         autoExpireGeoMarks.observe().launchIn(viewModelScope)
