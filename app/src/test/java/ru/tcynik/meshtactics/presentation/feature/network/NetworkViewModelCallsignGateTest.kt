@@ -34,7 +34,8 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
+import ru.tcynik.meshtactics.domain.mesh.model.ContourNodeModel
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveContourNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveOurNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveNetworkEnabledUseCase
@@ -50,7 +51,7 @@ class NetworkViewModelCallsignGateTest {
     private val scanDevices: ScanMeshDevicesUseCase = mockk(relaxed = true)
     private val connectToDevice: ConnectToMeshDeviceUseCase = mockk(relaxed = true)
     private val disconnectFromMesh: DisconnectFromMeshUseCase = mockk(relaxed = true)
-    private val observeNodes: ObserveMeshNodesUseCase = mockk()
+    private val observeNodes: ObserveContourNodesUseCase = mockk()
     private val observeOurNode: ObserveOurNodeUseCase = mockk()
     private val checkContourSync: CheckNodeSyncUseCase = mockk(relaxed = true)
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
@@ -75,7 +76,7 @@ class NetworkViewModelCallsignGateTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         every { observeConnectionStatus.invoke(any()) } returns flowOf(MeshConnectionStatus.Disconnected)
-        every { observeNodes.invoke(any()) } returns flowOf(emptyList())
+        every { observeNodes.invoke(any()) } returns flowOf(emptyList<ContourNodeModel>())
         every { observeOurNode.invoke(any()) } returns flowOf(null)
         every { rebootStateRepository.isRebooting } returns MutableStateFlow(false)
         every { rebootStateRepository.syncCyclePhase } returns MutableStateFlow(NodeSyncCyclePhase.Idle)

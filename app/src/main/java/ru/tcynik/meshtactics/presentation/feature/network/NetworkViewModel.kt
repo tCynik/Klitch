@@ -21,6 +21,7 @@ import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ConfirmChannelSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.logger.Logger
+import ru.tcynik.meshtactics.domain.mesh.model.ContourNodeModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.model.MeshNodeModel
 import ru.tcynik.meshtactics.domain.mesh.model.NodeSyncCyclePhase
@@ -31,7 +32,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveContourNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveOurNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveNetworkEnabledUseCase
@@ -51,7 +52,7 @@ class NetworkViewModel(
     private val scanDevices: ScanMeshDevicesUseCase,
     private val connectToDevice: ConnectToMeshDeviceUseCase,
     private val disconnectFromMesh: DisconnectFromMeshUseCase,
-    private val observeNodes: ObserveMeshNodesUseCase,
+    private val observeNodes: ObserveContourNodesUseCase,
     private val observeOurNode: ObserveOurNodeUseCase,
     private val checkContourSync: CheckNodeSyncUseCase,
     private val observeNodeChannels: ObserveNodeChannelsUseCase,
@@ -433,19 +434,20 @@ class NetworkViewModel(
         is MeshConnectionStatus.Error -> MeshConnectionStatusUi.Error(message)
     }
 
-    private fun MeshNodeModel.toNodeUi() = ru.tcynik.meshtactics.presentation.feature.network.state.MeshNodeUi(
-        nodeId = nodeId,
-        shortName = shortName,
-        longName = longName,
-        snr = if (snr == 0f) "—" else "%.1f dB".format(snr),
-        lastHeardFormatted = if (lastHeard > 0)
+    private fun ContourNodeModel.toNodeUi() = ru.tcynik.meshtactics.presentation.feature.network.state.MeshNodeUi(
+        nodeId = node.nodeId,
+        shortName = node.shortName,
+        longName = node.longName,
+        snr = if (node.snr == 0f) "—" else "%.1f dB".format(node.snr),
+        lastHeardFormatted = if (node.lastHeard > 0)
             DateUtils.getRelativeTimeSpanString(
-                lastHeard * 1000L,
+                node.lastHeard * 1000L,
                 System.currentTimeMillis(),
                 DateUtils.MINUTE_IN_MILLIS,
             ).toString()
         else "never",
-        hopsAway = if (hopsAway > 0) hopsAway else null,
+        hopsAway = if (node.hopsAway > 0) node.hopsAway else null,
+        contourName = contourName,
     )
 
     private fun formatUptime(seconds: Long): String {
