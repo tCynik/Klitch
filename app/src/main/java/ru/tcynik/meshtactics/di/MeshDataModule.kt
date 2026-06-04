@@ -38,6 +38,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMessagesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveOurNodeUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveContourNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGeoNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveLocationConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObservePacketLogUseCase
@@ -68,6 +69,8 @@ import ru.tcynik.meshtactics.data.mesh.GeoSendPolicyImpl
 import ru.tcynik.meshtactics.data.mesh.repository.RebootStateRepositoryImpl
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.mesh.repository.GeoSendPolicy
+import ru.tcynik.meshtactics.data.notification.EmergencyNodeNotificationFilter
+import ru.tcynik.meshtactics.mesh.service.AndroidNotificationManager
 
 val meshDataModule = module {
 
@@ -128,6 +131,14 @@ val meshDataModule = module {
 
     single<GeoSendPolicy> { GeoSendPolicyImpl() }
 
+    single {
+        EmergencyNodeNotificationFilter(
+            androidNotificationManager = get<AndroidNotificationManager>(),
+            contourRepository = get(),
+            channelSlotResolver = get(),
+        )
+    }
+
     single<LastConnectedDeviceRepository> { LastConnectedDeviceRepositoryImpl(get()) }
     single { GetLastConnectedDeviceUseCase(get()) }
     single { SaveLastConnectedDeviceUseCase(get()) }
@@ -139,6 +150,7 @@ val meshDataModule = module {
     single { DisconnectFromMeshUseCase(get()) }
     single { ObserveMeshNodesUseCase(get()) }
     single { ObserveOurNodeUseCase(get()) }
+    single { ObserveContourNodesUseCase(get(), get(), get()) }
     single { ObserveGeoNodesUseCase(get(), get(), get()) }
     single { ObserveMessagesUseCase(get()) }
     single { SendMeshMessageUseCase(get()) }

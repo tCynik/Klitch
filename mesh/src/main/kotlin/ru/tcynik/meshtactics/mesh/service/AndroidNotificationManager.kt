@@ -36,6 +36,8 @@ import android.app.NotificationManager as SystemNotificationManager
 @Single
 class AndroidNotificationManager(private val context: Context) : NotificationManager {
 
+    @Volatile var nodeEventFilter: ((Notification) -> Notification?)? = null
+
     private val notificationManager = context.getSystemService<SystemNotificationManager>()!!
 
     private data class ChannelConfig(val id: String, val importance: Int)
@@ -91,21 +93,27 @@ class AndroidNotificationManager(private val context: Context) : NotificationMan
     }
 
     override fun dispatch(notification: Notification) {
+        val finalNotification = when {
+            notification.category == Notification.Category.NodeEvent && nodeEventFilter != null ->
+                nodeEventFilter!!.invoke(notification) ?: return
+            else -> notification
+        }
+
         val builder =
-            NotificationCompat.Builder(context, notification.category.channelConfig().id)
-                .setContentTitle(notification.title)
-                .setContentText(notification.message)
+            NotificationCompat.Builder(context, finalNotification.category.channelConfig().id)
+                .setContentTitle(finalNotification.title)
+                .setContentText(finalNotification.message)
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .setAutoCancel(true)
-                .setSilent(notification.isSilent)
+                .setSilent(finalNotification.isSilent)
 
-        notification.group?.let { builder.setGroup(it) }
+        finalNotification.group?.let { builder.setGroup(it) }
 
-        if (notification.type == Notification.Type.Error) {
+        if (finalNotification.type == Notification.Type.Error) {
             builder.setPriority(NotificationCompat.PRIORITY_HIGH)
         }
 
-        val id = notification.id ?: notification.hashCode()
+        val id = finalNotification.id ?: finalNotification.hashCode()
         notificationManager.notify(id, builder.build())
     }
 

@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import ru.tcynik.meshtactics.data.chat.dto.ChatContactDto
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
+import ru.tcynik.meshtactics.domain.channel.model.isEmergency
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.chat.model.ChatMessageModel
 import ru.tcynik.meshtactics.domain.chat.model.ContactType
@@ -37,7 +38,8 @@ class MeshToChatAdapter(
 
     // ==================== CONTACTS ====================
 
-    fun observeTotalUnreadCount(): Flow<Int> = packetRepository.getUnreadCountExcludingArchived()
+    fun observeTotalUnreadCount(): Flow<Int> = observeContactsAsFlow()
+        .map { contacts -> contacts.filter { !it.isArchived }.sumOf { it.unreadCount } }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observeContactsAsFlow(): Flow<List<ChatContactDto>> =
@@ -49,9 +51,14 @@ class MeshToChatAdapter(
         ) { contacts, settings, contours, slotMaps ->
             Quadruple(contacts, settings, contours, slotMaps)
         }.flatMapLatest { (contacts, settings, contours, slotMaps) ->
-            combine(nodeRepository.nodeDBbyNum, nodeRepository.myId, nodeRepository.ourNodeInfo) { nodesByNum, myId, myNode ->
-                Triple(nodesByNum, myId, myNode)
-            }.flatMapLatest { (nodesByNum, myId, myNode) ->
+            combine(
+                nodeRepository.nodeDBbyNum,
+                nodeRepository.myId,
+                nodeRepository.ourNodeInfo,
+                channelRepository.observeSosMode(),
+            ) { nodesByNum, myId, myNode, sosMode ->
+                Quadruple(nodesByNum, myId, myNode, sosMode)
+            }.flatMapLatest { (nodesByNum, myId, myNode, sosMode) ->
                 val contourUnreadFlows = contours.map { contour ->
                     val slot = slotMaps.hashToSlot[contour.transport.meshtastic.channelHash]
                     val contactKey = slot?.let { "${it}${DataPacket.ID_BROADCAST}" }
@@ -85,7 +92,7 @@ class MeshToChatAdapter(
                             isPinned = setting?.isPinned ?: false,
                             isArchived = setting?.isArchived ?: false,
                             isActive = contour.isActive,
-                            unreadCount = unreadCounts[index],
+                            unreadCount = if (contour.isEmergency && !sosMode) 0 else unreadCounts[index],
                             lastMessageTime = lastPacket?.time?.takeIf { it > 0 },
                             lastMessagePreview = lastPacket?.text,
                         )
@@ -119,6 +126,28 @@ class MeshToChatAdapter(
                 }
             }
         }
+
+    // ==================== EMERGENCY MUTE SYNC ====================
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun observeEmergencyMuteSync(): Flow<Unit> = combine(
+        channelRepository.observeSosMode(),
+        channelRepository.observeContours(),
+        channelSlotResolver.mapsFlow,
+    ) { sosMode, contours, maps ->
+        Triple(sosMode, contours, maps)
+    }.flatMapLatest { (sosMode, contours, maps) ->
+        flow {
+            val emergencyHash = contours.find { it.isEmergency }?.transport?.meshtastic?.channelHash
+            val emergencySlot = emergencyHash?.let { maps.hashToSlot[it] }
+            if (emergencySlot != null) {
+                val emergencyKey = "${emergencySlot}${DataPacket.ID_BROADCAST}"
+                val muteUntil = if (sosMode) 0L else Long.MAX_VALUE
+                packetRepository.setMuteUntil(listOf(emergencyKey), muteUntil)
+            }
+            emit(Unit)
+        }
+    }
 
     // ==================== MESSAGES ====================
 

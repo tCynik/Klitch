@@ -24,4 +24,5 @@ data class MeshNodeUi(
     val snr: String,
     val lastHeardFormatted: String,
     val hopsAway: Int?,
+    val contourName: String?,
 )

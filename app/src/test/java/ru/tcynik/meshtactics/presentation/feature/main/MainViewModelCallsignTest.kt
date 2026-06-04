@@ -27,6 +27,7 @@ import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.SyncEmergencyMuteUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.ObserveTotalUnreadChatCountUseCase
 import ru.tcynik.meshtactics.domain.location.model.GpsStatusModel
 import ru.tcynik.meshtactics.domain.location.usecase.ObserveGpsStatusUseCase
@@ -92,6 +93,7 @@ class MainViewModelCallsignTest {
     private val ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase = mockk()
     private val autoExpireGeoMarks: AutoExpireGeoMarksUseCase = mockk(relaxed = true)
     private val ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase = mockk()
+    private val syncEmergencyMute: SyncEmergencyMuteUseCase = mockk()
     private val observeLogicalChannels: ObserveContoursUseCase = mockk()
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
     private val checkNodeSync: CheckNodeSyncUseCase = mockk(relaxed = true)
@@ -133,6 +135,7 @@ class MainViewModelCallsignTest {
         every { ingestReceivedGeoMarks.observe() } returns flowOf(Unit)
         every { autoExpireGeoMarks.observe() } returns flowOf(Unit)
         every { ingestReceivedChatMessages.observe() } returns flowOf(Unit)
+        every { syncEmergencyMute.observe() } returns flowOf(Unit)
         every { observeLogicalChannels.invoke(any()) } returns flowOf(emptyList())
         every { observeNodeChannels.invoke(any()) } returns flowOf(emptyList())
         every { syncStateRepository.syncRequired } returns MutableStateFlow(false)
@@ -179,6 +182,7 @@ class MainViewModelCallsignTest {
             ingestReceivedGeoMarks = ingestReceivedGeoMarks,
             autoExpireGeoMarks = autoExpireGeoMarks,
             ingestReceivedChatMessages = ingestReceivedChatMessages,
+            syncEmergencyMute = syncEmergencyMute,
             observeLogicalChannels = observeLogicalChannels,
             observeNodeChannels = observeNodeChannels,
             syncStateRepository = syncStateRepository,

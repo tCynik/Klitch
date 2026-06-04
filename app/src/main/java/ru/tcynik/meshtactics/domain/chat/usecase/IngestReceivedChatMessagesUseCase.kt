@@ -6,7 +6,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import ru.tcynik.meshtactics.data.chat.adapter.MeshToChatAdapter
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
-import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.chat.repository.ChatMessageRepository
 
@@ -20,8 +19,9 @@ class IngestReceivedChatMessagesUseCase(
     fun observe(): Flow<Unit> = combine(
         adapter.observeMessagesAsFlow(emptySet(), ""),
         channelRepository.observeContours(),
+        channelRepository.observePrimaryContourId(),
         channelSlotResolver.mapsFlow,
-    ) { messages, contours, maps ->
+    ) { messages, contours, primaryId, maps ->
         val contourByHash = contours.associate { it.transport.meshtastic.channelHash to it }
 
         //Log.i(TAG, "DBG ingest: total messages=${messages.size} ids=${messages.map { it.id }}")
@@ -37,13 +37,12 @@ class IngestReceivedChatMessagesUseCase(
             val logicalChannelId = if (isChannel) {
                 val contour = when (channelIndex) {
                     0 -> {
-                        val emergency = contours.find { it.id == DefaultContour.ID }
-                        if (emergency == null) {
-                            logger.w("Chat","emergency contour not found, drop")
+                        val primary = contours.find { it.id == primaryId }
+                        if (primary == null) {
+                            logger.w("Chat", "primary contour not found for slot 0, drop")
                             return@forEach
                         }
-                        if (!emergency.isActive) return@forEach
-                        emergency
+                        primary
                     }
                     else -> {
                         val hash = maps.slotToHash[channelIndex]

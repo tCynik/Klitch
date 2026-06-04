@@ -42,9 +42,6 @@ import ru.tcynik.meshtactics.mesh.repository.NodeRepository
 import ru.tcynik.meshtactics.mesh.repository.Notification
 import ru.tcynik.meshtactics.mesh.repository.NotificationManager
 import ru.tcynik.meshtactics.mesh.repository.ServiceBroadcasts
-import ru.tcynik.meshtactics.mesh.resources.Res
-import ru.tcynik.meshtactics.mesh.resources.getStringSuspend
-import ru.tcynik.meshtactics.mesh.resources.new_node_seen
 import org.meshtastic.proto.DeviceMetadata
 import org.meshtastic.proto.HardwareModel
 import org.meshtastic.proto.Paxcount
@@ -199,9 +196,10 @@ class NodeManagerImpl(
                 scope.handledLaunch {
                     notificationManager.dispatch(
                         Notification(
-                            title = getStringSuspend(Res.string.new_node_seen, next.user.short_name),
+                            title = next.user.short_name,
                             message = next.user.long_name,
                             category = Notification.Category.NodeEvent,
+                            channelSlot = channel,
                         ),
                     )
                 }
