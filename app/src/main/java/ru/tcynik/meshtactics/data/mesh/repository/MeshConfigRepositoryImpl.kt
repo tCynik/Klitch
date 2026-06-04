@@ -336,7 +336,17 @@ class MeshConfigRepositoryImpl(
         meshRouter.actionHandler.handleSetChannel(Channel.ADAPTER.encode(channel), destNum)
     }
 
+    override fun setFixedPosition(lat: Double, lon: Double, altMeters: Int) {
+        val destNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
+        commandSender.setFixedPosition(destNum, Position(lat, lon, altMeters))
+    }
+
     override fun removeFixedPosition(destNum: Int) {
+        commandSender.setFixedPosition(destNum, Position(0.0, 0.0, 0))
+    }
+
+    override fun removeOwnFixedPosition() {
+        val destNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
         commandSender.setFixedPosition(destNum, Position(0.0, 0.0, 0))
     }
 

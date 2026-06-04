@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -40,6 +41,9 @@ import ru.tcynik.meshtactics.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkParams
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ToggleGeoMarkVisibilityUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.DeleteRecordedTracksUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTracksUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ToggleRecordedTrackVisibilityUseCase
 import ru.tcynik.meshtactics.logger.NoOpLogger
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliveryFilterStatus
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliveryState
@@ -57,6 +61,9 @@ class GeoMarksListViewModelTest {
     private val deleteGeoMarks: DeleteGeoMarksUseCase = mockk(relaxed = true)
     private val extendGeoMark: ExtendGeoMarkUseCase = mockk(relaxed = true)
     private val sendGeoMark: SendGeoMarkUseCase = mockk(relaxed = true)
+    private val observeRecordedTracks: ObserveRecordedTracksUseCase = mockk()
+    private val toggleTrackVisibility: ToggleRecordedTrackVisibilityUseCase = mockk(relaxed = true)
+    private val deleteRecordedTracks: DeleteRecordedTracksUseCase = mockk(relaxed = true)
     private val logger: Logger = NoOpLogger()
 
     private val testDispatcher = UnconfinedTestDispatcher()
@@ -71,6 +78,7 @@ class GeoMarksListViewModelTest {
         every { observeGeoMarks.invoke(any()) } returns marksFlow
         every { observeContours.invoke(any()) } returns contoursFlow
         every { observeMeshNodes.invoke(any()) } returns nodesFlow
+        every { observeRecordedTracks.invoke(any()) } returns flowOf(emptyList())
         viewModel = GeoMarksListViewModel(
             observeGeoMarks = observeGeoMarks,
             observeContours = observeContours,
@@ -79,6 +87,9 @@ class GeoMarksListViewModelTest {
             deleteGeoMarks = deleteGeoMarks,
             extendGeoMark = extendGeoMark,
             sendGeoMark = sendGeoMark,
+            observeRecordedTracks = observeRecordedTracks,
+            toggleTrackVisibility = toggleTrackVisibility,
+            deleteRecordedTracks = deleteRecordedTracks,
             logger = logger,
             refreshTtlLabels = false,
         )
