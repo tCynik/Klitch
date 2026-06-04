@@ -19,6 +19,8 @@ import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkRepository
 import ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapter
+import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
+import ru.tcynik.meshtactics.domain.mesh.repository.MeshConfigRepository
 import java.util.UUID
 
 private const val BROADCAST_INTERVAL_MS = 30_000L
@@ -27,6 +29,7 @@ class EmergencyPositionBroadcastRepositoryImpl(
     private val gpsRepository: GpsRepository,
     private val geoMarkRepository: GeoMarkRepository,
     private val contourRepository: ContourRepository,
+    private val meshConfigRepository: MeshConfigRepository,
 ) : EmergencyPositionBroadcastRepository {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -57,9 +60,11 @@ class EmergencyPositionBroadcastRepositoryImpl(
         broadcastJob?.cancel()
         broadcastJob = null
         _isActive.value = false
+        meshConfigRepository.removeOwnFixedPosition()
     }
 
     private suspend fun sendPositionMark(location: GpsLocation) {
+        meshConfigRepository.setFixedPosition(location.latitude, location.longitude, 0)
         val nowSeconds = System.currentTimeMillis() / 1_000
         val markId = UUID.randomUUID().toString()
         geoMarkRepository.sendGeoMark(
@@ -72,7 +77,8 @@ class EmergencyPositionBroadcastRepositoryImpl(
                 createdAt = nowSeconds,
                 expiresAt = null,
                 isSelf = true,
-            )
+            ),
+            contourId = DefaultContour.ID,
         )
     }
 }

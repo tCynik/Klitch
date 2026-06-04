@@ -129,7 +129,7 @@ val meshDataModule = module {
 
     single<RebootStateRepository> { RebootStateRepositoryImpl(get()) }
 
-    single<GeoSendPolicy> { GeoSendPolicyImpl() }
+    single<GeoSendPolicy> { GeoSendPolicyImpl(get()) }
 
     single {
         EmergencyNodeNotificationFilter(

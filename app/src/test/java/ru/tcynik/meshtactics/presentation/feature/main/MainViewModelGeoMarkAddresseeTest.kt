@@ -63,6 +63,21 @@ import ru.tcynik.meshtactics.domain.settings.usecase.ObserveShowGeoMarkNamesUseC
 import java.util.Base64
 import ru.tcynik.meshtactics.domain.user.model.AppUser
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
+import ru.tcynik.meshtactics.data.track.datasource.TrackSettingsDataSource
+import ru.tcynik.meshtactics.domain.gps.repository.GpsRepository
+import ru.tcynik.meshtactics.domain.mesh.model.NodeSyncCyclePhase
+import ru.tcynik.meshtactics.domain.track.model.TrackRecordingSettings
+import ru.tcynik.meshtactics.domain.track.model.TrackRecordingState
+import ru.tcynik.meshtactics.domain.track.usecase.DiscardTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTrackPointsUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTracksUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveTrackRecordingStateUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.PauseTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ResumeTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.StartTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.StopTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.UpdateTrackRecordingColorUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.UpdateTrackRecordingNameUseCase
 
 class MainViewModelGeoMarkAddresseeTest {
 
@@ -102,6 +117,18 @@ class MainViewModelGeoMarkAddresseeTest {
     private val refreshNodePublicKey: RefreshNodePublicKeyUseCase = mockk(relaxed = true)
     private val geoMarkPrefsRepository: GeoMarkPreferencesRepository = mockk(relaxed = true)
     private val observeAppUser: ObserveAppUserUseCase = mockk()
+    private val observeTrackRecordingState: ObserveTrackRecordingStateUseCase = mockk()
+    private val startTrackRecording: StartTrackRecordingUseCase = mockk(relaxed = true)
+    private val pauseTrackRecording: PauseTrackRecordingUseCase = mockk(relaxed = true)
+    private val resumeTrackRecording: ResumeTrackRecordingUseCase = mockk(relaxed = true)
+    private val stopTrackRecording: StopTrackRecordingUseCase = mockk(relaxed = true)
+    private val discardTrackRecording: DiscardTrackRecordingUseCase = mockk(relaxed = true)
+    private val updateTrackRecordingName: UpdateTrackRecordingNameUseCase = mockk(relaxed = true)
+    private val updateTrackRecordingColor: UpdateTrackRecordingColorUseCase = mockk(relaxed = true)
+    private val trackSettingsDataSource: TrackSettingsDataSource = mockk()
+    private val gpsRepository: GpsRepository = mockk()
+    private val observeRecordedTracks: ObserveRecordedTracksUseCase = mockk()
+    private val observeRecordedTrackPoints: ObserveRecordedTrackPointsUseCase = mockk()
 
     private val channelsFlow = MutableStateFlow<List<Contour>>(emptyList())
     private val connectionStatusFlow = MutableStateFlow<MeshConnectionStatus>(MeshConnectionStatus.Disconnected)
@@ -141,6 +168,12 @@ class MainViewModelGeoMarkAddresseeTest {
         every { observeNodeChannels.invoke(any()) } returns flowOf(emptyList())
         every { syncStateRepository.syncRequired } returns MutableStateFlow(false)
         every { rebootStateRepository.isRebooting } returns MutableStateFlow(false)
+        every { rebootStateRepository.syncCyclePhase } returns MutableStateFlow(NodeSyncCyclePhase.Idle)
+        every { observeTrackRecordingState.invoke(any()) } returns flowOf(TrackRecordingState.Idle)
+        every { trackSettingsDataSource.observeSettings() } returns flowOf(TrackRecordingSettings())
+        every { gpsRepository.location } returns MutableStateFlow(null)
+        every { observeRecordedTracks.invoke(any()) } returns flowOf(emptyList())
+        every { observeRecordedTrackPoints.invoke(any()) } returns flowOf(emptyList())
         every { observeCallsignChanges.invoke(any()) } returns flowOf(0)
         coEvery { checkNodeSync.invoke() } returns NodeSyncResult.InSync
         every { geoMarkPrefsRepository.observePreferences() } returns prefsFlow
@@ -191,6 +224,18 @@ class MainViewModelGeoMarkAddresseeTest {
         refreshNodePublicKey = refreshNodePublicKey,
         observeAppUser = observeAppUser,
         geoMarkPrefsRepository = geoMarkPrefsRepository,
+        observeTrackRecordingState = observeTrackRecordingState,
+        startTrackRecording = startTrackRecording,
+        pauseTrackRecording = pauseTrackRecording,
+        resumeTrackRecording = resumeTrackRecording,
+        stopTrackRecording = stopTrackRecording,
+        discardTrackRecording = discardTrackRecording,
+        updateTrackRecordingName = updateTrackRecordingName,
+        updateTrackRecordingColor = updateTrackRecordingColor,
+        trackSettingsDataSource = trackSettingsDataSource,
+        gpsRepository = gpsRepository,
+        observeRecordedTracks = observeRecordedTracks,
+        observeRecordedTrackPoints = observeRecordedTrackPoints,
     )
 
     private fun makeBasicContour(): Contour {
