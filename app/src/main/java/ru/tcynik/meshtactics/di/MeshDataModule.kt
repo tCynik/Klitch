@@ -140,6 +140,7 @@ val meshDataModule = module {
             contourRepository = get(),
             channelSlotResolver = get(),
             commandSender = get(),
+            meshNetworkRepository = get(),
         )
     }
 
