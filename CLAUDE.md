@@ -135,6 +135,7 @@
 | Callsign (позывной как сущность) | `.claude/docs/callsign.md` |
 | Callsign Gate on Connect (реализация) | `.claude/docs/callsign-gate-on-connect.md` |
 | Network Screen | `.claude/docs/network-screen.md` |
+| positionChannel & Slot Discovery | `.claude/docs/position-channel-slot-discovery.md` |
 
 ---
 
