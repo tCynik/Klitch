@@ -81,7 +81,7 @@ class ObserveGeoNodesUseCase(
         maps: ChannelSlotMaps,
         sosMode: Boolean,
     ): Boolean = when (receivedOnSlot) {
-        null -> true
+        null -> false
         0 -> true
         1 -> sosMode
         else -> {

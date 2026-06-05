@@ -233,7 +233,7 @@ class NodeManagerImpl(
                     p.copy(time = posTime)
                 }
 
-            node.copy(position = newPos, lastHeard = newLastHeard, channel = channel)
+            node.copy(position = newPos, lastHeard = newLastHeard, channel = channel, positionChannel = channel)
         }
     }
 
@@ -287,6 +287,8 @@ class NodeManagerImpl(
                     lastHeard = info.last_heard,
                     deviceMetrics = info.device_metrics ?: next.deviceMetrics,
                     channel = info.channel,
+                    // Preserve live-derived positionChannel; fall back to BLE channel only on first load.
+                    positionChannel = next.positionChannel ?: info.channel,
                     viaMqtt = info.via_mqtt,
                     hopsAway = info.hops_away ?: -1,
                     isFavorite = info.is_favorite,
