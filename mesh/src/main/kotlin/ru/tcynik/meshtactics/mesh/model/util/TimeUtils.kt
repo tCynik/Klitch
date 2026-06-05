@@ -17,8 +17,10 @@
 package ru.tcynik.meshtactics.mesh.model.util
 
 import ru.tcynik.meshtactics.mesh.common.util.nowInstant
-import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 
-private val ONLINE_WINDOW_HOURS = 2.hours
+// 1.5× typical DeviceMetrics telemetry interval (default ~30 min) — node is considered online
+// as long as any packet (position OR telemetry) was received within this window.
+private val ONLINE_WINDOW = 45.minutes
 
-fun onlineTimeThreshold(): Int = (nowInstant - ONLINE_WINDOW_HOURS).epochSeconds.toInt()
+fun onlineTimeThreshold(): Int = (nowInstant - ONLINE_WINDOW).epochSeconds.toInt()

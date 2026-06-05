@@ -45,6 +45,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ObservePacketLogUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
+import ru.tcynik.meshtactics.domain.gps.repository.GpsRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RemoveFixedPositionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
@@ -205,6 +206,11 @@ val meshDataModule = module {
             writeChannel = get(),
             observeNodeChannels = get<ObserveNodeChannelsUseCase>(),
             resolveSlot = get<ResolveChannelSlotUseCase>(),
+            observeOurNode = get<ObserveOurNodeUseCase>(),
+            observeDeviceConfig = get<ObserveDeviceConfigUseCase>(),
+            observeLocationConfig = get<ObserveLocationConfigUseCase>(),
+            writePositionConfig = get<WritePositionConfigUseCase>(),
+            gpsRepository = get<GpsRepository>(),
             logger = get(),
         )
     }

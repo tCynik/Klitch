@@ -303,25 +303,53 @@ fun MapLibreLayer(
         val nodeMarkerStrokeWidth = MarkerSizeConfig.nodeMarkerStrokeWidth(markerSize)
         val nodeIconSize = markerSize
 
-        // Stale nodes (position older than 2 min) — grey circle + grey label
+        // Stale + online: position outdated but node still sending telemetry — blue-grey dot
         CircleLayer(
-            id = "node-stale-dot",
+            id = "node-stale-online-dot",
             source = peerStaleSource,
-            color = const(Color(0xFF9E9E9E)),
+            filter = feature.has("isOnlineProp"),
+            color = const(Color(0xFF546E7A)),
+            radius = const(nodeMarkerRadius),
+            strokeColor = const(Color.White),
+            strokeWidth = const(nodeMarkerStrokeWidth),
+        )
+
+        // Stale + offline: node not heard within online window — grey dot
+        CircleLayer(
+            id = "node-stale-offline-dot",
+            source = peerStaleSource,
+            filter = !feature.has("isOnlineProp"),
+            color = const(Color(0xFF757575)),
             radius = const(nodeMarkerRadius),
             strokeColor = const(Color.White),
             strokeWidth = const(nodeMarkerStrokeWidth),
         )
 
         SymbolLayer(
-            id = "node-stale-label",
+            id = "node-stale-online-label",
             source = peerStaleSource,
+            filter = feature.has("isOnlineProp"),
             textField = format(span(feature["longName"].asString())),
             textFont = const(listOf("Noto Sans Regular")),
             textAnchor = const(SymbolAnchor.Bottom),
             textOffset = offset(0f.em, (-1.2f).em),
             textSize = const(12.sp),
-            textColor = const(Color(0xFF9E9E9E)),
+            textColor = const(Color(0xFF90A4AE)),
+            textHaloColor = const(Color.Black),
+            textHaloWidth = const(1.5.dp),
+            textAllowOverlap = const(true),
+        )
+
+        SymbolLayer(
+            id = "node-stale-offline-label",
+            source = peerStaleSource,
+            filter = !feature.has("isOnlineProp"),
+            textField = format(span(feature["longName"].asString())),
+            textFont = const(listOf("Noto Sans Regular")),
+            textAnchor = const(SymbolAnchor.Bottom),
+            textOffset = offset(0f.em, (-1.2f).em),
+            textSize = const(12.sp),
+            textColor = const(Color(0xFF757575)),
             textHaloColor = const(Color.Black),
             textHaloWidth = const(1.5.dp),
             textAllowOverlap = const(true),
@@ -572,7 +600,8 @@ private fun buildNodeGeoJson(nodes: List<NodeMarkerModel>): String {
         } else {
             ""
         }
-        """{"type":"Feature","geometry":{"type":"Point","coordinates":[$lon,$lat]},"properties":{"longName":"$name","isStale":${node.isStale}$bearingProps}}"""
+        val onlineProp = if (node.isOnline) ""","isOnlineProp":1""" else ""
+        """{"type":"Feature","geometry":{"type":"Point","coordinates":[$lon,$lat]},"properties":{"longName":"$name","isStale":${node.isStale}$onlineProp$bearingProps}}"""
     }
     return """{"type":"FeatureCollection","features":[$features]}"""
 }
