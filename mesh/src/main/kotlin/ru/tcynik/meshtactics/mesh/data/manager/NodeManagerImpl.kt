@@ -287,8 +287,7 @@ class NodeManagerImpl(
                     lastHeard = info.last_heard,
                     deviceMetrics = info.device_metrics ?: next.deviceMetrics,
                     channel = info.channel,
-                    // Preserve live-derived positionChannel; fall back to BLE channel only on first load.
-                    positionChannel = next.positionChannel ?: info.channel,
+                    positionChannel = next.positionChannel,
                     viaMqtt = info.via_mqtt,
                     hopsAway = info.hops_away ?: -1,
                     isFavorite = info.is_favorite,

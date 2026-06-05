@@ -277,6 +277,7 @@ class NodeRepositoryImpl(
         lastHeard = lastHeard,
         deviceTelemetry = org.meshtastic.proto.Telemetry(device_metrics = deviceMetrics),
         channel = channel,
+        positionChannel = positionChannel,
         viaMqtt = viaMqtt,
         hopsAway = hopsAway,
         isFavorite = isFavorite,
