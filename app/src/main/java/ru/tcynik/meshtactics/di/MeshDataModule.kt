@@ -67,6 +67,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveNodeSecurityConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
 import ru.tcynik.meshtactics.data.mesh.GeoSendPolicyImpl
+import ru.tcynik.meshtactics.data.mesh.OnConnectPositionSender
 import ru.tcynik.meshtactics.data.mesh.repository.RebootStateRepositoryImpl
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.mesh.repository.GeoSendPolicy
@@ -131,6 +132,16 @@ val meshDataModule = module {
     single<RebootStateRepository> { RebootStateRepositoryImpl(get()) }
 
     single<GeoSendPolicy> { GeoSendPolicyImpl(get()) }
+
+    single {
+        OnConnectPositionSender(
+            connectionRepository = get(),
+            gpsRepository = get(),
+            contourRepository = get(),
+            channelSlotResolver = get(),
+            commandSender = get(),
+        )
+    }
 
     single {
         EmergencyNodeNotificationFilter(

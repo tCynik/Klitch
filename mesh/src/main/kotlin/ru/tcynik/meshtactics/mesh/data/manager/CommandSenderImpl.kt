@@ -292,6 +292,20 @@ class CommandSenderImpl(
         )
     }
 
+    override fun broadcastPosition(pos: org.meshtastic.proto.Position, channelIndex: Int) {
+        packetHandler.sendToRadio(
+            buildMeshPacket(
+                to = DataPacket.NODENUM_BROADCAST,
+                channel = channelIndex,
+                priority = MeshPacket.Priority.BACKGROUND,
+                decoded = Data(
+                    portnum = PortNum.POSITION_APP,
+                    payload = pos.encode().toByteString(),
+                ),
+            ),
+        )
+    }
+
     override fun requestPosition(destNum: Int, currentPosition: Position) {
         val meshPosition =
             org.meshtastic.proto.Position(
