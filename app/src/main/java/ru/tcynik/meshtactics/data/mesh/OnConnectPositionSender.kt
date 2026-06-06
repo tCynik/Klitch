@@ -46,10 +46,15 @@ class OnConnectPositionSender(
         val gpsLocation = gpsRepository.location.value
             ?: gpsRepository.location.filterNotNull().first()
 
+        val fixTimeSeconds = if (gpsLocation.time > 0) {
+            (gpsLocation.time / 1_000L).toInt()
+        } else {
+            (nowMillis / 1_000L).toInt()
+        }
         val protoPos = ProtoPosition(
             latitude_i = Position.degI(gpsLocation.latitude),
             longitude_i = Position.degI(gpsLocation.longitude),
-            time = (nowMillis / 1_000L).toInt(),
+            time = fixTimeSeconds,
             ground_speed = gpsLocation.speed?.toInt() ?: 0,
             ground_track = gpsLocation.bearing?.toInt() ?: 0,
             location_source = ProtoPosition.LocSource.LOC_EXTERNAL,

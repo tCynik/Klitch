@@ -123,7 +123,6 @@ class MeshConnectionManagerImpl(
                                     // Clear fixed_position so firmware doesn't ignore sendPosition packets
                                     commandSender.setFixedPosition(myNodeEntity.myNodeNum, Position(0.0, 0.0, 0))
                                     locationManager.start(scope) { pos ->
-                                        Logger.i { "PhoneGPS→radio: sendPosition lat=${Position.degD(pos.latitude_i ?: 0)} lon=${Position.degD(pos.longitude_i ?: 0)}" }
                                         commandSender.sendPosition(pos)
                                     }
                                 } else {
@@ -174,9 +173,16 @@ class MeshConnectionManagerImpl(
         handshakeTimeout?.cancel()
         handshakeTimeout = null
 
+        val resumeFromSleep = current is ConnectionState.DeviceSleep && c is ConnectionState.Connected
         when (c) {
             is ConnectionState.Connecting -> serviceRepository.setConnectionState(ConnectionState.Connecting)
-            is ConnectionState.Connected -> handleConnected()
+            is ConnectionState.Connected -> {
+                handleConnected()
+                if (resumeFromSleep) {
+                    Logger.withTag("MeshConnMgr").i { "BLE reconnect from DeviceSleep — flushing last GPS position" }
+                    locationManager.flushLastPosition()
+                }
+            }
             is ConnectionState.DeviceSleep -> handleDeviceSleep()
             is ConnectionState.Disconnected -> handleDisconnected()
         }
@@ -213,7 +219,8 @@ class MeshConnectionManagerImpl(
     private fun handleDeviceSleep() {
         serviceRepository.setConnectionState(ConnectionState.DeviceSleep)
         packetHandler.stopPacketQueue()
-        locationManager.stop()
+        // Keep locationManager running — DeviceSleep is transient BLE state; GPS→radio bridge
+        // must stay alive so reconnect can flush a fresh position (see flushLastPosition).
         mqttManager.stop()
 
         if (connectTimeMsec != 0L) {

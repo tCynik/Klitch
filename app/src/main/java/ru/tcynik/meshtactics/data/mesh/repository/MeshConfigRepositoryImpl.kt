@@ -352,10 +352,15 @@ class MeshConfigRepositoryImpl(
 
     override suspend fun enableNodePositionBroadcastReady() {
         val destNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
-        val current = withTimeoutOrNull(POSITION_CONFIG_WAIT_MS) {
-            meshRouter.configHandler.localConfig.first { it.position != null }.position!!
+        val localConfig = withTimeoutOrNull(POSITION_CONFIG_WAIT_MS) {
+            meshRouter.configHandler.localConfig.first { it.position != null }
         } ?: return
-        if (current.position_broadcast_secs == GEO_BROADCAST_READY_SECS && !current.position_broadcast_smart_enabled) {
+        val current = localConfig.position!!
+        val powerSavingOff = localConfig.power?.is_power_saving != true
+        if (current.position_broadcast_secs == GEO_BROADCAST_READY_SECS &&
+            !current.position_broadcast_smart_enabled &&
+            powerSavingOff
+        ) {
             logger.d("Node", "enableNodePositionBroadcastReady: already configured, skip")
             return
         }
@@ -366,6 +371,11 @@ class MeshConfigRepositoryImpl(
         )
         val payload = Config.ADAPTER.encode(Config(position = updated))
         meshRouter.actionHandler.handleSetConfig(payload, destNum)
+        localConfig.power?.takeIf { it.is_power_saving == true }?.let { power ->
+            logger.i("Node", "enableNodePositionBroadcastReady: disabling is_power_saving for background BLE")
+            val powerPayload = Config.ADAPTER.encode(Config(power = power.copy(is_power_saving = false)))
+            meshRouter.actionHandler.handleSetConfig(powerPayload, destNum)
+        }
     }
 
     override suspend fun disableNodePositionBroadcast() {

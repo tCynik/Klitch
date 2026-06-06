@@ -20,3 +20,12 @@ Ref: [.claude/docs/gps-position-staleness.md](.claude/docs/gps-position-stalenes
 **Result:** partially fixed — Phase 1 quick win implemented; field test pending (phone B screen off 10+ min → phone A `positionTime` < 2 min).
 
 ---
+
+## 2026-06-06 | Phase 1 committed — GPS bridge survives DeviceSleep
+
+**Symptom:** Follow-up to entry above; Phase 1 fix was implemented but not yet committed.
+**Tried:**
+- Committed Phase 1 pipeline fix (`9a705e2`): `locationManager.stop()` removed from `handleDeviceSleep()`; `flushLastPosition()` called on `DeviceSleep → Connected` transition; `AndroidMeshLocationManager` stores `lastPosition` and `sendPositionFn`; `is_power_saving=false` written when enabling geo broadcast; `OnConnectPositionSender` uses GPS fix time with `nowMillis` fallback.
+**Result:** fixed (`9a705e2`) — GPS→radio bridge now stays alive during screen-off BLE sleep; reconnect flushes a fresh position immediately; node `is_power_saving` disabled to keep BLE stable in background.
+
+---

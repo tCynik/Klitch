@@ -39,10 +39,13 @@ class AndroidMeshLocationManager(private val context: Application, private val l
     MeshLocationManager {
     private var scope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var locationFlow: Job? = null
+    private var sendPositionFn: ((ProtoPosition) -> Unit)? = null
+    private var lastPosition: ProtoPosition? = null
 
     @SuppressLint("MissingPermission")
     override fun start(scope: CoroutineScope, sendPositionFn: (ProtoPosition) -> Unit) {
         this.scope = scope
+        this.sendPositionFn = sendPositionFn
         if (locationFlow?.isActive == true) return
 
         if (context.hasLocationPermission()) {
@@ -50,23 +53,27 @@ class AndroidMeshLocationManager(private val context: Application, private val l
                 locationRepository
                     .getLocations()
                     .onEach { location ->
-                        sendPositionFn(
-                            ProtoPosition(
-                                latitude_i = Position.degI(location.latitude),
-                                longitude_i = Position.degI(location.longitude),
-                                altitude =
-                                if (LocationCompat.hasMslAltitude(location)) {
-                                    LocationCompat.getMslAltitudeMeters(location).toInt()
-                                } else {
-                                    null
-                                },
-                                altitude_hae = location.altitude.toInt(),
-                                time = (location.time.milliseconds.inWholeSeconds).toInt(),
-                                ground_speed = location.speed.toInt(),
-                                ground_track = location.bearing.toInt(),
-                                location_source = ProtoPosition.LocSource.LOC_EXTERNAL,
-                            ),
+                        val pos = ProtoPosition(
+                            latitude_i = Position.degI(location.latitude),
+                            longitude_i = Position.degI(location.longitude),
+                            altitude =
+                            if (LocationCompat.hasMslAltitude(location)) {
+                                LocationCompat.getMslAltitudeMeters(location).toInt()
+                            } else {
+                                null
+                            },
+                            altitude_hae = location.altitude.toInt(),
+                            time = (location.time.milliseconds.inWholeSeconds).toInt(),
+                            ground_speed = location.speed.toInt(),
+                            ground_track = location.bearing.toInt(),
+                            location_source = ProtoPosition.LocSource.LOC_EXTERNAL,
                         )
+                        lastPosition = pos
+                        Logger.i("PhoneGPS→radio") {
+                            "sendPosition time=${pos.time} lat=${Position.degD(pos.latitude_i ?: 0)} " +
+                                "lon=${Position.degD(pos.longitude_i ?: 0)}"
+                        }
+                        sendPositionFn(pos)
                     }
                     .launchIn(scope)
         }
@@ -78,5 +85,12 @@ class AndroidMeshLocationManager(private val context: Application, private val l
             locationFlow?.cancel()
             locationFlow = null
         }
+        sendPositionFn = null
+    }
+
+    override fun flushLastPosition() {
+        val pos = lastPosition ?: return
+        Logger.i("PhoneGPS→radio") { "flushLastPosition time=${pos.time}" }
+        sendPositionFn?.invoke(pos)
     }
 }
