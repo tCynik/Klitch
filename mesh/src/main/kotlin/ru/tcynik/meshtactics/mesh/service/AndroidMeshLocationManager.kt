@@ -53,6 +53,14 @@ class AndroidMeshLocationManager(private val context: Application, private val l
                 locationRepository
                     .getLocations()
                     .onEach { location ->
+                        val nowMs = System.currentTimeMillis()
+                        val fixAgeMs = nowMs - location.time
+                        val fixTimeSeconds = if (fixAgeMs <= MAX_FIX_AGE_MS) {
+                            (location.time.milliseconds.inWholeSeconds).toInt()
+                        } else {
+                            Logger.i("MT/PhoneGPS→radio") { "GPS fix stale by ${fixAgeMs / 1000}s, using nowMs as position.time" }
+                            (nowMs / 1_000L).toInt()
+                        }
                         val pos = ProtoPosition(
                             latitude_i = Position.degI(location.latitude),
                             longitude_i = Position.degI(location.longitude),
@@ -63,7 +71,7 @@ class AndroidMeshLocationManager(private val context: Application, private val l
                                 null
                             },
                             altitude_hae = location.altitude.toInt(),
-                            time = (location.time.milliseconds.inWholeSeconds).toInt(),
+                            time = fixTimeSeconds,
                             ground_speed = location.speed.toInt(),
                             ground_track = location.bearing.toInt(),
                             location_source = ProtoPosition.LocSource.LOC_EXTERNAL,
@@ -97,5 +105,11 @@ class AndroidMeshLocationManager(private val context: Application, private val l
             "flushLastPosition time=${pos.time} lat=${Position.degD(pos.latitude_i ?: 0)} lon=${Position.degD(pos.longitude_i ?: 0)}"
         }
         sendPositionFn?.invoke(pos)
+    }
+
+    companion object {
+        // If the GPS fix is older than this, use current time so the mesh packet is not
+        // immediately stale on the receiver (stationary-device cache problem).
+        private const val MAX_FIX_AGE_MS = 90_000L
     }
 }

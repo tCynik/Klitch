@@ -17,6 +17,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.CommitSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetPositionBroadcastSecsUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.IsPositionSmartBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
@@ -40,6 +41,7 @@ class SyncContoursOnConnectUseCase(
     private val observeGpsBroadcastEnabled: ObserveGpsBroadcastEnabledUseCase,
     private val observeEmergencyMode: ObserveEmergencyModeUseCase,
     private val getPositionBroadcastSecs: GetPositionBroadcastSecsUseCase,
+    private val isPositionSmartBroadcastEnabled: IsPositionSmartBroadcastEnabledUseCase,
     private val logger: Logger,
 ) {
     suspend operator fun invoke(): SyncContoursResult {
@@ -67,8 +69,15 @@ class SyncContoursOnConnectUseCase(
         val broadcastEnabled = observeGpsBroadcastEnabled().first()
         val desiredBroadcastEnabled = !sosActive && broadcastEnabled
         val currentBroadcastSecs = getPositionBroadcastSecs()
+        val currentSmartEnabled = isPositionSmartBroadcastEnabled()
         val desiredBroadcastSecs = if (desiredBroadcastEnabled) BROADCAST_READY_SECS else BROADCAST_DISABLED_SECS
-        val needsBroadcastWrite = currentBroadcastSecs != null && currentBroadcastSecs != desiredBroadcastSecs
+        // Also write when smart broadcast is still enabled despite GPS broadcast being active —
+        // smart broadcast silently extends the interval when the device is stationary, causing
+        // periodic stale markers on peer devices.
+        val needsBroadcastWrite = currentBroadcastSecs != null && (
+            currentBroadcastSecs != desiredBroadcastSecs ||
+            (desiredBroadcastEnabled && currentSmartEnabled == true)
+        )
 
         val primaryName = meshtasticChannelName(primaryContour)
         val primaryPsk = if (primaryContour.isEmergency) {

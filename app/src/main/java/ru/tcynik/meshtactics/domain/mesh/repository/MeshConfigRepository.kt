@@ -54,5 +54,8 @@ interface MeshConfigRepository {
     /** Returns the current position_broadcast_secs from local node config, or null if not yet loaded. */
     suspend fun getPositionBroadcastSecs(): Int?
 
+    /** Returns true if position_broadcast_smart_enabled is set, false if not, null on timeout. */
+    suspend fun isPositionSmartBroadcastEnabled(): Boolean?
+
     fun rebootNode()
 }

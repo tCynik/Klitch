@@ -401,6 +401,11 @@ class MeshConfigRepositoryImpl(
             meshRouter.configHandler.localConfig.first { it.position != null }.position!!.position_broadcast_secs
         }
 
+    override suspend fun isPositionSmartBroadcastEnabled(): Boolean? =
+        withTimeoutOrNull(5_000L) {
+            meshRouter.configHandler.localConfig.first { it.position != null }.position!!.position_broadcast_smart_enabled
+        }
+
     override fun rebootNode() {
         val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: run {
             logger.w("Node", "rebootNode: myNodeNum unavailable")

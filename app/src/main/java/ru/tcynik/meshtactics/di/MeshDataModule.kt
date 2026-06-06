@@ -57,6 +57,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetPositionBroadcastSecsUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.IsPositionSmartBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ConfirmChannelSyncUseCase
@@ -183,6 +184,7 @@ val meshDataModule = module {
     single { EnableNodePositionBroadcastReadyUseCase(get()) }
     single { DisableNodePositionBroadcastUseCase(get()) }
     single { GetPositionBroadcastSecsUseCase(get()) }
+    single { IsPositionSmartBroadcastEnabledUseCase(get()) }
     single { RebootNodeUseCase(get()) }
     single {
         ReconnectViaBleScanUseCase(

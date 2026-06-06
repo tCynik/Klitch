@@ -22,7 +22,7 @@ private const val MIN_SPEED_FOR_HEADING = 1
 // Positions fresher than this threshold are shown with normal colors;
 // older positions are shown as grey (stale) markers.
 // 2 minutes — threshold for fresh vs stale visual distinction.
-private const val POSITION_FRESHNESS_SECONDS = 2 * 60
+private const val POSITION_FRESHNESS_SECONDS = 5 * 60
 
 /** Maximum age of a GPS position to be displayed at all, in seconds. Positions older than this are hidden. */
 private const val MAX_POSITION_AGE_SECONDS = 12 * 60 * 60 // 12 hours
@@ -57,6 +57,9 @@ class ObserveNodeMarkersUseCase(
     private val channelSlotResolver: ChannelSlotResolver,
     private val logger: Logger,
 ) : FlowUseCase<NoParams, List<NodeMarkerModel>>() {
+
+    private data class PrevStatus(val isOnline: Boolean, val isStale: Boolean)
+    private val previousStatus = mutableMapOf<String, PrevStatus>()
 
     override fun invoke(params: NoParams): Flow<List<NodeMarkerModel>> =
         combine(
@@ -117,7 +120,7 @@ class ObserveNodeMarkersUseCase(
         return filtered.map { node ->
             val effectiveTime = if (node.positionTime > 0) node.positionTime else node.lastHeard
             val isStale = effectiveTime <= freshnessThreshold
-            NodeMarkerModel(
+            val marker = NodeMarkerModel(
                 nodeId = node.nodeId,
                 longName = node.longName,
                 position = GeoPoint(node.latitude, node.longitude),
@@ -125,6 +128,20 @@ class ObserveNodeMarkersUseCase(
                 isStale = isStale,
                 heading = if (node.groundSpeed >= MIN_SPEED_FOR_HEADING) node.groundTrack.toFloat() else null,
             )
+            val prev = previousStatus[node.nodeId]
+            if (prev != null) {
+                if (prev.isOnline != marker.isOnline) {
+                    val lastHeardAgeS = nowSeconds - node.lastHeard
+                    logger.d("Node", "${node.longName} online ${prev.isOnline}→${marker.isOnline}: lastHeard=${lastHeardAgeS}s ago (window=2700s)")
+                }
+                if (prev.isStale != marker.isStale) {
+                    val ageS = nowSeconds - effectiveTime
+                    val src = if (node.positionTime > 0) "positionTime" else "lastHeard(fallback)"
+                    logger.d("Node", "${node.longName} stale ${prev.isStale}→${marker.isStale}: $src=${ageS}s ago (threshold=${POSITION_FRESHNESS_SECONDS}s)")
+                }
+            }
+            previousStatus[node.nodeId] = PrevStatus(marker.isOnline, marker.isStale)
+            marker
         }
     }
 
