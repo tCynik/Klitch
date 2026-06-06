@@ -7,4 +7,6 @@ data class GpsLocation(
     val speed: Float?,
     val accuracy: Float,
     val elapsedRealtimeNanos: Long,
+    /** Unix epoch milliseconds of the GPS fix (from [android.location.Location.getTime]). */
+    val time: Long,
 )
