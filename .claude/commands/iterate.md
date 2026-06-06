@@ -28,8 +28,9 @@ Before doing anything else, run these steps in order:
    - `.claude/docs/<feature-slug>.md` — living feature doc (primary source)
    - `.claude/plans/<feature-slug>.md` — active plan if still in `plans/` (feature in progress)
    - `.claude/archive/<feature-slug>.md` — archived plan if feature is Done
-3. **Scan changed files** — run `git log --oneline -10 -- <relevant paths>` to understand recent activity
-4. **Read the symptom or request** — restate it in one sentence to confirm understanding
+3. **Check debug history** — look for `.claude/debug/<feature-slug>.md`; if it exists, run `/debug-log show: <feature-slug>` and surface recurring patterns before proceeding (bug: mode only — skip in extend: and review:)
+4. **Scan changed files** — run `git log --oneline -10 -- <relevant paths>` to understand recent activity
+5. **Read the symptom or request** — restate it in one sentence to confirm understanding
 
 If the feature doc does not exist, say so and offer to create it from current code before proceeding.
 
@@ -154,7 +155,8 @@ After the fix or extension is complete:
 3. **Present to user**: staged files + commit message
 4. **Wait for explicit confirmation** before committing
 5. **After commit**: confirm clean `git status`
-6. **Plan archiving** — if a plan file exists at `.claude/plans/<feature-slug>.md` and the feature is now fully done: move it to `.claude/archive/<feature-slug>.md` and delete the original; update the plan status table in **CLAUDE.md** to `Done`
+6. **Offer debug log save** — if this was a non-trivial debug session (more than one hypothesis tried, or a subtle root cause found): suggest `"/debug-log save: <slug>"` to capture the history; skip if the fix was trivial
+7. **Plan archiving** — if a plan file exists at `.claude/plans/<feature-slug>.md` and the feature is now fully done: move it to `.claude/archive/<feature-slug>.md` and delete the original; update the plan status table in **CLAUDE.md** to `Done`
 
 **Rule**: never commit without explicit user confirmation.
 **Rule**: commit messages in Russian, no `Co-Authored-By` line.
