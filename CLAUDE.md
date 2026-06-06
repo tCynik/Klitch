@@ -118,7 +118,7 @@
 | HUD Structure | `.claude/docs/hud-structure.md` |
 | Directional Node Markers | `.claude/docs/directional-node-markers.md` |
 | MapLibre Layer Architecture + Fonts | `.claude/docs/map-layer.md` |
-| GPS Sending Logic & Location Settings | `.claude/docs/fix-gps-sending-logic.md` |
+| Location Sharing Config | `.claude/docs/location-sharing-config.md` |
 | GPS Pipeline Debug (незавершён) | `.claude/docs/gps-pipeline-debug.md` |
 | KMZ/KML Import | `.claude/docs/kmz-kml-import.md` |
 | KMZ/KML Rendering | `.claude/docs/kmz-kml-rendering.md` |
@@ -142,6 +142,7 @@
 | Callsign Gate on Connect (реализация) | `.claude/docs/callsign-gate-on-connect.md` |
 | Network Screen | `.claude/docs/network-screen.md` |
 | positionChannel & Slot Discovery | `.claude/docs/position-channel-slot-discovery.md` |
+| GPS Position Staleness Pipeline | `.claude/docs/gps-position-staleness.md` |
 
 ---
 

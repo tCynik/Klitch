@@ -1,4 +1,4 @@
-# GPS Sending Logic & Location Settings
+# Location Sharing Config
 
 ## What it does
 `LocationConfigCard` in `ConfigTab` (MeshTest screen) exposes all settings that affect whether the phone's GPS reaches the mesh network — with a readiness indicator showing green/yellow/red based on blocking conditions.
