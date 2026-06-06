@@ -141,6 +141,7 @@ val meshDataModule = module {
             channelSlotResolver = get(),
             commandSender = get(),
             meshNetworkRepository = get(),
+            logger = get(),
         )
     }
 

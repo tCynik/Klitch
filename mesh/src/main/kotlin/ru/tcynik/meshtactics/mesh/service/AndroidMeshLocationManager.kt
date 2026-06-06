@@ -69,7 +69,7 @@ class AndroidMeshLocationManager(private val context: Application, private val l
                             location_source = ProtoPosition.LocSource.LOC_EXTERNAL,
                         )
                         lastPosition = pos
-                        Logger.i("PhoneGPS→radio") {
+                        Logger.i("MT/PhoneGPS→radio") {
                             "sendPosition time=${pos.time} lat=${Position.degD(pos.latitude_i ?: 0)} " +
                                 "lon=${Position.degD(pos.longitude_i ?: 0)}"
                         }
@@ -89,8 +89,13 @@ class AndroidMeshLocationManager(private val context: Application, private val l
     }
 
     override fun flushLastPosition() {
-        val pos = lastPosition ?: return
-        Logger.i("PhoneGPS→radio") { "flushLastPosition time=${pos.time}" }
+        val pos = lastPosition ?: run {
+            Logger.i("MT/PhoneGPS→radio") { "flushLastPosition: lastPosition=null, пропуск" }
+            return
+        }
+        Logger.i("MT/PhoneGPS→radio") {
+            "flushLastPosition time=${pos.time} lat=${Position.degD(pos.latitude_i ?: 0)} lon=${Position.degD(pos.longitude_i ?: 0)}"
+        }
         sendPositionFn?.invoke(pos)
     }
 }

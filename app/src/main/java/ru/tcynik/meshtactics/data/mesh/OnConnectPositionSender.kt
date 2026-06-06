@@ -14,6 +14,7 @@ import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.gps.model.GpsLocation
 import ru.tcynik.meshtactics.domain.gps.repository.GpsRepository
+import ru.tcynik.meshtactics.domain.logger.Logger
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshConnectionRepository
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshNetworkRepository
@@ -29,6 +30,7 @@ class OnConnectPositionSender(
     private val channelSlotResolver: ChannelSlotResolver,
     private val commandSender: CommandSender,
     private val meshNetworkRepository: MeshNetworkRepository,
+    private val logger: Logger,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -43,8 +45,23 @@ class OnConnectPositionSender(
     }
 
     private suspend fun sendPosition() {
-        val gpsLocation = gpsRepository.location.value
+        val cachedLocation = gpsRepository.location.value
+
+        if (cachedLocation != null) {
+            logger.d("GPS", "OnConnectPositionSender.sendPosition: GPS кеш доступен lat=${cachedLocation.latitude} lon=${cachedLocation.longitude}")
+        } else {
+            logger.d("GPS", "OnConnectPositionSender.sendPosition: GPS кеш пуст, ожидаю первый фикс")
+        }
+
+        // Start slot discovery immediately without waiting for GPS fix
+        scope.launch { requestPositionsForUnknownSlots(cachedLocation) }
+
+        val gpsLocation = cachedLocation
             ?: gpsRepository.location.filterNotNull().first()
+
+        if (cachedLocation == null) {
+            logger.d("GPS", "OnConnectPositionSender.sendPosition: GPS фикс получен lat=${gpsLocation.latitude} lon=${gpsLocation.longitude}")
+        }
 
         val fixTimeSeconds = if (gpsLocation.time > 0) {
             (gpsLocation.time / 1_000L).toInt()
@@ -60,6 +77,8 @@ class OnConnectPositionSender(
             location_source = ProtoPosition.LocSource.LOC_EXTERNAL,
         )
 
+        logger.d("GPS", "OnConnectPositionSender.sendPosition: отправляю позицию lat_i=${protoPos.latitude_i} lon_i=${protoPos.longitude_i} time=$fixTimeSeconds")
+
         // Primary channel (slot 0): standard path — also updates own node position in local DB
         commandSender.sendPosition(protoPos, null, false)
 
@@ -72,27 +91,32 @@ class OnConnectPositionSender(
             .filter { slot -> slot > 1 }
             .distinct()
             .forEach { slot -> commandSender.broadcastPosition(protoPos, slot) }
-
-        requestPositionsForUnknownSlots(gpsLocation)
     }
 
-    private suspend fun requestPositionsForUnknownSlots(gpsLocation: GpsLocation) {
+    private suspend fun requestPositionsForUnknownSlots(gpsLocation: GpsLocation?) {
         val ourNodeId = meshNetworkRepository.observeOurNode().first()?.nodeId ?: return
         val nodes = meshNetworkRepository.observeNodes().first()
-        val position = Position(
-            latitude = gpsLocation.latitude,
-            longitude = gpsLocation.longitude,
-            altitude = 0,
-        )
-        nodes
-            .filter { it.receivedOnSlot == null && it.nodeId != ourNodeId }
-            .forEach { node ->
-                delay(POSITION_REQUEST_INTERVAL_MS)
-                commandSender.requestPosition(node.num, position)
-            }
+        val recentThreshold = (nowMillis / 1000L - RECENT_NODE_WINDOW_SECONDS).toInt()
+        val unknownNodes = nodes.filter {
+            it.receivedOnSlot == null && it.nodeId != ourNodeId && it.lastHeard >= recentThreshold
+        }
+
+        logger.d("GPS", "OnConnectPositionSender.requestPositionsForUnknownSlots: всего нод=${nodes.size} с slot=null и активных=${unknownNodes.size} GPS=${if (gpsLocation != null) "есть" else "нет"}")
+
+        val position = if (gpsLocation != null) {
+            Position(latitude = gpsLocation.latitude, longitude = gpsLocation.longitude, altitude = 0)
+        } else {
+            Position(latitude = 0.0, longitude = 0.0, altitude = 0)
+        }
+        unknownNodes.forEach { node ->
+            delay(POSITION_REQUEST_INTERVAL_MS)
+            logger.d("GPS", "OnConnectPositionSender.requestPositionsForUnknownSlots: запрос позиции у nodeId='${node.nodeId}' num=${node.num}")
+            commandSender.requestPosition(node.num, position)
+        }
     }
 
     companion object {
         private const val POSITION_REQUEST_INTERVAL_MS = 500L
+        private const val RECENT_NODE_WINDOW_SECONDS = 30 * 60L
     }
 }

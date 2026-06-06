@@ -216,6 +216,9 @@ class NodeManagerImpl(
             return
         }
 
+        val isOwnNode = fromNum == myNodeNum
+        Logger.withTag("MT/NodeMgr").d { "handleReceivedPosition: fromNum=$fromNum ownNode=$isOwnNode channel=$channel isZeroPos=$isZeroPos lat_i=${p.latitude_i} lon_i=${p.longitude_i}" }
+
         updateNode(fromNum) { node ->
             val posTime = if (p.time != 0) p.time else (defaultTime / TIME_MS_TO_S).toInt()
             val newLastHeard = maxOf(node.lastHeard, posTime)
@@ -233,6 +236,8 @@ class NodeManagerImpl(
                     p.copy(time = posTime)
                 }
 
+            val prevSlot = node.positionChannel
+            Logger.withTag("MT/NodeMgr").d { "handleReceivedPosition: fromNum=$fromNum positionChannel: $prevSlot -> $channel" }
             node.copy(position = newPos, lastHeard = newLastHeard, channel = channel, positionChannel = channel)
         }
     }
