@@ -91,3 +91,12 @@ Ref: [.claude/docs/gps-position-staleness.md](.claude/docs/gps-position-stalenes
 **Result:** fixed — `set_config position` now awaited before `commitSettingsEdit()` fires; `CheckNodeSyncUseCase` uses the same `Int.MAX_VALUE` constant as `SyncContoursOnConnectUseCase`; loop eliminated.
 
 ---
+
+## 2026-06-07 | Heartbeat/send distance не доходит до второй ноды — `handleReceivedPosition: fromNum=` не появляется
+
+**Symptom:** `MT/SmartPos` логирует "send heartbeat" и "send distance" на первом телефоне, но `handleReceivedPosition: fromNum={first_node}` никогда не появляется на втором телефоне. Работает только когда нода сама передаёт по прошивочному расписанию.
+**Tried:**
+- Traced `CommandSenderImpl.sendPosition`: при `destNum=null` собирал `idNum = destNum ?: myNum` → `to = myNum`. Прошивка получала POSITION_APP с `to = myNum` по BLE, сохраняла позицию в своей БД, но НЕ перетранслировала по LoRa — ждала следующего scheduled broadcast. `position_broadcast_secs = Int.MAX_VALUE` → scheduled broadcast никогда не наступает. Контурные слоты > 1 работали, потому что `OnConnectPositionSender` использует `broadcastPosition` (с `to = NODENUM_BROADCAST`) для них.
+**Result:** fixed — `CommandSenderImpl.sendPosition`: изменено `destNum ?: myNum` → `destNum ?: DataPacket.NODENUM_BROADCAST`. Теперь при `destNum=null` прошивка получает broadcast-пакет и немедленно отправляет его по LoRa.
+
+---

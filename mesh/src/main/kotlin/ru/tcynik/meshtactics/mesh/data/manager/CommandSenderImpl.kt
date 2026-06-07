@@ -270,7 +270,7 @@ class CommandSenderImpl(
 
     override fun sendPosition(pos: org.meshtastic.proto.Position, destNum: Int?, wantResponse: Boolean) {
         val myNum = nodeManager.myNodeNum ?: return
-        val idNum = destNum ?: myNum
+        val idNum = destNum ?: DataPacket.NODENUM_BROADCAST
         val channel = if (destNum == null) 0 else nodeManager.nodeDBbyNodeNum[destNum]?.channel ?: 0
         Logger.d("MT/PhoneGPS→radio") { "sendPosition to=$idNum ch=$channel" }
 
