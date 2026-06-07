@@ -137,13 +137,13 @@ class AndroidMeshLocationManager(private val context: Application, private val l
         val stationaryExpired = lastSentAtMs == 0L || elapsedMs >= STATIONARY_INTERVAL_MS
 
         if (hasMoved || stationaryExpired) {
-            val reason = if (hasMoved) "distance" else "heartbeat"
-            val message =
-                "send $reason: dist=${"%.1f".format(distanceM)}m acc=${"%.1f".format(accuracyM)}m elapsed=${elapsedMs / 1000}s"
             if (lastSentAtMs == 0L) {
-                Logger.i("MT/SmartPos") { message }
+                Logger.i("MT/SmartPos") { "send first: acc=${"%.1f".format(accuracyM)}m" }
             } else {
-                Logger.d("MT/SmartPos") { message }
+                val reason = if (hasMoved) "distance" else "heartbeat"
+                Logger.d("MT/SmartPos") {
+                    "send $reason: dist=${"%.1f".format(distanceM)}m acc=${"%.1f".format(accuracyM)}m elapsed=${elapsedMs / 1000}s"
+                }
             }
             sendFn(pos)
             lastSentAtMs = nowMs

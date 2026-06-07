@@ -67,8 +67,10 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveNodeSecurityConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
+import ru.tcynik.meshtactics.data.mesh.ContourPositionChannelFilter
 import ru.tcynik.meshtactics.data.mesh.GeoSendPolicyImpl
 import ru.tcynik.meshtactics.data.mesh.OnConnectPositionSender
+import ru.tcynik.meshtactics.mesh.repository.PositionChannelFilter
 import ru.tcynik.meshtactics.data.mesh.repository.RebootStateRepositoryImpl
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.mesh.repository.GeoSendPolicy
@@ -134,6 +136,13 @@ val meshDataModule = module {
 
     single<GeoSendPolicy> { GeoSendPolicyImpl(get()) }
 
+    single<PositionChannelFilter> {
+        ContourPositionChannelFilter(
+            contourRepository = get(),
+            channelSlotResolver = get(),
+        )
+    }
+
     single {
         OnConnectPositionSender(
             connectionRepository = get(),
@@ -141,7 +150,6 @@ val meshDataModule = module {
             contourRepository = get(),
             channelSlotResolver = get(),
             commandSender = get(),
-            meshNetworkRepository = get(),
             logger = get(),
         )
     }
@@ -166,7 +174,7 @@ val meshDataModule = module {
     single { ObserveMeshNodesUseCase(get()) }
     single { ObserveOurNodeUseCase(get()) }
     single { ObserveContourNodesUseCase(get(), get(), get()) }
-    single { ObserveGeoNodesUseCase(get(), get(), get()) }
+    single { ObserveGeoNodesUseCase(get()) }
     single { ObserveMessagesUseCase(get()) }
     single { SendMeshMessageUseCase(get()) }
     single { ObservePacketLogUseCase(get()) }

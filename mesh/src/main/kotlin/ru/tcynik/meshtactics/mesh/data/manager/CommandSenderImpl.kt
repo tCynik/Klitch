@@ -271,7 +271,8 @@ class CommandSenderImpl(
     override fun sendPosition(pos: org.meshtastic.proto.Position, destNum: Int?, wantResponse: Boolean) {
         val myNum = nodeManager.myNodeNum ?: return
         val idNum = destNum ?: myNum
-        Logger.d { "Sending our position/time to=$idNum $pos" }
+        val channel = if (destNum == null) 0 else nodeManager.nodeDBbyNodeNum[destNum]?.channel ?: 0
+        Logger.d("MT/PhoneGPS→radio") { "sendPosition to=$idNum ch=$channel" }
 
         if (localConfig.value.position?.fixed_position != true) {
             nodeManager.handleReceivedPosition(myNum, myNum, pos, nowMillis)
@@ -280,7 +281,7 @@ class CommandSenderImpl(
         packetHandler.sendToRadio(
             buildMeshPacket(
                 to = idNum,
-                channel = if (destNum == null) 0 else nodeManager.nodeDBbyNodeNum[destNum]?.channel ?: 0,
+                channel = channel,
                 priority = MeshPacket.Priority.BACKGROUND,
                 decoded =
                 Data(
@@ -307,17 +308,21 @@ class CommandSenderImpl(
     }
 
     override fun requestPosition(destNum: Int, currentPosition: Position) {
+        requestPosition(destNum, currentPosition, nodeManager.nodeDBbyNodeNum[destNum]?.channel ?: 0)
+    }
+
+    override fun requestPosition(destNum: Int, position: Position, channelIndex: Int) {
         val meshPosition =
             org.meshtastic.proto.Position(
-                latitude_i = Position.degI(currentPosition.latitude),
-                longitude_i = Position.degI(currentPosition.longitude),
-                altitude = currentPosition.altitude,
+                latitude_i = Position.degI(position.latitude),
+                longitude_i = Position.degI(position.longitude),
+                altitude = position.altitude,
                 time = (nowMillis / 1000L).toInt(),
             )
         packetHandler.sendToRadio(
             buildMeshPacket(
                 to = destNum,
-                channel = nodeManager.nodeDBbyNodeNum[destNum]?.channel ?: 0,
+                channel = channelIndex,
                 priority = MeshPacket.Priority.BACKGROUND,
                 decoded =
                 Data(

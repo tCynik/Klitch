@@ -446,6 +446,13 @@ class NetworkViewModel(
                 DateUtils.MINUTE_IN_MILLIS,
             ).toString()
         else "never",
+        lastPositionFormatted = if (node.positionTime > 0)
+            DateUtils.getRelativeTimeSpanString(
+                node.positionTime * 1000L,
+                System.currentTimeMillis(),
+                DateUtils.MINUTE_IN_MILLIS,
+            ).toString()
+        else null,
         hopsAway = if (node.hopsAway > 0) node.hopsAway else null,
         contourName = contourName,
     )

@@ -89,6 +89,13 @@ interface CommandSender {
     /** Requests the position of a specific node. */
     fun requestPosition(destNum: Int, currentPosition: Position)
 
+    /**
+     * Requests the position of a specific node on an explicit channel slot.
+     * The node will only respond if it is subscribed to [channelIndex].
+     * A response confirms the node is on that channel — use this for slot discovery.
+     */
+    fun requestPosition(destNum: Int, position: Position, channelIndex: Int)
+
     /** Sets a fixed position for a node. */
     fun setFixedPosition(destNum: Int, pos: Position)
 

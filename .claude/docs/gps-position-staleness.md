@@ -3,8 +3,8 @@
 ## What it does
 
 Ensures the position marker of a peer node on the map correctly reflects whether the GPS fix is
-fresh or stale. Fresh positions (< 5 min) are shown with normal colours; stale positions
-(5 min – 12 h) are shown as grey markers; positions older than 12 h are hidden.
+fresh or stale. Fresh positions (< 9 min) are shown with normal colours; stale positions
+(9 min – 12 h) are shown as grey markers; positions older than 12 h are hidden.
 
 **The app is responsible for sending its own position into the mesh** (not the firmware). The
 connected node is silenced (`position_broadcast_secs = Int.MAX_VALUE`). When the operator
@@ -17,8 +17,8 @@ marker transitions to stale automatically.
 - `GpsRepositoryImpl` — OS location listener; maps `androidLocation.time` → `GpsLocation.time`; `data/gps/`
 - `MeshLocationRepositoryAdapter` — bridges `GpsLocation` to mesh `Location`; sets `location.time = gpsLocation.time`; `data/gps/`
 - `AndroidMeshLocationManager` — builds `ProtoPosition`; applies smart interval filter before sending; **sole position broadcaster** into the mesh; `mesh/service/`
-- `ObserveNodeMarkersUseCase` — stale detection: `effectiveTime = if (positionTime > 0) positionTime else lastHeard`; `domain/map/usecase/`
-- `OnConnectPositionSender` — sends own position on connect; requests positions from nodes with `receivedOnSlot == null`; `data/mesh/`
+- `ObserveNodeMarkersUseCase` — stale detection via `positionTime` only (no `lastHeard` fallback); `domain/map/usecase/`
+- `OnConnectPositionSender` — sends own position on connect to all active contour slots; `data/mesh/`
 - `SyncContoursOnConnectUseCase` — writes `position_broadcast_secs = Int.MAX_VALUE` to the node on connect, silencing autonomous firmware broadcasts; `domain/channel/usecase/`
 
 ## Why the app broadcasts instead of the firmware
@@ -52,7 +52,7 @@ on each GPS fix:
 
   distanceM = distanceBetween(lastSent, current)   // MAX_VALUE on first fix
   accuracyM = location.accuracy.coerceAtLeast(1f)
-  hasMoved  = distanceM > accuracyM                 // noise filter
+  hasMoved  = distanceM > accuracyM                 // noise filter (accuracy IS the buffer)
 
   send if (hasMoved || elapsed >= STATIONARY_INTERVAL_MS)
 ```
@@ -60,55 +60,47 @@ on each GPS fix:
 Reason is logged under tag `MT/SmartPos`: `"send distance"`, `"send heartbeat"`, `"skip gate"`,
 `"skip noise"`.
 
-## Threshold relationship (must stay in sync)
+## Threshold relationship
 
-`POSITION_FRESHNESS_SECONDS` in `ObserveNodeMarkersUseCase` must always exceed
-`STATIONARY_INTERVAL_MS / 1000` in `AndroidMeshLocationManager` with a buffer of at least 60 s
-to prevent marker flicker:
+`POSITION_FRESHNESS_SECONDS` = 3 × `STATIONARY_INTERVAL_MS / 1000`. A node that missed 3
+consecutive expected broadcasts is considered stale.
 
 | Constant | Value | Location |
 |---|---|---|
 | `STATIONARY_INTERVAL_MS` | 180 000 ms (180 s) | `AndroidMeshLocationManager` |
-| `POSITION_FRESHNESS_SECONDS` | 300 s | `ObserveNodeMarkersUseCase` |
-| Buffer | 120 s | — |
+| `POSITION_FRESHNESS_SECONDS` | 540 s (3 × 180) | `ObserveNodeMarkersUseCase` |
+| `MAX_POSITION_AGE_SECONDS` | 43 200 s (12 h) | `ObserveNodeMarkersUseCase` |
 
-When tuning one, update the other. Both files carry a cross-reference comment.
+When tuning `STATIONARY_INTERVAL_MS`, update `POSITION_FRESHNESS_SECONDS` to maintain the 3× ratio.
 
 ## Stale detection logic
 
 ```kotlin
 // ObserveNodeMarkersUseCase
-val effectiveTime = if (node.positionTime > 0) node.positionTime else node.lastHeard
-val isStale = effectiveTime <= (nowSeconds - POSITION_FRESHNESS_SECONDS)
+val isStale = node.positionTime <= (nowSeconds - POSITION_FRESHNESS_SECONDS)
 ```
 
-- `POSITION_FRESHNESS_SECONDS = 300` (5 min) — fresh vs grey
-- `MAX_POSITION_AGE_SECONDS = 43 200` (12 h) — shown vs hidden
-
-Stale status is re-evaluated every 10 s via `staleTicker()` so markers transition dynamically.
+- `positionTime` is the **only** source for staleness — no `lastHeard` fallback
+- `positionTime == 0` → node never sent an accepted position → hidden (filtered by `maxAgeThreshold`)
+- Stale status is re-evaluated every 10 s via `staleTicker()` so markers transition dynamically
 
 ## Non-obvious decisions
 
+- **No `lastHeard` fallback**: previously `effectiveTime = if (positionTime > 0) positionTime else lastHeard`.
+  Removed because staleness must reflect position freshness specifically — a node active on the network
+  but not sending GPS should not appear position-fresh. `positionTime == 0` → hidden, not grey.
 - **`position.time = 0` was the silent staleness killer** (historical): `GpsLocation` originally
-  had no `time` field → `location.time = 0` propagated through → `position.time = 0` in every
-  outgoing packet → `ObserveNodeMarkersUseCase` always fell back to `lastHeard` → marker showed
-  "актуальная" as long as the node was in range. Fixed by adding `time: Long` to `GpsLocation`.
-- **`lastHeard` fallback is intentional**: if `positionTime = 0` (node never sent GPS, e.g. older
-  firmware), `lastHeard` is used as a best-effort estimate. Such a node appears grey
-  ("stale-online") when active, not hidden.
-- **`OnConnectPositionSender` only requests positions for `receivedOnSlot == null` nodes**: nodes
-  with a known slot are not re-requested on connect — they appear when they send their next packet.
+  had no `time` field → `location.time = 0` propagated → `position.time = 0` in every outgoing
+  packet → marker showed fresh forever. Fixed by adding `time: Long` to `GpsLocation`.
 - **`flushLastPosition()` on BLE reconnect**: `AndroidMeshLocationManager` caches the last built
   `ProtoPosition` and re-sends it immediately on reconnect to close short BLE gap windows.
 - **`is_power_saving = false`** is written to the node on connect (inside
-  `prepareNodeForAppDrivenBroadcast()`) to keep BLE alive in the background so the app can send
-  positions while the phone screen is off.
+  `prepareNodeForAppDrivenBroadcast()`) to keep BLE alive in the background.
 
 ## Known limitations / planned extensions
 
-- **Unattended beacon use case broken**: leaving a powered radio without a connected phone used to
-  keep the marker visible on peers (firmware broadcasting). With app-driven broadcasting, the marker
-  goes stale after 5 min once the phone disconnects. A dedicated "beacon node" configuration is a
+- **Unattended beacon use case broken**: leaving a powered radio without a connected phone — marker
+  goes stale after 9 min once the phone disconnects. A dedicated "beacon node" configuration is a
   planned separate task.
 - **SOS mode**: SOS position handling is currently app-driven (same architecture). Full SOS rework
   (aggressive interval, message-with-coordinates on entry) is a deferred task.
@@ -122,7 +114,7 @@ androidLocation.time (epoch ms)
       → ProtoPosition.time (epoch seconds)  ← set by AndroidMeshLocationManager
         → Node.position.time
           → MeshNodeModel.positionTime
-            → ObserveNodeMarkersUseCase.effectiveTime
+            → ObserveNodeMarkersUseCase: positionTime → isStale
               → NodeMarkerModel.isStale
 ```
 

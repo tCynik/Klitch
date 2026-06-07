@@ -1,145 +1,117 @@
-# positionChannel и обнаружение слота ноды
+# Фильтрация позиций по контуру — Filter-at-Input
 
-**Date**: 2026-06-05
-**Status**: Done
-
----
-
-## Проблема
-
-Ноды на карте должны фильтроваться по активному контуру (слоту). Для фильтрации `ObserveNodeMarkersUseCase` использует `MeshNodeModel.receivedOnSlot: Int?`, который отражает номер канала (слота), на котором была получена последняя позиция от данной ноды.
-
-Значение `receivedOnSlot` передаётся из модели `Node.positionChannel: Int?`.
+**Date**: 2026-06-07
+**Status**: Done (заменяет предыдущую slot-discovery архитектуру)
 
 ---
 
-## Почему `NodeInfo.channel` нельзя использовать как слот
+## Терминология
 
-`NodeInfo.channel` (из Meshtastic protobuf) — это индекс канала **принимающей** радионоды, на котором она услышала данную ноду. Это поле не всегда совпадает с контурным слотом в рамках приложения:
-
-- Firmware не гарантирует корректного маппинга между `channel` из NodeInfo и слотом контур-системы приложения
-- Тестирование показало инверсию: ноды на слоте 0 отображались как слот 1 и наоборот
-- Поле `NodeInfo.channel = 0` означает «услышан на канале 0» ИЛИ «не задано» (proto3 default) — семантически неотличимо
-
-**Решение**: `positionChannel` устанавливается **исключительно** из живых position-пакетов (`MeshPacket.channel`), которые однозначно идентифицируют канал.
+| Термин | Определение |
+|---|---|
+| **ИНДЕКС** | Порядковый номер канала в списке радионоды. **Ненадёжен** — у разных устройств одинаковый PSK может стоять на разных позициях |
+| **КАНАЛ** | Фактический источник пакета, определяется PSK. `MeshPacket.channel` = локальный индекс слота, чей PSK расшифровал пакет на нашей ноде |
 
 ---
 
-## Архитектура
+## Почему индексы ненадёжны
 
-### Поля и хранение
+`MeshPacket.channel` на принимающей стороне = индекс в локальном списке каналов, PSK которого расшифровал пакет. Если у двух устройств одинаковый PSK на разных позициях, отправитель шлёт на индексе 0, а получатель видит индекс 1.
 
-| Уровень | Поле | Тип | Хранение |
-|---|---|---|---|
-| `Node` (mesh domain) | `positionChannel: Int?` | `Int?` | только память до v3 DB |
-| `NodeEntity` (Room) | `positionChannel: Int?` | `Int?` | колонка `position_channel`, default NULL |
-| `MeshNodeModel` (app domain) | `receivedOnSlot: Int?` | `Int?` | не хранится (маппинг) |
-
-### Как устанавливается `positionChannel`
-
-**Единственный источник**: `handleReceivedPosition` в `NodeManagerImpl`:
-
-```kotlin
-node.copy(
-    position = newPos,
-    lastHeard = newLastHeard,
-    channel = channel,           // channel = MeshPacket.channel
-    positionChannel = channel,   // устанавливается из живого пакета
-)
+Подтверждено логами:
+```
+Отправитель: sendPosition ch=0
+Получатель:  Position dropped: channel=1 not in active contour
 ```
 
-`channel` здесь — `MeshPacket.channel` от `MeshMessageProcessorImpl`, который правильно отражает слот контур-системы.
+**Вывод**: использовать `MeshPacket.channel` как абсолютный номер канала нельзя. Но использовать его как ключ в локальном маппинге — можно и нужно.
 
-**`installNodeInfo` НЕ устанавливает `positionChannel`** (убрана строка `?: info.channel`):
+---
 
-```kotlin
-// installNodeInfo — только сохраняет уже существующее значение
-positionChannel = next.positionChannel,
-```
+## Архитектура Filter-at-Input
 
-### Персистирование
+Фильтрация позиций происходит **на входе** — в момент получения пакета, до записи в БД.
 
-`positionChannel` включён в:
-- `Node.toEntity()` — при `upsert` (вызывается после `isNodeDbReady = true`)
-- `NodeEntity.toModel()` — при загрузке plain entity
-- `NodeWithRelations.toModel()` — при загрузке через `getNodesFlow()` (основной путь `observeNodes()`)
-- `installConfig()` — при первичной записи после BLE-синка
+### Гарантия аппаратного уровня
 
-Room DB version: **3** (с v3 добавлена колонка; `fallbackToDestructiveMigration()` → DB сбрасывается при обновлении).
-
-### Путь данных в фильтр
-
-```
-MeshPacket.channel
-  → handleReceivedPosition(..., channel)
-  → Node.positionChannel = channel
-  → upsert → NodeEntity.positionChannel
-  → getNodesFlow() → NodeWithRelations.toModel()
-  → Node.positionChannel
-  → NodeMapper.toMeshNodeModel()
-  → MeshNodeModel.receivedOnSlot
-  → passesContourFilter(receivedOnSlot, ...)
-```
+Если радио расшифровало пакет — нода знает наш PSK. Это membership check на уровне железа. Дополнительного криптографического контроля не нужно.
 
 ### Логика фильтра
 
-`passesContourFilter` в `ObserveNodeMarkersUseCase`, `ObserveContourNodesUseCase`, `ObserveGeoNodesUseCase`:
+```
+MeshPacket.channel = N
+  → slotToHash[N] = hash       ← маппинг из конфига нашей ноды
+  → contourByHash[hash]        ← наш контур с этим PSK
+  → contour.isEmergency → принять только если sosMode
+  → contour.isActive    → принять если активен
+  → иначе отбросить
+```
+
+### Ключевой класс: `ContourPositionChannelFilter`
+
+`app/data/mesh/ContourPositionChannelFilter.kt`
+
+Поддерживает реактивный `Set<Int>` активных слотов (`activeSlots`) через `combine` трёх потоков:
+- `ContourRepository.observeContours()`
+- `ContourRepository.observeSosMode()`
+- `ChannelSlotResolver.mapsFlow`
+
+При каждом изменении контуров/SOS/маппинга пересчитывает активные слоты через `slotToHash` (не `hashToSlot`).
 
 ```kotlin
-when (receivedOnSlot) {
-    null -> false         // слот неизвестен — скрыть
-    0    -> true          // Primary — всегда видим
-    1    -> sosMode       // Emergency — только в SOS-режиме
-    else -> {
-        val hash = maps.slotToHash[receivedOnSlot] ?: return true
-        contourByHash[hash]?.isActive ?: true
-    }
+maps.slotToHash.forEach { (slot, hash) ->
+    val contour = contourByHash[hash] ?: return@forEach
+    val active = if (contour.isEmergency) sosMode else contour.isActive
+    if (active) add(slot)
 }
 ```
 
----
+Начальное состояние: `emptySet()` — до получения конфига ноды ничего не принимается.
 
-## Обнаружение слота при подключении
-
-**Проблема**: после сброса DB (`position_channel = NULL`) нода невидима пока не пришлёт живую позицию.
-
-**Решение**: `OnConnectPositionSender.requestPositionsForUnknownSlots()`.
-
-При каждом подключении к BLE-ноде, после отправки своей позиции:
+### Место применения: `MeshDataHandlerImpl.handlePosition`
 
 ```kotlin
-private suspend fun requestPositionsForUnknownSlots(gpsLocation: GpsLocation) {
-    val ourNodeId = meshNetworkRepository.observeOurNode().first()?.nodeId ?: return
-    val nodes = meshNetworkRepository.observeNodes().first()
-    val position = Position(latitude = gpsLocation.latitude, longitude = gpsLocation.longitude, altitude = 0)
-    nodes
-        .filter { it.receivedOnSlot == null && it.nodeId != ourNodeId }
-        .forEach { node ->
-            delay(POSITION_REQUEST_INTERVAL_MS)  // 500ms между запросами
-            commandSender.requestPosition(node.num, position)
-        }
+if (packet.from != myNodeNum && !positionChannelFilter.isChannelAccepted(packet.channel)) {
+    // drop — channel not in active contour
+    return
 }
 ```
 
-`commandSender.requestPosition` отправляет `POSITION_APP` пакет с `want_response = true`. Нода-получатель обязана ответить своей позицией. Ответ приходит как живой position-пакет → `handleReceivedPosition` → `positionChannel` установлен → персистирован в DB.
-
-**Канал маршрутизации**: `requestPosition` использует `nodeDBbyNodeNum[destNum]?.channel ?: 0` (NodeInfo channel) — для доставки запроса это корректно, даже если для слот-фильтрации `info.channel` ненадёжен.
-
-**Rate limiting**: 500мс между запросами. Не влияет на нормальный трафик, не флудит меш.
+Собственные пакеты (own node) принимаются всегда.
 
 ---
 
-## Жизненный цикл positionChannel
+## Что убрано
 
-| Событие | positionChannel |
-|---|---|
-| Первый запуск / DB wipe | `null` для всех нод |
-| BLE подключение → `installNodeInfo` | сохраняет существующее значение (не перезаписывает) |
-| `requestPositionsForUnknownSlots` → ответ ноды | устанавливается из живого пакета |
-| Живой position-broadcast от ноды | устанавливается из живого пакета |
-| Следующая сессия (из DB) | корректное сохранённое значение |
+### `requestPositionsOnConnect` — удалён
 
-После первого успешного обнаружения слот персистируется и работает корректно во всех последующих сессиях.
+Ранее `OnConnectPositionSender` при подключении отправлял запросы позиций всем нодам с `receivedOnSlot == null` для обнаружения их слота. Механизм удалён:
+
+- Не нужен: filter-at-input принимает позиции независимо от того, знаем ли мы слот ноды заранее
+- `positionChannel` устанавливается из первого же принятого пакета позиции
+- `requestPositionsForUnknownSlots` / `isWithinQueryWindow` / `shouldRequestPosition` — удалены из `OnConnectPositionSender`
+
+### slot discovery из `handleReceivedData` — удалён
+
+Ранее любой входящий пакет устанавливал `positionChannel` если он был `null`. Убрано: `positionChannel` устанавливается только из принятых position-пакетов в `handleReceivedPosition`.
+
+### positionChannel fallback из `handleReceivedUser` — удалён
+
+Ранее `NodeManagerImpl.handleReceivedUser` устанавливал `positionChannel` из NodeInfo-пакетов. Убрано по той же причине.
+
+---
+
+## passesContourFilter в UseCases — удалён
+
+`ObserveNodeMarkersUseCase`, `ObserveContourNodesUseCase`, `ObserveGeoNodesUseCase` больше не содержат `passesContourFilter`. Видимость нод определяется только staleness (свежестью позиции). Все декодированные пакеты уже прошли PSK-фильтр на уровне железа.
+
+---
+
+## Staleness как естественный механизм скрытия
+
+Если нода уходит с активного канала → filter-at-input отбрасывает её пакеты → `positionTime` перестаёт обновляться → через `POSITION_FRESHNESS_SECONDS` маркер становится серым → через `MAX_POSITION_AGE_SECONDS` скрывается.
+
+Это и есть поведение "нода ушла из нашего контура = для нас она отключилась".
 
 ---
 
@@ -147,10 +119,9 @@ private suspend fun requestPositionsForUnknownSlots(gpsLocation: GpsLocation) {
 
 | Файл | Роль |
 |---|---|
-| `mesh/.../NodeManagerImpl.kt` | `handleReceivedPosition` — единственное место записи `positionChannel` |
-| `mesh/.../entity/NodeEntity.kt` | `positionChannel: Int?` — Room-колонка + `toModel()` + `NodeWithRelations.toModel()` |
-| `mesh/.../repository/NodeRepositoryImpl.kt` | `Node.toEntity()` включает `positionChannel` |
-| `mesh/.../MeshtasticDatabase.kt` | `version = 3` |
-| `app/.../mapper/NodeMapper.kt` | `receivedOnSlot = positionChannel` |
-| `app/.../OnConnectPositionSender.kt` | `requestPositionsForUnknownSlots` при подключении |
-| `app/.../usecase/ObserveNodeMarkersUseCase.kt` | `passesContourFilter` — логика фильтра по слоту |
+| `mesh/repository/PositionChannelFilter.kt` | Интерфейс фильтра (mesh-модуль) |
+| `app/data/mesh/ContourPositionChannelFilter.kt` | Реализация: `slotToHash` → активный контур |
+| `mesh/data/manager/MeshDataHandlerImpl.kt` | Точка применения фильтра (`handlePosition`) |
+| `mesh/data/manager/NodeManagerImpl.kt` | `handleReceivedPosition` — единственное место записи `positionChannel` |
+| `app/data/mesh/OnConnectPositionSender.kt` | Отправка своей позиции при подключении (slot discovery удалён) |
+| `app/domain/map/usecase/ObserveNodeMarkersUseCase.kt` | Staleness-фильтр без `passesContourFilter` |
