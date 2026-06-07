@@ -51,3 +51,31 @@ Ref: [.claude/docs/gps-position-staleness.md](.claude/docs/gps-position-stalenes
 **Result:** fixed — (1) `POSITION_FRESHNESS_SECONDS` raised from 120 s to 300 s; (2) `needsBroadcastWrite` now also triggers when `position_broadcast_smart_enabled=true` while GPS broadcast is desired; (3) `IsPositionSmartBroadcastEnabledUseCase` added; (4) GPS timestamp fallback in `AndroidMeshLocationManager` retained as defence-in-depth.
 
 ---
+
+## 2026-06-06 | Peer node stays "active" on Phone A after Phone B BLE-disconnects from its node
+
+**Symptom:** Phone B disconnects from Node B (BLE). On Phone B the peer marker eventually goes grey (no more mesh updates). On Phone A, Node B's marker stays "active" indefinitely — never goes grey while Node B is powered on.
+**Tried:**
+- Checked stale detection in `ObserveNodeMarkersUseCase` — logic is correct; `positionTime` aging and 5-min threshold work as designed.
+- Root cause confirmed: Meshtastic firmware puts `current_time` in `position.time` on every autonomous re-broadcast of the stored fixed position. Node B has no concept of "BLE client disconnected"; it just keeps broadcasting the last phone GPS with a fresh timestamp. Phone A receives these packets and correctly treats the position as fresh.
+- There is no bit in the position packet that distinguishes "live operator sending GPS" from "unattended node re-broadcasting stored GPS."
+**Result:** architectural migration — not fixable at the firmware-compat layer; solved by shifting broadcast responsibility entirely to the app. See plan `.claude/plans/app-driven-position-broadcasting.md` → archived after implementation.
+
+---
+
+## 2026-06-07 | Architectural migration: app-driven position broadcasting
+
+**Context:** Root cause of the perpetual-active marker confirmed (see entry above). Decision made to migrate from firmware-autonomous broadcasting to app-controlled broadcasting.
+
+**Approach:**
+- `SyncContoursOnConnectUseCase` writes `position_broadcast_secs = Int.MAX_VALUE` to the node on connect → firmware never broadcasts autonomously.
+- `AndroidMeshLocationManager` sends position on a smart dual-interval schedule: mobile trigger (distance > GPS accuracy, min 30 s gate) or stationary heartbeat (max 180 s).
+- When BLE disconnects → app stops sending → `positionTime` ages on peers → marker goes grey after `POSITION_FRESHNESS_SECONDS` (300 s). Problem solved.
+
+**Side effects (accepted):**
+- Unattended beacon use case broken: radio left without phone → marker stales after 5 min. Separate task planned.
+- SOS mode unchanged: already app-driven, no regression.
+
+**Result:** plan written, documentation updated. Implementation pending (Phases 1–3 of the plan).
+
+---
