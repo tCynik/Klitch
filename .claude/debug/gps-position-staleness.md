@@ -79,3 +79,15 @@ Ref: [.claude/docs/gps-position-staleness.md](.claude/docs/gps-position-stalenes
 **Result:** implemented — `prepareNodeForAppDrivenBroadcast()` silences firmware (`position_broadcast_secs = Int.MAX_VALUE`); `AndroidMeshLocationManager` smart-send (30 s gate, 180 s heartbeat, distance > accuracy filter); logs under `MT/SmartPos`. See `.claude/docs/gps-position-staleness.md`.
 
 ---
+
+## 2026-06-07 | NeedsSync dialog reappears after successful sync — position_broadcast_secs still 60
+
+**Symptom:** After channels sync successfully (node reboots), `CheckNodeSyncUseCase` immediately fires `NeedsSync: position_broadcast_secs mismatch — current=60 desired=2147483647`. The sync dialog loops indefinitely.
+
+**Tried:**
+- `CheckNodeSyncUseCase.BROADCAST_READY_SECS = 60` — constant was never updated during app-driven migration. With node at `60`: check saw `60 == 60` → InSync (dialog never appeared, node stayed in autonomous mode). With node already at `MAX_VALUE`: check saw `MAX_VALUE != 60` → NeedsSync on every connect. Fixed: updated constant to `Int.MAX_VALUE`; added `isPositionSmartBroadcastEnabled` check and injection; updated tests.
+- `handleSetConfig` returns `Unit` (unlike `handleSetChannel` which returns `Int`) — `prepareNodeForAppDrivenBroadcast()` queued `set_config position` but returned immediately without awaiting delivery. `commitSettingsEdit()` followed synchronously; node received `commit_edit_settings` and rebooted before or concurrently with the `set_config` packet, so the position config write raced with the reboot and lost. Fixed: changed `handleSetConfig` interface + impl to return `Int` (packetId); added `awaitAdminPacket` calls in `prepareNodeForAppDrivenBroadcast` (position + power) and `disableNodePositionBroadcast`; updated `MeshService.setConfig` to block body to satisfy AIDL `void` contract.
+
+**Result:** fixed — `set_config position` now awaited before `commitSettingsEdit()` fires; `CheckNodeSyncUseCase` uses the same `Int.MAX_VALUE` constant as `SyncContoursOnConnectUseCase`; loop eliminated.
+
+---

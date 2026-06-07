@@ -110,7 +110,7 @@ class OnConnectPositionSender(
         }
         unknownNodes.forEach { node ->
             delay(POSITION_REQUEST_INTERVAL_MS)
-            logger.d("GPS", "OnConnectPositionSender.requestPositionsForUnknownSlots: запрос позиции у nodeId='${node.nodeId}' num=${node.num}")
+            logger.d("GPS", "OnConnectPositionSender.requestPositionsForUnknownSlots: запрос позиции у nodeId='${node.longName}_${node.shortName}' num=${node.num}")
             commandSender.requestPosition(node.num, position)
         }
     }
