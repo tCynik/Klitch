@@ -163,17 +163,25 @@ class AndroidMeshLocationManager(private val context: Application, private val l
         return results[0]
     }
 
+    /**
+     * константы с таймингами отправки геопозиции в сеть.
+     * Служат для целей:
+     * - обеспечение актуальности меток геопозиций на карте
+     * - предотвращение спама (когда двиггаемся слишком частые метки будут вредить, а когда стоишь
+     * они должны быть по возможности более редкими)
+     * - своевременное определение, что нода больше не передает позицию (например, отключилась)
+     */
     companion object {
-        // If the GPS fix is older than this, use current time so the mesh packet is not
-        // immediately stale on the receiver (stationary-device cache problem).
-        private const val MAX_FIX_AGE_MS = 90_000L
+        // время таймаута между отправками позиции если кординаты не меняются.
+        // Служит для обновления статуса, чтобы убедиться, что нода не уснула
+        private const val MAX_FIX_AGE_MS: Long = ((2*60) //todo: возможно, стоит поставить 3 минуты
+                *1000)
 
-        // Min gate before any distance-triggered send.
+        // время, не ранее которого происходит отправка очередных координат во время перемещения
         private const val MOBILE_INTERVAL_MS = 30_000L
 
-        // Max gap — heartbeat when stationary.
-        // POSITION_FRESHNESS_SECONDS in ObserveNodeMarkersUseCase (300 s) must stay >
-        // STATIONARY_INTERVAL_MS / 1000 (180 s). Buffer = 120 s. Adjust both together.
-        private const val STATIONARY_INTERVAL_MS = 180_000L
+        // таймаут, спустя который нода признается протухшей (серый цвет)
+        // двукратное максимальное время отправки + запас на получение и обработку
+        private const val STATIONARY_INTERVAL_MS: Long = MAX_FIX_AGE_MS * 2 + 10000
     }
 }
