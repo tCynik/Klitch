@@ -24,6 +24,7 @@ import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCas
 import ru.tcynik.meshtactics.domain.mesh.model.ChannelPositionPrecision
 import ru.tcynik.meshtactics.domain.mesh.model.MeshDeviceConfigModel
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetPositionBroadcastSecsUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.IsPositionSmartBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.user.model.AppUser
@@ -41,6 +42,7 @@ class CheckNodeSyncUseCaseTest {
     private val observeGpsBroadcastEnabled: ObserveGpsBroadcastEnabledUseCase = mockk()
     private val observeEmergencyMode: ObserveEmergencyModeUseCase = mockk()
     private val getPositionBroadcastSecs: GetPositionBroadcastSecsUseCase = mockk()
+    private val isPositionSmartBroadcastEnabled: IsPositionSmartBroadcastEnabledUseCase = mockk()
     private val contourRepo = FakeContourRepository()
 
     private val useCase = CheckNodeSyncUseCase(
@@ -52,6 +54,7 @@ class CheckNodeSyncUseCaseTest {
         observeGpsBroadcastEnabled = observeGpsBroadcastEnabled,
         observeEmergencyMode = observeEmergencyMode,
         getPositionBroadcastSecs = getPositionBroadcastSecs,
+        isPositionSmartBroadcastEnabled = isPositionSmartBroadcastEnabled,
         logger = NoOpLogger(),
     )
 
@@ -79,10 +82,11 @@ class CheckNodeSyncUseCaseTest {
     @Before
     fun setUp() {
         every { observeAppUser.invoke(any<NoParams>()) } returns flowOf(AppUser(displayName = ""))
-        // Default: broadcast enabled, no SOS, node already has correct broadcastSecs=60
+        // Default: broadcast enabled, no SOS, node already has correct broadcastSecs=MAX_VALUE (app-driven)
         every { observeGpsBroadcastEnabled.invoke() } returns flowOf(true)
         every { observeEmergencyMode.invoke() } returns flowOf(false)
-        coEvery { getPositionBroadcastSecs.invoke() } returns 60
+        coEvery { getPositionBroadcastSecs.invoke() } returns Int.MAX_VALUE
+        coEvery { isPositionSmartBroadcastEnabled.invoke() } returns false
         // Default: primary = Basic
         contourRepo.setPrimaryId(DefaultActiveContour.ID)
     }
@@ -187,10 +191,10 @@ class CheckNodeSyncUseCaseTest {
     }
 
     @Test
-    fun `InSync — position_broadcast_secs уже соответствует желаемому (60, broadcast enabled)`() = runTest {
+    fun `InSync — position_broadcast_secs уже MAX_VALUE и smart off (app-driven, broadcast enabled)`() = runTest {
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencySlot))
-        coEvery { getPositionBroadcastSecs.invoke() } returns 60
+        coEvery { getPositionBroadcastSecs.invoke() } returns Int.MAX_VALUE
 
         assertEquals(NodeSyncResult.InSync, useCase())
     }
@@ -335,10 +339,10 @@ class CheckNodeSyncUseCaseTest {
     }
 
     @Test
-    fun `NeedsSync — position_broadcast_secs не соответствует (900 вместо 60, broadcast enabled)`() = runTest {
+    fun `NeedsSync — position_broadcast_secs не соответствует (60 — старый автономный режим, broadcast enabled)`() = runTest {
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencySlot))
-        coEvery { getPositionBroadcastSecs.invoke() } returns 900
+        coEvery { getPositionBroadcastSecs.invoke() } returns 60
 
         assertEquals(NodeSyncResult.NeedsSync, useCase())
     }
@@ -359,6 +363,15 @@ class CheckNodeSyncUseCaseTest {
         coEvery { getPositionBroadcastSecs.invoke() } returns 60
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencySlot))
+
+        assertEquals(NodeSyncResult.NeedsSync, useCase())
+    }
+
+    @Test
+    fun `NeedsSync — smart_broadcast_enabled=true несмотря на app-driven режим`() = runTest {
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencySlot))
+        coEvery { isPositionSmartBroadcastEnabled.invoke() } returns true
 
         assertEquals(NodeSyncResult.NeedsSync, useCase())
     }

@@ -114,6 +114,7 @@ val userSettingsModule = module {
             observeGpsBroadcastEnabled = get(),
             observeEmergencyMode = get(),
             getPositionBroadcastSecs = get(),
+            isPositionSmartBroadcastEnabled = get(),
             logger = get(),
         )
     }
