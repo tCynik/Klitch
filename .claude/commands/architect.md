@@ -85,6 +85,25 @@ fun NodeDto.toDomain() = NodeModel(
 
 See `shared/src/commonMain/sqldelight/.../data/local/Node.sq:1`
 
+### Position Broadcasting
+
+**Принцип**: приложение — единственный источник позиции в mesh; прошивка ноды молчит.
+
+| Компонент | Роль |
+|---|---|
+| `SyncContoursOnConnectUseCase` | При коннекте пишет `position_broadcast_secs = Int.MAX_VALUE` через `prepareNodeForAppDrivenBroadcast()` |
+| `MeshConfigRepositoryImpl.prepareNodeForAppDrivenBroadcast()` | Отключает автономный broadcast прошивки, smart broadcast и `is_power_saving` |
+| `AndroidMeshLocationManager` | Smart-send: gate 30 s, heartbeat 180 s, фильтр distance > accuracy; лог `MT/SmartPos` |
+| `ObserveNodeMarkersUseCase` | Stale detection: `POSITION_FRESHNESS_SECONDS` (300 s) > `STATIONARY_INTERVAL_MS/1000` (180 s) |
+
+**Почему**: прошивка Meshtastic штампует `current_time` на каждый автономный re-broadcast → маркер остаётся «свежим» даже после отключения телефона от BLE. Единственный fix — передать ответственность за broadcast приложению.
+
+**Ограничение (принято)**: unattended beacon (радио без телефона) — маркер устаревает через 5 мин. Отдельная задача.
+
+**При настройке интервалов**: менять `STATIONARY_INTERVAL_MS` в `AndroidMeshLocationManager` и `POSITION_FRESHNESS_SECONDS` в `ObserveNodeMarkersUseCase` вместе; буфер ≥ 60 s.
+
+Документация: `.claude/docs/gps-position-staleness.md`
+
 ---
 
 ## Canonical Patterns (continued)

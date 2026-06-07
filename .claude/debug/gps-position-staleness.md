@@ -76,6 +76,6 @@ Ref: [.claude/docs/gps-position-staleness.md](.claude/docs/gps-position-stalenes
 - Unattended beacon use case broken: radio left without phone → marker stales after 5 min. Separate task planned.
 - SOS mode unchanged: already app-driven, no regression.
 
-**Result:** plan written, documentation updated. Implementation pending (Phases 1–3 of the plan).
+**Result:** implemented — `prepareNodeForAppDrivenBroadcast()` silences firmware (`position_broadcast_secs = Int.MAX_VALUE`); `AndroidMeshLocationManager` smart-send (30 s gate, 180 s heartbeat, distance > accuracy filter); logs under `MT/SmartPos`. See `.claude/docs/gps-position-staleness.md`.
 
 ---

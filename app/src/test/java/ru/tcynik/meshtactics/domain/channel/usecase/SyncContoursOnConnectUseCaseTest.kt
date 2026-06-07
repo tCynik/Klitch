@@ -23,7 +23,8 @@ import ru.tcynik.meshtactics.domain.mesh.model.ChannelPositionPrecision
 import ru.tcynik.meshtactics.domain.mesh.usecase.BeginSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.CommitSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.IsPositionSmartBroadcastEnabledUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.PrepareNodeForAppDrivenBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetPositionBroadcastSecsUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
@@ -45,11 +46,13 @@ class SyncContoursOnConnectUseCaseTest {
     private val resolveSlot: ResolveChannelSlotUseCase = mockk()
     private val writeOwner: WriteOwnerUseCase = mockk(relaxed = true)
     private val observeAppUser: ObserveAppUserUseCase = mockk()
-    private val enableNodePositionBroadcastReady: EnableNodePositionBroadcastReadyUseCase = mockk(relaxed = true)
+    private val prepareNodeForAppDrivenBroadcast: PrepareNodeForAppDrivenBroadcastUseCase = mockk(relaxed = true)
     private val disableNodePositionBroadcast: DisableNodePositionBroadcastUseCase = mockk(relaxed = true)
     private val observeGpsBroadcastEnabled: ObserveGpsBroadcastEnabledUseCase = mockk()
     private val observeEmergencyMode: ObserveEmergencyModeUseCase = mockk()
     private val getPositionBroadcastSecs: GetPositionBroadcastSecsUseCase = mockk()
+
+    private val isPositionSmartBroadcastEnabled: IsPositionSmartBroadcastEnabledUseCase = mockk()
 
     private val useCase = SyncContoursOnConnectUseCase(
         contourRepository = contourRepository,
@@ -62,11 +65,12 @@ class SyncContoursOnConnectUseCaseTest {
         writeOwner = writeOwner,
         observeAppUser = observeAppUser,
         observeDeviceConfig = mockk(relaxed = true),
-        enableNodePositionBroadcastReady = enableNodePositionBroadcastReady,
+        prepareNodeForAppDrivenBroadcast = prepareNodeForAppDrivenBroadcast,
         disableNodePositionBroadcast = disableNodePositionBroadcast,
         observeGpsBroadcastEnabled = observeGpsBroadcastEnabled,
         observeEmergencyMode = observeEmergencyMode,
         getPositionBroadcastSecs = getPositionBroadcastSecs,
+        isPositionSmartBroadcastEnabled = isPositionSmartBroadcastEnabled,
         logger = NoOpLogger(),
     )
 
@@ -79,10 +83,11 @@ class SyncContoursOnConnectUseCaseTest {
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(emptyList())
         every { observeAppUser.invoke(any<NoParams>()) } returns flowOf(AppUser(displayName = ""))
         coEvery { beginSettingsEdit.invoke() } returns true
-        // Default: broadcast enabled, no SOS, node already has correct secs=60 → no broadcast write
+        // Default: broadcast enabled, no SOS, node already silenced (MAX_VALUE) → no broadcast write
         every { observeGpsBroadcastEnabled.invoke() } returns flowOf(true)
         every { observeEmergencyMode.invoke() } returns flowOf(false)
-        coEvery { getPositionBroadcastSecs.invoke() } returns 60
+        coEvery { getPositionBroadcastSecs.invoke() } returns Int.MAX_VALUE
+        coEvery { isPositionSmartBroadcastEnabled.invoke() } returns false
     }
 
     private fun makeContour(id: String, name: String, isActive: Boolean = true): Contour {
@@ -245,14 +250,14 @@ class SyncContoursOnConnectUseCaseTest {
     }
 
     @Test
-    fun `broadcast mismatch — enableNodePositionBroadcastReady called inside session`() = runTest {
-        coEvery { getPositionBroadcastSecs.invoke() } returns 900 // firmware default, differs from 60
+    fun `broadcast mismatch — prepareNodeForAppDrivenBroadcast called inside session`() = runTest {
+        coEvery { getPositionBroadcastSecs.invoke() } returns 900 // firmware default, differs from MAX_VALUE
         val primary = makeContour(DefaultActiveContour.ID.value, DefaultActiveContour.DISPLAY_NAME)
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(primary))
 
         useCase()
 
-        coVerify(exactly = 1) { enableNodePositionBroadcastReady.invoke() }
+        coVerify(exactly = 1) { prepareNodeForAppDrivenBroadcast.invoke() }
         coVerify(exactly = 0) { disableNodePositionBroadcast.invoke() }
     }
 
@@ -266,12 +271,12 @@ class SyncContoursOnConnectUseCaseTest {
         useCase()
 
         coVerify(exactly = 1) { disableNodePositionBroadcast.invoke() }
-        coVerify(exactly = 0) { enableNodePositionBroadcastReady.invoke() }
+        coVerify(exactly = 0) { prepareNodeForAppDrivenBroadcast.invoke() }
     }
 
     @Test
     fun `broadcast already correct — no broadcast write`() = runTest {
-        coEvery { getPositionBroadcastSecs.invoke() } returns 60 // matches desired
+        coEvery { getPositionBroadcastSecs.invoke() } returns Int.MAX_VALUE // matches desired
         val openPskBytes = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
         val defaultPskBytes = Base64.getDecoder().decode(DefaultActiveContour.DEFAULT_PSK)
         val primary = Contour(
@@ -298,7 +303,7 @@ class SyncContoursOnConnectUseCaseTest {
 
         useCase()
 
-        coVerify(exactly = 0) { enableNodePositionBroadcastReady.invoke() }
+        coVerify(exactly = 0) { prepareNodeForAppDrivenBroadcast.invoke() }
         coVerify(exactly = 0) { disableNodePositionBroadcast.invoke() }
     }
 }

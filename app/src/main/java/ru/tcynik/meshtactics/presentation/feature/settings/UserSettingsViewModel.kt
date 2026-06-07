@@ -51,7 +51,7 @@ import ru.tcynik.meshtactics.domain.mesh.model.NodeSyncCyclePhase
 import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.PrepareNodeForAppDrivenBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
@@ -91,7 +91,7 @@ class UserSettingsViewModel(
     private val observeConnectionStatus: ObserveConnectionStatusUseCase,
     private val channelSlotResolver: ChannelSlotResolver,
     private val confirmChannelSync: ConfirmChannelSyncUseCase,
-    private val enableNodePositionBroadcastReady: EnableNodePositionBroadcastReadyUseCase,
+    private val prepareNodeForAppDrivenBroadcast: PrepareNodeForAppDrivenBroadcastUseCase,
     private val disableNodePositionBroadcast: DisableNodePositionBroadcastUseCase,
     private val observeEmergencyMode: ObserveEmergencyModeUseCase,
     private val triggerEmergency: TriggerEmergencyUseCase,
@@ -315,7 +315,7 @@ class UserSettingsViewModel(
         viewModelScope.launch {
             setGpsBroadcastEnabled(enabled)
             if (connectionStatus is MeshConnectionStatus.Connected) {
-                if (enabled) enableNodePositionBroadcastReady()
+                if (enabled) prepareNodeForAppDrivenBroadcast()
                 else disableNodePositionBroadcast()
             }
         }

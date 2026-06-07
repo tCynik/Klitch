@@ -45,8 +45,12 @@ interface MeshConfigRepository {
     fun removeFixedPosition(destNum: Int)
     fun removeOwnFixedPosition()
 
-    /** Configures the connected node for active geo broadcast (position_broadcast_secs=60). Waits for position config. */
-    suspend fun enableNodePositionBroadcastReady()
+    /**
+     * Silences firmware autonomous position broadcast and prepares the node for app-driven sending:
+     * `position_broadcast_secs = Int.MAX_VALUE`, smart broadcast off, `is_power_saving = false`.
+     * Waits for position config.
+     */
+    suspend fun prepareNodeForAppDrivenBroadcast()
 
     /** Disables position broadcast on the connected node (position_broadcast_secs=MAX). Waits for position config. */
     suspend fun disableNodePositionBroadcast()

@@ -18,10 +18,9 @@ import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 
 private const val MIN_SPEED_FOR_HEADING = 1
 
-// Maximum age of a GPS position report to be considered fresh, in seconds.
-// Positions fresher than this threshold are shown with normal colors;
-// older positions are shown as grey (stale) markers.
-// 2 minutes — threshold for fresh vs stale visual distinction.
+// Threshold for fresh vs stale. Must exceed AndroidMeshLocationManager.STATIONARY_INTERVAL_MS / 1000
+// (currently 180 s) with a buffer of at least 60 s. Current buffer: 300 - 180 = 120 s.
+// When tuning STATIONARY_INTERVAL_MS, adjust this value accordingly.
 private const val POSITION_FRESHNESS_SECONDS = 5 * 60
 
 /** Maximum age of a GPS position to be displayed at all, in seconds. Positions older than this are hidden. */
@@ -49,7 +48,7 @@ private const val STALE_CHECK_INTERVAL_MS = 10_000L
  * transition from fresh to stale dynamically while the app is running, not just on restart.
  *
  * Nodes are additionally filtered by contour: a node received on slot 1 (Emergency) is hidden
- * outside SOS mode. Nodes on inactive contour slots are hidden. Null slot = show (fallback).
+ * outside SOS mode. Nodes on inactive contour slots are hidden. Null slot = hidden (unknown contour).
  */
 class ObserveNodeMarkersUseCase(
     private val repository: MeshNetworkRepository,

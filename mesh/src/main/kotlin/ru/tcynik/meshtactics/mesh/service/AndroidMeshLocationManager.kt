@@ -18,6 +18,7 @@ package ru.tcynik.meshtactics.mesh.service
 
 import android.annotation.SuppressLint
 import android.app.Application
+import android.location.Location as AndroidLocation
 import androidx.core.location.LocationCompat
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.CoroutineScope
@@ -29,6 +30,7 @@ import kotlinx.coroutines.flow.onEach
 import org.koin.core.annotation.Single
 import ru.tcynik.meshtactics.mesh.common.hasLocationPermission
 import ru.tcynik.meshtactics.mesh.model.Position
+import ru.tcynik.meshtactics.mesh.repository.Location
 import ru.tcynik.meshtactics.mesh.repository.LocationRepository
 import ru.tcynik.meshtactics.mesh.repository.MeshLocationManager
 import kotlin.time.Duration.Companion.milliseconds
@@ -39,8 +41,11 @@ class AndroidMeshLocationManager(private val context: Application, private val l
     MeshLocationManager {
     private var scope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var locationFlow: Job? = null
-    private var sendPositionFn: ((ProtoPosition) -> Unit)? = null
-    private var lastPosition: ProtoPosition? = null
+    @Volatile private var sendPositionFn: ((ProtoPosition) -> Unit)? = null
+    @Volatile private var lastPosition: ProtoPosition? = null
+    @Volatile private var lastSentAtMs = 0L
+    @Volatile private var lastSentLat = Double.NaN
+    @Volatile private var lastSentLon = Double.NaN
 
     @SuppressLint("MissingPermission")
     override fun start(scope: CoroutineScope, sendPositionFn: (ProtoPosition) -> Unit) {
@@ -53,35 +58,9 @@ class AndroidMeshLocationManager(private val context: Application, private val l
                 locationRepository
                     .getLocations()
                     .onEach { location ->
-                        val nowMs = System.currentTimeMillis()
-                        val fixAgeMs = nowMs - location.time
-                        val fixTimeSeconds = if (fixAgeMs <= MAX_FIX_AGE_MS) {
-                            (location.time.milliseconds.inWholeSeconds).toInt()
-                        } else {
-                            Logger.i("MT/PhoneGPS→radio") { "GPS fix stale by ${fixAgeMs / 1000}s, using nowMs as position.time" }
-                            (nowMs / 1_000L).toInt()
-                        }
-                        val pos = ProtoPosition(
-                            latitude_i = Position.degI(location.latitude),
-                            longitude_i = Position.degI(location.longitude),
-                            altitude =
-                            if (LocationCompat.hasMslAltitude(location)) {
-                                LocationCompat.getMslAltitudeMeters(location).toInt()
-                            } else {
-                                null
-                            },
-                            altitude_hae = location.altitude.toInt(),
-                            time = fixTimeSeconds,
-                            ground_speed = location.speed.toInt(),
-                            ground_track = location.bearing.toInt(),
-                            location_source = ProtoPosition.LocSource.LOC_EXTERNAL,
-                        )
+                        val pos = buildProtoPosition(location)
                         lastPosition = pos
-                        Logger.i("MT/PhoneGPS→radio") {
-                            "sendPosition time=${pos.time} lat=${Position.degD(pos.latitude_i ?: 0)} " +
-                                "lon=${Position.degD(pos.longitude_i ?: 0)}"
-                        }
-                        sendPositionFn(pos)
+                        smartSend(location, pos, sendPositionFn)
                     }
                     .launchIn(scope)
         }
@@ -94,6 +73,9 @@ class AndroidMeshLocationManager(private val context: Application, private val l
             locationFlow = null
         }
         sendPositionFn = null
+        lastSentAtMs = 0L
+        lastSentLat = Double.NaN
+        lastSentLon = Double.NaN
     }
 
     override fun flushLastPosition() {
@@ -105,11 +87,93 @@ class AndroidMeshLocationManager(private val context: Application, private val l
             "flushLastPosition time=${pos.time} lat=${Position.degD(pos.latitude_i ?: 0)} lon=${Position.degD(pos.longitude_i ?: 0)}"
         }
         sendPositionFn?.invoke(pos)
+        lastSentAtMs = System.currentTimeMillis()
+        lastSentLat = Position.degD(pos.latitude_i ?: 0)
+        lastSentLon = Position.degD(pos.longitude_i ?: 0)
+    }
+
+    private fun buildProtoPosition(location: Location): ProtoPosition {
+        val nowMs = System.currentTimeMillis()
+        val fixAgeMs = nowMs - location.time
+        val fixTimeSeconds = if (fixAgeMs <= MAX_FIX_AGE_MS) {
+            (location.time.milliseconds.inWholeSeconds).toInt()
+        } else {
+            Logger.i("MT/PhoneGPS→radio") { "GPS fix stale by ${fixAgeMs / 1000}s, using nowMs as position.time" }
+            (nowMs / 1_000L).toInt()
+        }
+        return ProtoPosition(
+            latitude_i = Position.degI(location.latitude),
+            longitude_i = Position.degI(location.longitude),
+            altitude =
+            if (LocationCompat.hasMslAltitude(location)) {
+                LocationCompat.getMslAltitudeMeters(location).toInt()
+            } else {
+                null
+            },
+            altitude_hae = location.altitude.toInt(),
+            time = fixTimeSeconds,
+            ground_speed = location.speed.toInt(),
+            ground_track = location.bearing.toInt(),
+            location_source = ProtoPosition.LocSource.LOC_EXTERNAL,
+        )
+    }
+
+    private fun smartSend(
+        location: Location,
+        pos: ProtoPosition,
+        sendFn: (ProtoPosition) -> Unit,
+    ) {
+        val nowMs = System.currentTimeMillis()
+        val elapsedMs = nowMs - lastSentAtMs
+
+        if (lastSentAtMs > 0L && elapsedMs < MOBILE_INTERVAL_MS) {
+            Logger.d("MT/SmartPos") { "skip gate: elapsed=${elapsedMs / 1000}s < ${MOBILE_INTERVAL_MS / 1000}s" }
+            return
+        }
+
+        val distanceM = distanceBetween(lastSentLat, lastSentLon, location.latitude, location.longitude)
+        val accuracyM = location.accuracy.coerceAtLeast(1f)
+        val hasMoved = distanceM > accuracyM
+        val stationaryExpired = lastSentAtMs == 0L || elapsedMs >= STATIONARY_INTERVAL_MS
+
+        if (hasMoved || stationaryExpired) {
+            val reason = if (hasMoved) "distance" else "heartbeat"
+            val message =
+                "send $reason: dist=${"%.1f".format(distanceM)}m acc=${"%.1f".format(accuracyM)}m elapsed=${elapsedMs / 1000}s"
+            if (lastSentAtMs == 0L) {
+                Logger.i("MT/SmartPos") { message }
+            } else {
+                Logger.d("MT/SmartPos") { message }
+            }
+            sendFn(pos)
+            lastSentAtMs = nowMs
+            lastSentLat = location.latitude
+            lastSentLon = location.longitude
+        } else {
+            Logger.d("MT/SmartPos") {
+                "skip noise: dist=${"%.1f".format(distanceM)}m <= acc=${"%.1f".format(accuracyM)}m elapsed=${elapsedMs / 1000}s"
+            }
+        }
+    }
+
+    private fun distanceBetween(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Float {
+        if (lat1.isNaN() || lon1.isNaN()) return Float.MAX_VALUE
+        val results = FloatArray(1)
+        AndroidLocation.distanceBetween(lat1, lon1, lat2, lon2, results)
+        return results[0]
     }
 
     companion object {
         // If the GPS fix is older than this, use current time so the mesh packet is not
         // immediately stale on the receiver (stationary-device cache problem).
         private const val MAX_FIX_AGE_MS = 90_000L
+
+        // Min gate before any distance-triggered send.
+        private const val MOBILE_INTERVAL_MS = 30_000L
+
+        // Max gap — heartbeat when stationary.
+        // POSITION_FRESHNESS_SECONDS in ObserveNodeMarkersUseCase (300 s) must stay >
+        // STATIONARY_INTERVAL_MS / 1000 (180 s). Buffer = 120 s. Adjust both together.
+        private const val STATIONARY_INTERVAL_MS = 180_000L
     }
 }

@@ -54,7 +54,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.SetProvideLocationUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelPositionPrecisionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WritePositionConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.PrepareNodeForAppDrivenBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetPositionBroadcastSecsUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.IsPositionSmartBroadcastEnabledUseCase
@@ -181,7 +181,7 @@ val meshDataModule = module {
     single { WritePositionConfigUseCase(get()) }
     single { WriteChannelPositionPrecisionUseCase(get()) }
     single { RemoveFixedPositionUseCase(get()) }
-    single { EnableNodePositionBroadcastReadyUseCase(get()) }
+    single { PrepareNodeForAppDrivenBroadcastUseCase(get()) }
     single { DisableNodePositionBroadcastUseCase(get()) }
     single { GetPositionBroadcastSecsUseCase(get()) }
     single { IsPositionSmartBroadcastEnabledUseCase(get()) }
