@@ -20,6 +20,7 @@
 
 ## Known limitations / planned extensions
 - Track recording: `TrackRecordingRepository` interface stub created; full implementation is a separate plan
+- **TODO: добавить `altitude: Double?` в `GpsLocation`** — Android `Location.hasAltitude()` / `Location.altitude` доступны, но поле не добавлено. Нужно для отображения высоты над уровнем моря в шторке записи трека (`TrackRecordingSheet → TrackStatsSection`) и потенциально в `TrackPoint`.
 
 ## Source
 Plan: `.claude/archive/gps-background-service.md`

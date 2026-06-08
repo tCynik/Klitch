@@ -65,6 +65,19 @@ import ru.tcynik.meshtactics.domain.settings.usecase.SetScreenOrientationModeUse
 import ru.tcynik.meshtactics.domain.settings.usecase.SetTileCacheModeUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveTrackRecordingStateUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.PauseTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ResumeTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.StartTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.StopTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.DiscardTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTracksUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTrackPointsUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ToggleRecordedTrackVisibilityUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.DeleteRecordedTracksUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.UpdateTrackRecordingNameUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.UpdateTrackRecordingColorUseCase
+import ru.tcynik.meshtactics.data.track.datasource.TrackSettingsDataSource
 import ru.tcynik.meshtactics.presentation.feature.settings.SettingsViewModel
 import ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModel
 
@@ -109,6 +122,18 @@ val presentationModule = module {
             refreshNodePublicKey = get<RefreshNodePublicKeyUseCase>(),
             observeAppUser = get<ObserveAppUserUseCase>(),
             geoMarkPrefsRepository = get<GeoMarkPreferencesRepository>(),
+            observeTrackRecordingState = get<ObserveTrackRecordingStateUseCase>(),
+            startTrackRecording = get<StartTrackRecordingUseCase>(),
+            pauseTrackRecording = get<PauseTrackRecordingUseCase>(),
+            resumeTrackRecording = get<ResumeTrackRecordingUseCase>(),
+            stopTrackRecording = get<StopTrackRecordingUseCase>(),
+            discardTrackRecording = get<DiscardTrackRecordingUseCase>(),
+            updateTrackRecordingName = get<UpdateTrackRecordingNameUseCase>(),
+            updateTrackRecordingColor = get<UpdateTrackRecordingColorUseCase>(),
+            trackSettingsDataSource = get<TrackSettingsDataSource>(),
+            gpsRepository = get(),
+            observeRecordedTracks = get<ObserveRecordedTracksUseCase>(),
+            observeRecordedTrackPoints = get<ObserveRecordedTrackPointsUseCase>(),
         )
     }
 
@@ -190,6 +215,9 @@ val presentationModule = module {
             deleteGeoMarks = get(),
             extendGeoMark = get(),
             sendGeoMark = get(),
+            observeRecordedTracks = get<ObserveRecordedTracksUseCase>(),
+            toggleTrackVisibility = get<ToggleRecordedTrackVisibilityUseCase>(),
+            deleteRecordedTracks = get<DeleteRecordedTracksUseCase>(),
             logger = get(),
         )
     }

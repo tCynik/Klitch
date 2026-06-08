@@ -2,7 +2,7 @@
     <string name="app_name">MeshTactics</string>
     <string name="gps_notification_channel_name">GPS Background</string>
     <string name="gps_notification_title">GPS активен</string>
-    <string name="gps_notification_text">Отслеживание местоположения</string>
+    <string name="gps_notification_text">Работа GPS в фоне</string>
     <string name="settings_title">Настройки</string>
     <string name="settings_main_title">Главная</string>
     <string name="settings_map_title">Карта</string>
@@ -212,6 +212,77 @@
     <string name="network_precision_170m">~170 м</string>
     <string name="network_precision_21m">~21 м</string>
     <string name="network_precision_full">Полная</string>
+
+    <!-- Track Recording — Sheet presets -->
+    <string name="track_preset_walking">Пешком</string>
+    <string name="track_preset_bicycle">Велосипед</string>
+    <string name="track_preset_moto">Мото</string>
+    <string name="track_preset_car">Авто</string>
+    <string name="track_preset_airplane">Авиа</string>
+    <string name="track_preset_custom">Ручной</string>
+
+    <!-- Track Recording — Sheet interval options -->
+    <string name="track_option_none">нет</string>
+    <string name="track_interval_5s">5 сек</string>
+    <string name="track_interval_10s">10 сек</string>
+    <string name="track_interval_30s">30 сек</string>
+    <string name="track_interval_1m">1 мин</string>
+    <string name="track_interval_2m">2 мин</string>
+    <string name="track_interval_5m">5 мин</string>
+    <string name="track_interval_unknown_s">%dс</string>
+
+    <!-- Track Recording — Sheet distance options -->
+    <string name="track_distance_5m">5 м</string>
+    <string name="track_distance_10m">10 м</string>
+    <string name="track_distance_15m">15 м</string>
+    <string name="track_distance_30m">30 м</string>
+    <string name="track_distance_50m">50 м</string>
+    <string name="track_distance_100m">100 м</string>
+    <string name="track_distance_200m">200 м</string>
+    <string name="track_distance_unknown_m">%d м</string>
+
+    <!-- Track Recording — Sheet stats -->
+    <string name="track_stat_time">Время</string>
+    <string name="track_stat_distance">Дистанция</string>
+    <string name="track_stat_speed">Скорость</string>
+    <string name="track_stat_points">Точки</string>
+
+    <!-- Track Recording — Field labels -->
+    <string name="track_label_preset">Режим</string>
+    <string name="track_label_interval">Интервал</string>
+    <string name="track_label_min_dist">Мин. дист.</string>
+    <string name="track_label_color">Цвет</string>
+    <string name="track_label_name">Название</string>
+    <string name="track_label_counter">№</string>
+
+    <!-- Track Recording — Actions -->
+    <string name="track_action_start">Начать запись</string>
+    <string name="track_action_pause">Пауза</string>
+    <string name="track_action_resume">Продолжить</string>
+    <string name="track_action_stop">Остановить</string>
+    <string name="track_action_save">Сохранить</string>
+    <string name="track_action_delete">Удалить</string>
+    <string name="track_action_cancel">Отмена</string>
+
+    <!-- Track Recording — Status indicators -->
+    <string name="track_status_rec">● REC</string>
+    <string name="track_status_paused">⏸ ПАУЗА</string>
+
+    <!-- Track Recording — Content descriptions -->
+    <string name="track_cd_expand">Развернуть</string>
+    <string name="track_cd_collapse">Свернуть</string>
+    <string name="track_cd_close">Закрыть</string>
+    <string name="track_cd_menu">Меню</string>
+
+    <!-- Track Recording — Stop dialog -->
+    <string name="track_stop_dialog_title">Сохранить трек перед остановкой?</string>
+    <string name="track_stop_trim_label">Обрезать до начала движения</string>
+
+    <!-- Track Recording — Notification -->
+    <string name="track_recording_notification_channel_name">Запись трека</string>
+    <string name="track_recording_notification_active">Запись трека:</string>
+    <string name="track_recording_notification_paused">Пауза:</string>
+    <string name="track_no_movement_discarded">Трек не имеет движений и был удалён</string>
 
     <!-- Tile Cache Settings -->
     <string name="tile_cache_section_label">Кэш тайлов</string>

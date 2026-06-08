@@ -1,0 +1,38 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="80dp"
+    android:height="80dp"
+    android:viewportWidth="80"
+    android:viewportHeight="80">
+
+    <!--
+        GPS track breadcrumb: 3-segment polyline, bottom-left → top-right.
+        Reads as "recorded route". Content area: x ∈ [12,68], y ∈ [12,68].
+        Points: (18,60) → (30,32) → (46,50) → (62,20)
+    -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 18,60 L 30,32 L 46,50 L 62,20" />
+
+    <!-- Start point: hollow circle r=5, center (18,60) -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 23,60 a 5,5 0 1,0 -10,0 a 5,5 0 1,0 10,0" />
+
+    <!-- End point: circle r=4, center (62,20) -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 66,20 a 4,4 0 1,0 -8,0 a 4,4 0 1,0 8,0" />
+
+</vector>
