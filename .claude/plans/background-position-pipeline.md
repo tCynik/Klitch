@@ -1,7 +1,7 @@
 # Plan: Background Position Pipeline — фоновая geo-сессия
 
 **Date**: 2026-06-05
-**Status**: In Progress — Фазы 1–2 завершены, Фаза 3 не начата
+**Status**: In Progress — Фазы 1–3 завершены, Фаза 4 не начата
 
 ## Summary
 
@@ -274,14 +274,14 @@ MeshService (FGS: connectedDevice|location)
 | 2.5 | Привязать `GpsLifecycleController.start()` к старту сессии | ✅ Done — вызывается в `BackgroundPositionSession` при `allowed=true` |
 | 2.6 | Unit-тесты | ✅ Done — 5 тестов в `BackgroundPositionSessionTest.kt` |
 
-### Фаза 3 — BleBackgroundPolicy (2–3 дня)
+### Фаза 3 — BleBackgroundPolicy ✅ Завершена
 
-| # | Задача |
-|---|---|
-| 3.1 | BLE `CONNECTION_PRIORITY_HIGH` при активной geo-сессии |
-| 3.2 | `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` prompt |
-| 3.3 | Опциональный `PARTIAL_WAKE_LOCK` + toggle в настройках |
-| 3.4 | Мониторинг: логировать uptime BLE при screen off |
+| # | Задача | Статус |
+|---|---|---|
+| 3.1 | BLE `CONNECTION_PRIORITY_HIGH` при активной geo-сессии | ✅ Done — `BleConnection.requestConnectionPriority()` → `KableBleConnection` → `BleRadioInterface.onConnected()` |
+| 3.2 | `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` prompt | ✅ Done — `BatteryOptimizationHelper.kt` + permission в manifest + вызов в `NetworkSettingsScreen.onProvideLocationToggle` |
+| 3.3 | Опциональный `PARTIAL_WAKE_LOCK` + toggle в настройках | ✅ Done — `MeshWakeLockManager` (наблюдает `UiPrefs.useWakeLock` + `GeoSendPolicy`); toggle в `LocationConfigCard` секция "Фоновая стабильность" |
+| 3.4 | Мониторинг: логировать uptime BLE при screen off | ✅ Done — `sleepEnterTime` в `MeshConnectionManagerImpl`; лог `DeviceSleep duration: Nms` при reconnect |
 
 ### Фаза 4 — Node GPS mode (когда понадобится)
 

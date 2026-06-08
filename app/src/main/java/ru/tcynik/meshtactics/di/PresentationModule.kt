@@ -233,6 +233,7 @@ val presentationModule = module {
             writePositionConfig = get(),
             writeChannelPositionPrecision = get(),
             removeFixedPosition = get(),
+            uiPrefs = get(),
             logger = get(),
         )
     }

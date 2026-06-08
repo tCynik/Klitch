@@ -52,6 +52,7 @@ fun NetworkSettingsContent(
     onSmartBroadcastToggle: (Boolean) -> Unit = {},
     onPositionFlagsChange: (Int) -> Unit = {},
     onChannelPositionPrecisionChange: (Int) -> Unit = {},
+    onWakeLockToggle: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val isConnected = connectionStatus is MeshConnectionStatusUi.Connected
@@ -107,6 +108,7 @@ fun NetworkSettingsContent(
                     LocationConfigCard(
                         config = locationConfig,
                         isConnected = isConnected,
+                        useWakeLock = state.useWakeLock,
                         onProvideLocationToggle = onProvideLocationToggle,
                         onGpsModeChange = onGpsModeChange,
                         onRemoveFixedPosition = onRemoveFixedPosition,
@@ -114,6 +116,7 @@ fun NetworkSettingsContent(
                         onSmartBroadcastToggle = onSmartBroadcastToggle,
                         onPositionFlagsChange = onPositionFlagsChange,
                         onChannelPositionPrecisionChange = onChannelPositionPrecisionChange,
+                        onWakeLockToggle = onWakeLockToggle,
                     )
                 }
             }

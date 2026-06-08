@@ -85,6 +85,7 @@ class MeshConnectionManagerImpl(
     private var sleepTimeout: Job? = null
     private var handshakeTimeout: Job? = null
     private var connectTimeMsec = 0L
+    private var sleepEnterTime = 0L
 
     override fun start(scope: CoroutineScope) {
         this.scope = scope
@@ -146,7 +147,9 @@ class MeshConnectionManagerImpl(
             is ConnectionState.Connected -> {
                 handleConnected()
                 if (resumeFromSleep) {
-                    Logger.withTag("MeshConnMgr").i { "BLE reconnect from DeviceSleep — flushing last GPS position" }
+                    val sleepDurationMs = if (sleepEnterTime > 0L) nowMillis - sleepEnterTime else -1L
+                    sleepEnterTime = 0L
+                    Logger.withTag("MeshConnMgr").i { "BLE reconnect from DeviceSleep — sleep duration: ${sleepDurationMs}ms, flushing last GPS position" }
                     locationManager.flushLastPosition()
                 }
             }
@@ -184,6 +187,7 @@ class MeshConnectionManagerImpl(
     }
 
     private fun handleDeviceSleep() {
+        sleepEnterTime = nowMillis
         serviceRepository.setConnectionState(ConnectionState.DeviceSleep)
         packetHandler.stopPacketQueue()
         // Keep locationManager running — DeviceSleep is transient BLE state; GPS→radio bridge

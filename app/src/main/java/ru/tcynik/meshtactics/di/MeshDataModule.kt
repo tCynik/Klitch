@@ -68,6 +68,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveNodeSecurityConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
 import ru.tcynik.meshtactics.data.mesh.BackgroundPositionSession
+import ru.tcynik.meshtactics.data.mesh.MeshWakeLockManager
 import ru.tcynik.meshtactics.domain.gps.repository.GpsLifecycleController
 import ru.tcynik.meshtactics.data.mesh.ContourPositionChannelFilter
 import ru.tcynik.meshtactics.data.mesh.GeoSendPolicyImpl
@@ -167,6 +168,14 @@ val meshDataModule = module {
             channelSlotResolver = get(),
             gpsLifecycleController = get<GpsLifecycleController>(),
             logger = get(),
+        )
+    }
+
+    single {
+        MeshWakeLockManager(
+            context = androidContext(),
+            uiPrefs = get(),
+            geoSendPolicy = get(),
         )
     }
 

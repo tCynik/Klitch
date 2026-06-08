@@ -33,6 +33,7 @@ import ru.tcynik.meshtactics.presentation.feature.network.state.models.LocationS
 fun LocationConfigCard(
     config: LocationConfigUi,
     isConnected: Boolean,
+    useWakeLock: Boolean,
     onProvideLocationToggle: (Boolean) -> Unit,
     onGpsModeChange: (GpsModeUi) -> Unit,
     onRemoveFixedPosition: () -> Unit,
@@ -40,6 +41,7 @@ fun LocationConfigCard(
     onSmartBroadcastToggle: (Boolean) -> Unit,
     onPositionFlagsChange: (Int) -> Unit,
     onChannelPositionPrecisionChange: (Int) -> Unit,
+    onWakeLockToggle: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(modifier = modifier.fillMaxWidth()) {
@@ -151,6 +153,19 @@ fun LocationConfigCard(
                 enabled = isConnected,
                 onChanged = onChannelPositionPrecisionChange,
             )
+
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Section F: Background stability
+            SectionHeader("Фоновая стабильность")
+            SettingsRow(label = "Wake lock (удерживать CPU в фоне)") {
+                Switch(
+                    checked = useWakeLock,
+                    onCheckedChange = onWakeLockToggle,
+                )
+            }
         }
     }
 }
