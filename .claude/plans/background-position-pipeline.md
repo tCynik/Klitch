@@ -1,7 +1,7 @@
 # Plan: Background Position Pipeline — фоновая geo-сессия
 
 **Date**: 2026-06-05
-**Status**: Draft — диагностика завершена, реализация не начата
+**Status**: In Progress — Фаза 1 завершена, Фазы 2–3 не начаты
 
 ## Summary
 
@@ -232,10 +232,10 @@ MeshService (FGS: connectedDevice|location)
 ## Scope
 
 **In scope:**
-- Убрать `locationManager.stop()` из `handleDeviceSleep()` (оставить только в `Disconnected`)
-- Auto-flush последней GPS-позиции при `DeviceSleep → Connected`
+- ~~Убрать `locationManager.stop()` из `handleDeviceSleep()`~~ ✅ Done
+- ~~Auto-flush последней GPS-позиции при `DeviceSleep → Connected`~~ ✅ Done
 - `BackgroundPositionSession` в scope `MeshService`
-- `BleBackgroundPolicy`: `is_power_saving=false` при активном geo-broadcast
+- ~~`BleBackgroundPolicy`: `is_power_saving=false` при активном geo-broadcast~~ — **Решено: не делаем** (см. 1.3)
 - Привязка `GpsLifecycleController.start()` к mesh-сессии
 - `PositionSource` interface + `PhoneGpsPositionSource` implementation
 - Battery optimization prompt (один раз, при первом включении geo)
@@ -252,14 +252,14 @@ MeshService (FGS: connectedDevice|location)
 
 ## Implementation Phases
 
-### Фаза 1 — Quick win (1–2 дня)
+### Фаза 1 — Quick win ✅ Завершена
 
-| # | Задача | Файл |
-|---|---|---|
-| 1.1 | Убрать `locationManager.stop()` из `handleDeviceSleep()` | `MeshConnectionManagerImpl.kt` |
-| 1.2 | Flush последней позиции при reconnect (`DeviceSleep → Connected`) | `MeshConnectionManagerImpl.kt` или новый coordinator |
-| 1.3 | Записывать `is_power_saving=false` при включённом geo-broadcast | `MeshConfigRepositoryImpl.kt` |
-| 1.4 | Логирование: `ConnectionState` + `sendPosition` timestamps при screen off | `MeshConnectionManagerImpl`, `AndroidMeshLocationManager` |
+| # | Задача | Файл | Статус |
+|---|---|---|---|
+| 1.1 | Убрать `locationManager.stop()` из `handleDeviceSleep()` | `MeshConnectionManagerImpl.kt` | ✅ Done |
+| 1.2 | Flush последней позиции при reconnect (`DeviceSleep → Connected`) | `MeshConnectionManagerImpl.kt` + `AndroidMeshLocationManager.kt` | ✅ Done |
+| 1.3 | ~~Записывать `is_power_saving=false` при включённом geo-broadcast~~ | — | ❌ Решение: не делаем. `is_power_saving` ортогонален app-driven broadcast; gap 180 с покрывается через `flushLastPosition()` при reconnect. Нода остаётся с настройками по умолчанию. |
+| 1.4 | Логирование: `ConnectionState` + `sendPosition` timestamps при screen off | `MeshConnectionManagerImpl`, `AndroidMeshLocationManager` | ✅ Done (`MT/SmartPos`, `MT/PhoneGPS→radio`, `MeshConnMgr`) |
 
 **Критерий:** телефон Б, screen off 10 мин → телефон А видит `positionTime` < 2 мин.
 
@@ -324,8 +324,8 @@ MeshService (FGS: connectedDevice|location)
 
 | Риск | Митигация |
 |---|---|
-| Расход батареи телефона Б (BLE + GPS + wake lock) | Toggle wake lock в настройках; `is_power_saving` только при активном geo |
-| Расход батареи ноды Б (light sleep off) | Записывать `is_power_saving=false` только когда phone provides GPS |
+| Расход батареи телефона Б (BLE + GPS + wake lock) | Toggle wake lock в настройках |
+| ~~Расход батареи ноды Б (light sleep off)~~ | — Не актуально: `is_power_saving` не трогаем |
 | Регрессия: DeviceSleep раньше предотвращал hot loop TX | TX-очередь по-прежнему stop при DeviceSleep; position идёт через отдельный канал |
 | Два FGS → два notification | Объединение в Фазе 3+ (out of scope сейчас) |
 
