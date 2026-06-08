@@ -16,6 +16,7 @@
 - **Android 14+ constraint**: `FOREGROUND_SERVICE_TYPE_LOCATION` cannot start from background. Service is started in `MainActivity.onCreate()` (foreground context). After OS kill, `START_STICKY` auto-restarts; the user returning to the app triggers the Activity (foreground) context.
 - **Swipe-from-Recents stops the service**: `onTaskRemoved() → stopSelf()`. `START_STICKY` only restarts on OS kill, not on clean stop. Service comes back on next `MainActivity.onCreate()`. GPS tracking without an active user doesn't make sense.
 - `GpsService` scope hosts the GPS flow — it's the designated host for future track recording coroutines (survives backgrounding).
+- **GPS lifecycle tied to mesh session**: `BackgroundPositionSession` calls `GpsLifecycleController.start()` when `shouldProvideNodeLocation=true` + `geoAllowed=true`. GPS starts/stops together with the mesh geo-bridge, not independently.
 
 ## Known limitations / planned extensions
 - Track recording: `TrackRecordingRepository` interface stub created; full implementation is a separate plan

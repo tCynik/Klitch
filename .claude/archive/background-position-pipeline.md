@@ -1,7 +1,8 @@
 # Plan: Background Position Pipeline — фоновая geo-сессия
 
 **Date**: 2026-06-05
-**Status**: In Progress — Фазы 1–3 завершены, Фаза 4 не начата
+**Archived**: 2026-06-09
+**Status**: Done — Фазы 1–3 завершены. Фаза 4 выделена в `.claude/plans/node-gps-position-source.md`
 
 ## Summary
 

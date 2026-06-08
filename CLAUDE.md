@@ -143,6 +143,7 @@
 | Network Screen | `.claude/docs/network-screen.md` |
 | Filter-at-Input (замена Slot Discovery) | `.claude/docs/position-channel-slot-discovery.md` |
 | GPS Position Staleness Pipeline | `.claude/docs/gps-position-staleness.md` |
+| Background Position Pipeline (BleBackgroundPolicy) | `.claude/docs/background-position-pipeline.md` |
 
 ---
 
@@ -178,3 +179,5 @@
 | Geo Marks List | `.claude/archive/geo-marks-list.md` | Done |
 | Geo Marks UI Completion | `.claude/archive/geo-marks-ui-completion.md` | Done |
 | Screen Orientation Lock | `.claude/archive/screen-orientation-lock.md` | Done |
+| Background Position Pipeline | `.claude/archive/background-position-pipeline.md` | Done |
+| Node GPS Position Source | `.claude/plans/node-gps-position-source.md` | Planned |
