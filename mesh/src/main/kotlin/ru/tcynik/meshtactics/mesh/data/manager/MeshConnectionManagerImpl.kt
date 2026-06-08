@@ -19,11 +19,9 @@ package ru.tcynik.meshtactics.mesh.data.manager
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -34,11 +32,9 @@ import ru.tcynik.meshtactics.mesh.common.util.ioDispatcher
 import ru.tcynik.meshtactics.mesh.common.util.nowMillis
 import ru.tcynik.meshtactics.mesh.common.util.nowSeconds
 import ru.tcynik.meshtactics.mesh.model.ConnectionState
-import ru.tcynik.meshtactics.mesh.model.Position
 import ru.tcynik.meshtactics.mesh.model.TelemetryType
 import ru.tcynik.meshtactics.mesh.repository.AppWidgetUpdater
 import ru.tcynik.meshtactics.mesh.repository.CommandSender
-import ru.tcynik.meshtactics.mesh.repository.GeoSendPolicy
 import ru.tcynik.meshtactics.mesh.repository.DataPair
 import ru.tcynik.meshtactics.mesh.repository.HandshakeConstants
 import ru.tcynik.meshtactics.mesh.repository.HistoryManager
@@ -56,7 +52,7 @@ import ru.tcynik.meshtactics.mesh.repository.RadioConfigRepository
 import ru.tcynik.meshtactics.mesh.repository.RadioInterfaceService
 import ru.tcynik.meshtactics.mesh.repository.ServiceBroadcasts
 import ru.tcynik.meshtactics.mesh.repository.ServiceRepository
-import ru.tcynik.meshtactics.mesh.repository.UiPrefs
+
 import org.meshtastic.proto.AdminMessage
 import org.meshtastic.proto.Config
 import org.meshtastic.proto.Telemetry
@@ -72,7 +68,6 @@ class MeshConnectionManagerImpl(
     private val serviceRepository: ServiceRepository,
     private val serviceBroadcasts: ServiceBroadcasts,
     private val serviceNotifications: MeshServiceNotifications,
-    private val uiPrefs: UiPrefs,
     private val packetHandler: PacketHandler,
     private val nodeRepository: NodeRepository,
     private val locationManager: MeshLocationManager,
@@ -85,15 +80,12 @@ class MeshConnectionManagerImpl(
     private val packetRepository: PacketRepository,
     private val workerManager: MeshWorkerManager,
     private val appWidgetUpdater: AppWidgetUpdater,
-    private val geoSendPolicy: GeoSendPolicy,
 ) : MeshConnectionManager {
     private var scope: CoroutineScope = CoroutineScope(ioDispatcher + SupervisorJob())
     private var sleepTimeout: Job? = null
-    private var locationRequestsJob: Job? = null
     private var handshakeTimeout: Job? = null
     private var connectTimeMsec = 0L
 
-    @OptIn(FlowPreview::class)
     override fun start(scope: CoroutineScope) {
         this.scope = scope
         radioInterfaceService.connectionState.onEach(::onRadioConnectionState).launchIn(scope)
@@ -109,31 +101,6 @@ class MeshConnectionManagerImpl(
             }
         }
 
-        nodeRepository.myNodeInfo
-            .onEach { myNodeEntity ->
-                locationRequestsJob?.cancel()
-                if (myNodeEntity != null) {
-                    locationRequestsJob =
-                        uiPrefs.shouldProvideNodeLocation(myNodeEntity.myNodeNum)
-                            .combine(geoSendPolicy.observeAllowed()) { shouldProvide, geoAllowed ->
-                                shouldProvide && geoAllowed
-                            }
-                            .onEach { allowed ->
-                                if (allowed) {
-                                    // Clear fixed_position so firmware doesn't ignore sendPosition packets
-                                    commandSender.setFixedPosition(myNodeEntity.myNodeNum, Position(0.0, 0.0, 0))
-                                    locationManager.start(scope) { pos ->
-                                        commandSender.sendPosition(pos)
-                                    }
-                                } else {
-                                    locationManager.stop()
-                                    // Do not touch fixed_position — let node use its own GPS if available
-                                }
-                            }
-                            .launchIn(scope)
-                }
-            }
-            .launchIn(scope)
     }
 
     private fun onRadioConnectionState(newState: ConnectionState) {

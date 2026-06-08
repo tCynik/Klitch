@@ -67,6 +67,8 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveNodeSecurityConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
+import ru.tcynik.meshtactics.data.mesh.BackgroundPositionSession
+import ru.tcynik.meshtactics.domain.gps.repository.GpsLifecycleController
 import ru.tcynik.meshtactics.data.mesh.ContourPositionChannelFilter
 import ru.tcynik.meshtactics.data.mesh.GeoSendPolicyImpl
 import ru.tcynik.meshtactics.data.mesh.OnConnectPositionSender
@@ -150,6 +152,20 @@ val meshDataModule = module {
             contourRepository = get(),
             channelSlotResolver = get(),
             commandSender = get(),
+            logger = get(),
+        )
+    }
+
+    single {
+        BackgroundPositionSession(
+            nodeRepository = get(),
+            locationManager = get(),
+            commandSender = get(),
+            uiPrefs = get(),
+            geoSendPolicy = get(),
+            contourRepository = get(),
+            channelSlotResolver = get(),
+            gpsLifecycleController = get<GpsLifecycleController>(),
             logger = get(),
         )
     }

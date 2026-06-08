@@ -1,7 +1,7 @@
 # Plan: Background Position Pipeline — фоновая geo-сессия
 
 **Date**: 2026-06-05
-**Status**: In Progress — Фаза 1 завершена, Фазы 2–3 не начаты
+**Status**: In Progress — Фазы 1–2 завершены, Фаза 3 не начата
 
 ## Summary
 
@@ -263,16 +263,16 @@ MeshService (FGS: connectedDevice|location)
 
 **Критерий:** телефон Б, screen off 10 мин → телефон А видит `positionTime` < 2 мин.
 
-### Фаза 2 — BackgroundPositionSession (3–5 дней)
+### Фаза 2 — BackgroundPositionSession ✅ Завершена
 
-| # | Задача |
-|---|---|
-| 2.1 | `PositionSource` interface + `PhoneGpsPositionSource` |
-| 2.2 | `BackgroundPositionSession` в `MeshService` scope |
-| 2.3 | Перенести логику из `MeshConnectionManagerImpl.locationManager` блока |
-| 2.4 | Заменить / дополнить `OnConnectPositionSender` |
-| 2.5 | Привязать `GpsLifecycleController.start()` к старту сессии |
-| 2.6 | Unit-тесты: сессия не останавливается при `DeviceSleep`, flush при reconnect |
+| # | Задача | Статус |
+|---|---|---|
+| 2.1 | ~~`PositionSource` interface + `PhoneGpsPositionSource`~~ | — Отложено на Фазу 4: преждевременная абстракция без текущей пользы |
+| 2.2 | `BackgroundPositionSession` в scope `MeshService` | ✅ Done (`data/mesh/BackgroundPositionSession.kt`) |
+| 2.3 | Перенести логику из `MeshConnectionManagerImpl.locationManager` блока | ✅ Done — блок удалён, `uiPrefs`/`geoSendPolicy` убраны из конструктора |
+| 2.4 | Дополнить `OnConnectPositionSender` | ✅ Done — `OnConnectPositionSender` оставлен (one-shot на коннект); `BackgroundPositionSession` добавляет непрерывный broadcast по всем contour-слотам |
+| 2.5 | Привязать `GpsLifecycleController.start()` к старту сессии | ✅ Done — вызывается в `BackgroundPositionSession` при `allowed=true` |
+| 2.6 | Unit-тесты | ✅ Done — 5 тестов в `BackgroundPositionSessionTest.kt` |
 
 ### Фаза 3 — BleBackgroundPolicy (2–3 дня)
 
