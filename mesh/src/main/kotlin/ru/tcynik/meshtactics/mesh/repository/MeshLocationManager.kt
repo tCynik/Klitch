@@ -26,4 +26,7 @@ interface MeshLocationManager {
 
     /** Stops location updates. */
     fun stop()
+
+    /** Re-sends the last reported position, if any (e.g. after BLE reconnect from DeviceSleep). */
+    fun flushLastPosition() {}
 }

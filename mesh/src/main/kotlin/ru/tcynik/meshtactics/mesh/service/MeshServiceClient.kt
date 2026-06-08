@@ -48,6 +48,7 @@ class MeshServiceClient(
     override fun onConnected(service: IMeshService) {
         serviceSetupJob.launch(lifecycleOwner.lifecycleScope) {
             serviceRepository.setMeshService(service)
+            service.startProvideLocation()
             Logger.d { "connected to mesh service, connectionState=${serviceRepository.connectionState.value}" }
         }
     }

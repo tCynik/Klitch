@@ -40,6 +40,7 @@ import ru.tcynik.meshtactics.mesh.model.util.toOneLiner
 import ru.tcynik.meshtactics.mesh.repository.CommandSender
 import ru.tcynik.meshtactics.mesh.repository.DataPair
 import ru.tcynik.meshtactics.mesh.repository.MeshConfigFlowManager
+import ru.tcynik.meshtactics.mesh.repository.PositionChannelFilter
 import ru.tcynik.meshtactics.mesh.repository.MeshConfigHandler
 import ru.tcynik.meshtactics.mesh.repository.MeshConnectionManager
 import ru.tcynik.meshtactics.mesh.repository.MeshDataHandler
@@ -108,6 +109,7 @@ class MeshDataHandlerImpl(
     private val radioConfigRepository: RadioConfigRepository,
     private val messageFilter: MessageFilter,
     private val storeForwardHandler: StoreForwardPacketHandler,
+    private val positionChannelFilter: PositionChannelFilter,
 ) : MeshDataHandler {
     private var scope: CoroutineScope = CoroutineScope(ioDispatcher + SupervisorJob())
 
@@ -245,8 +247,13 @@ class MeshDataHandlerImpl(
     }
 
     private fun handlePosition(packet: MeshPacket, dataPacket: DataPacket, myNodeNum: Int) {
+            Logger.withTag("MT/Pos").d { "has Position: from=${packet.from} channel=${packet.channel}" }
         val payload = packet.decoded?.payload ?: return
         val p = Position.ADAPTER.decodeOrNull(payload, Logger) ?: return
+//        if (packet.from != myNodeNum && !positionChannelFilter.isChannelAccepted(packet.channel)) {
+//            Logger.withTag("MT/Pos").d { "Position dropped: from=${packet.from} channel=${packet.channel} not in active contour" }
+//            return
+//        }
         Logger.d { "Position from ${packet.from}: ${Position.ADAPTER.toOneLiner(p)}" }
         nodeManager.handleReceivedPosition(packet.from, myNodeNum, p, dataPacket.time, packet.channel)
     }

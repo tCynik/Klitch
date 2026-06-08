@@ -350,22 +350,34 @@ class MeshConfigRepositoryImpl(
         commandSender.setFixedPosition(destNum, Position(0.0, 0.0, 0))
     }
 
-    override suspend fun enableNodePositionBroadcastReady() {
+    override suspend fun prepareNodeForAppDrivenBroadcast() {
         val destNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
-        val current = withTimeoutOrNull(POSITION_CONFIG_WAIT_MS) {
-            meshRouter.configHandler.localConfig.first { it.position != null }.position!!
+        val localConfig = withTimeoutOrNull(POSITION_CONFIG_WAIT_MS) {
+            meshRouter.configHandler.localConfig.first { it.position != null }
         } ?: return
-        if (current.position_broadcast_secs == GEO_BROADCAST_READY_SECS && !current.position_broadcast_smart_enabled) {
-            logger.d("Node", "enableNodePositionBroadcastReady: already configured, skip")
+        val current = localConfig.position!!
+        val powerSavingOff = localConfig.power?.is_power_saving != true
+        if (current.position_broadcast_secs == GEO_BROADCAST_READY_SECS &&
+            !current.position_broadcast_smart_enabled &&
+            powerSavingOff
+        ) {
+            logger.d("Node", "prepareNodeForAppDrivenBroadcast: already configured, skip")
             return
         }
-        logger.i("Node", "enableNodePositionBroadcastReady: destNum=$destNum broadcastSecs=$GEO_BROADCAST_READY_SECS — firmware reboot expected")
+        logger.i("Node", "prepareNodeForAppDrivenBroadcast: destNum=$destNum broadcastSecs=$GEO_BROADCAST_READY_SECS — firmware reboot expected")
         val updated = current.copy(
             position_broadcast_secs = GEO_BROADCAST_READY_SECS,
             position_broadcast_smart_enabled = false,
         )
         val payload = Config.ADAPTER.encode(Config(position = updated))
-        meshRouter.actionHandler.handleSetConfig(payload, destNum)
+        val packetId = meshRouter.actionHandler.handleSetConfig(payload, destNum)
+        awaitAdminPacket("prepareNodeForAppDrivenBroadcast/position", packetId)
+        localConfig.power?.takeIf { it.is_power_saving == true }?.let { power ->
+            logger.i("Node", "prepareNodeForAppDrivenBroadcast: disabling is_power_saving for background BLE")
+            val powerPayload = Config.ADAPTER.encode(Config(power = power.copy(is_power_saving = false)))
+            val powerPacketId = meshRouter.actionHandler.handleSetConfig(powerPayload, destNum)
+            awaitAdminPacket("prepareNodeForAppDrivenBroadcast/power", powerPacketId)
+        }
     }
 
     override suspend fun disableNodePositionBroadcast() {
@@ -383,12 +395,18 @@ class MeshConfigRepositoryImpl(
             position_broadcast_smart_enabled = false,
         )
         val payload = Config.ADAPTER.encode(Config(position = updated))
-        meshRouter.actionHandler.handleSetConfig(payload, destNum)
+        val packetId = meshRouter.actionHandler.handleSetConfig(payload, destNum)
+        awaitAdminPacket("disableNodePositionBroadcast", packetId)
     }
 
     override suspend fun getPositionBroadcastSecs(): Int? =
         withTimeoutOrNull(5_000L) {
             meshRouter.configHandler.localConfig.first { it.position != null }.position!!.position_broadcast_secs
+        }
+
+    override suspend fun isPositionSmartBroadcastEnabled(): Boolean? =
+        withTimeoutOrNull(5_000L) {
+            meshRouter.configHandler.localConfig.first { it.position != null }.position!!.position_broadcast_smart_enabled
         }
 
     override fun rebootNode() {
@@ -455,7 +473,13 @@ class MeshConfigRepositoryImpl(
     }
 
     companion object {
-        private const val GEO_BROADCAST_READY_SECS = 60
+        // Both constants write Int.MAX_VALUE — firmware never broadcasts autonomously in either state.
+        // The behavioral difference is in the callers:
+        //   READY   → prepareNodeForAppDrivenBroadcast() also disables is_power_saving
+        //   DISABLED → disableNodePositionBroadcast() leaves is_power_saving unchanged
+        // TODO: restore is_power_saving=true in disableNodePositionBroadcast() once the
+        //       full power-state lifecycle (Phase 3+) is implemented.
+        private const val GEO_BROADCAST_READY_SECS = Int.MAX_VALUE
         private const val GEO_BROADCAST_DISABLED_SECS = Int.MAX_VALUE
         private const val GEO_CHANNEL_PRECISION = 13
         private const val POSITION_CONFIG_WAIT_MS = 15_000L

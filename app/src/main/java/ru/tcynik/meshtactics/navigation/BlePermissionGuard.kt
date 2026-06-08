@@ -50,6 +50,9 @@ fun BlePermissionGuard(content: @Composable () -> Unit) {
             add(Manifest.permission.BLUETOOTH_SCAN)
             add(Manifest.permission.BLUETOOTH_CONNECT)
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            add(Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
 
     fun allGranted() = required.all {

@@ -45,6 +45,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.ObservePacketLogUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
+import ru.tcynik.meshtactics.domain.gps.repository.GpsRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RemoveFixedPositionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
@@ -53,9 +54,10 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.SetProvideLocationUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelPositionPrecisionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WritePositionConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.PrepareNodeForAppDrivenBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetPositionBroadcastSecsUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.IsPositionSmartBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ConfirmChannelSyncUseCase
@@ -65,7 +67,13 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveNodeSecurityConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
+import ru.tcynik.meshtactics.data.mesh.BackgroundPositionSession
+import ru.tcynik.meshtactics.data.mesh.MeshWakeLockManager
+import ru.tcynik.meshtactics.domain.gps.repository.GpsLifecycleController
+import ru.tcynik.meshtactics.data.mesh.ContourPositionChannelFilter
 import ru.tcynik.meshtactics.data.mesh.GeoSendPolicyImpl
+import ru.tcynik.meshtactics.data.mesh.OnConnectPositionSender
+import ru.tcynik.meshtactics.mesh.repository.PositionChannelFilter
 import ru.tcynik.meshtactics.data.mesh.repository.RebootStateRepositoryImpl
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.mesh.repository.GeoSendPolicy
@@ -131,6 +139,46 @@ val meshDataModule = module {
 
     single<GeoSendPolicy> { GeoSendPolicyImpl(get()) }
 
+    single<PositionChannelFilter> {
+        ContourPositionChannelFilter(
+            contourRepository = get(),
+            channelSlotResolver = get(),
+        )
+    }
+
+    single {
+        OnConnectPositionSender(
+            connectionRepository = get(),
+            gpsRepository = get(),
+            contourRepository = get(),
+            channelSlotResolver = get(),
+            commandSender = get(),
+            logger = get(),
+        )
+    }
+
+    single {
+        BackgroundPositionSession(
+            nodeRepository = get(),
+            locationManager = get(),
+            commandSender = get(),
+            uiPrefs = get(),
+            geoSendPolicy = get(),
+            contourRepository = get(),
+            channelSlotResolver = get(),
+            gpsLifecycleController = get<GpsLifecycleController>(),
+            logger = get(),
+        )
+    }
+
+    single {
+        MeshWakeLockManager(
+            context = androidContext(),
+            uiPrefs = get(),
+            geoSendPolicy = get(),
+        )
+    }
+
     single {
         EmergencyNodeNotificationFilter(
             androidNotificationManager = get<AndroidNotificationManager>(),
@@ -151,7 +199,7 @@ val meshDataModule = module {
     single { ObserveMeshNodesUseCase(get()) }
     single { ObserveOurNodeUseCase(get()) }
     single { ObserveContourNodesUseCase(get(), get(), get()) }
-    single { ObserveGeoNodesUseCase(get(), get(), get()) }
+    single { ObserveGeoNodesUseCase(get()) }
     single { ObserveMessagesUseCase(get()) }
     single { SendMeshMessageUseCase(get()) }
     single { ObservePacketLogUseCase(get()) }
@@ -166,9 +214,10 @@ val meshDataModule = module {
     single { WritePositionConfigUseCase(get()) }
     single { WriteChannelPositionPrecisionUseCase(get()) }
     single { RemoveFixedPositionUseCase(get()) }
-    single { EnableNodePositionBroadcastReadyUseCase(get()) }
+    single { PrepareNodeForAppDrivenBroadcastUseCase(get()) }
     single { DisableNodePositionBroadcastUseCase(get()) }
     single { GetPositionBroadcastSecsUseCase(get()) }
+    single { IsPositionSmartBroadcastEnabledUseCase(get()) }
     single { RebootNodeUseCase(get()) }
     single {
         ReconnectViaBleScanUseCase(
@@ -205,6 +254,11 @@ val meshDataModule = module {
             writeChannel = get(),
             observeNodeChannels = get<ObserveNodeChannelsUseCase>(),
             resolveSlot = get<ResolveChannelSlotUseCase>(),
+            observeOurNode = get<ObserveOurNodeUseCase>(),
+            observeDeviceConfig = get<ObserveDeviceConfigUseCase>(),
+            observeLocationConfig = get<ObserveLocationConfigUseCase>(),
+            writePositionConfig = get<WritePositionConfigUseCase>(),
+            gpsRepository = get<GpsRepository>(),
             logger = get(),
         )
     }

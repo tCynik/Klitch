@@ -123,6 +123,10 @@ interface UiPrefs {
     fun shouldProvideNodeLocation(nodeNum: Int): StateFlow<Boolean>
 
     fun setShouldProvideNodeLocation(nodeNum: Int, provide: Boolean)
+
+    val useWakeLock: StateFlow<Boolean>
+
+    fun setUseWakeLock(enabled: Boolean)
 }
 
 /** Reactive interface for notification preferences. */

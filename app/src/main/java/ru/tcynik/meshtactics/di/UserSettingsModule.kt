@@ -83,11 +83,12 @@ val userSettingsModule = module {
             writeOwner = get(),
             observeAppUser = get(),
             observeDeviceConfig = get(),
-            enableNodePositionBroadcastReady = get(),
+            prepareNodeForAppDrivenBroadcast = get(),
             disableNodePositionBroadcast = get(),
             observeGpsBroadcastEnabled = get(),
             observeEmergencyMode = get(),
             getPositionBroadcastSecs = get(),
+            isPositionSmartBroadcastEnabled = get(),
             logger = get(),
         )
     }
@@ -113,6 +114,7 @@ val userSettingsModule = module {
             observeGpsBroadcastEnabled = get(),
             observeEmergencyMode = get(),
             getPositionBroadcastSecs = get(),
+            isPositionSmartBroadcastEnabled = get(),
             logger = get(),
         )
     }

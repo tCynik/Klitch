@@ -46,7 +46,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.BeginSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.CommitSettingsEditUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.PrepareNodeForAppDrivenBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
@@ -82,7 +82,7 @@ class UserSettingsViewModelLeaveDialogTest {
     private val observeConnectionStatus: ObserveConnectionStatusUseCase = mockk()
     private val channelSlotResolver: ChannelSlotResolver = mockk()
     private val confirmChannelSync: ConfirmChannelSyncUseCase = mockk(relaxed = true)
-    private val enableNodePositionBroadcastReady: EnableNodePositionBroadcastReadyUseCase = mockk(relaxed = true)
+    private val prepareNodeForAppDrivenBroadcast: PrepareNodeForAppDrivenBroadcastUseCase = mockk(relaxed = true)
     private val disableNodePositionBroadcast: DisableNodePositionBroadcastUseCase = mockk(relaxed = true)
     private val observeEmergencyMode: ObserveEmergencyModeUseCase = mockk()
     private val triggerEmergency: TriggerEmergencyUseCase = mockk(relaxed = true)
@@ -159,7 +159,7 @@ class UserSettingsViewModelLeaveDialogTest {
             observeConnectionStatus = observeConnectionStatus,
             channelSlotResolver = channelSlotResolver,
             confirmChannelSync = confirmChannelSync,
-            enableNodePositionBroadcastReady = enableNodePositionBroadcastReady,
+            prepareNodeForAppDrivenBroadcast = prepareNodeForAppDrivenBroadcast,
             disableNodePositionBroadcast = disableNodePositionBroadcast,
             observeEmergencyMode = observeEmergencyMode,
             triggerEmergency = triggerEmergency,
@@ -349,7 +349,7 @@ class UserSettingsViewModelLeaveDialogTest {
     }
 
     @Test
-    fun `onGpsBroadcastToggle true при подключённой ноде вызывает enableNodePositionBroadcastReady`() = runTest(testDispatcher) {
+    fun `onGpsBroadcastToggle true при подключённой ноде вызывает prepareNodeForAppDrivenBroadcast`() = runTest(testDispatcher) {
         connectionStatusFlow.value = connectedStatus
         runCurrent()
 
@@ -357,7 +357,7 @@ class UserSettingsViewModelLeaveDialogTest {
         runCurrent()
 
         coVerify { setGpsBroadcastEnabled.invoke(true) }
-        coVerify { enableNodePositionBroadcastReady.invoke() }
+        coVerify { prepareNodeForAppDrivenBroadcast.invoke() }
     }
 
     @Test

@@ -64,7 +64,7 @@ class TriggerEmergencyUseCaseTest {
 
     @Test
     fun `отправляет сообщение с координатами когда GPS доступен`() = runTest {
-        val location = GpsLocation(55.75, 37.62, null, null, 10f, 0L)
+        val location = GpsLocation(55.75, 37.62, null, null, 10f, 0L, 0L)
         every { appUserRepository.observeUser() } returns flowOf(AppUser("Иван"))
         every { gpsRepository.location } returns MutableStateFlow(location)
 

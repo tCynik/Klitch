@@ -18,6 +18,7 @@
 
 package ru.tcynik.meshtactics.mesh.ble
 
+import com.juul.kable.AndroidPeripheral
 import com.juul.kable.Peripheral
 import com.juul.kable.State
 import kotlinx.coroutines.CancellationException
@@ -169,5 +170,11 @@ class KableBleConnection(private val scope: CoroutineScope, private val tag: Str
     override fun maximumWriteValueLength(writeType: BleWriteType): Int? {
         // Desktop MTU isn't always easily exposed, provide a safe default for Meshtastic
         return 512
+    }
+
+    override fun requestConnectionPriority(high: Boolean) {
+        val p = peripheral as? AndroidPeripheral ?: return
+        val priority = if (high) AndroidPeripheral.Priority.High else AndroidPeripheral.Priority.Balanced
+        p.requestConnectionPriority(priority)
     }
 }

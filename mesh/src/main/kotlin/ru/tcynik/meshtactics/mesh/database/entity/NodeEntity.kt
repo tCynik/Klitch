@@ -57,6 +57,7 @@ data class NodeWithRelations(
             lastHeard = lastHeard,
             deviceMetrics = deviceMetrics ?: org.meshtastic.proto.DeviceMetrics(),
             channel = channel,
+            positionChannel = positionChannel,
             viaMqtt = viaMqtt,
             hopsAway = hopsAway,
             isFavorite = isFavorite,
@@ -133,6 +134,7 @@ data class NodeEntity(
     @ColumnInfo(name = "last_heard") var lastHeard: Int = 0, // the last time we've seen this node in secs since 1970
     @ColumnInfo(name = "device_metrics", typeAffinity = ColumnInfo.BLOB) var deviceTelemetry: Telemetry = Telemetry(),
     var channel: Int = 0,
+    @ColumnInfo(name = "position_channel") var positionChannel: Int? = null,
     @ColumnInfo(name = "via_mqtt") var viaMqtt: Boolean = false,
     @ColumnInfo(name = "hops_away") var hopsAway: Int = -1,
     @ColumnInfo(name = "is_favorite") var isFavorite: Boolean = false,
@@ -197,6 +199,7 @@ data class NodeEntity(
         lastHeard = lastHeard,
         deviceMetrics = deviceMetrics ?: org.meshtastic.proto.DeviceMetrics(),
         channel = channel,
+        positionChannel = positionChannel,
         viaMqtt = viaMqtt,
         hopsAway = hopsAway,
         isFavorite = isFavorite,

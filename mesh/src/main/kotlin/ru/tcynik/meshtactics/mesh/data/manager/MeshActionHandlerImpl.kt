@@ -224,13 +224,14 @@ class MeshActionHandlerImpl(
         commandSender.sendAdmin(destNum, id, wantResponse = true) { AdminMessage(get_owner_request = true) }
     }
 
-    override fun handleSetConfig(payload: ByteArray, myNodeNum: Int) {
+    override fun handleSetConfig(payload: ByteArray, myNodeNum: Int): Int {
         val c = Config.ADAPTER.decode(payload)
-        commandSender.sendAdmin(myNodeNum) { AdminMessage(set_config = c) }
+        val packetId = commandSender.sendAdmin(myNodeNum) { AdminMessage(set_config = c) }
         // Optimistically persist the config locally so CommandSender picks up
         // the new values (e.g. hop_limit) immediately instead of waiting for
         // the next want_config handshake.
         scope.handledLaunch { radioConfigRepository.setLocalConfig(c) }
+        return packetId
     }
 
     override fun handleSetRemoteConfig(id: Int, destNum: Int, payload: ByteArray) {

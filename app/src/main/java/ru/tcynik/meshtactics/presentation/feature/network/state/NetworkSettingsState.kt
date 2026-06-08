@@ -9,6 +9,7 @@ data class NetworkSettingsState(
     val locationConfig: LocationConfigUi? = null,
     val originalDeviceConfig: DeviceConfigUi? = null,
     val originalChannels: List<ChannelConfigUi> = emptyList(),
+    val useWakeLock: Boolean = false,
 ) {
     val hasChanges: Boolean
         get() = deviceConfig != originalDeviceConfig || channels != originalChannels

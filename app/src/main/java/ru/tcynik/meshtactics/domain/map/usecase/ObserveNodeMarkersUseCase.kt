@@ -4,10 +4,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
-import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
-import ru.tcynik.meshtactics.domain.channel.model.ChannelSlotMaps
-import ru.tcynik.meshtactics.domain.channel.model.Contour
-import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import ru.tcynik.meshtactics.domain.marker.model.NodeMarkerModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshNodeModel
@@ -18,11 +14,10 @@ import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 
 private const val MIN_SPEED_FOR_HEADING = 1
 
-// Maximum age of a GPS position report to be considered fresh, in seconds.
-// Positions fresher than this threshold are shown with normal colors;
-// older positions are shown as grey (stale) markers.
-// 2 minutes — threshold for fresh vs stale visual distinction.
-private const val POSITION_FRESHNESS_SECONDS = 2 * 60
+// Threshold for fresh vs stale: 3 × stationary broadcast interval (180 s) = 540 s.
+// A node missed by 3 consecutive expected broadcasts is considered stale.
+// Sync with AndroidMeshLocationManager.STATIONARY_INTERVAL_MS when tuning.
+private const val POSITION_FRESHNESS_SECONDS = 3 * 180
 
 /** Maximum age of a GPS position to be displayed at all, in seconds. Positions older than this are hidden. */
 private const val MAX_POSITION_AGE_SECONDS = 12 * 60 * 60 // 12 hours
@@ -31,46 +26,33 @@ private const val MAX_POSITION_AGE_SECONDS = 12 * 60 * 60 // 12 hours
 private const val STALE_CHECK_INTERVAL_MS = 10_000L
 
 /**
- * Returns map markers for **peer nodes only** — our own node is intentionally excluded.
+ * Returns map markers for peer nodes only — our own node is intentionally excluded.
  *
- * Design decision: our radio device is part of the user's equipment, not a mesh peer.
- * The user's position is already shown on the map via the GPS location layer (CircleLayer).
- * Including our node here would create visual duplication — two markers at the same location.
+ * Visibility is determined solely by position freshness:
+ *   - positionTime within [POSITION_FRESHNESS_SECONDS] → fresh marker
+ *   - positionTime within [MAX_POSITION_AGE_SECONDS]  → stale (grey) marker
+ *   - older or positionTime == 0                       → hidden
  *
- * Any future use case that lists or counts peer nodes must apply the same exclusion.
- *
- * Nodes with valid position are always shown. Fresh nodes (position within
- * [POSITION_FRESHNESS_SECONDS]) are shown with normal colors. Stale nodes (older position)
- * are shown as grey markers via the [NodeMarkerModel.isStale] flag.
- *
- * Nodes with position older than [MAX_POSITION_AGE_SECONDS] are filtered out and not displayed.
- *
- * The stale status is re-evaluated periodically ([STALE_CHECK_INTERVAL_MS]) so that nodes
- * transition from fresh to stale dynamically while the app is running, not just on restart.
- *
- * Nodes are additionally filtered by contour: a node received on slot 1 (Emergency) is hidden
- * outside SOS mode. Nodes on inactive contour slots are hidden. Null slot = show (fallback).
+ * Channel-based contour filtering is intentionally absent. MeshPacket.channel reflects the
+ * LOCAL channel index on the receiving radio, not the sender's index — two devices with the same
+ * PSK at different list positions will report different channel numbers for the same packet.
+ * The radio hardware already enforces PSK membership; any decoded position is from a node that
+ * shares at least one of our channels.
  */
 class ObserveNodeMarkersUseCase(
     private val repository: MeshNetworkRepository,
-    private val contourRepository: ContourRepository,
-    private val channelSlotResolver: ChannelSlotResolver,
     private val logger: Logger,
 ) : FlowUseCase<NoParams, List<NodeMarkerModel>>() {
 
+    private data class PrevStatus(val isOnline: Boolean, val isStale: Boolean)
+    private val previousStatus = mutableMapOf<String, PrevStatus>()
+
     override fun invoke(params: NoParams): Flow<List<NodeMarkerModel>> =
         combine(
-            combine(
-                repository.observeNodes(),
-                repository.observeOurNode(),
-                staleTicker(),
-            ) { nodes, ourNode, _ -> nodes to ourNode },
-            contourRepository.observeContours(),
-            contourRepository.observeSosMode(),
-            channelSlotResolver.mapsFlow,
-        ) { (nodes, ourNode), contours, sosMode, maps ->
-            buildMarkerList(nodes, ourNode, contours, maps, sosMode)
-        }
+            repository.observeNodes(),
+            repository.observeOurNode(),
+            staleTicker(),
+        ) { nodes, ourNode, _ -> buildMarkerList(nodes, ourNode) }
 
     private fun staleTicker(): Flow<Unit> = flow {
         while (true) {
@@ -82,42 +64,24 @@ class ObserveNodeMarkersUseCase(
     private fun buildMarkerList(
         nodes: List<MeshNodeModel>,
         ourNode: MeshNodeModel?,
-        contours: List<Contour>,
-        maps: ChannelSlotMaps,
-        sosMode: Boolean,
     ): List<NodeMarkerModel> {
         val ourNodeId = ourNode?.nodeId
         val nowSeconds = System.currentTimeMillis() / 1000
         val freshnessThreshold = nowSeconds - POSITION_FRESHNESS_SECONDS
         val maxAgeThreshold = nowSeconds - MAX_POSITION_AGE_SECONDS
-        val contourByHash = contours.associate { it.transport.meshtastic.channelHash to it }
 
         val peers = nodes.filter { it.nodeId != ourNodeId }
         val withPosition = peers.filter { it.hasValidPosition }
+        val visible = withPosition.filter { it.positionTime > maxAgeThreshold }
 
-        val recentEnough = withPosition.filter { node ->
-            val effectiveTime = if (node.positionTime > 0) node.positionTime else node.lastHeard
-            effectiveTime > maxAgeThreshold
-        }
-
-        logger.i("Node", "contour filter: sos=$sosMode slots=${maps.slotToHash.keys} " +
-                ", nodes: ${recentEnough.joinToString { "\n     ${it.longName}_${it.shortName} (slot=${it.receivedOnSlot})" }}")
-
-        val filtered = recentEnough.filter { node ->
-            passesContourFilter(node.receivedOnSlot, contourByHash, maps, sosMode)
-        }
-
-        val freshCount = filtered.count {
-            val effectiveTime = if (it.positionTime > 0) it.positionTime else it.lastHeard
-            effectiveTime > freshnessThreshold
-        }
+        val freshCount = visible.count { it.positionTime > freshnessThreshold }
         logger.d("Node", "ObserveNodeMarkersUseCase: myPos=${ourNode?.latitude}/${ourNode?.longitude} " +
-                "nodesSize=${nodes.size}/${peers.size} withPos=${withPosition.size} recent=${recentEnough.size} " +
-                "filtered=${filtered.size} fresh=$freshCount, nodes: ${filtered.joinToString { "\n     ${it.toLogString(nowSeconds)}" }}")
-        return filtered.map { node ->
-            val effectiveTime = if (node.positionTime > 0) node.positionTime else node.lastHeard
-            val isStale = effectiveTime <= freshnessThreshold
-            NodeMarkerModel(
+                "nodesSize=${nodes.size}/${peers.size} withPos=${withPosition.size} " +
+                "visible=${visible.size} fresh=$freshCount")
+
+        return visible.map { node ->
+            val isStale = node.positionTime <= freshnessThreshold
+            val marker = NodeMarkerModel(
                 nodeId = node.nodeId,
                 longName = node.longName,
                 position = GeoPoint(node.latitude, node.longitude),
@@ -125,21 +89,19 @@ class ObserveNodeMarkersUseCase(
                 isStale = isStale,
                 heading = if (node.groundSpeed >= MIN_SPEED_FOR_HEADING) node.groundTrack.toFloat() else null,
             )
-        }
-    }
-
-    private fun passesContourFilter(
-        receivedOnSlot: Int?,
-        contourByHash: Map<*, Contour>,
-        maps: ChannelSlotMaps,
-        sosMode: Boolean,
-    ): Boolean = when (receivedOnSlot) {
-        null -> true
-        0 -> true
-        1 -> sosMode
-        else -> {
-            val hash = maps.slotToHash[receivedOnSlot] ?: return true
-            contourByHash[hash]?.isActive ?: true
+            val prev = previousStatus[node.nodeId]
+            if (prev != null) {
+                if (prev.isOnline != marker.isOnline) {
+                    val lastHeardAgeS = nowSeconds - node.lastHeard
+                    logger.d("Node", "${node.longName} online ${prev.isOnline}→${marker.isOnline}: lastHeard=${lastHeardAgeS}s ago")
+                }
+                if (prev.isStale != marker.isStale) {
+                    val ageS = nowSeconds - node.positionTime
+                    logger.d("Node", "${node.longName} stale ${prev.isStale}→${marker.isStale}: positionTime=${ageS}s ago (threshold=${POSITION_FRESHNESS_SECONDS}s)")
+                }
+            }
+            previousStatus[node.nodeId] = PrevStatus(marker.isOnline, marker.isStale)
+            marker
         }
     }
 }
@@ -147,5 +109,5 @@ class ObserveNodeMarkersUseCase(
 private fun MeshNodeModel.toLogString(nowSeconds: Long): String {
     val ageStr = if (positionTime > 0) "${nowSeconds - positionTime}s ago" else "no time"
     val coordStr = "%.5f,%.5f".format(latitude, longitude)
-    return "$longName(slot=$receivedOnSlot $ageStr $coordStr)"
+    return "$longName($ageStr $coordStr)"
 }

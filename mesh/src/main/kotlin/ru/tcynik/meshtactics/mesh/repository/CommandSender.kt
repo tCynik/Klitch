@@ -83,8 +83,18 @@ interface CommandSender {
     /** Sends our current position to the mesh. */
     fun sendPosition(pos: org.meshtastic.proto.Position, destNum: Int? = null, wantResponse: Boolean = false)
 
+    /** Broadcasts our position as a direct mesh packet on the given channel slot. */
+    fun broadcastPosition(pos: org.meshtastic.proto.Position, channelIndex: Int)
+
     /** Requests the position of a specific node. */
     fun requestPosition(destNum: Int, currentPosition: Position)
+
+    /**
+     * Requests the position of a specific node on an explicit channel slot.
+     * The node will only respond if it is subscribed to [channelIndex].
+     * A response confirms the node is on that channel — use this for slot discovery.
+     */
+    fun requestPosition(destNum: Int, position: Position, channelIndex: Int)
 
     /** Sets a fixed position for a node. */
     fun setFixedPosition(destNum: Int, pos: Position)

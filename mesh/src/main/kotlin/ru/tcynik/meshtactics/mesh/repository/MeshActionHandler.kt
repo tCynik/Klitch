@@ -49,8 +49,8 @@ interface MeshActionHandler {
     /** Gets the owner of a remote node. */
     fun handleGetRemoteOwner(id: Int, destNum: Int)
 
-    /** Sets the configuration of the local node. */
-    fun handleSetConfig(payload: ByteArray, myNodeNum: Int)
+    /** Sets the configuration of the local node. Returns the queued packet ID for delivery tracking. */
+    fun handleSetConfig(payload: ByteArray, myNodeNum: Int): Int
 
     /** Sets the configuration of a remote node. */
     fun handleSetRemoteConfig(id: Int, destNum: Int, payload: ByteArray)

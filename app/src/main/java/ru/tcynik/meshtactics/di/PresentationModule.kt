@@ -174,7 +174,7 @@ val presentationModule = module {
             observeConnectionStatus = get(),
             channelSlotResolver = get(),
             confirmChannelSync = get<ConfirmChannelSyncUseCase>(),
-            enableNodePositionBroadcastReady = get(),
+            prepareNodeForAppDrivenBroadcast = get(),
             disableNodePositionBroadcast = get(),
             observeEmergencyMode = get(),
             triggerEmergency = get(),
@@ -261,6 +261,7 @@ val presentationModule = module {
             writePositionConfig = get(),
             writeChannelPositionPrecision = get(),
             removeFixedPosition = get(),
+            uiPrefs = get(),
             logger = get(),
         )
     }

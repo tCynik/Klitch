@@ -32,9 +32,16 @@ class ChannelSlotResolverImpl(
                 val slotToHash = slots
                     .filter { it.isEnabled }
                     .associate { slot -> slot.index to ContourHash.compute(slot.name, slot.psk) }
+                // When multiple slots share the same hash (e.g. LongFast on slot 0 and 1),
+                // the lowest slot index wins — Primary (0) takes priority over Emergency (1).
+                val hashToSlot = buildMap<ContourHash, Int> {
+                    slotToHash.entries
+                        .sortedBy { it.key }
+                        .forEach { (slot, hash) -> if (!containsKey(hash)) put(hash, slot) }
+                }
                 _mapsFlow.value = ChannelSlotMaps(
                     slotToHash = slotToHash,
-                    hashToSlot = slotToHash.entries.associate { (k, v) -> v to k },
+                    hashToSlot = hashToSlot,
                 )
             }
             .launchIn(scope)

@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import ru.tcynik.meshtactics.domain.logger.Logger
 import ru.tcynik.meshtactics.domain.mesh.model.GpsMode
+import ru.tcynik.meshtactics.mesh.repository.UiPrefs
 import ru.tcynik.meshtactics.domain.mesh.model.LocationConfigModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
@@ -53,6 +54,7 @@ class NetworkSettingsViewModel(
     private val writePositionConfig: WritePositionConfigUseCase,
     private val writeChannelPositionPrecision: WriteChannelPositionPrecisionUseCase,
     private val removeFixedPosition: RemoveFixedPositionUseCase,
+    private val uiPrefs: UiPrefs,
     private val logger: Logger,
 ) : ViewModel() {
 
@@ -133,6 +135,14 @@ class NetworkSettingsViewModel(
             .onEach { config ->
                 _uiState.update { state ->
                     state.copy(settings = state.settings.copy(locationConfig = config.toLocationUi()))
+                }
+            }
+            .launchIn(viewModelScope)
+
+        uiPrefs.useWakeLock
+            .onEach { enabled ->
+                _uiState.update { state ->
+                    state.copy(settings = state.settings.copy(useWakeLock = enabled))
                 }
             }
             .launchIn(viewModelScope)
@@ -230,6 +240,10 @@ class NetworkSettingsViewModel(
         val nodeNum = myNodeNumFlow.value ?: return
         setProvideLocation(nodeNum, enabled)
         if (enabled) removeFixedPosition(nodeNum)
+    }
+
+    fun onWakeLockToggle(enabled: Boolean) {
+        uiPrefs.setUseWakeLock(enabled)
     }
 
     fun onGpsModeChange(mode: GpsModeUi) {

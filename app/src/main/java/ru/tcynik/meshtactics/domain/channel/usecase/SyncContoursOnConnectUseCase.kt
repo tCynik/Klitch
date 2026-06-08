@@ -15,8 +15,9 @@ import ru.tcynik.meshtactics.domain.mesh.model.ChannelPositionPrecision
 import ru.tcynik.meshtactics.domain.mesh.usecase.BeginSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.CommitSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.PrepareNodeForAppDrivenBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetPositionBroadcastSecsUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.IsPositionSmartBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
@@ -35,11 +36,12 @@ class SyncContoursOnConnectUseCase(
     private val writeOwner: WriteOwnerUseCase,
     private val observeAppUser: ObserveAppUserUseCase,
     private val observeDeviceConfig: ObserveDeviceConfigUseCase,
-    private val enableNodePositionBroadcastReady: EnableNodePositionBroadcastReadyUseCase,
+    private val prepareNodeForAppDrivenBroadcast: PrepareNodeForAppDrivenBroadcastUseCase,
     private val disableNodePositionBroadcast: DisableNodePositionBroadcastUseCase,
     private val observeGpsBroadcastEnabled: ObserveGpsBroadcastEnabledUseCase,
     private val observeEmergencyMode: ObserveEmergencyModeUseCase,
     private val getPositionBroadcastSecs: GetPositionBroadcastSecsUseCase,
+    private val isPositionSmartBroadcastEnabled: IsPositionSmartBroadcastEnabledUseCase,
     private val logger: Logger,
 ) {
     suspend operator fun invoke(): SyncContoursResult {
@@ -67,8 +69,15 @@ class SyncContoursOnConnectUseCase(
         val broadcastEnabled = observeGpsBroadcastEnabled().first()
         val desiredBroadcastEnabled = !sosActive && broadcastEnabled
         val currentBroadcastSecs = getPositionBroadcastSecs()
+        val currentSmartEnabled = isPositionSmartBroadcastEnabled()
         val desiredBroadcastSecs = if (desiredBroadcastEnabled) BROADCAST_READY_SECS else BROADCAST_DISABLED_SECS
-        val needsBroadcastWrite = currentBroadcastSecs != null && currentBroadcastSecs != desiredBroadcastSecs
+        // Also write when smart broadcast is still enabled despite GPS broadcast being active —
+        // smart broadcast silently extends the interval when the device is stationary, causing
+        // periodic stale markers on peer devices.
+        val needsBroadcastWrite = currentBroadcastSecs != null && (
+            currentBroadcastSecs != desiredBroadcastSecs ||
+            (desiredBroadcastEnabled && currentSmartEnabled == true)
+        )
 
         val primaryName = meshtasticChannelName(primaryContour)
         val primaryPsk = if (primaryContour.isEmergency) {
@@ -154,7 +163,7 @@ class SyncContoursOnConnectUseCase(
 
         if (needsBroadcastWrite) {
             logger.d("Contour", "write position_broadcast_secs=$desiredBroadcastSecs (broadcastEnabled=$desiredBroadcastEnabled)")
-            if (desiredBroadcastEnabled) enableNodePositionBroadcastReady() else disableNodePositionBroadcast()
+            if (desiredBroadcastEnabled) prepareNodeForAppDrivenBroadcast() else disableNodePositionBroadcast()
         }
 
         // Commit flushes all buffered channel changes to flash.
@@ -168,7 +177,10 @@ class SyncContoursOnConnectUseCase(
         else primaryContour.transport.meshtastic.channelHash
 
     private companion object {
-        const val BROADCAST_READY_SECS = 60
+        // Both READY and DISABLED write Int.MAX_VALUE — firmware never broadcasts autonomously.
+        // The distinction is behavioral: prepareNodeForAppDrivenBroadcast() also disables
+        // is_power_saving so the app can send positions while the screen is off.
+        const val BROADCAST_READY_SECS = Int.MAX_VALUE
         const val BROADCAST_DISABLED_SECS = Int.MAX_VALUE
     }
 }

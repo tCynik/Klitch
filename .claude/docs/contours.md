@@ -178,17 +178,17 @@ observeAllowed() = flowOf(true)
 | `domain/channel/model/ChannelSyncStatus.kt` | `NotConnected / OnNode(slot) / NotOnNode / NoFreeSlot` |
 | `domain/channel/ChannelSlotResolver.kt` | Interface: live-маппинг slot↔hash |
 
-#### Изменения в MeshNodeModel (требуется)
+#### MeshNodeModel.receivedOnSlot — реализовано
 
-Добавить поле:
 ```kotlin
 data class MeshNodeModel(
-    // ... existing fields ...
-    val receivedOnSlot: Int? = null,  // slot из MeshPacket.channel последней позиции
+    // ...
+    val receivedOnSlot: Int? = null,  // slot из живого position-пакета (MeshPacket.channel)
 )
 ```
 
-Заполняется в `NodeMapper` из `MeshPacket.channel` при обработке position-пакетов. Без этого поля фильтрация нод на карте по активному контуру невозможна.
+Источник: `Node.positionChannel` → `NodeMapper`. Персистируется в Room DB (колонка `position_channel`).
+Подробности реализации, жизненный цикл, обнаружение слота при подключении: `.claude/docs/position-channel-slot-discovery.md`.
 
 ### Repository interface
 
@@ -237,7 +237,7 @@ interface ContourRepository {
   - `observeAllowed() = flowOf(true)` — гео всегда разрешено; канал = slot 0 (Primary)
   - Удалить: `observeAllowed() = observeSosMode().map { !it }` (инвертированная логика — баг)
 - `NodeMapper`:
-  - Добавить маппинг `MeshPacket.channel → MeshNodeModel.receivedOnSlot`
+  - `receivedOnSlot = positionChannel` — реализовано; подробности в `.claude/docs/position-channel-slot-discovery.md`
 - `ChannelSlotResolverImpl`: без изменений
 
 ---
