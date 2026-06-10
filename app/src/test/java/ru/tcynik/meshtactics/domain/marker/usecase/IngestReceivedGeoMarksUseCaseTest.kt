@@ -25,6 +25,8 @@ import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
+import ru.tcynik.meshtactics.domain.channel.usecase.ApplyDeliveryPolicyUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ResolveContourFromSlotUseCase
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
@@ -98,6 +100,8 @@ class IngestReceivedGeoMarksUseCaseTest {
             geoMarkRepository = geoMarkRepository,
             adapter = adapter,
             channelSlotResolver = channelSlotResolver,
+            resolveContourFromSlot = ResolveContourFromSlotUseCase(),
+            applyDeliveryPolicy = ApplyDeliveryPolicyUseCase(),
             logger = NoOpLogger(),
         )
     }

@@ -21,7 +21,9 @@ import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.DeleteContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ApplyDeliveryPolicyUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ResolveContourFromSlotUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SaveContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ActivateExclusiveContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
@@ -71,6 +73,8 @@ val userSettingsModule = module {
     single { ActivateExclusiveContourUseCase(get(), get()) }
     single { ObserveNodeChannelsUseCase(get()) }
     single { ResolveChannelSlotUseCase() }
+    single { ResolveContourFromSlotUseCase() }
+    single { ApplyDeliveryPolicyUseCase() }
     single {
         SyncContoursOnConnectUseCase(
             contourRepository = get(),

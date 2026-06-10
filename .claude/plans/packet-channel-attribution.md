@@ -2,7 +2,7 @@
 
 **Date**: 2026-06-05
 **Updated**: 2026-06-10
-**Status**: Actualized — Phase 3 переписана (observe use cases intentionally dropped contour filtering); Phase 1–2 актуальны
+**Status**: Done — Phase 1–4 + Phase 6 (docs). Phase 5 optional, не реализована
 
 ## Summary
 
@@ -393,15 +393,15 @@ DB migration в mesh Room (version bump).
 
 ## Acceptance Criteria
 
-- [ ] `ResolveContourFromSlotUseCase` — единственное место с `when (slot)` для slot→contour
-- [ ] `IngestReceivedChatMessagesUseCase` и `IngestReceivedGeoMarksUseCase` делегируют резолв
-- [ ] `IngestReceivedChatMessagesUseCase` обрабатывает slot 1 с SOS-gate (SilentStore / Drop)
-- [ ] `ObserveNodeMarkersUseCase`, `ObserveGeoNodesUseCase`, `ObserveContourNodesUseCase` фильтруют ноды через `ResolveContourFromSlotUseCase`
-- [ ] Emergency-ноды (slot 1) скрыты на карте и в списке вне SOS-режима
-- [ ] Все существующие unit-тесты чата, geo, node markers проходят
-- [ ] `ResolveContourFromSlotUseCaseTest` покрывает ≥ 8 кейсов (см. Phase 1)
-- [ ] Поведение изоляции из `.claude/docs/contours.md` не изменилось
-- [ ] Документация обновлена
+- [x] `ResolveContourFromSlotUseCase` — единственное место с `when (slot)` для slot→contour
+- [x] `IngestReceivedChatMessagesUseCase` и `IngestReceivedGeoMarksUseCase` делегируют резолв
+- [x] `IngestReceivedChatMessagesUseCase` обрабатывает slot 1 с SOS-gate (SilentStore / Drop)
+- [x] `ObserveNodeMarkersUseCase`, `ObserveGeoNodesUseCase`, `ObserveContourNodesUseCase` фильтруют ноды через `ResolveContourFromSlotUseCase`
+- [x] Emergency-ноды (slot 1) скрыты на карте и в списке вне SOS-режима
+- [x] Все существующие unit-тесты чата, geo, node markers проходят
+- [x] `ResolveContourFromSlotUseCaseTest` покрывает ≥ 8 кейсов (см. Phase 1)
+- [x] Поведение изоляции из `.claude/docs/contours.md` не изменилось
+- [x] Документация обновлена
 
 ---
 

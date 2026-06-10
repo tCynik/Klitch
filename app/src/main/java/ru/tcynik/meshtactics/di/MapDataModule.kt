@@ -50,7 +50,7 @@ val mapDataModule = module {
     single { SaveLastMapPositionUseCase(get()) }
 
     // Node markers — MeshNetworkRepository resolved from meshDataModule
-    single { ObserveNodeMarkersUseCase(get(), get()) }
+    single { ObserveNodeMarkersUseCase(get(), get(), get(), get(), get()) }
 
     // Marker size level — MarkerSettingsRepository resolved from commonModule
     single { GetMarkerSizeLevelUseCase(get()) }

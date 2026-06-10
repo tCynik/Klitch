@@ -273,31 +273,33 @@ writeChannel(0, newPrimary.name, newPrimary.pskBase64)
 
 ## Routing (входящие пакеты)
 
+**Единая точка резолва:** `ResolveContourFromSlotUseCase` — единственное место с правилами `slot → ContourResolution`.
+
+Подробный operational guide: `.claude/docs/packet-channel-attribution.md`
+
 ```
 incoming packet.channel (Int)
-  slot == 0  → primaryContour (читаем из observePrimaryContourId)
-               takeIf { isActive = true по инварианту Primary }
-  slot == 1  → Emergency
-               SOS active  → deliver normally
-               SOS inactive →
-                 message: store silently (no notification, skip unread counter)
-                 position/geo: drop  [future: check signal-tag → deliver if present]
-  slot N     → ChannelSlotResolver.slotToHash[N] → ContourHash (или drop + Log.w)
-             → contours.find { hash match } (или drop + Log.w)
-               takeIf { it.isActive } → deliver (или drop если inactive)
+  → ResolveContourFromSlotUseCase(slot, contours, maps, primaryId, sosMode)
+       → ContourResolution.Deliver | SilentStore | Drop
+  → ApplyDeliveryPolicyUseCase(resolution, packetKind)
+       → DeliveryPolicy.DELIVER | SILENT_STORE | DROP
 ```
 
-**Ноды на карте** — отдельный путь от пакетного routing. Фильтруются в `ObserveNodeMarkersUseCase`:
+Правила слотов (инварианты в `ResolveContourFromSlotUseCase`):
+- slot 0 → `primaryContourId` (не через `slotToHash`)
+- slot 1 → Emergency; SOS on → `Deliver`, SOS off → `SilentStore`
+- slots 2–7 → `ChannelSlotResolver.slotToHash` → hash lookup → `Deliver` если `isActive`
+- slot 8 (PKC) → `Drop` (out of scope MVP)
+
+**Ноды на карте** — фильтруются через тот же резолвер в observe use case'ах:
 ```
 node.receivedOnSlot
-  == 0         → показать (Primary, всегда активен)
-  == 1         → показать только если SOS active
-                 [future: или если у ноды есть signal-tag]
-  == N         → resolver: slotToHash[N] → contour → показать если isActive
-  == null      → показать (нет данных о слоте — fallback до реализации receivedOnSlot)
+  == null      → скрыть
+  == 0..N    → ResolveContourFromSlotUseCase → allowsDisplay()
+               Deliver → показать; SilentStore/Drop → скрыть
 ```
 
-Используется в: `IngestReceivedGeoMarksUseCase`, `MeshToChatAdapter`, `ObserveNodeMarkersUseCase`, `ObserveGeoNodesUseCase`.
+Используется в: `IngestReceivedChatMessagesUseCase`, `IngestReceivedGeoMarksUseCase`, `ObserveNodeMarkersUseCase`, `ObserveGeoNodesUseCase`, `ObserveContourNodesUseCase`.
 
 ---
 
@@ -322,7 +324,7 @@ node.receivedOnSlot
 
 - Заголовок `MeshPacket` (nodeNum, shortName) нешифрован — противник видит факт существования наших нод в сети. Защита от этого — вне возможностей приложения.
 - Emergency slot 1 присутствует на ноде всегда (публичный LongFast). Это осознанный компромисс: Emergency-трафик принимается для будущей обработки signal-tag. Позиция НЕ отправляется на Emergency вне SOS-режима.
-- `receivedOnSlot` в `MeshNodeModel` — **planned**, пока не реализован. До реализации ноды отображаются без контурной фильтрации (fallback `null → show`).
+- `receivedOnSlot == null` → нода скрыта (нет position-пакета с известным слотом).
 
 ---
 
@@ -343,11 +345,7 @@ node.receivedOnSlot
 // TODO(contour): обработать отсутствие свободных слотов (UI уведомление)
 // TODO(contour): DROP COLUMN meshtastic_slot when minSdk ≥ 35
 
-// TODO(contour/isolation): добавить MeshNodeModel.receivedOnSlot: Int?
-//   → NodeMapper: маппинг из MeshPacket.channel
-//   → ObserveNodeMarkersUseCase: фильтр по слоту + isActive контура
-//   → ObserveGeoNodesUseCase: то же
-//   Без этого ноды на карте не фильтруются по контурам
+// DONE(contour/isolation): MeshNodeModel.receivedOnSlot + ResolveContourFromSlotUseCase в observe use cases
 
 // TODO(contour/isolation): GeoSendPolicyImpl.observeAllowed() исправить на flowOf(true)
 //   Текущая логика observeSosMode().map { !it } инвертирована и некорректна

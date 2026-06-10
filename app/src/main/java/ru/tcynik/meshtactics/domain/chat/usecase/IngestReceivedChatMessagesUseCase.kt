@@ -1,19 +1,28 @@
 package ru.tcynik.meshtactics.domain.chat.usecase
 
 import kotlinx.coroutines.flow.Flow
-import ru.tcynik.meshtactics.domain.logger.Logger
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import ru.tcynik.meshtactics.data.chat.adapter.MeshToChatAdapter
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
+import ru.tcynik.meshtactics.mesh.model.MeshContactKey
+import ru.tcynik.meshtactics.domain.channel.model.ContourResolution
+import ru.tcynik.meshtactics.domain.channel.model.DeliveryPolicy
+import ru.tcynik.meshtactics.domain.channel.model.InboundPacketKind
+import ru.tcynik.meshtactics.domain.channel.model.contourOrNull
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
+import ru.tcynik.meshtactics.domain.channel.usecase.ApplyDeliveryPolicyUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ResolveContourFromSlotUseCase
 import ru.tcynik.meshtactics.domain.chat.repository.ChatMessageRepository
+import ru.tcynik.meshtactics.domain.logger.Logger
 
 class IngestReceivedChatMessagesUseCase(
     private val adapter: MeshToChatAdapter,
     private val channelRepository: ContourRepository,
     private val chatMessageRepository: ChatMessageRepository,
     private val channelSlotResolver: ChannelSlotResolver,
+    private val resolveContourFromSlot: ResolveContourFromSlotUseCase,
+    private val applyDeliveryPolicy: ApplyDeliveryPolicyUseCase,
     private val logger: Logger,
 ) {
     fun observe(): Flow<Unit> = combine(
@@ -21,50 +30,36 @@ class IngestReceivedChatMessagesUseCase(
         channelRepository.observeContours(),
         channelRepository.observePrimaryContourId(),
         channelSlotResolver.mapsFlow,
-    ) { messages, contours, primaryId, maps ->
-        val contourByHash = contours.associate { it.transport.meshtastic.channelHash to it }
-
-        //Log.i(TAG, "DBG ingest: total messages=${messages.size} ids=${messages.map { it.id }}")
+        channelRepository.observeSosMode(),
+    ) { messages, contours, primaryId, maps, sosMode ->
         messages.forEach { msg ->
             val contactKey = msg.channelId
-            val nodeId = contactKey.dropWhile { it.isDigit() }
-            val channelIndex = contactKey.firstOrNull()?.digitToIntOrNull() ?: run {
-                //logger.w("Chat","DBG ingest: DROP no digit prefix contactKey=$contactKey")
-                return@forEach
-            }
-            val isChannel = nodeId.startsWith("^")
+            val channelIndex = contactKey.firstOrNull()?.digitToIntOrNull() ?: return@forEach
+            val isChannel = MeshContactKey(contactKey).isBroadcast
 
             val logicalChannelId = if (isChannel) {
-                val contour = when (channelIndex) {
-                    0 -> {
-                        val primary = contours.find { it.id == primaryId }
-                        if (primary == null) {
-                            logger.w("Chat", "primary contour not found for slot 0, drop")
-                            return@forEach
+                val resolution = resolveContourFromSlot(
+                    slot = channelIndex,
+                    contours = contours,
+                    maps = maps,
+                    primaryContourId = primaryId,
+                    sosMode = sosMode,
+                )
+                when (applyDeliveryPolicy(resolution, InboundPacketKind.TEXT_MESSAGE)) {
+                    DeliveryPolicy.DELIVER,
+                    DeliveryPolicy.SILENT_STORE,
+                    -> resolution.contourOrNull()?.id?.value
+                    DeliveryPolicy.DROP -> {
+                        if (resolution is ContourResolution.Drop) {
+                            logger.w("Chat", resolution.reason)
                         }
-                        primary
-                    }
-                    else -> {
-                        val hash = maps.slotToHash[channelIndex]
-                        if (hash == null) {
-                            logger.w("Chat","unknown slot $channelIndex, drop")
-                            return@forEach
-                        }
-                        val found = contourByHash[hash]
-                        if (found == null) {
-                            logger.w("Chat","no contour for hash $hash, drop")
-                            return@forEach
-                        }
-                        if (!found.isActive) return@forEach
-                        found
+                        return@forEach
                     }
                 }
-                contour.id.value
             } else {
                 contactKey
-            }
+            } ?: return@forEach
 
-            //Log.i(TAG, "DBG ingest: INSERT id=${msg.id} logicalChannelId=$logicalChannelId from=${msg.senderNodeId} isSelf=${msg.isFromMe}")
             chatMessageRepository.insertIfAbsent(
                 id = msg.id,
                 logicalChannelId = logicalChannelId,
@@ -76,5 +71,4 @@ class IngestReceivedChatMessagesUseCase(
             )
         }
     }.map { }
-
 }

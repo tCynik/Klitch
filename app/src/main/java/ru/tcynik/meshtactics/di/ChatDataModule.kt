@@ -81,6 +81,8 @@ val chatDataModule = module {
             channelRepository = get(),
             chatMessageRepository = get(),
             channelSlotResolver = get(),
+            resolveContourFromSlot = get(),
+            applyDeliveryPolicy = get(),
             logger = get(),
         )
     }

@@ -20,7 +20,9 @@ import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
+import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
+import ru.tcynik.meshtactics.domain.channel.usecase.ResolveContourFromSlotUseCase
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import java.util.Base64
 import ru.tcynik.meshtactics.domain.mesh.model.MeshNodeModel
@@ -32,11 +34,29 @@ class ObserveNodeMarkersUseCaseTest {
     private val repository: MeshNetworkRepository = mockk()
     private val contourRepository: ContourRepository = mockk()
     private val channelSlotResolver: ChannelSlotResolver = mockk()
-    private val useCase = ObserveNodeMarkersUseCase(repository, contourRepository, channelSlotResolver, NoOpLogger())
+    private val useCase = ObserveNodeMarkersUseCase(
+        repository,
+        contourRepository,
+        channelSlotResolver,
+        ResolveContourFromSlotUseCase(),
+        NoOpLogger(),
+    )
+
+    private val primaryId = ContourId("primary")
 
     @Before
     fun setUp() {
-        every { contourRepository.observeContours() } returns flowOf(emptyList())
+        val primary = Contour(
+            id = primaryId,
+            name = "Primary",
+            description = null,
+            expiration = null,
+            exclusivityTime = null,
+            isActive = true,
+            transport = ContourTransport(MeshtasticChannel(Base64.getEncoder().encodeToString(byteArrayOf(0x01)), ContourHash.compute("Primary", byteArrayOf(0x01)))),
+        )
+        every { contourRepository.observeContours() } returns flowOf(listOf(primary, DefaultContour.asContour()))
+        every { contourRepository.observePrimaryContourId() } returns flowOf(primaryId)
         every { contourRepository.observeSosMode() } returns flowOf(false)
         every { channelSlotResolver.mapsFlow } returns MutableStateFlow(ChannelSlotMaps())
     }
@@ -118,8 +138,8 @@ class ObserveNodeMarkersUseCaseTest {
     }
 
     @Test
-    fun `stale node — positionTime 5 minutes ago — isStale true`() = runTest {
-        val staleTime = (System.currentTimeMillis() / 1000 - 300).toInt()
+    fun `stale node — positionTime 10 minutes ago — isStale true`() = runTest {
+        val staleTime = (System.currentTimeMillis() / 1000 - 600).toInt()
         val peer = node(nodeId = "A", hasValidPosition = true, positionTime = staleTime)
         every { repository.observeNodes() } returns flowOf(listOf(peer))
         every { repository.observeOurNode() } returns flowOf(null)
@@ -131,14 +151,13 @@ class ObserveNodeMarkersUseCaseTest {
     }
 
     @Test
-    fun `positionTime zero falls back to lastHeard for freshness`() = runTest {
-        val freshLastHeard = (System.currentTimeMillis() / 1000 - 60).toInt()
-        val peer = node(nodeId = "A", hasValidPosition = true, positionTime = 0, lastHeard = freshLastHeard)
+    fun `positionTime zero is hidden`() = runTest {
+        val peer = node(nodeId = "A", hasValidPosition = true, positionTime = 0)
         every { repository.observeNodes() } returns flowOf(listOf(peer))
         every { repository.observeOurNode() } returns flowOf(null)
 
         useCase(NoParams).test {
-            assertFalse(awaitItem().single().isStale)
+            assertTrue(awaitItem().isEmpty())
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -254,14 +273,14 @@ class ObserveNodeMarkersUseCaseTest {
     // ── Contour filter ───────────────────────────────────────────────────────
 
     @Test
-    fun `node receivedOnSlot=null — always included (fallback)`() = runTest {
+    fun `node receivedOnSlot=null — excluded`() = runTest {
         val peer = node(nodeId = "A", receivedOnSlot = null)
         every { repository.observeNodes() } returns flowOf(listOf(peer))
         every { repository.observeOurNode() } returns flowOf(null)
         every { contourRepository.observeSosMode() } returns flowOf(false)
 
         useCase(NoParams).test {
-            assertEquals(1, awaitItem().size)
+            assertTrue(awaitItem().isEmpty())
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -355,7 +374,7 @@ class ObserveNodeMarkersUseCaseTest {
         groundSpeed: Int = 0,
         groundTrack: Int = 0,
         longName: String = nodeId,
-        receivedOnSlot: Int? = null,
+        receivedOnSlot: Int? = 0,
     ) = MeshNodeModel(
         num = 0,
         nodeId = nodeId,

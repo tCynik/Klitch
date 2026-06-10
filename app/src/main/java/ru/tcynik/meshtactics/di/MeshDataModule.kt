@@ -198,8 +198,8 @@ val meshDataModule = module {
     single { DisconnectFromMeshUseCase(get()) }
     single { ObserveMeshNodesUseCase(get()) }
     single { ObserveOurNodeUseCase(get()) }
-    single { ObserveContourNodesUseCase(get(), get(), get()) }
-    single { ObserveGeoNodesUseCase(get()) }
+    single { ObserveContourNodesUseCase(get(), get(), get(), get()) }
+    single { ObserveGeoNodesUseCase(get(), get(), get(), get()) }
     single { ObserveMessagesUseCase(get()) }
     single { SendMeshMessageUseCase(get()) }
     single { ObservePacketLogUseCase(get()) }

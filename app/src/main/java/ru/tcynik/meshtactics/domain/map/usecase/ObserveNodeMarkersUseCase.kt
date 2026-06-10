@@ -4,6 +4,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
+import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
+import ru.tcynik.meshtactics.domain.channel.model.ChannelSlotMaps
+import ru.tcynik.meshtactics.domain.channel.model.Contour
+import ru.tcynik.meshtactics.domain.channel.model.ContourId
+import ru.tcynik.meshtactics.domain.channel.model.allowsDisplay
+import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
+import ru.tcynik.meshtactics.domain.channel.usecase.ResolveContourFromSlotUseCase
 import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
 import ru.tcynik.meshtactics.domain.marker.model.NodeMarkerModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshNodeModel
@@ -28,19 +35,14 @@ private const val STALE_CHECK_INTERVAL_MS = 10_000L
 /**
  * Returns map markers for peer nodes only — our own node is intentionally excluded.
  *
- * Visibility is determined solely by position freshness:
- *   - positionTime within [POSITION_FRESHNESS_SECONDS] → fresh marker
- *   - positionTime within [MAX_POSITION_AGE_SECONDS]  → stale (grey) marker
- *   - older or positionTime == 0                       → hidden
- *
- * Channel-based contour filtering is intentionally absent. MeshPacket.channel reflects the
- * LOCAL channel index on the receiving radio, not the sender's index — two devices with the same
- * PSK at different list positions will report different channel numbers for the same packet.
- * The radio hardware already enforces PSK membership; any decoded position is from a node that
- * shares at least one of our channels.
+ * Visibility requires a valid position within [MAX_POSITION_AGE_SECONDS] and a contour filter
+ * pass via [ResolveContourFromSlotUseCase] on [MeshNodeModel.receivedOnSlot].
  */
 class ObserveNodeMarkersUseCase(
     private val repository: MeshNetworkRepository,
+    private val contourRepository: ContourRepository,
+    private val channelSlotResolver: ChannelSlotResolver,
+    private val resolveContourFromSlot: ResolveContourFromSlotUseCase,
     private val logger: Logger,
 ) : FlowUseCase<NoParams, List<NodeMarkerModel>>() {
 
@@ -49,10 +51,35 @@ class ObserveNodeMarkersUseCase(
 
     override fun invoke(params: NoParams): Flow<List<NodeMarkerModel>> =
         combine(
-            repository.observeNodes(),
-            repository.observeOurNode(),
+            combine(
+                repository.observeNodes(),
+                repository.observeOurNode(),
+                contourRepository.observeContours(),
+                contourRepository.observePrimaryContourId(),
+                channelSlotResolver.mapsFlow,
+            ) { nodes, ourNode, contours, primaryId, maps ->
+                NodeFilterContext(nodes, ourNode, contours, primaryId, maps)
+            },
+            contourRepository.observeSosMode(),
             staleTicker(),
-        ) { nodes, ourNode, _ -> buildMarkerList(nodes, ourNode) }
+        ) { context, sosMode, _ ->
+            buildMarkerList(
+                context.nodes,
+                context.ourNode,
+                context.contours,
+                context.primaryId,
+                context.maps,
+                sosMode,
+            )
+        }
+
+    private data class NodeFilterContext(
+        val nodes: List<MeshNodeModel>,
+        val ourNode: MeshNodeModel?,
+        val contours: List<Contour>,
+        val primaryId: ContourId,
+        val maps: ChannelSlotMaps,
+    )
 
     private fun staleTicker(): Flow<Unit> = flow {
         while (true) {
@@ -64,6 +91,10 @@ class ObserveNodeMarkersUseCase(
     private fun buildMarkerList(
         nodes: List<MeshNodeModel>,
         ourNode: MeshNodeModel?,
+        contours: List<Contour>,
+        primaryId: ContourId,
+        maps: ChannelSlotMaps,
+        sosMode: Boolean,
     ): List<NodeMarkerModel> {
         val ourNodeId = ourNode?.nodeId
         val nowSeconds = System.currentTimeMillis() / 1000
@@ -72,7 +103,11 @@ class ObserveNodeMarkersUseCase(
 
         val peers = nodes.filter { it.nodeId != ourNodeId }
         val withPosition = peers.filter { it.hasValidPosition }
-        val visible = withPosition.filter { it.positionTime > maxAgeThreshold }
+        val contourVisible = withPosition.filter { node ->
+            val slot = node.receivedOnSlot ?: return@filter false
+            resolveContourFromSlot(slot, contours, maps, primaryId, sosMode).allowsDisplay()
+        }
+        val visible = contourVisible.filter { it.positionTime > maxAgeThreshold }
 
         val freshCount = visible.count { it.positionTime > freshnessThreshold }
         logger.d("Node", "ObserveNodeMarkersUseCase: myPos=${ourNode?.latitude}/${ourNode?.longitude} " +
