@@ -1,7 +1,8 @@
 # Plan: Packet Channel Attribution — явная привязка канала к входящим сущностям
 
 **Date**: 2026-06-05
-**Status**: Draft — анализ завершён, реализация не начата
+**Updated**: 2026-06-10
+**Status**: Actualized — Phase 3 переписана (observe use cases intentionally dropped contour filtering); Phase 1–2 актуальны
 
 ## Summary
 
@@ -36,39 +37,34 @@
 Без этого невозможна изоляция групп: неактивный контур продолжит показывать чужие ноды,
 сообщения и метки.
 
-### Текущее состояние
+### Текущее состояние (актуально на 2026-06-10)
 
 | Сущность | Как определяется канал сейчас | Где хранится |
 |---|---|---|
-| Сообщения | `contactKey = "${channel}${nodeId}"` → парсинг → резолв | `chat_message.logical_channel_id` |
-| Геометки | `packet.channel` → `when(slot)` | `geo_mark` через `contour.id` |
-| Позиция ноды | `MeshPacket.channel` при POSITION_APP | `nodes.position_channel` → `MeshNodeModel.receivedOnSlot` |
-| Телеметрия | **не сохраняется** | `node.channel` = последний слот любого пакета |
-| NODEINFO | `packet.channel` при получении | `nodes.channel` (перезаписывается) |
+| Сообщения | inline `when(channelIndex)`, **slot 1 (Emergency) не обрабатывается** — попадает в `else` → hash lookup без SOS-gate | `chat_message.logical_channel_id` |
+| Геометки | inline `when(packet.channel)`, slot 0/1/else — slot 1 SOS-gated ✓ | `geo_mark` через `contour.id` |
+| Позиция ноды | **фильтрация отсутствует** (KDoc «intentionally absent» — ошибочное обоснование). Emergency-ноды видны вне SOS | `receivedOnSlot` для name lookup в `ObserveContourNodesUseCase` |
+| Телеметрия | без привязки к контуру | — |
+| NODEINFO | без привязки к контуру | — |
 
 ### Дублирование логики резолва
 
-Одинаковый `when (slot)` скопирован в:
+Актуальные дубли `when (slot)`:
 
-- `IngestReceivedChatMessagesUseCase`
-- `IngestReceivedGeoMarksUseCase`
-- `ObserveNodeMarkersUseCase`
-- `ObserveGeoNodesUseCase` / `ObserveContourNodesUseCase`
+- `IngestReceivedChatMessagesUseCase` — inline резолв, **без slot 1 Emergency gate**
+- `IngestReceivedGeoMarksUseCase` — inline резолв, slot 1 корректен
 
-Правила (из `.claude/docs/contours.md`):
+**Observe use cases намеренно убрали channel-based фильтрацию** (см. KDoc в каждом файле):
+> "Channel-based contour filtering is intentionally absent. MeshPacket.channel reflects the LOCAL channel index on the receiving radio — PSK membership already enforced at hardware level."
 
-```
-slot 0  → primaryContourId (не через hash!)
-slot 1  → Emergency (SOS-gated для доставки)
-slot N  → ChannelSlotResolver.slotToHash[N] → ContourHash → Contour
-```
+`ObserveContourNodesUseCase` использует `slotToHash` только для **labeling** (имя контура у ноды), не для фильтрации. Gap: slot 0 не в `slotToHash` → `contourName = null` для Primary-нод.
 
 ### Хрупкости
 
 - `contactKey` как строка `"0^all"` / `"2!ab1234cd"` — парсится через `first().digitToInt()`
 - `node.channel` ≠ `node.positionChannel` — разная семантика, легко перепутать
 - Нет единого типа `PacketAttribution` — каждый ingest сам решает drop/deliver
-- Телеметрия и события не привязаны к контуру
+- Emergency SOS-gate реализован в `IngestReceivedGeoMarksUseCase`, но **отсутствует** в `IngestReceivedChatMessagesUseCase`
 
 ---
 
@@ -271,8 +267,10 @@ fun applyDeliveryPolicy(
 **`IngestReceivedChatMessagesUseCase`:**
 - Убрать inline `when (channelIndex)`
 - Вызвать `resolveContourFromSlot`
+- **Gap:** slot 1 сейчас попадает в `else` → hash lookup без SOS-gate. После рефактора slot 1 получит `SilentStore` когда `!sosMode`.
 - `SilentStore` → insert без уведомлений (уже частично в adapter)
 - `Drop` → skip
+- Добавить `channelRepository.observeSosMode()` в combine (сейчас отсутствует)
 
 **`IngestReceivedGeoMarksUseCase`:**
 - Убрать inline `when (packet.channel)`
@@ -282,13 +280,40 @@ fun applyDeliveryPolicy(
 **Verification:** существующие тесты `IngestReceivedChatMessagesUseCaseTest`,
 `IngestReceivedGeoMarksUseCaseTest` должны проходить без изменения поведения.
 
-### Phase 3 — Refactor observe use cases
+### Phase 3 — ObserveContourNodesUseCase: slot 0 name lookup
 
-**`ObserveNodeMarkersUseCase`, `ObserveGeoNodesUseCase`, `ObserveContourNodesUseCase`:**
-- Вынести `passesContourFilter()` в shared helper или метод резолвера:
-  `fun shouldShowOnMap(slot: Int?, ...): Boolean`
-- Унифицировать fallback при `slotToHash miss` → **false** (не показывать неизвестное)
-- Убрать дублирование `passesContourFilter` (3 копии идентичного кода)
+**Статус пересмотрен.** Фильтрация нужна — пользователь видит ноды из Emergency на карте и в списке, чего не должно быть вне SOS-режима.
+
+Обоснование «intentionally absent» в KDoc **ошибочно**: `receivedOnSlot` — это наш локальный слот, он однозначно идентифицирует PSK-канал. Не важно, каким слотом это было у отправителя — мы приняли пакет на slot 1, значит нода в Emergency.
+
+**Фильтр для `ObserveNodeMarkersUseCase` и `ObserveGeoNodesUseCase`:**
+
+```kotlin
+// node visible iff receivedOnSlot passes contour filter
+fun ContourResolution.allowsDisplay(): Boolean = when (this) {
+    is ContourResolution.Deliver -> true
+    is ContourResolution.SilentStore -> false  // Emergency, SOS off
+    is ContourResolution.Drop -> false
+}
+```
+
+Т.е.:
+- `receivedOnSlot == null` → скрыть (нет position-пакета вообще)
+- slot 0 → Primary → показать
+- slot 1, `!sosMode` → SilentStore → скрыть
+- slot 1, `sosMode` → Deliver → показать
+- slot N, active contour → показать
+- slot N, inactive / unknown → скрыть
+
+**Изменения в use cases:**
+
+`ObserveNodeMarkersUseCase` — добавить в combine `ContourRepository.observeContours()`, `observePrimaryContourId()`, `channelSlotResolver.mapsFlow`, `observeSosMode()`. Фильтровать `visible` через `ResolveContourFromSlotUseCase`.
+
+`ObserveGeoNodesUseCase` — аналогично.
+
+`ObserveContourNodesUseCase` — фильтрация + slot 0 name lookup fix (был gap: `slotToHash[0]` → null).
+
+Удалить KDoc-комментарии с неверным обоснованием из всех трёх файлов.
 
 ### Phase 4 — MeshContactKey (optional)
 
@@ -369,7 +394,10 @@ DB migration в mesh Room (version bump).
 ## Acceptance Criteria
 
 - [ ] `ResolveContourFromSlotUseCase` — единственное место с `when (slot)` для slot→contour
-- [ ] 4 ingest/observe use case'а делегируют резолв, не дублируют
+- [ ] `IngestReceivedChatMessagesUseCase` и `IngestReceivedGeoMarksUseCase` делегируют резолв
+- [ ] `IngestReceivedChatMessagesUseCase` обрабатывает slot 1 с SOS-gate (SilentStore / Drop)
+- [ ] `ObserveNodeMarkersUseCase`, `ObserveGeoNodesUseCase`, `ObserveContourNodesUseCase` фильтруют ноды через `ResolveContourFromSlotUseCase`
+- [ ] Emergency-ноды (slot 1) скрыты на карте и в списке вне SOS-режима
 - [ ] Все существующие unit-тесты чата, geo, node markers проходят
 - [ ] `ResolveContourFromSlotUseCaseTest` покрывает ≥ 8 кейсов (см. Phase 1)
 - [ ] Поведение изоляции из `.claude/docs/contours.md` не изменилось
