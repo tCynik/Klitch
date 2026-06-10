@@ -2,7 +2,7 @@
 
 **Date**: 2026-06-05
 **Updated**: 2026-06-10
-**Status**: Done — Phase 1–4 + Phase 6 (docs). Phase 5 optional, не реализована
+**Status**: Archived — Phase 1–4 + Phase 6 реализованы. Phase 5 (telemetry channel) отменена: Network screen уже фильтрует ноды через ObserveContourNodesUseCase по receivedOnSlot; отдельный telemetryChannel не нужен.
 
 ## Summary
 

@@ -76,5 +76,5 @@ Extensions в `ContourResolution.kt`:
 
 - PKC slot 8 в UI
 - signal-tag parsing для Emergency вне SOS
-- `telemetryChannel` в NodeEntity (Phase 5)
-- `MeshContactKey` value class (Phase 4)
+- `telemetryChannel` в NodeEntity — не реализуется: Network screen уже фильтрует ноды через `ObserveContourNodesUseCase` по `receivedOnSlot`
+- `MeshContactKey` value class

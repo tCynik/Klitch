@@ -181,4 +181,5 @@
 | Geo Marks UI Completion | `.claude/archive/geo-marks-ui-completion.md` | Done |
 | Screen Orientation Lock | `.claude/archive/screen-orientation-lock.md` | Done |
 | Background Position Pipeline | `.claude/archive/background-position-pipeline.md` | Done |
+| Packet Channel Attribution | `.claude/archive/packet-channel-attribution.md` | Archived |
 | Node GPS Position Source | `.claude/plans/node-gps-position-source.md` | Planned |
