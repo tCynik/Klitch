@@ -1461,19 +1461,20 @@ class MainViewModel(
 
     private suspend fun persistFormState() {
         val form = _formState.value
+        val prefs = GeoMarkFormPreferences(
+            selectedType         = form.selectedType.name,
+            selectedColor        = form.selectedColor,
+            selectedShape        = form.selectedShape.name,
+            selectedTrackEndType = form.selectedTrackEndType.ends.toInt(),
+            selectedTtlSeconds   = form.selectedTtlSeconds,
+            pointMarkName        = form.pointMarkName,
+            trackMarkName        = form.trackMarkName,
+            pointNameCounter     = form.pointNameCounter,
+            trackNameCounter     = form.trackNameCounter,
+            selectedContourId    = form.selectedContourId,)
+
         geoMarkPrefsRepository.savePreferences(
-            GeoMarkFormPreferences(
-                selectedType         = form.selectedType.name,
-                selectedColor        = form.selectedColor,
-                selectedShape        = form.selectedShape.name,
-                selectedTrackEndType = form.selectedTrackEndType.ends.toInt(),
-                selectedTtlSeconds   = form.selectedTtlSeconds,
-                pointMarkName        = form.pointMarkName,
-                trackMarkName        = form.trackMarkName,
-                pointNameCounter     = form.pointNameCounter,
-                trackNameCounter     = form.trackNameCounter,
-                selectedContourId    = form.selectedContourId,
-            )
+            prefs
         )
     }
 

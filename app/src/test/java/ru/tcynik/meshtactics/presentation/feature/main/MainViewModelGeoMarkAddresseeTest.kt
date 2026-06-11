@@ -1,17 +1,17 @@
 package ru.tcynik.meshtactics.presentation.feature.main
 
+import androidx.lifecycle.ViewModel
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -190,6 +190,9 @@ class MainViewModelGeoMarkAddresseeTest {
 
     @After
     fun tearDown() {
+        val onCleared = ViewModel::class.java.getDeclaredMethod("onCleared")
+        onCleared.isAccessible = true
+        onCleared.invoke(viewModel)
         Dispatchers.resetMain()
     }
 
@@ -271,21 +274,21 @@ class MainViewModelGeoMarkAddresseeTest {
     }
 
     @Test
-    fun `disconnected — default addressee is storage`() = runTest(testDispatcher) {
+    fun `disconnected — default addressee is storage`() {
         channelsFlow.value = listOf(makeBasicContour())
         connectionStatusFlow.value = MeshConnectionStatus.Disconnected
         assertEquals(GEO_MARK_LOCAL_STORAGE_ID, viewModel.geoMarksSheetUiState.value.selectedContourId)
     }
 
     @Test
-    fun `connected with Basic active — default addressee is Basic`() = runTest(testDispatcher) {
+    fun `connected with Basic active — default addressee is Basic`() {
         channelsFlow.value = listOf(makeBasicContour())
         connectionStatusFlow.value = MeshConnectionStatus.Connected("!abc", "SN", "Meshtastic SN", -70, 80)
         assertEquals(DefaultActiveContour.ID.value, viewModel.geoMarksSheetUiState.value.selectedContourId)
     }
 
     @Test
-    fun `prefs with local storage and connected — switches to Basic not storage`() = runTest(testDispatcher) {
+    fun `prefs with local storage and connected — switches to Basic not storage`() {
         prefsFlow.value = GeoMarkFormPreferences(selectedContourId = GEO_MARK_LOCAL_STORAGE_ID)
         viewModel = createViewModel()
         channelsFlow.value = listOf(makeBasicContour())
@@ -294,7 +297,7 @@ class MainViewModelGeoMarkAddresseeTest {
     }
 
     @Test
-    fun `prefs with custom contour and connected — keeps custom contour`() = runTest(testDispatcher) {
+    fun `prefs with custom contour and connected — keeps custom contour`() {
         val customId = "00000000-0000-0000-0000-000000000099"
         prefsFlow.value = GeoMarkFormPreferences(selectedContourId = customId)
         viewModel = createViewModel()
@@ -304,7 +307,7 @@ class MainViewModelGeoMarkAddresseeTest {
     }
 
     @Test
-    fun `setAddressee storage while connected — keeps storage in session`() = runTest(testDispatcher) {
+    fun `setAddressee storage while connected — keeps storage in session`() {
         channelsFlow.value = listOf(makeBasicContour())
         connectionStatusFlow.value = MeshConnectionStatus.Connected("!abc", "SN", "Meshtastic SN", -70, 80)
         viewModel.setAddressee(GEO_MARK_LOCAL_STORAGE_ID)
