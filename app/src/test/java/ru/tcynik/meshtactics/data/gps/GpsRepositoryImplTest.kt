@@ -107,6 +107,7 @@ class GpsRepositoryImplTest {
             every { speed } returns 3f
             every { accuracy } returns 8f
             every { elapsedRealtimeNanos } returns 1_000_000L
+            every { time } returns 1_700_000_000_000L
         }
 
         repository.location.test {
@@ -139,6 +140,7 @@ class GpsRepositoryImplTest {
             every { hasSpeed() } returns false
             every { accuracy } returns 20f
             every { elapsedRealtimeNanos } returns 2_000_000L
+            every { time } returns 1_700_000_000_000L
         }
 
         repository.location.test {

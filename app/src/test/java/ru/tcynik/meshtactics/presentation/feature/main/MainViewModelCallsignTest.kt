@@ -1,5 +1,6 @@
 package ru.tcynik.meshtactics.presentation.feature.main
 
+import androidx.lifecycle.ViewModel
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -7,18 +8,18 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
@@ -136,12 +137,12 @@ class MainViewModelCallsignTest {
 
     private val lastDevice = MeshDeviceModel(address = "AA:BB:CC:DD:EE:FF", name = "TestNode", rssi = -70)
 
-    private val testDispatcher = UnconfinedTestDispatcher()
+    private val mainDispatcher = UnconfinedTestDispatcher()
     private lateinit var viewModel: MainViewModel
 
     @Before
     fun setUp() {
-        Dispatchers.setMain(testDispatcher)
+        Dispatchers.setMain(mainDispatcher)
         every { getTileUrl.invoke() } returns ""
         every { getLastPosition.invoke() } returns null
         every { observeNodeMarkers.invoke(any()) } returns flowOf(emptyList())
@@ -173,7 +174,7 @@ class MainViewModelCallsignTest {
         every { gpsRepository.location } returns MutableStateFlow(null)
         every { observeRecordedTracks.invoke(any()) } returns flowOf(emptyList())
         every { observeRecordedTrackPoints.invoke(any()) } returns flowOf(emptyList())
-        every { observeCallsignChanges.invoke(any()) } returns flowOf(0)
+        every { observeCallsignChanges.invoke(any()) } returns emptyFlow()
         coEvery { checkNodeSync.invoke() } returns NodeSyncResult.InSync
         coEvery { connectToDevice.invoke(any()) } returns Unit
         every { geoMarkPrefsRepository.observePreferences() } returns flowOf(GeoMarkFormPreferences())
@@ -183,6 +184,11 @@ class MainViewModelCallsignTest {
 
     @After
     fun tearDown() {
+        if (::viewModel.isInitialized) {
+            val onCleared = ViewModel::class.java.getDeclaredMethod("onCleared")
+            onCleared.isAccessible = true
+            onCleared.invoke(viewModel)
+        }
         Dispatchers.resetMain()
     }
 
@@ -240,56 +246,51 @@ class MainViewModelCallsignTest {
     }
 
     @Test
-    fun `пустой позывной — callsignRequired true`() = runTest(testDispatcher) {
+    fun `пустой позывной — callsignRequired true`() {
         appUserFlow.value = AppUser(displayName = "")
         createViewModel()
-        runCurrent()
         assertTrue(viewModel.uiState.value.callsignRequired)
     }
 
     @Test
-    fun `пустой позывной — авто-подключение пропускается`() = runTest(testDispatcher) {
+    fun `пустой позывной — авто-подключение пропускается`() {
+        coEvery { connectToDevice.invoke(any()) } coAnswers {
+            fail("auto-connect must be skipped when callsign is blank")
+        }
         appUserFlow.value = AppUser(displayName = "")
         createViewModel()
-        runCurrent()
-        coVerify(exactly = 0) { connectToDevice.invoke(any()) }
     }
 
     @Test
-    fun `пустой позывной при Scanning — HUD показывает установите позывной`() = runTest(testDispatcher) {
+    fun `пустой позывной при Scanning — HUD показывает установите позывной`() {
         appUserFlow.value = AppUser(displayName = "")
         createViewModel()
-        runCurrent()
         connectionStatusFlow.value = MeshConnectionStatus.Scanning
-        runCurrent()
 
         val infoSlot = viewModel.hudConfig.value.right.rows.first().info
         assertEquals("установите позывной", infoSlot.content)
     }
 
     @Test
-    fun `пустой позывной при Disconnected — HUD info пустой`() = runTest(testDispatcher) {
+    fun `пустой позывной при Disconnected — HUD info пустой`() {
         appUserFlow.value = AppUser(displayName = "")
         createViewModel()
-        runCurrent()
         connectionStatusFlow.value = MeshConnectionStatus.Disconnected
-        runCurrent()
 
         val infoSlot = viewModel.hudConfig.value.right.rows.first().info
         assertNull(infoSlot.content)
     }
 
     @Test
-    fun `непустой позывной — callsignRequired false и авто-подключение выполняется`() = runTest(testDispatcher) {
+    fun `непустой позывной — callsignRequired false и авто-подключение выполняется`() {
         appUserFlow.value = AppUser(displayName = "Alpha")
         createViewModel()
-        runCurrent()
         assertFalse(viewModel.uiState.value.callsignRequired)
         coVerify { connectToDevice.invoke(ConnectToMeshDeviceParams(lastDevice.address, lastDevice.name)) }
     }
 
     @Test
-    fun `повторное подключение с InSync сбрасывает syncRequired через clear`() = runTest(testDispatcher) {
+    fun `повторное подключение с InSync сбрасывает syncRequired через clear`() {
         val connected = MeshConnectionStatus.Connected(
             nodeId = "!aabbccdd",
             shortName = "TS",
@@ -300,18 +301,14 @@ class MainViewModelCallsignTest {
         appUserFlow.value = AppUser(displayName = "Alpha")
         coEvery { checkNodeSync.invoke() } returns NodeSyncResult.NeedsSync
         createViewModel()
-        runCurrent()
 
         connectionStatusFlow.value = connected
-        runCurrent()
         coVerify { syncStateRepository.setSyncRequired(true) }
 
         connectionStatusFlow.value = MeshConnectionStatus.Disconnected
-        runCurrent()
 
         coEvery { checkNodeSync.invoke() } returns NodeSyncResult.InSync
         connectionStatusFlow.value = connected
-        runCurrent()
 
         verify { syncStateRepository.clear() }
     }

@@ -2,9 +2,12 @@ package ru.tcynik.meshtactics.presentation.feature.main
 
 import io.mockk.coEvery
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.Runs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -174,10 +177,12 @@ class MainViewModelGeoMarkAddresseeTest {
         every { gpsRepository.location } returns MutableStateFlow(null)
         every { observeRecordedTracks.invoke(any()) } returns flowOf(emptyList())
         every { observeRecordedTrackPoints.invoke(any()) } returns flowOf(emptyList())
-        every { observeCallsignChanges.invoke(any()) } returns flowOf(0)
+        every { observeCallsignChanges.invoke(any()) } returns emptyFlow()
         coEvery { checkNodeSync.invoke() } returns NodeSyncResult.InSync
         every { geoMarkPrefsRepository.observePreferences() } returns prefsFlow
         every { geoMarkPrefsRepository.observePresets() } returns flowOf(emptyList())
+        coEvery { geoMarkPrefsRepository.savePreferences(any()) } just Runs
+        coEvery { geoMarkPrefsRepository.addPreset(any()) } just Runs
         every { observeAppUser.invoke(any()) } returns flowOf(AppUser(displayName = "Alpha"))
         viewModel = createViewModel()
     }

@@ -15,6 +15,7 @@ import org.junit.Before
 import org.junit.Test
 import org.meshtastic.proto.Position as ProtoPosition
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
+import ru.tcynik.meshtactics.domain.channel.model.ChannelSlotMaps
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.gps.repository.GpsLifecycleController
 import ru.tcynik.meshtactics.domain.logger.Logger
@@ -46,6 +47,7 @@ class BackgroundPositionSessionTest {
     fun setUp() {
         every { nodeRepository.myNodeInfo } returns myNodeInfoFlow
         every { contourRepository.observeContours() } returns flowOf(emptyList())
+        every { channelSlotResolver.mapsFlow } returns MutableStateFlow(ChannelSlotMaps())
     }
 
     private fun createSession() = BackgroundPositionSession(
@@ -58,7 +60,7 @@ class BackgroundPositionSessionTest {
         channelSlotResolver = channelSlotResolver,
         gpsLifecycleController = gpsLifecycleController,
         logger = logger,
-        scope = testScope,
+        scope = testScope.backgroundScope,
     )
 
     private fun setupGeoAllowed(nodeNum: Int, provideLocation: Boolean = true, geoAllowed: Boolean = true) {
