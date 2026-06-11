@@ -2,12 +2,11 @@ package ru.tcynik.meshtactics.presentation.feature.main
 
 import io.mockk.coEvery
 import io.mockk.every
-import io.mockk.just
 import io.mockk.mockk
-import io.mockk.Runs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -40,6 +39,7 @@ import ru.tcynik.meshtactics.domain.map.usecase.ObserveNodeMarkersUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveSelectedOverlaysUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkFormPreferences
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkPreset
 import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkPreferencesRepository
 import ru.tcynik.meshtactics.domain.marker.usecase.AutoExpireGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteGeoMarksUseCase
@@ -118,7 +118,6 @@ class MainViewModelGeoMarkAddresseeTest {
     private val rebootStateRepository: RebootStateRepository = mockk(relaxed = true)
     private val observeCallsignChanges: ObserveCallsignChangesUseCase = mockk()
     private val refreshNodePublicKey: RefreshNodePublicKeyUseCase = mockk(relaxed = true)
-    private val geoMarkPrefsRepository: GeoMarkPreferencesRepository = mockk(relaxed = true)
     private val observeAppUser: ObserveAppUserUseCase = mockk()
     private val observeTrackRecordingState: ObserveTrackRecordingStateUseCase = mockk()
     private val startTrackRecording: StartTrackRecordingUseCase = mockk(relaxed = true)
@@ -136,6 +135,12 @@ class MainViewModelGeoMarkAddresseeTest {
     private val channelsFlow = MutableStateFlow<List<Contour>>(emptyList())
     private val connectionStatusFlow = MutableStateFlow<MeshConnectionStatus>(MeshConnectionStatus.Disconnected)
     private val prefsFlow = MutableStateFlow(GeoMarkFormPreferences())
+    private val geoMarkPrefsRepository: GeoMarkPreferencesRepository = object : GeoMarkPreferencesRepository {
+        override fun observePreferences(): Flow<GeoMarkFormPreferences> = prefsFlow
+        override fun observePresets(): Flow<List<GeoMarkPreset>> = flowOf(emptyList())
+        override suspend fun savePreferences(prefs: GeoMarkFormPreferences) {}
+        override suspend fun addPreset(preset: GeoMarkPreset) {}
+    }
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var viewModel: MainViewModel
@@ -179,10 +184,6 @@ class MainViewModelGeoMarkAddresseeTest {
         every { observeRecordedTrackPoints.invoke(any()) } returns flowOf(emptyList())
         every { observeCallsignChanges.invoke(any()) } returns emptyFlow()
         coEvery { checkNodeSync.invoke() } returns NodeSyncResult.InSync
-        every { geoMarkPrefsRepository.observePreferences() } returns prefsFlow
-        every { geoMarkPrefsRepository.observePresets() } returns flowOf(emptyList())
-        coEvery { geoMarkPrefsRepository.savePreferences(any()) } just Runs
-        coEvery { geoMarkPrefsRepository.addPreset(any()) } just Runs
         every { observeAppUser.invoke(any()) } returns flowOf(AppUser(displayName = "Alpha"))
         viewModel = createViewModel()
     }
