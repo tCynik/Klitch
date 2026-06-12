@@ -183,3 +183,4 @@
 | Background Position Pipeline | `.claude/archive/background-position-pipeline.md` | Done |
 | Packet Channel Attribution | `.claude/archive/packet-channel-attribution.md` | Archived |
 | Node GPS Position Source | `.claude/plans/node-gps-position-source.md` | Planned |
+| Contours Redesign (Primary + SOS + Isolation) | `.claude/archive/contours-redesign.md` | Done |
