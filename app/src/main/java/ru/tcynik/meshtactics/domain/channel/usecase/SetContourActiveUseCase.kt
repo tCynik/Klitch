@@ -9,10 +9,8 @@ class SetContourActiveUseCase(
     private val repository: ContourRepository,
 ) {
     suspend operator fun invoke(id: ContourId, isActive: Boolean) {
-        if (id == DefaultContour.ID) {
-            repository.setEmergencyActive(isActive)
-            return
-        }
+        if (id == DefaultContour.ID) return
+        if (!isActive && id == repository.getPrimaryContourId()) return
         val contour = repository.observeContours().first().find { it.id == id } ?: return
         repository.saveContour(contour.copy(isActive = isActive))
     }

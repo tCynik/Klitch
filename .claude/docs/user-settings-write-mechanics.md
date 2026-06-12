@@ -35,11 +35,11 @@ User нажимает назад / стрелку
 
 ## GPS Broadcast Override
 
-При подключении (`onConnected`):
-- Emergency active **или** GPS broadcast выключен → `disableNodePositionBroadcast()`
-- Иначе → `enableNodePositionBroadcastReady()`
+**При sync** (`SyncContoursOnConnectUseCase`): GPS broadcast (`position_broadcast_secs`) входит в состав sync-сессии. Если значение не соответствует ожидаемому — запись происходит в рамках той же `beginSettingsEdit / commitSettingsEdit` сессии вместе с каналами. Желаемое значение: `60 сек` когда broadcast включён и нет SOS, `Int.MAX_VALUE` иначе.
 
-Toggle в UI меняет `GpsBroadcastSettingsRepository` (DataStore) и немедленно пишет в ноду если она подключена.
+**При подключении без sync** (`CheckNodeSyncUseCase` → `InSync`): broadcast не перезаписывается — синхронизация уже подтверждена.
+
+Toggle в UI меняет `GpsBroadcastSettingsRepository` (DataStore) и немедленно пишет в ноду если она подключена (`disableNodePositionBroadcast()` или `enableNodePositionBroadcastReady()`).
 
 ## Bug Fix
 

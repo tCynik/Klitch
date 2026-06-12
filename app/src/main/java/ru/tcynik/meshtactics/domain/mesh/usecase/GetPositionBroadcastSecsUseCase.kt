@@ -2,8 +2,8 @@ package ru.tcynik.meshtactics.domain.mesh.usecase
 
 import ru.tcynik.meshtactics.domain.mesh.repository.MeshConfigRepository
 
-class EnableNodePositionBroadcastReadyUseCase(
+class GetPositionBroadcastSecsUseCase(
     private val repository: MeshConfigRepository,
 ) {
-    operator fun invoke() = repository.enableNodePositionBroadcastReady()
+    suspend operator fun invoke(): Int? = repository.getPositionBroadcastSecs()
 }

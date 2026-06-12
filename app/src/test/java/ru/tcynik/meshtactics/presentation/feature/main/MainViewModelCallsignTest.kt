@@ -1,5 +1,6 @@
 package ru.tcynik.meshtactics.presentation.feature.main
 
+import androidx.lifecycle.ViewModel
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -7,18 +8,18 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
@@ -27,6 +28,7 @@ import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.SyncEmergencyMuteUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.ObserveTotalUnreadChatCountUseCase
 import ru.tcynik.meshtactics.domain.location.model.GpsStatusModel
 import ru.tcynik.meshtactics.domain.location.usecase.ObserveGpsStatusUseCase
@@ -63,6 +65,21 @@ import ru.tcynik.meshtactics.domain.settings.usecase.ObserveMarkerSizeLevelUseCa
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveShowGeoMarkNamesUseCase
 import ru.tcynik.meshtactics.domain.user.model.AppUser
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
+import ru.tcynik.meshtactics.data.track.datasource.TrackSettingsDataSource
+import ru.tcynik.meshtactics.domain.gps.repository.GpsRepository
+import ru.tcynik.meshtactics.domain.mesh.model.NodeSyncCyclePhase
+import ru.tcynik.meshtactics.domain.track.model.TrackRecordingSettings
+import ru.tcynik.meshtactics.domain.track.model.TrackRecordingState
+import ru.tcynik.meshtactics.domain.track.usecase.DiscardTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTrackPointsUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTracksUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveTrackRecordingStateUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.PauseTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ResumeTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.StartTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.StopTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.UpdateTrackRecordingColorUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.UpdateTrackRecordingNameUseCase
 
 class MainViewModelCallsignTest {
 
@@ -92,6 +109,7 @@ class MainViewModelCallsignTest {
     private val ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase = mockk()
     private val autoExpireGeoMarks: AutoExpireGeoMarksUseCase = mockk(relaxed = true)
     private val ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase = mockk()
+    private val syncEmergencyMute: SyncEmergencyMuteUseCase = mockk()
     private val observeLogicalChannels: ObserveContoursUseCase = mockk()
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
     private val checkNodeSync: CheckNodeSyncUseCase = mockk(relaxed = true)
@@ -101,18 +119,30 @@ class MainViewModelCallsignTest {
     private val refreshNodePublicKey: RefreshNodePublicKeyUseCase = mockk(relaxed = true)
     private val observeAppUser: ObserveAppUserUseCase = mockk()
     private val geoMarkPrefsRepository: GeoMarkPreferencesRepository = mockk(relaxed = true)
+    private val observeTrackRecordingState: ObserveTrackRecordingStateUseCase = mockk()
+    private val startTrackRecording: StartTrackRecordingUseCase = mockk(relaxed = true)
+    private val pauseTrackRecording: PauseTrackRecordingUseCase = mockk(relaxed = true)
+    private val resumeTrackRecording: ResumeTrackRecordingUseCase = mockk(relaxed = true)
+    private val stopTrackRecording: StopTrackRecordingUseCase = mockk(relaxed = true)
+    private val discardTrackRecording: DiscardTrackRecordingUseCase = mockk(relaxed = true)
+    private val updateTrackRecordingName: UpdateTrackRecordingNameUseCase = mockk(relaxed = true)
+    private val updateTrackRecordingColor: UpdateTrackRecordingColorUseCase = mockk(relaxed = true)
+    private val trackSettingsDataSource: TrackSettingsDataSource = mockk()
+    private val gpsRepository: GpsRepository = mockk()
+    private val observeRecordedTracks: ObserveRecordedTracksUseCase = mockk()
+    private val observeRecordedTrackPoints: ObserveRecordedTrackPointsUseCase = mockk()
 
     private val connectionStatusFlow = MutableStateFlow<MeshConnectionStatus>(MeshConnectionStatus.Disconnected)
     private val appUserFlow = MutableStateFlow(AppUser(displayName = ""))
 
     private val lastDevice = MeshDeviceModel(address = "AA:BB:CC:DD:EE:FF", name = "TestNode", rssi = -70)
 
-    private val testDispatcher = UnconfinedTestDispatcher()
+    private val mainDispatcher = UnconfinedTestDispatcher()
     private lateinit var viewModel: MainViewModel
 
     @Before
     fun setUp() {
-        Dispatchers.setMain(testDispatcher)
+        Dispatchers.setMain(mainDispatcher)
         every { getTileUrl.invoke() } returns ""
         every { getLastPosition.invoke() } returns null
         every { observeNodeMarkers.invoke(any()) } returns flowOf(emptyList())
@@ -133,11 +163,18 @@ class MainViewModelCallsignTest {
         every { ingestReceivedGeoMarks.observe() } returns flowOf(Unit)
         every { autoExpireGeoMarks.observe() } returns flowOf(Unit)
         every { ingestReceivedChatMessages.observe() } returns flowOf(Unit)
+        every { syncEmergencyMute.observe() } returns flowOf(Unit)
         every { observeLogicalChannels.invoke(any()) } returns flowOf(emptyList())
         every { observeNodeChannels.invoke(any()) } returns flowOf(emptyList())
         every { syncStateRepository.syncRequired } returns MutableStateFlow(false)
         every { rebootStateRepository.isRebooting } returns MutableStateFlow(false)
-        every { observeCallsignChanges.invoke(any()) } returns flowOf(0)
+        every { rebootStateRepository.syncCyclePhase } returns MutableStateFlow(NodeSyncCyclePhase.Idle)
+        every { observeTrackRecordingState.invoke(any()) } returns flowOf(TrackRecordingState.Idle)
+        every { trackSettingsDataSource.observeSettings() } returns flowOf(TrackRecordingSettings())
+        every { gpsRepository.location } returns MutableStateFlow(null)
+        every { observeRecordedTracks.invoke(any()) } returns flowOf(emptyList())
+        every { observeRecordedTrackPoints.invoke(any()) } returns flowOf(emptyList())
+        every { observeCallsignChanges.invoke(any()) } returns emptyFlow()
         coEvery { checkNodeSync.invoke() } returns NodeSyncResult.InSync
         coEvery { connectToDevice.invoke(any()) } returns Unit
         every { geoMarkPrefsRepository.observePreferences() } returns flowOf(GeoMarkFormPreferences())
@@ -147,6 +184,11 @@ class MainViewModelCallsignTest {
 
     @After
     fun tearDown() {
+        if (::viewModel.isInitialized) {
+            val onCleared = ViewModel::class.java.getDeclaredMethod("onCleared")
+            onCleared.isAccessible = true
+            onCleared.invoke(viewModel)
+        }
         Dispatchers.resetMain()
     }
 
@@ -179,6 +221,7 @@ class MainViewModelCallsignTest {
             ingestReceivedGeoMarks = ingestReceivedGeoMarks,
             autoExpireGeoMarks = autoExpireGeoMarks,
             ingestReceivedChatMessages = ingestReceivedChatMessages,
+            syncEmergencyMute = syncEmergencyMute,
             observeLogicalChannels = observeLogicalChannels,
             observeNodeChannels = observeNodeChannels,
             syncStateRepository = syncStateRepository,
@@ -187,60 +230,67 @@ class MainViewModelCallsignTest {
             refreshNodePublicKey = refreshNodePublicKey,
             observeAppUser = observeAppUser,
             geoMarkPrefsRepository = geoMarkPrefsRepository,
+            observeTrackRecordingState = observeTrackRecordingState,
+            startTrackRecording = startTrackRecording,
+            pauseTrackRecording = pauseTrackRecording,
+            resumeTrackRecording = resumeTrackRecording,
+            stopTrackRecording = stopTrackRecording,
+            discardTrackRecording = discardTrackRecording,
+            updateTrackRecordingName = updateTrackRecordingName,
+            updateTrackRecordingColor = updateTrackRecordingColor,
+            trackSettingsDataSource = trackSettingsDataSource,
+            gpsRepository = gpsRepository,
+            observeRecordedTracks = observeRecordedTracks,
+            observeRecordedTrackPoints = observeRecordedTrackPoints,
         )
     }
 
     @Test
-    fun `пустой позывной — callsignRequired true`() = runTest(testDispatcher) {
+    fun `пустой позывной — callsignRequired true`() {
         appUserFlow.value = AppUser(displayName = "")
         createViewModel()
-        runCurrent()
         assertTrue(viewModel.uiState.value.callsignRequired)
     }
 
     @Test
-    fun `пустой позывной — авто-подключение пропускается`() = runTest(testDispatcher) {
+    fun `пустой позывной — авто-подключение пропускается`() {
+        coEvery { connectToDevice.invoke(any()) } coAnswers {
+            fail("auto-connect must be skipped when callsign is blank")
+        }
         appUserFlow.value = AppUser(displayName = "")
         createViewModel()
-        runCurrent()
-        coVerify(exactly = 0) { connectToDevice.invoke(any()) }
     }
 
     @Test
-    fun `пустой позывной при Scanning — HUD показывает установите позывной`() = runTest(testDispatcher) {
+    fun `пустой позывной при Scanning — HUD показывает установите позывной`() {
         appUserFlow.value = AppUser(displayName = "")
         createViewModel()
-        runCurrent()
         connectionStatusFlow.value = MeshConnectionStatus.Scanning
-        runCurrent()
 
         val infoSlot = viewModel.hudConfig.value.right.rows.first().info
         assertEquals("установите позывной", infoSlot.content)
     }
 
     @Test
-    fun `пустой позывной при Disconnected — HUD info пустой`() = runTest(testDispatcher) {
+    fun `пустой позывной при Disconnected — HUD info пустой`() {
         appUserFlow.value = AppUser(displayName = "")
         createViewModel()
-        runCurrent()
         connectionStatusFlow.value = MeshConnectionStatus.Disconnected
-        runCurrent()
 
         val infoSlot = viewModel.hudConfig.value.right.rows.first().info
         assertNull(infoSlot.content)
     }
 
     @Test
-    fun `непустой позывной — callsignRequired false и авто-подключение выполняется`() = runTest(testDispatcher) {
+    fun `непустой позывной — callsignRequired false и авто-подключение выполняется`() {
         appUserFlow.value = AppUser(displayName = "Alpha")
         createViewModel()
-        runCurrent()
         assertFalse(viewModel.uiState.value.callsignRequired)
         coVerify { connectToDevice.invoke(ConnectToMeshDeviceParams(lastDevice.address, lastDevice.name)) }
     }
 
     @Test
-    fun `повторное подключение с InSync сбрасывает syncRequired через clear`() = runTest(testDispatcher) {
+    fun `повторное подключение с InSync сбрасывает syncRequired через clear`() {
         val connected = MeshConnectionStatus.Connected(
             nodeId = "!aabbccdd",
             shortName = "TS",
@@ -251,18 +301,14 @@ class MainViewModelCallsignTest {
         appUserFlow.value = AppUser(displayName = "Alpha")
         coEvery { checkNodeSync.invoke() } returns NodeSyncResult.NeedsSync
         createViewModel()
-        runCurrent()
 
         connectionStatusFlow.value = connected
-        runCurrent()
         coVerify { syncStateRepository.setSyncRequired(true) }
 
         connectionStatusFlow.value = MeshConnectionStatus.Disconnected
-        runCurrent()
 
         coEvery { checkNodeSync.invoke() } returns NodeSyncResult.InSync
         connectionStatusFlow.value = connected
-        runCurrent()
 
         verify { syncStateRepository.clear() }
     }

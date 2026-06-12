@@ -230,11 +230,18 @@ private fun MeshNodeRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Text(
-                    text = node.nodeId,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+//                Text( // todo: ID пока решено не выводить
+//                    text = node.nodeId,
+//                    style = MaterialTheme.typography.labelSmall,
+//                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+//                )
+                node.contourName?.let {
+                    Text(
+                        text = "[$it]",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
@@ -252,8 +259,11 @@ private fun MeshNodeRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                val timeLabel = node.lastPositionFormatted
+                    ?.let { "$it / ${node.lastHeardFormatted}" }
+                    ?: node.lastHeardFormatted
                 Text(
-                    text = node.lastHeardFormatted,
+                    text = timeLabel,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

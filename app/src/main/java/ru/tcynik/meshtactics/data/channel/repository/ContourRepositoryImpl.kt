@@ -4,11 +4,11 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import ru.tcynik.meshtactics.data.local.Contour
@@ -19,6 +19,7 @@ import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
 import ru.tcynik.meshtactics.domain.channel.model.DefaultActiveContour
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
+import ru.tcynik.meshtactics.domain.channel.model.meshtasticChannelName
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import java.time.Instant
 import java.util.Base64
@@ -30,25 +31,51 @@ class ContourRepositoryImpl(
 ) : ContourRepository {
 
     override fun observeContours(): Flow<List<ContourDomain>> =
-        combine(
-            queries.selectAll().asFlow().mapToList(Dispatchers.Default),
-            dataStore.data.map { prefs -> prefs[EMERGENCY_IS_ACTIVE_KEY] ?: DefaultContour.IS_ACTIVE_DEFAULT },
-        ) { rows, emergencyIsActive ->
-            val emergency = DefaultContour.asContour().copy(isActive = emergencyIsActive)
+        queries.selectAll().asFlow().mapToList(Dispatchers.Default).map { rows ->
+            val emergency = DefaultContour.asContour().copy(isActive = true)
             val dbContours = rows.mapNotNull { it.toDomain(queries) }
             listOf(emergency) + dbContours
         }
 
-    override fun observeEmergencyIsActive(): Flow<Boolean> =
-        dataStore.data.map { prefs -> prefs[EMERGENCY_IS_ACTIVE_KEY] ?: DefaultContour.IS_ACTIVE_DEFAULT }
+    override fun observePrimaryContourId(): Flow<ContourId> =
+        dataStore.data.map { prefs ->
+            ContourId(prefs[PRIMARY_CONTOUR_ID_KEY] ?: DefaultActiveContour.ID.value)
+        }
 
-    override suspend fun setEmergencyActive(isActive: Boolean) {
-        dataStore.edit { it[EMERGENCY_IS_ACTIVE_KEY] = isActive }
+    override suspend fun getPrimaryContourId(): ContourId = observePrimaryContourId().first()
+
+    override suspend fun setPrimaryContour(id: ContourId) {
+        dataStore.edit { it[PRIMARY_CONTOUR_ID_KEY] = id.value }
+    }
+
+    override fun observeSosMode(): Flow<Boolean> =
+        dataStore.data.map { prefs -> prefs[SOS_MODE_ACTIVE_KEY] ?: false }
+
+    override suspend fun setSosMode(active: Boolean) {
+        dataStore.edit { it[SOS_MODE_ACTIVE_KEY] = active }
+    }
+
+    override suspend fun getPreSosPrimaryId(): ContourId? {
+        val value = dataStore.data.first()[PRE_SOS_PRIMARY_ID_KEY] ?: return null
+        return ContourId(value)
+    }
+
+    override suspend fun savePreSosPrimaryId(id: ContourId?) {
+        dataStore.edit { prefs ->
+            if (id == null) {
+                prefs.remove(PRE_SOS_PRIMARY_ID_KEY)
+            } else {
+                prefs[PRE_SOS_PRIMARY_ID_KEY] = id.value
+            }
+        }
     }
 
     override suspend fun seedDefaultsIfAbsent() {
-        val pskBytes = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
-        val hash = ContourHash.compute(DefaultActiveContour.DISPLAY_NAME, pskBytes)
+        val pskBytes = Base64.getDecoder().decode(DefaultActiveContour.DEFAULT_PSK)
+        val hash = ContourHash.compute(
+            meshtasticChannelName(DefaultActiveContour.ID, DefaultActiveContour.DISPLAY_NAME),
+            pskBytes,
+        )
         val existing = queries.selectAll().executeAsList().find { it.id == DefaultActiveContour.ID.value }
         queries.upsert(
             id = DefaultActiveContour.ID.value,
@@ -85,10 +112,7 @@ class ContourRepositoryImpl(
 
     override suspend fun findByChannelHash(hash: ContourHash): ContourDomain? {
         if (hash == DefaultContour.CHANNEL_HASH) {
-            val isActive = dataStore.data
-                .map { it[EMERGENCY_IS_ACTIVE_KEY] ?: DefaultContour.IS_ACTIVE_DEFAULT }
-                .first()
-            return DefaultContour.asContour().copy(isActive = isActive)
+            return DefaultContour.asContour().copy(isActive = true)
         }
         return queries.selectByChannelHash(hash.value)
             .executeAsOneOrNull()
@@ -96,14 +120,16 @@ class ContourRepositoryImpl(
     }
 
     companion object {
-        private val EMERGENCY_IS_ACTIVE_KEY = booleanPreferencesKey("emergency_is_active")
+        private val PRIMARY_CONTOUR_ID_KEY = stringPreferencesKey("primary_contour_id")
+        private val SOS_MODE_ACTIVE_KEY = booleanPreferencesKey("sos_mode_active")
+        private val PRE_SOS_PRIMARY_ID_KEY = stringPreferencesKey("pre_sos_primary_id")
     }
 }
 
 private fun Contour.toDomain(queries: ContourQueries): ContourDomain? {
     val pskBytes = meshtastic_psk ?: return null
     val pskBase64 = Base64.getEncoder().encodeToString(pskBytes)
-    val hash = ContourHash.compute(name, pskBytes).also { computed ->
+    val hash = ContourHash.compute(meshtasticChannelName(ContourId(id), name), pskBytes).also { computed ->
         if (channel_hash != computed.value) {
             queries.updateChannelHash(channelHash = computed.value, id = id)
         }

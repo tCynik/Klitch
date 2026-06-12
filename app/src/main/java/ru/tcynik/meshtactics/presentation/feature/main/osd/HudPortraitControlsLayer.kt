@@ -80,9 +80,11 @@ fun HudPortraitControlsLayer(
                     Spacer(Modifier.height(10.dp))
                     HudRow(config = targetConfig,   side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
                     Spacer(Modifier.height(10.dp))
-                    HudRow(config = state.mapTools, side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
+                    HudRow(config = state.mapTools,      side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
                     Spacer(Modifier.height(10.dp))
-                    HudRow(config = state.gps,      side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
+                    HudRow(config = state.gps,           side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
+                    Spacer(Modifier.height(10.dp))
+                    HudRow(config = state.trackRecord,   side = HudSide.Left, modifier = Modifier.wrapContentWidth().height(60.dp))
                 }
             }
 

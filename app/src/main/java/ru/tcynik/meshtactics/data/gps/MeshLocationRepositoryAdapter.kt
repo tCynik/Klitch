@@ -26,6 +26,7 @@ class MeshLocationRepositoryAdapter(
                     gpsLocation.bearing?.let { bearing = it }
                     gpsLocation.speed?.let { speed = it }
                     elapsedRealtimeNanos = gpsLocation.elapsedRealtimeNanos
+                    time = gpsLocation.time
                 }
             }
 }

@@ -21,9 +21,14 @@ import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.DeleteContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ApplyDeliveryPolicyUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ResolveContourFromSlotUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SaveContourUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ActivateExclusiveContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.SetPrimaryContourUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ConfirmChannelSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
 import ru.tcynik.meshtactics.domain.emergency.repository.EmergencyPositionBroadcastRepository
 import ru.tcynik.meshtactics.domain.mesh.repository.GpsBroadcastSettingsRepository
@@ -64,10 +69,59 @@ val userSettingsModule = module {
     single { SaveContourUseCase(get()) }
     single { DeleteContourUseCase(get()) }
     single { SetContourActiveUseCase(get()) }
+    single { SetPrimaryContourUseCase(get(), get()) }
+    single { ActivateExclusiveContourUseCase(get(), get()) }
     single { ObserveNodeChannelsUseCase(get()) }
     single { ResolveChannelSlotUseCase() }
-    single { SyncContoursOnConnectUseCase(get(), get(), get(), get(), get(), get(), get(), get()) }
-    single { CheckNodeSyncUseCase(get(), get(), get(), get(), get()) }
+    single { ResolveContourFromSlotUseCase() }
+    single { ApplyDeliveryPolicyUseCase() }
+    single {
+        SyncContoursOnConnectUseCase(
+            contourRepository = get(),
+            observeContours = get(),
+            observeNodeChannels = get(),
+            beginSettingsEdit = get(),
+            commitSettingsEdit = get(),
+            writeChannel = get(),
+            resolveSlot = get(),
+            writeOwner = get(),
+            observeAppUser = get(),
+            observeDeviceConfig = get(),
+            prepareNodeForAppDrivenBroadcast = get(),
+            disableNodePositionBroadcast = get(),
+            observeGpsBroadcastEnabled = get(),
+            observeEmergencyMode = get(),
+            getPositionBroadcastSecs = get(),
+            isPositionSmartBroadcastEnabled = get(),
+            logger = get(),
+        )
+    }
+    single {
+        ConfirmChannelSyncUseCase(
+            syncContoursOnConnect = get(),
+            rebootNode = get(),
+            reconnectAfterNodeReboot = get(),
+            reconnectViaBleScan = get(),
+            requestDeviceConfig = get(),
+            rebootStateRepository = get(),
+            syncStateRepository = get(),
+            logger = get(),
+        )
+    }
+    single {
+        CheckNodeSyncUseCase(
+            observeContours = get(),
+            observeNodeChannels = get(),
+            observeAppUser = get(),
+            observeDeviceConfig = get(),
+            contourRepository = get(),
+            observeGpsBroadcastEnabled = get(),
+            observeEmergencyMode = get(),
+            getPositionBroadcastSecs = get(),
+            isPositionSmartBroadcastEnabled = get(),
+            logger = get(),
+        )
+    }
     single<ContourSyncStateRepository> { ContourSyncStateRepositoryImpl() }
     single<ChannelSlotResolver> { ChannelSlotResolverImpl(get()) }
 
@@ -75,6 +129,6 @@ val userSettingsModule = module {
         EmergencyPositionBroadcastRepositoryImpl(get(), get(), get())
     }
     single { ObserveEmergencyModeUseCase(get()) }
-    single { TriggerEmergencyUseCase(get(), get(), get(), get(), get()) }
-    single { CancelEmergencyUseCase(get(), get(), get(), get()) }
+    single { TriggerEmergencyUseCase(get(), get(), get(), get(), get(), get()) }
+    single { CancelEmergencyUseCase(get(), get(), get(), get(), get()) }
 }

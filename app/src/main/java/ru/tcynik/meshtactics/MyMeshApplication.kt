@@ -15,6 +15,10 @@ import org.maplibre.android.module.http.HttpRequestUtil
 import org.maplibre.android.offline.OfflineManager
 import ru.tcynik.meshtactics.data.map.TileCacheOkHttpConfigurator
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
+import ru.tcynik.meshtactics.data.mesh.BackgroundPositionSession
+import ru.tcynik.meshtactics.data.mesh.MeshWakeLockManager
+import ru.tcynik.meshtactics.data.mesh.OnConnectPositionSender
+import ru.tcynik.meshtactics.data.notification.EmergencyNodeNotificationFilter
 import ru.tcynik.meshtactics.domain.settings.repository.MapCacheSettingsRepository
 import ru.tcynik.meshtactics.di.androidModule
 import ru.tcynik.meshtactics.di.chatDataModule
@@ -30,6 +34,7 @@ import ru.tcynik.meshtactics.di.meshDataModule
 import ru.tcynik.meshtactics.di.orientationModule
 import ru.tcynik.meshtactics.di.presentationModule
 import ru.tcynik.meshtactics.di.userDataModule
+import ru.tcynik.meshtactics.di.trackDataModule
 import ru.tcynik.meshtactics.di.userSettingsModule
 import ru.tcynik.meshtactics.mesh.common.ContextServices
 import ru.tcynik.meshtactics.mesh.di.meshModule
@@ -55,6 +60,7 @@ class MyMeshApplication : Application() {
                 mapDataModule,
                 markerDataModule,
                 geoMarkDataModule,
+                trackDataModule,
                 userDataModule,
                 userSettingsModule,
                 locationDomainModule,
@@ -80,6 +86,10 @@ class MyMeshApplication : Application() {
             }
         }
 
+        GlobalContext.get().get<EmergencyNodeNotificationFilter>()
+        GlobalContext.get().get<OnConnectPositionSender>()
+        GlobalContext.get().get<BackgroundPositionSession>()
+        GlobalContext.get().get<MeshWakeLockManager>()
         GlobalContext.get().get<MeshServiceOrchestrator>().start()
         CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
             GlobalContext.get().get<ContourRepository>().seedDefaultsIfAbsent()

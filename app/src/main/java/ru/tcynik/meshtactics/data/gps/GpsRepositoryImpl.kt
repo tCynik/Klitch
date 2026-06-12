@@ -49,6 +49,7 @@ class GpsRepositoryImpl(
                 speed = if (androidLocation.hasSpeed()) androidLocation.speed else null,
                 accuracy = androidLocation.accuracy,
                 elapsedRealtimeNanos = androidLocation.elapsedRealtimeNanos,
+                time = androidLocation.time,
             )
         }
 

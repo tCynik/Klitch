@@ -1,5 +1,6 @@
 package ru.tcynik.meshtactics.presentation.feature.marks
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,8 +8,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.CheckBox
@@ -27,7 +30,10 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import ru.tcynik.meshtactics.R
+import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliveryFilterStatus
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliveryState
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarksListUiState
 
@@ -46,6 +52,9 @@ fun GeoMarksListScreen(
     onItemSendClick: (String) -> Unit,
     onSendContourSelected: (String) -> Unit,
     onDismissSendContourPicker: () -> Unit,
+    onTrackVisibilityToggle: (id: String, visible: Boolean) -> Unit,
+    onTrackDeleteClick: (String) -> Unit,
+    onTracksFilterToggle: () -> Unit,
     onBack: () -> Unit,
 ) {
     uiState.sendContourPicker?.let { picker ->
@@ -124,30 +133,102 @@ fun GeoMarksListScreen(
                                 onClick = { onDeliveryFilterToggle(filter.deliveryState) },
                             )
                         }
+                        Spacer(Modifier.size(8.dp))
+                        TracksFilterButton(
+                            status = uiState.tracksFilterStatus,
+                            onClick = onTracksFilterToggle,
+                        )
                     }
                     HorizontalDivider()
                 }
             }
         },
     ) { innerPadding ->
-        when {
-            !uiState.hasMarks -> EmptyMarksMessage(
-                text = "Меток нет",
-                modifier = Modifier.padding(innerPadding),
+        CombinedListContent(
+            uiState = uiState,
+            onVisibilityToggle = onVisibilityToggle,
+            onItemDeleteClick = onItemDeleteClick,
+            onItemExtendClick = onItemExtendClick,
+            onItemSendClick = onItemSendClick,
+            onTrackVisibilityToggle = onTrackVisibilityToggle,
+            onTrackDeleteClick = onTrackDeleteClick,
+            modifier = Modifier.padding(innerPadding),
+        )
+    }
+}
+
+@Composable
+private fun TracksFilterButton(
+    status: GeoMarkDeliveryFilterStatus,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val enabled = status != GeoMarkDeliveryFilterStatus.INACTIVE
+    val tint = when (status) {
+        GeoMarkDeliveryFilterStatus.INACTIVE ->
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+        GeoMarkDeliveryFilterStatus.SELECTED ->
+            MaterialTheme.colorScheme.primary
+        GeoMarkDeliveryFilterStatus.UNSELECTED ->
+            MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.size(40.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            if (status == GeoMarkDeliveryFilterStatus.SELECTED) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = CircleShape,
+                        ),
+                )
+            }
+            Icon(
+                painter = painterResource(R.drawable.ic_track_record),
+                contentDescription = "Фильтр треков",
+                modifier = Modifier.size(22.dp),
+                tint = tint,
             )
-            uiState.items.isEmpty() -> EmptyMarksMessage(
-                text = "Нет меток по выбранным фильтрам",
-                modifier = Modifier.padding(innerPadding),
-            )
-            else -> LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(innerPadding),
-            ) {
-                items(
-                    items = uiState.items,
-                    key = { it.id },
-                ) { item ->
+        }
+    }
+}
+
+@Composable
+private fun CombinedListContent(
+    uiState: GeoMarksListUiState,
+    onVisibilityToggle: (id: String, visible: Boolean) -> Unit,
+    onItemDeleteClick: (String) -> Unit,
+    onItemExtendClick: (String) -> Unit,
+    onItemSendClick: (String) -> Unit,
+    onTrackVisibilityToggle: (id: String, visible: Boolean) -> Unit,
+    onTrackDeleteClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val hasAnything = uiState.hasMarks || uiState.tracksFilterStatus != GeoMarkDeliveryFilterStatus.INACTIVE
+    if (!hasAnything) {
+        EmptyMarksMessage(text = "Ничего нет", modifier = modifier)
+        return
+    }
+
+    LazyColumn(modifier = modifier.fillMaxWidth()) {
+        if (uiState.hasMarks) {
+            if (uiState.items.isEmpty()) {
+                item(key = "marks_empty") {
+                    Text(
+                        text = "Нет меток по выбранным фильтрам",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    )
+                    HorizontalDivider()
+                }
+            } else {
+                items(items = uiState.items, key = { it.id }) { item ->
                     GeoMarkListItem(
                         item = item,
                         onVisibilityToggle = onVisibilityToggle,
@@ -157,6 +238,26 @@ fun GeoMarksListScreen(
                     )
                     HorizontalDivider()
                 }
+            }
+        }
+
+        if (uiState.recordedTracks.isNotEmpty()) {
+            item(key = "tracks_header") {
+                Text(
+                    text = "Записанные",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),
+                )
+                HorizontalDivider()
+            }
+            items(items = uiState.recordedTracks, key = { it.id }) { item ->
+                RecordedTrackListItem(
+                    item = item,
+                    onVisibilityToggle = onTrackVisibilityToggle,
+                    onMenuDelete = { onTrackDeleteClick(item.id) },
+                )
+                HorizontalDivider()
             }
         }
     }

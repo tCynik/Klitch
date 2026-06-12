@@ -209,6 +209,7 @@ class MeshService : Service() {
 
             override fun setOwner(u: MeshUser) = toRemoteExceptions {
                 router.actionHandler.handleSetOwner(u, myNodeNum)
+                Unit
             }
 
             override fun setRemoteOwner(id: Int, destNum: Int, payload: ByteArray) = toRemoteExceptions {
@@ -223,8 +224,8 @@ class MeshService : Service() {
 
             override fun getConfig(): ByteArray = toRemoteExceptions { commandSender.getCachedLocalConfig().encode() }
 
-            override fun setConfig(payload: ByteArray) = toRemoteExceptions {
-                router.actionHandler.handleSetConfig(payload, myNodeNum)
+            override fun setConfig(payload: ByteArray) {
+                toRemoteExceptions { router.actionHandler.handleSetConfig(payload, myNodeNum) }
             }
 
             override fun setRemoteConfig(id: Int, num: Int, payload: ByteArray) = toRemoteExceptions {
@@ -261,6 +262,7 @@ class MeshService : Service() {
 
             override fun setChannel(payload: ByteArray?) = toRemoteExceptions {
                 router.actionHandler.handleSetChannel(payload, myNodeNum)
+                Unit
             }
 
             override fun setRemoteChannel(id: Int, num: Int, payload: ByteArray?) = toRemoteExceptions {
@@ -273,10 +275,12 @@ class MeshService : Service() {
 
             override fun beginEditSettings(destNum: Int) = toRemoteExceptions {
                 router.actionHandler.handleBeginEditSettings(destNum)
+                Unit
             }
 
             override fun commitEditSettings(destNum: Int) = toRemoteExceptions {
                 router.actionHandler.handleCommitEditSettings(destNum)
+                Unit
             }
 
             override fun getChannelSet(): ByteArray = toRemoteExceptions {

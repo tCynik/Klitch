@@ -110,7 +110,7 @@ if (shouldProvide) {
     // Clear fixed_position — otherwise firmware ignores sendPosition
     commandSender.setFixedPosition(myNodeEntity.myNodeNum, Position(0.0, 0.0, 0))
     locationManager.start(scope) { pos ->
-        Logger.i { "PhoneGPS→radio: sendPosition lat=... lon=..." }
+        Logger.i { "MT/PhoneGPS→radio: sendPosition lat=... lon=..." }
         commandSender.sendPosition(pos)
     }
 } else {

@@ -144,9 +144,17 @@ class UiPrefsImpl(
         scope.launch { dataStore.edit { it[booleanPreferencesKey(provideLocationKey(nodeNum))] = provide } }
     }
 
+    override val useWakeLock: StateFlow<Boolean> =
+        dataStore.data.map { it[KEY_USE_WAKE_LOCK] ?: false }.stateIn(scope, SharingStarted.Eagerly, false)
+
+    override fun setUseWakeLock(enabled: Boolean) {
+        scope.launch { dataStore.edit { it[KEY_USE_WAKE_LOCK] = enabled } }
+    }
+
     private fun provideLocationKey(nodeNum: Int) = "provide-location-$nodeNum"
 
     companion object {
+        val KEY_USE_WAKE_LOCK = booleanPreferencesKey("use_wake_lock")
         val KEY_HAS_SHOWN_NOT_PAIRED_WARNING_PREF = booleanPreferencesKey("has_shown_not_paired_warning")
         val KEY_SHOW_QUICK_CHAT_PREF = booleanPreferencesKey("show-quick-chat")
 

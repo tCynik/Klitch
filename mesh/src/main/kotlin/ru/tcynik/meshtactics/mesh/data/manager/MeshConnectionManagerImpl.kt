@@ -19,11 +19,9 @@ package ru.tcynik.meshtactics.mesh.data.manager
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -34,11 +32,9 @@ import ru.tcynik.meshtactics.mesh.common.util.ioDispatcher
 import ru.tcynik.meshtactics.mesh.common.util.nowMillis
 import ru.tcynik.meshtactics.mesh.common.util.nowSeconds
 import ru.tcynik.meshtactics.mesh.model.ConnectionState
-import ru.tcynik.meshtactics.mesh.model.Position
 import ru.tcynik.meshtactics.mesh.model.TelemetryType
 import ru.tcynik.meshtactics.mesh.repository.AppWidgetUpdater
 import ru.tcynik.meshtactics.mesh.repository.CommandSender
-import ru.tcynik.meshtactics.mesh.repository.GeoSendPolicy
 import ru.tcynik.meshtactics.mesh.repository.DataPair
 import ru.tcynik.meshtactics.mesh.repository.HandshakeConstants
 import ru.tcynik.meshtactics.mesh.repository.HistoryManager
@@ -56,7 +52,7 @@ import ru.tcynik.meshtactics.mesh.repository.RadioConfigRepository
 import ru.tcynik.meshtactics.mesh.repository.RadioInterfaceService
 import ru.tcynik.meshtactics.mesh.repository.ServiceBroadcasts
 import ru.tcynik.meshtactics.mesh.repository.ServiceRepository
-import ru.tcynik.meshtactics.mesh.repository.UiPrefs
+
 import org.meshtastic.proto.AdminMessage
 import org.meshtastic.proto.Config
 import org.meshtastic.proto.Telemetry
@@ -72,7 +68,6 @@ class MeshConnectionManagerImpl(
     private val serviceRepository: ServiceRepository,
     private val serviceBroadcasts: ServiceBroadcasts,
     private val serviceNotifications: MeshServiceNotifications,
-    private val uiPrefs: UiPrefs,
     private val packetHandler: PacketHandler,
     private val nodeRepository: NodeRepository,
     private val locationManager: MeshLocationManager,
@@ -85,15 +80,13 @@ class MeshConnectionManagerImpl(
     private val packetRepository: PacketRepository,
     private val workerManager: MeshWorkerManager,
     private val appWidgetUpdater: AppWidgetUpdater,
-    private val geoSendPolicy: GeoSendPolicy,
 ) : MeshConnectionManager {
     private var scope: CoroutineScope = CoroutineScope(ioDispatcher + SupervisorJob())
     private var sleepTimeout: Job? = null
-    private var locationRequestsJob: Job? = null
     private var handshakeTimeout: Job? = null
     private var connectTimeMsec = 0L
+    private var sleepEnterTime = 0L
 
-    @OptIn(FlowPreview::class)
     override fun start(scope: CoroutineScope) {
         this.scope = scope
         radioInterfaceService.connectionState.onEach(::onRadioConnectionState).launchIn(scope)
@@ -109,32 +102,6 @@ class MeshConnectionManagerImpl(
             }
         }
 
-        nodeRepository.myNodeInfo
-            .onEach { myNodeEntity ->
-                locationRequestsJob?.cancel()
-                if (myNodeEntity != null) {
-                    locationRequestsJob =
-                        uiPrefs.shouldProvideNodeLocation(myNodeEntity.myNodeNum)
-                            .combine(geoSendPolicy.observeAllowed()) { shouldProvide, geoAllowed ->
-                                shouldProvide && geoAllowed
-                            }
-                            .onEach { allowed ->
-                                if (allowed) {
-                                    // Clear fixed_position so firmware doesn't ignore sendPosition packets
-                                    commandSender.setFixedPosition(myNodeEntity.myNodeNum, Position(0.0, 0.0, 0))
-                                    locationManager.start(scope) { pos ->
-                                        Logger.i { "PhoneGPS→radio: sendPosition lat=${Position.degD(pos.latitude_i ?: 0)} lon=${Position.degD(pos.longitude_i ?: 0)}" }
-                                        commandSender.sendPosition(pos)
-                                    }
-                                } else {
-                                    locationManager.stop()
-                                    // Do not touch fixed_position — let node use its own GPS if available
-                                }
-                            }
-                            .launchIn(scope)
-                }
-            }
-            .launchIn(scope)
     }
 
     private fun onRadioConnectionState(newState: ConnectionState) {
@@ -174,9 +141,18 @@ class MeshConnectionManagerImpl(
         handshakeTimeout?.cancel()
         handshakeTimeout = null
 
+        val resumeFromSleep = current is ConnectionState.DeviceSleep && c is ConnectionState.Connected
         when (c) {
             is ConnectionState.Connecting -> serviceRepository.setConnectionState(ConnectionState.Connecting)
-            is ConnectionState.Connected -> handleConnected()
+            is ConnectionState.Connected -> {
+                handleConnected()
+                if (resumeFromSleep) {
+                    val sleepDurationMs = if (sleepEnterTime > 0L) nowMillis - sleepEnterTime else -1L
+                    sleepEnterTime = 0L
+                    Logger.withTag("MeshConnMgr").i { "BLE reconnect from DeviceSleep — sleep duration: ${sleepDurationMs}ms, flushing last GPS position" }
+                    locationManager.flushLastPosition()
+                }
+            }
             is ConnectionState.DeviceSleep -> handleDeviceSleep()
             is ConnectionState.Disconnected -> handleDisconnected()
         }
@@ -211,9 +187,11 @@ class MeshConnectionManagerImpl(
     }
 
     private fun handleDeviceSleep() {
+        sleepEnterTime = nowMillis
         serviceRepository.setConnectionState(ConnectionState.DeviceSleep)
         packetHandler.stopPacketQueue()
-        locationManager.stop()
+        // Keep locationManager running — DeviceSleep is transient BLE state; GPS→radio bridge
+        // must stay alive so reconnect can flush a fresh position (see flushLastPosition).
         mqttManager.stop()
 
         if (connectTimeMsec != 0L) {

@@ -19,20 +19,24 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
-import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ConfirmChannelSyncUseCase
 import ru.tcynik.meshtactics.domain.logger.Logger
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
+import ru.tcynik.meshtactics.domain.mesh.model.NodeSyncCyclePhase
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceParams
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
+import ru.tcynik.meshtactics.domain.mesh.model.ContourNodeModel
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveContourNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveOurNodeUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveNetworkEnabledUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.SetNetworkEnabledUseCase
@@ -47,17 +51,18 @@ class NetworkViewModelCallsignGateTest {
     private val scanDevices: ScanMeshDevicesUseCase = mockk(relaxed = true)
     private val connectToDevice: ConnectToMeshDeviceUseCase = mockk(relaxed = true)
     private val disconnectFromMesh: DisconnectFromMeshUseCase = mockk(relaxed = true)
-    private val observeNodes: ObserveMeshNodesUseCase = mockk()
+    private val observeNodes: ObserveContourNodesUseCase = mockk()
     private val observeOurNode: ObserveOurNodeUseCase = mockk()
     private val checkContourSync: CheckNodeSyncUseCase = mockk(relaxed = true)
-    private val syncContoursOnConnect: SyncContoursOnConnectUseCase = mockk(relaxed = true)
-    private val rebootNode: RebootNodeUseCase = mockk(relaxed = true)
+    private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
+    private val confirmChannelSync: ConfirmChannelSyncUseCase = mockk(relaxed = true)
     private val syncStateRepository: ContourSyncStateRepository = mockk(relaxed = true)
     private val rebootStateRepository: RebootStateRepository = mockk(relaxed = true)
     private val observeAppUser: ObserveAppUserUseCase = mockk()
     private val saveAppUser: SaveAppUserUseCase = mockk(relaxed = true)
     private val observeNetworkEnabled: ObserveNetworkEnabledUseCase = mockk()
     private val setNetworkEnabled: SetNetworkEnabledUseCase = mockk(relaxed = true)
+    private val observeDeviceConfig: ObserveDeviceConfigUseCase = mockk()
     private val logger: Logger = mockk(relaxed = true)
 
     private val appUserFlow = MutableStateFlow(AppUser(displayName = ""))
@@ -71,13 +76,18 @@ class NetworkViewModelCallsignGateTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         every { observeConnectionStatus.invoke(any()) } returns flowOf(MeshConnectionStatus.Disconnected)
-        every { observeNodes.invoke(any()) } returns flowOf(emptyList())
+        every { observeNodes.invoke(any()) } returns flowOf(emptyList<ContourNodeModel>())
         every { observeOurNode.invoke(any()) } returns flowOf(null)
         every { rebootStateRepository.isRebooting } returns MutableStateFlow(false)
+        every { rebootStateRepository.syncCyclePhase } returns MutableStateFlow(NodeSyncCyclePhase.Idle)
         every { observeAppUser.invoke(any()) } returns appUserFlow
         every { observeNetworkEnabled.invoke(any()) } returns networkEnabledFlow
         coEvery { connectToDevice.invoke(any()) } returns Unit
         coEvery { saveAppUser.invoke(any()) } returns Unit
+        every { observeNodeChannels.invoke(any()) } returns flowOf(
+            listOf(NodeChannelSlot(index = 0, name = "LongFast", psk = byteArrayOf(0x01), isEnabled = true, positionPrecision = 32))
+        )
+        every { observeDeviceConfig.invoke(any()) } returns flowOf(null)
     }
 
     @After
@@ -94,14 +104,15 @@ class NetworkViewModelCallsignGateTest {
             observeNodes = observeNodes,
             observeOurNode = observeOurNode,
             checkContourSync = checkContourSync,
-            syncContoursOnConnect = syncContoursOnConnect,
-            rebootNode = rebootNode,
+            observeNodeChannels = observeNodeChannels,
+            confirmChannelSync = confirmChannelSync,
             syncStateRepository = syncStateRepository,
             rebootStateRepository = rebootStateRepository,
             observeAppUser = observeAppUser,
             saveAppUser = saveAppUser,
             observeNetworkEnabled = observeNetworkEnabled,
             setNetworkEnabled = setNetworkEnabled,
+            observeDeviceConfig = observeDeviceConfig,
             logger = logger,
         )
     }

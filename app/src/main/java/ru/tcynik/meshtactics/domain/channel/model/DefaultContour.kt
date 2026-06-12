@@ -5,6 +5,8 @@ object DefaultContour {
     const val DISPLAY_NAME = "Emergency"
     const val CHANNEL_NAME = "LongFast"
     const val OPEN_PSK = "AQ=="
+    // const val CHANNEL_NAME = "MTTestSOS"          // тестовый канал — не коммитить
+    // const val OPEN_PSK = "QNnShqu6wbMFRBMvqPOzgA==" // тестовый PSK  — не коммитить
     const val IS_ACTIVE_DEFAULT = false
 
     val CHANNEL_HASH = ContourHash.compute(CHANNEL_NAME, OPEN_PSK)
@@ -24,5 +26,4 @@ object DefaultContour {
         isActive = IS_ACTIVE_DEFAULT,
         transport = TRANSPORT,
     )
-    // TODO(contour): SOS mode — activate Primary automatically on alarm trigger
 }

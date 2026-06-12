@@ -13,10 +13,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.meshtactics.presentation.feature.network.components.NetworkSettingsContent
 import ru.tcynik.meshtactics.presentation.feature.network.state.MeshConnectionStatusUi
+import ru.tcynik.meshtactics.presentation.util.requestIgnoreBatteryOptimizationIfNeeded
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -25,12 +27,8 @@ fun NetworkSettingsScreen(
     viewModel: NetworkSettingsViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val title = when (val connectionStatus = state.connectionStatus) {
-        is MeshConnectionStatusUi.Connected -> {
-            connectionStatus.deviceName.ifBlank { "Настройки ноды" }
-        }
-        else -> "Настройки ноды"
-    }
+    val title = "Настройки ноды ${state.settings.deviceConfig?.shortName.orEmpty()}".trim()
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -47,21 +45,23 @@ fun NetworkSettingsScreen(
         NetworkSettingsContent(
             state = state.settings,
             connectionStatus = state.connectionStatus,
-            onReadConfigClick = viewModel::onReadConfigClick,
-            onEditConfigClick = viewModel::onEditConfigClick,
-            onWriteConfigClick = viewModel::onWriteConfigClick,
+            onRefresh = viewModel::onReadConfigClick,
+            onSaveClick = viewModel::onWriteConfigClick,
             onLongNameChange = viewModel::onConfigLongNameChange,
             onShortNameChange = viewModel::onConfigShortNameChange,
             onChannelNameChange = viewModel::onChannelNameChange,
             onChannelPskChange = viewModel::onChannelPskChange,
-            onAddChannelClick = viewModel::onAddChannelClick,
-            onProvideLocationToggle = viewModel::onProvideLocationToggle,
+            onProvideLocationToggle = { enabled ->
+                viewModel.onProvideLocationToggle(enabled)
+                if (enabled) context.requestIgnoreBatteryOptimizationIfNeeded()
+            },
             onGpsModeChange = viewModel::onGpsModeChange,
             onRemoveFixedPosition = viewModel::onRemoveFixedPosition,
             onBroadcastIntervalChange = viewModel::onBroadcastIntervalChange,
             onSmartBroadcastToggle = viewModel::onSmartBroadcastToggle,
             onPositionFlagsChange = viewModel::onPositionFlagsChange,
             onChannelPositionPrecisionChange = viewModel::onChannelPositionPrecisionChange,
+            onWakeLockToggle = viewModel::onWakeLockToggle,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),

@@ -20,9 +20,11 @@ import ru.tcynik.meshtactics.domain.channel.model.Contour
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
-import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
+import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
+import ru.tcynik.meshtactics.domain.channel.usecase.ApplyDeliveryPolicyUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ResolveContourFromSlotUseCase
 import ru.tcynik.meshtactics.domain.chat.model.ChatMessageModel
 import ru.tcynik.meshtactics.domain.chat.repository.ChatMessageRepository
 
@@ -51,8 +53,8 @@ class IngestReceivedChatMessagesUseCaseTest {
         transport = ContourTransport(meshtastic = MeshtasticChannel(psk = pskBase64, channelHash = hash)),
     )
     private val resolvedMaps = ChannelSlotMaps(
-        slotToHash = mapOf(1 to hash),
-        hashToSlot = mapOf(hash to 1),
+        slotToHash = mapOf(2 to hash),
+        hashToSlot = mapOf(hash to 2),
     )
 
     // contactKey format: "{channelIndex}{nodeId}", channel broadcast = "^all"
@@ -62,7 +64,7 @@ class IngestReceivedChatMessagesUseCaseTest {
         senderCallsign = "Alice",
         text = "Hello",
         sentAt = 1_000_000L,
-        channelId = "1^all",
+        channelId = "2^all",
         isFromMe = false,
     )
 
@@ -77,6 +79,8 @@ class IngestReceivedChatMessagesUseCaseTest {
             channelRepository = channelRepository,
             chatMessageRepository = chatMessageRepository,
             channelSlotResolver = channelSlotResolver,
+            resolveContourFromSlot = ResolveContourFromSlotUseCase(),
+            applyDeliveryPolicy = ApplyDeliveryPolicyUseCase(),
             logger = NoOpLogger(),
         )
     }
@@ -105,13 +109,12 @@ class IngestReceivedChatMessagesUseCaseTest {
         }
     }
 
-    // ── slot 0 routing (Emergency) ────────────────────────────────────────────
+    // ── slot 0 routing (Primary) ──────────────────────────────────────────────
 
     @Test
-    fun `slot 0 Emergency isActive=true — inserted with Emergency contour id`() = runTest {
-        val emergencyMsg = channelMsg.copy(channelId = "0^all")
-        val activeEmergency = makeEmergencyContour(isActive = true)
-        setupMocks(messages = listOf(emergencyMsg), contours = listOf(activeEmergency), maps = resolvedMaps)
+    fun `slot 0 — inserted with primary contour id`() = runTest {
+        val slot0Msg = channelMsg.copy(channelId = "0^all")
+        setupMocks(messages = listOf(slot0Msg), primaryId = contourId, maps = resolvedMaps)
 
         useCase.observe().test {
             awaitItem()
@@ -120,8 +123,8 @@ class IngestReceivedChatMessagesUseCaseTest {
 
         coVerify(exactly = 1) {
             chatMessageRepository.insertIfAbsent(
-                id = emergencyMsg.id,
-                logicalChannelId = DefaultContour.ID.value,
+                id = slot0Msg.id,
+                logicalChannelId = contourId.value,
                 senderNodeId = any(),
                 senderCallsign = any(),
                 text = any(),
@@ -132,10 +135,10 @@ class IngestReceivedChatMessagesUseCaseTest {
     }
 
     @Test
-    fun `slot 0 Emergency isActive=false — dropped`() = runTest {
-        val emergencyMsg = channelMsg.copy(channelId = "0^all")
-        val inactiveEmergency = makeEmergencyContour(isActive = false)
-        setupMocks(messages = listOf(emergencyMsg), contours = listOf(inactiveEmergency), maps = resolvedMaps)
+    fun `slot 0 primary contour not found — dropped`() = runTest {
+        val slot0Msg = channelMsg.copy(channelId = "0^all")
+        val unknownPrimaryId = ContourId("unknown-primary")
+        setupMocks(messages = listOf(slot0Msg), primaryId = unknownPrimaryId, maps = resolvedMaps)
 
         useCase.observe().test {
             awaitItem()
@@ -172,6 +175,64 @@ class IngestReceivedChatMessagesUseCaseTest {
         }
 
         coVerify(exactly = 0) { chatMessageRepository.insertIfAbsent(any(), any(), any(), any(), any(), any(), any()) }
+    }
+
+    // ── slot 1 Emergency ──────────────────────────────────────────────────────
+
+    @Test
+    fun `slot 1 SOS active — inserted with emergency contour id`() = runTest {
+        val slot1Msg = channelMsg.copy(channelId = "1^all")
+        setupMocks(
+            messages = listOf(slot1Msg),
+            contours = listOf(contour, DefaultContour.asContour()),
+            maps = resolvedMaps,
+            sosMode = true,
+        )
+
+        useCase.observe().test {
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 1) {
+            chatMessageRepository.insertIfAbsent(
+                id = slot1Msg.id,
+                logicalChannelId = DefaultContour.ID.value,
+                senderNodeId = any(),
+                senderCallsign = any(),
+                text = any(),
+                sentAt = any(),
+                isSelf = any(),
+            )
+        }
+    }
+
+    @Test
+    fun `slot 1 SOS inactive — silently stored`() = runTest {
+        val slot1Msg = channelMsg.copy(channelId = "1^all")
+        setupMocks(
+            messages = listOf(slot1Msg),
+            contours = listOf(contour, DefaultContour.asContour()),
+            maps = resolvedMaps,
+            sosMode = false,
+        )
+
+        useCase.observe().test {
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify(exactly = 1) {
+            chatMessageRepository.insertIfAbsent(
+                id = slot1Msg.id,
+                logicalChannelId = DefaultContour.ID.value,
+                senderNodeId = any(),
+                senderCallsign = any(),
+                text = any(),
+                sentAt = any(),
+                isSelf = any(),
+            )
+        }
     }
 
     // ── isActive filter ───────────────────────────────────────────────────────
@@ -230,23 +291,17 @@ class IngestReceivedChatMessagesUseCaseTest {
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
-    private fun makeEmergencyContour(isActive: Boolean) = Contour(
-        id = DefaultContour.ID,
-        name = DefaultContour.DISPLAY_NAME,
-        description = null,
-        expiration = null,
-        exclusivityTime = null,
-        isActive = isActive,
-        transport = DefaultContour.TRANSPORT,
-    )
-
     private fun setupMocks(
         messages: List<ChatMessageModel>,
         contours: List<Contour> = listOf(contour),
+        primaryId: ContourId = contourId,
         maps: ChannelSlotMaps,
+        sosMode: Boolean = false,
     ) {
         every { adapter.observeMessagesAsFlow(emptySet(), "") } returns flowOf(messages)
         every { channelRepository.observeContours() } returns flowOf(contours)
+        every { channelRepository.observePrimaryContourId() } returns flowOf(primaryId)
+        every { channelRepository.observeSosMode() } returns flowOf(sosMode)
         every { channelSlotResolver.mapsFlow } returns MutableStateFlow(maps)
     }
 }

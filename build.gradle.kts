@@ -13,3 +13,14 @@ plugins {
     alias(libs.plugins.kotlin.atomicfu)        apply false
     // Note: libs.plugins.room removed — Room schema configured via KSP args instead
 }
+
+subprojects {
+    configurations.configureEach {
+        resolutionStrategy.eachDependency {
+            if (requested.group == "co.touchlab" && requested.name.startsWith("kermit")) {
+                useVersion(libs.versions.kermit.get())
+                because("Align Kermit debug/release artifacts to one version")
+            }
+        }
+    }
+}

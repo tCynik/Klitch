@@ -1,15 +1,17 @@
 package ru.tcynik.meshtactics.presentation.feature.main
 
+import androidx.lifecycle.ViewModel
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -27,6 +29,7 @@ import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.SyncEmergencyMuteUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.ObserveTotalUnreadChatCountUseCase
 import ru.tcynik.meshtactics.domain.location.model.GpsStatusModel
 import ru.tcynik.meshtactics.domain.location.usecase.ObserveGpsStatusUseCase
@@ -36,6 +39,7 @@ import ru.tcynik.meshtactics.domain.map.usecase.ObserveNodeMarkersUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveSelectedOverlaysUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.marker.model.GeoMarkFormPreferences
+import ru.tcynik.meshtactics.domain.marker.model.GeoMarkPreset
 import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkPreferencesRepository
 import ru.tcynik.meshtactics.domain.marker.usecase.AutoExpireGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteGeoMarksUseCase
@@ -62,6 +66,21 @@ import ru.tcynik.meshtactics.domain.settings.usecase.ObserveShowGeoMarkNamesUseC
 import java.util.Base64
 import ru.tcynik.meshtactics.domain.user.model.AppUser
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
+import ru.tcynik.meshtactics.data.track.datasource.TrackSettingsDataSource
+import ru.tcynik.meshtactics.domain.gps.repository.GpsRepository
+import ru.tcynik.meshtactics.domain.mesh.model.NodeSyncCyclePhase
+import ru.tcynik.meshtactics.domain.track.model.TrackRecordingSettings
+import ru.tcynik.meshtactics.domain.track.model.TrackRecordingState
+import ru.tcynik.meshtactics.domain.track.usecase.DiscardTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTrackPointsUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTracksUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveTrackRecordingStateUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.PauseTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ResumeTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.StartTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.StopTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.UpdateTrackRecordingColorUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.UpdateTrackRecordingNameUseCase
 
 class MainViewModelGeoMarkAddresseeTest {
 
@@ -91,6 +110,7 @@ class MainViewModelGeoMarkAddresseeTest {
     private val ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase = mockk()
     private val autoExpireGeoMarks: AutoExpireGeoMarksUseCase = mockk(relaxed = true)
     private val ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase = mockk()
+    private val syncEmergencyMute: SyncEmergencyMuteUseCase = mockk()
     private val observeLogicalChannels: ObserveContoursUseCase = mockk()
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
     private val checkNodeSync: CheckNodeSyncUseCase = mockk(relaxed = true)
@@ -98,12 +118,29 @@ class MainViewModelGeoMarkAddresseeTest {
     private val rebootStateRepository: RebootStateRepository = mockk(relaxed = true)
     private val observeCallsignChanges: ObserveCallsignChangesUseCase = mockk()
     private val refreshNodePublicKey: RefreshNodePublicKeyUseCase = mockk(relaxed = true)
-    private val geoMarkPrefsRepository: GeoMarkPreferencesRepository = mockk(relaxed = true)
     private val observeAppUser: ObserveAppUserUseCase = mockk()
+    private val observeTrackRecordingState: ObserveTrackRecordingStateUseCase = mockk()
+    private val startTrackRecording: StartTrackRecordingUseCase = mockk(relaxed = true)
+    private val pauseTrackRecording: PauseTrackRecordingUseCase = mockk(relaxed = true)
+    private val resumeTrackRecording: ResumeTrackRecordingUseCase = mockk(relaxed = true)
+    private val stopTrackRecording: StopTrackRecordingUseCase = mockk(relaxed = true)
+    private val discardTrackRecording: DiscardTrackRecordingUseCase = mockk(relaxed = true)
+    private val updateTrackRecordingName: UpdateTrackRecordingNameUseCase = mockk(relaxed = true)
+    private val updateTrackRecordingColor: UpdateTrackRecordingColorUseCase = mockk(relaxed = true)
+    private val trackSettingsDataSource: TrackSettingsDataSource = mockk()
+    private val gpsRepository: GpsRepository = mockk()
+    private val observeRecordedTracks: ObserveRecordedTracksUseCase = mockk()
+    private val observeRecordedTrackPoints: ObserveRecordedTrackPointsUseCase = mockk()
 
     private val channelsFlow = MutableStateFlow<List<Contour>>(emptyList())
     private val connectionStatusFlow = MutableStateFlow<MeshConnectionStatus>(MeshConnectionStatus.Disconnected)
     private val prefsFlow = MutableStateFlow(GeoMarkFormPreferences())
+    private val geoMarkPrefsRepository: GeoMarkPreferencesRepository = object : GeoMarkPreferencesRepository {
+        override fun observePreferences(): Flow<GeoMarkFormPreferences> = prefsFlow
+        override fun observePresets(): Flow<List<GeoMarkPreset>> = flowOf(emptyList())
+        override suspend fun savePreferences(prefs: GeoMarkFormPreferences) {}
+        override suspend fun addPreset(preset: GeoMarkPreset) {}
+    }
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var viewModel: MainViewModel
@@ -134,20 +171,28 @@ class MainViewModelGeoMarkAddresseeTest {
         every { ingestReceivedGeoMarks.observe() } returns flowOf(Unit)
         every { autoExpireGeoMarks.observe() } returns flowOf(Unit)
         every { ingestReceivedChatMessages.observe() } returns flowOf(Unit)
+        every { syncEmergencyMute.observe() } returns flowOf(Unit)
         every { observeLogicalChannels.invoke(any()) } returns channelsFlow
         every { observeNodeChannels.invoke(any()) } returns flowOf(emptyList())
         every { syncStateRepository.syncRequired } returns MutableStateFlow(false)
         every { rebootStateRepository.isRebooting } returns MutableStateFlow(false)
-        every { observeCallsignChanges.invoke(any()) } returns flowOf(0)
+        every { rebootStateRepository.syncCyclePhase } returns MutableStateFlow(NodeSyncCyclePhase.Idle)
+        every { observeTrackRecordingState.invoke(any()) } returns flowOf(TrackRecordingState.Idle)
+        every { trackSettingsDataSource.observeSettings() } returns flowOf(TrackRecordingSettings())
+        every { gpsRepository.location } returns MutableStateFlow(null)
+        every { observeRecordedTracks.invoke(any()) } returns flowOf(emptyList())
+        every { observeRecordedTrackPoints.invoke(any()) } returns flowOf(emptyList())
+        every { observeCallsignChanges.invoke(any()) } returns emptyFlow()
         coEvery { checkNodeSync.invoke() } returns NodeSyncResult.InSync
-        every { geoMarkPrefsRepository.observePreferences() } returns prefsFlow
-        every { geoMarkPrefsRepository.observePresets() } returns flowOf(emptyList())
         every { observeAppUser.invoke(any()) } returns flowOf(AppUser(displayName = "Alpha"))
         viewModel = createViewModel()
     }
 
     @After
     fun tearDown() {
+        val onCleared = ViewModel::class.java.getDeclaredMethod("onCleared")
+        onCleared.isAccessible = true
+        onCleared.invoke(viewModel)
         Dispatchers.resetMain()
     }
 
@@ -179,6 +224,7 @@ class MainViewModelGeoMarkAddresseeTest {
         ingestReceivedGeoMarks = ingestReceivedGeoMarks,
         autoExpireGeoMarks = autoExpireGeoMarks,
         ingestReceivedChatMessages = ingestReceivedChatMessages,
+            syncEmergencyMute = syncEmergencyMute,
         observeLogicalChannels = observeLogicalChannels,
         observeNodeChannels = observeNodeChannels,
         syncStateRepository = syncStateRepository,
@@ -187,10 +233,22 @@ class MainViewModelGeoMarkAddresseeTest {
         refreshNodePublicKey = refreshNodePublicKey,
         observeAppUser = observeAppUser,
         geoMarkPrefsRepository = geoMarkPrefsRepository,
+        observeTrackRecordingState = observeTrackRecordingState,
+        startTrackRecording = startTrackRecording,
+        pauseTrackRecording = pauseTrackRecording,
+        resumeTrackRecording = resumeTrackRecording,
+        stopTrackRecording = stopTrackRecording,
+        discardTrackRecording = discardTrackRecording,
+        updateTrackRecordingName = updateTrackRecordingName,
+        updateTrackRecordingColor = updateTrackRecordingColor,
+        trackSettingsDataSource = trackSettingsDataSource,
+        gpsRepository = gpsRepository,
+        observeRecordedTracks = observeRecordedTracks,
+        observeRecordedTrackPoints = observeRecordedTrackPoints,
     )
 
     private fun makeBasicContour(): Contour {
-        val hash = ContourHash.compute(DefaultActiveContour.DISPLAY_NAME, psk)
+        val hash = ContourHash.compute(DefaultActiveContour.CHANNEL_NAME, psk)
         return Contour(
             id = DefaultActiveContour.ID,
             name = DefaultActiveContour.DISPLAY_NAME,
@@ -216,21 +274,21 @@ class MainViewModelGeoMarkAddresseeTest {
     }
 
     @Test
-    fun `disconnected — default addressee is storage`() = runTest(testDispatcher) {
+    fun `disconnected — default addressee is storage`() {
         channelsFlow.value = listOf(makeBasicContour())
         connectionStatusFlow.value = MeshConnectionStatus.Disconnected
         assertEquals(GEO_MARK_LOCAL_STORAGE_ID, viewModel.geoMarksSheetUiState.value.selectedContourId)
     }
 
     @Test
-    fun `connected with Basic active — default addressee is Basic`() = runTest(testDispatcher) {
+    fun `connected with Basic active — default addressee is Basic`() {
         channelsFlow.value = listOf(makeBasicContour())
         connectionStatusFlow.value = MeshConnectionStatus.Connected("!abc", "SN", "Meshtastic SN", -70, 80)
         assertEquals(DefaultActiveContour.ID.value, viewModel.geoMarksSheetUiState.value.selectedContourId)
     }
 
     @Test
-    fun `prefs with local storage and connected — switches to Basic not storage`() = runTest(testDispatcher) {
+    fun `prefs with local storage and connected — switches to Basic not storage`() {
         prefsFlow.value = GeoMarkFormPreferences(selectedContourId = GEO_MARK_LOCAL_STORAGE_ID)
         viewModel = createViewModel()
         channelsFlow.value = listOf(makeBasicContour())
@@ -239,7 +297,7 @@ class MainViewModelGeoMarkAddresseeTest {
     }
 
     @Test
-    fun `prefs with custom contour and connected — keeps custom contour`() = runTest(testDispatcher) {
+    fun `prefs with custom contour and connected — keeps custom contour`() {
         val customId = "00000000-0000-0000-0000-000000000099"
         prefsFlow.value = GeoMarkFormPreferences(selectedContourId = customId)
         viewModel = createViewModel()
@@ -249,7 +307,7 @@ class MainViewModelGeoMarkAddresseeTest {
     }
 
     @Test
-    fun `setAddressee storage while connected — keeps storage in session`() = runTest(testDispatcher) {
+    fun `setAddressee storage while connected — keeps storage in session`() {
         channelsFlow.value = listOf(makeBasicContour())
         connectionStatusFlow.value = MeshConnectionStatus.Connected("!abc", "SN", "Meshtastic SN", -70, 80)
         viewModel.setAddressee(GEO_MARK_LOCAL_STORAGE_ID)

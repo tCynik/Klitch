@@ -24,6 +24,8 @@ import ru.tcynik.meshtactics.mesh.model.Position
 import org.meshtastic.proto.AdminMessage
 import org.meshtastic.proto.ChannelSet
 import org.meshtastic.proto.LocalConfig
+import org.meshtastic.proto.MeshPacket
+import kotlin.time.Duration
 
 /** Interface for sending commands and packets to the mesh network. */
 @Suppress("TooManyFunctions")
@@ -43,28 +45,56 @@ interface CommandSender {
     /** Reactive channel set — emits whenever channels are updated from the radio. */
     val channelSetFlow: StateFlow<ChannelSet>
 
+    /** Emits the current session passkey; becomes non-empty after the first admin response. */
+    val sessionPasskeyFlow: StateFlow<ByteString>
+
     /** Generates a new unique packet ID. */
     fun generatePacketId(): Int
 
     /** Sets the session passkey for admin messages. */
     fun setSessionPasskey(key: ByteString)
 
+    /** Stores [AdminMessage.session_passkey] from an incoming admin packet. */
+    fun ingestAdminSessionPasskey(packet: MeshPacket)
+
+    /** Waits for admin response with passkey matching [replyId]. */
+    suspend fun awaitAdminPasskey(replyId: Int, timeout: Duration): ByteString?
+
+    /** Completes passkey waiters when firmware returns routing NAK for an admin request. */
+    fun notifyAdminRoutingResult(requestId: Int, errorReason: Int)
+
+    /** Called when firmware sends FromRadio.rebooted — admin session is invalid until reconnect. */
+    fun notifyNodeRebooted()
+
+    /** True if [notifyNodeRebooted] fired after [epochMs] (e.g. start of passkey wait). */
+    fun nodeRebootedAfter(epochMs: Long): Boolean
+
     /** Sends a data packet to the mesh. */
     fun sendData(p: DataPacket)
 
-    /** Sends an admin message to a specific node. */
+    /** Sends an admin message to a specific node. Returns the mesh packet id. */
     fun sendAdmin(
         destNum: Int,
         requestId: Int = generatePacketId(),
         wantResponse: Boolean = false,
         initFn: () -> AdminMessage,
-    )
+    ): Int
 
     /** Sends our current position to the mesh. */
     fun sendPosition(pos: org.meshtastic.proto.Position, destNum: Int? = null, wantResponse: Boolean = false)
 
+    /** Broadcasts our position as a direct mesh packet on the given channel slot. */
+    fun broadcastPosition(pos: org.meshtastic.proto.Position, channelIndex: Int)
+
     /** Requests the position of a specific node. */
     fun requestPosition(destNum: Int, currentPosition: Position)
+
+    /**
+     * Requests the position of a specific node on an explicit channel slot.
+     * The node will only respond if it is subscribed to [channelIndex].
+     * A response confirms the node is on that channel — use this for slot discovery.
+     */
+    fun requestPosition(destNum: Int, position: Position, channelIndex: Int)
 
     /** Sets a fixed position for a node. */
     fun setFixedPosition(destNum: Int, pos: Position)

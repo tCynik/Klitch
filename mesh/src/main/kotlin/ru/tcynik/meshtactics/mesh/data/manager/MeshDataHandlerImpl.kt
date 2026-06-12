@@ -40,6 +40,7 @@ import ru.tcynik.meshtactics.mesh.model.util.toOneLiner
 import ru.tcynik.meshtactics.mesh.repository.CommandSender
 import ru.tcynik.meshtactics.mesh.repository.DataPair
 import ru.tcynik.meshtactics.mesh.repository.MeshConfigFlowManager
+import ru.tcynik.meshtactics.mesh.repository.PositionChannelFilter
 import ru.tcynik.meshtactics.mesh.repository.MeshConfigHandler
 import ru.tcynik.meshtactics.mesh.repository.MeshConnectionManager
 import ru.tcynik.meshtactics.mesh.repository.MeshDataHandler
@@ -108,6 +109,7 @@ class MeshDataHandlerImpl(
     private val radioConfigRepository: RadioConfigRepository,
     private val messageFilter: MessageFilter,
     private val storeForwardHandler: StoreForwardPacketHandler,
+    private val positionChannelFilter: PositionChannelFilter,
 ) : MeshDataHandler {
     private var scope: CoroutineScope = CoroutineScope(ioDispatcher + SupervisorJob())
 
@@ -245,10 +247,15 @@ class MeshDataHandlerImpl(
     }
 
     private fun handlePosition(packet: MeshPacket, dataPacket: DataPacket, myNodeNum: Int) {
+            Logger.withTag("MT/Pos").d { "has Position: from=${packet.from} channel=${packet.channel}" }
         val payload = packet.decoded?.payload ?: return
         val p = Position.ADAPTER.decodeOrNull(payload, Logger) ?: return
+//        if (packet.from != myNodeNum && !positionChannelFilter.isChannelAccepted(packet.channel)) {
+//            Logger.withTag("MT/Pos").d { "Position dropped: from=${packet.from} channel=${packet.channel} not in active contour" }
+//            return
+//        }
         Logger.d { "Position from ${packet.from}: ${Position.ADAPTER.toOneLiner(p)}" }
-        nodeManager.handleReceivedPosition(packet.from, myNodeNum, p, dataPacket.time)
+        nodeManager.handleReceivedPosition(packet.from, myNodeNum, p, dataPacket.time, packet.channel)
     }
 
     private fun handleWaypoint(packet: MeshPacket, dataPacket: DataPacket, myNodeNum: Int) {
@@ -262,8 +269,6 @@ class MeshDataHandlerImpl(
     private fun handleAdminMessage(packet: MeshPacket, myNodeNum: Int) {
         val payload = packet.decoded?.payload ?: return
         val u = AdminMessage.ADAPTER.decode(payload)
-        u.session_passkey.let { commandSender.setSessionPasskey(it) }
-
         val fromNum = packet.from
         u.get_module_config_response?.let {
             if (fromNum == myNodeNum) {
@@ -273,7 +278,7 @@ class MeshDataHandlerImpl(
             }
         }
 
-        if (fromNum == myNodeNum) {
+        if (fromNum == myNodeNum || fromNum == 0) {
             u.get_config_response?.let { configHandler.value.handleDeviceConfig(it) }
             u.get_channel_response?.let { configHandler.value.handleChannel(it) }
         }
@@ -428,7 +433,11 @@ class MeshDataHandlerImpl(
             r.error_reason?.value ?: 0,
             dataPacket.relayNode,
         )
-        packet.decoded?.request_id?.let { packetHandler.removeResponse(it, complete = true) }
+        packet.decoded?.request_id?.let { requestId ->
+            val isAck = r.error_reason == Routing.Error.NONE
+            commandSender.notifyAdminRoutingResult(requestId, r.error_reason?.value ?: 0)
+            packetHandler.removeResponse(requestId, complete = isAck)
+        }
     }
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")

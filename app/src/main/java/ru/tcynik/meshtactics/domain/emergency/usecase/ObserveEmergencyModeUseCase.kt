@@ -6,5 +6,5 @@ import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 class ObserveEmergencyModeUseCase(
     private val repository: ContourRepository,
 ) {
-    operator fun invoke(): Flow<Boolean> = repository.observeEmergencyIsActive()
+    operator fun invoke(): Flow<Boolean> = repository.observeSosMode()
 }

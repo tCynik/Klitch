@@ -31,8 +31,8 @@ interface MeshActionHandler {
     /** Processes a service action from the UI. */
     fun onServiceAction(action: ServiceAction)
 
-    /** Sets the owner of the local node. */
-    fun handleSetOwner(u: MeshUser, myNodeNum: Int)
+    /** Sets the owner of the local node. Returns the mesh packet id, or 0 if not sent. */
+    fun handleSetOwner(u: MeshUser, myNodeNum: Int): Int
 
     /** Sends a data packet through the mesh. */
     fun handleSend(p: DataPacket, myNodeNum: Int)
@@ -49,8 +49,8 @@ interface MeshActionHandler {
     /** Gets the owner of a remote node. */
     fun handleGetRemoteOwner(id: Int, destNum: Int)
 
-    /** Sets the configuration of the local node. */
-    fun handleSetConfig(payload: ByteArray, myNodeNum: Int)
+    /** Sets the configuration of the local node. Returns the queued packet ID for delivery tracking. */
+    fun handleSetConfig(payload: ByteArray, myNodeNum: Int): Int
 
     /** Sets the configuration of a remote node. */
     fun handleSetRemoteConfig(id: Int, destNum: Int, payload: ByteArray)
@@ -76,8 +76,8 @@ interface MeshActionHandler {
     /** Gets canned messages from a remote node. */
     fun handleGetCannedMessages(id: Int, destNum: Int)
 
-    /** Sets a channel configuration on the local node. */
-    fun handleSetChannel(payload: ByteArray?, myNodeNum: Int)
+    /** Sets a channel configuration on the local node. Returns the mesh packet id, or 0 if not sent. */
+    fun handleSetChannel(payload: ByteArray?, myNodeNum: Int): Int
 
     /** Sets a channel configuration on a remote node. */
     fun handleSetRemoteChannel(id: Int, destNum: Int, payload: ByteArray?)
@@ -88,11 +88,11 @@ interface MeshActionHandler {
     /** Requests neighbor information from a remote node. */
     fun handleRequestNeighborInfo(requestId: Int, destNum: Int)
 
-    /** Begins editing settings on a remote node. */
-    fun handleBeginEditSettings(destNum: Int)
+    /** Begins editing settings on a remote node. Returns the mesh packet id, or 0 if not sent. */
+    fun handleBeginEditSettings(destNum: Int): Int
 
-    /** Commits settings edits on a remote node. */
-    fun handleCommitEditSettings(destNum: Int)
+    /** Commits settings edits on a remote node. Returns the mesh packet id, or 0 if not sent. */
+    fun handleCommitEditSettings(destNum: Int): Int
 
     /** Reboots a remote node into DFU mode. */
     fun handleRebootToDfu(destNum: Int)

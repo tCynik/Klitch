@@ -52,6 +52,8 @@ data class Node(
     val lastHeard: Int = 0, // the last time we've seen this node in secs since 1970
     val deviceMetrics: DeviceMetrics = DeviceMetrics(),
     val channel: Int = 0,
+    /** Channel index of the last received position packet. Null until first live position arrives. */
+    val positionChannel: Int? = null,
     val viaMqtt: Boolean = false,
     val hopsAway: Int = -1,
     val isFavorite: Boolean = false,

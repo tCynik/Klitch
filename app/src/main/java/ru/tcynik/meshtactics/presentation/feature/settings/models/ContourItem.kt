@@ -12,5 +12,6 @@ data class ContourItem(
     val exclusivityTime: Instant?,
     val isActive: Boolean,
     val isEmergency: Boolean,
+    val isPrimary: Boolean,
     val syncStatus: ChannelSyncStatus,
 )

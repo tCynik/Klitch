@@ -11,11 +11,13 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import ru.tcynik.meshtactics.data.chat.dto.ChatContactDto
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
+import ru.tcynik.meshtactics.domain.channel.model.isEmergency
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.chat.model.ChatMessageModel
 import ru.tcynik.meshtactics.domain.chat.model.ContactType
 import ru.tcynik.meshtactics.mesh.common.util.nowMillis
 import ru.tcynik.meshtactics.mesh.model.DataPacket
+import ru.tcynik.meshtactics.mesh.model.MeshContactKey
 import ru.tcynik.meshtactics.mesh.model.Message
 import ru.tcynik.meshtactics.mesh.model.MessageStatus
 import ru.tcynik.meshtactics.mesh.model.Node
@@ -37,7 +39,8 @@ class MeshToChatAdapter(
 
     // ==================== CONTACTS ====================
 
-    fun observeTotalUnreadCount(): Flow<Int> = packetRepository.getUnreadCountExcludingArchived()
+    fun observeTotalUnreadCount(): Flow<Int> = observeContactsAsFlow()
+        .map { contacts -> contacts.filter { !it.isArchived }.sumOf { it.unreadCount } }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observeContactsAsFlow(): Flow<List<ChatContactDto>> =
@@ -49,12 +52,17 @@ class MeshToChatAdapter(
         ) { contacts, settings, contours, slotMaps ->
             Quadruple(contacts, settings, contours, slotMaps)
         }.flatMapLatest { (contacts, settings, contours, slotMaps) ->
-            combine(nodeRepository.nodeDBbyNum, nodeRepository.myId, nodeRepository.ourNodeInfo) { nodesByNum, myId, myNode ->
-                Triple(nodesByNum, myId, myNode)
-            }.flatMapLatest { (nodesByNum, myId, myNode) ->
+            combine(
+                nodeRepository.nodeDBbyNum,
+                nodeRepository.myId,
+                nodeRepository.ourNodeInfo,
+                channelRepository.observeSosMode(),
+            ) { nodesByNum, myId, myNode, sosMode ->
+                Quadruple(nodesByNum, myId, myNode, sosMode)
+            }.flatMapLatest { (nodesByNum, myId, myNode, sosMode) ->
                 val contourUnreadFlows = contours.map { contour ->
                     val slot = slotMaps.hashToSlot[contour.transport.meshtastic.channelHash]
-                    val contactKey = slot?.let { "${it}${DataPacket.ID_BROADCAST}" }
+                    val contactKey = slot?.let { MeshContactKey.broadcast(it).raw }
                     contactKey?.let { packetRepository.getUnreadCountFlow(it) } ?: flowOf(0)
                 }
                 val privateCandidates = buildPrivateCandidates(
@@ -72,7 +80,7 @@ class MeshToChatAdapter(
                 combine(unreadFlows) { unreadCounts ->
                     val contourItems = contours.mapIndexed { index, contour ->
                         val slot = slotMaps.hashToSlot[contour.transport.meshtastic.channelHash]
-                        val contactKey = slot?.let { "${it}${DataPacket.ID_BROADCAST}" }
+                        val contactKey = slot?.let { MeshContactKey.broadcast(it).raw }
                         val lastPacket = contactKey?.let { contacts[it] }
                         val setting = contactKey?.let { settings[it] }
 
@@ -85,7 +93,7 @@ class MeshToChatAdapter(
                             isPinned = setting?.isPinned ?: false,
                             isArchived = setting?.isArchived ?: false,
                             isActive = contour.isActive,
-                            unreadCount = unreadCounts[index],
+                            unreadCount = if (contour.isEmergency && !sosMode) 0 else unreadCounts[index],
                             lastMessageTime = lastPacket?.time?.takeIf { it > 0 },
                             lastMessagePreview = lastPacket?.text,
                         )
@@ -119,6 +127,28 @@ class MeshToChatAdapter(
                 }
             }
         }
+
+    // ==================== EMERGENCY MUTE SYNC ====================
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun observeEmergencyMuteSync(): Flow<Unit> = combine(
+        channelRepository.observeSosMode(),
+        channelRepository.observeContours(),
+        channelSlotResolver.mapsFlow,
+    ) { sosMode, contours, maps ->
+        Triple(sosMode, contours, maps)
+    }.flatMapLatest { (sosMode, contours, maps) ->
+        flow {
+            val emergencyHash = contours.find { it.isEmergency }?.transport?.meshtastic?.channelHash
+            val emergencySlot = emergencyHash?.let { maps.hashToSlot[it] }
+            if (emergencySlot != null) {
+                val emergencyKey = MeshContactKey.broadcast(emergencySlot).raw
+                val muteUntil = if (sosMode) 0L else Long.MAX_VALUE
+                packetRepository.setMuteUntil(listOf(emergencyKey), muteUntil)
+            }
+            emit(Unit)
+        }
+    }
 
     // ==================== MESSAGES ====================
 
@@ -187,7 +217,7 @@ class MeshToChatAdapter(
             val contour = contours.find { it.id.value == contactId } ?: return
             val hash = contour.transport.meshtastic.channelHash
             val channelIndex = channelSlotResolver.hashToSlot[hash] ?: return
-            doSend(text, DataPacket.ID_BROADCAST, channelIndex, "$channelIndex${DataPacket.ID_BROADCAST}")
+            doSend(text, DataPacket.ID_BROADCAST, channelIndex, MeshContactKey.broadcast(channelIndex).raw)
         }
     }
 
@@ -238,7 +268,7 @@ class MeshToChatAdapter(
         val contour = contours.find { it.id.value == contactId } ?: return null
         val hash = contour.transport.meshtastic.channelHash
         val slot = channelSlotResolver.hashToSlot[hash] ?: return null
-        return "${slot}${DataPacket.ID_BROADCAST}"
+        return MeshContactKey.broadcast(slot).raw
     }
 }
 
@@ -279,7 +309,7 @@ private fun buildPrivateCandidates(
     val historyPrivateEntries = contacts.entries
         .filter { (_, packet) -> packet.to != DataPacket.ID_BROADCAST }
         .mapNotNull { (contactKey, _) ->
-            val nodeId = contactKey.dropWhile { it.isDigit() }
+            val nodeId = MeshContactKey(contactKey).nodeId
             if (!nodeId.startsWith("!")) return@mapNotNull null
             PrivateNodeCandidate(
                 id = contactKey,
@@ -291,7 +321,7 @@ private fun buildPrivateCandidates(
         }
         // PKC history (channel=8) must win over non-PKC if both exist for same node
         .sortedBy { if (it.contactKey?.startsWith("${DataPacket.PKC_CHANNEL_INDEX}") == true) 1 else 0 }
-        .associateBy { it.id.dropWhile { it.isDigit() } }
+        .associateBy { MeshContactKey(it.id).nodeId }
 
     val onlineNodes = nodesByNum.values
         .filter { node ->
@@ -307,8 +337,8 @@ private fun buildPrivateCandidates(
         val shortName = node?.user?.short_name?.ifBlank { nodeId } ?: nodeId
         val longName = node?.user?.long_name?.ifBlank { shortName } ?: shortName
         val fallbackContactKey = when {
-            node?.hasPKC == true && myHasPKC -> "${DataPacket.PKC_CHANNEL_INDEX}$nodeId"
-            else -> "0$nodeId"
+            node?.hasPKC == true && myHasPKC -> MeshContactKey.direct(DataPacket.PKC_CHANNEL_INDEX, nodeId).raw
+            else -> MeshContactKey.direct(0, nodeId).raw
         }
         val resolvedContactKey = history?.contactKey ?: fallbackContactKey
         PrivateNodeCandidate(

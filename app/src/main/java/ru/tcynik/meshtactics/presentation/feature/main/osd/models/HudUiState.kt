@@ -12,6 +12,7 @@ data class HudUiState(
     val markTool: HudRowConfig,
     val mapTools: HudRowConfig,
     val gps: HudRowConfig,
+    val trackRecord: HudRowConfig,
     // Right column (main menu) — radio pinned to top in portrait, rest at bottom
     val radio: HudRowConfig,
     val marks: HudRowConfig,

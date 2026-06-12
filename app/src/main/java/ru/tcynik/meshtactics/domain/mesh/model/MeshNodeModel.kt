@@ -24,4 +24,6 @@ data class MeshNodeModel(
     val groundSpeed: Int,
     /** Ground track (bearing) in degrees 0–359, clockwise from north. 0 if unknown. */
     val groundTrack: Int,
+    /** Meshtastic channel slot from which the last position packet was received. Null until first packet. */
+    val receivedOnSlot: Int? = null,
 )

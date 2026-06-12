@@ -12,21 +12,15 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.emergency.repository.EmergencyPositionBroadcastRepository
-import ru.tcynik.meshtactics.domain.gps.model.GpsLocation
 import ru.tcynik.meshtactics.domain.gps.repository.GpsRepository
-import ru.tcynik.meshtactics.domain.marker.model.GeoMarkModel
-import ru.tcynik.meshtactics.domain.marker.model.GeoMarkType
-import ru.tcynik.meshtactics.domain.marker.model.GeoPoint
-import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkRepository
-import ru.tcynik.meshtactics.data.marker.adapter.GeoMarkWaypointAdapter
-import java.util.UUID
+import ru.tcynik.meshtactics.domain.mesh.repository.MeshConfigRepository
 
 private const val BROADCAST_INTERVAL_MS = 30_000L
 
 class EmergencyPositionBroadcastRepositoryImpl(
     private val gpsRepository: GpsRepository,
-    private val geoMarkRepository: GeoMarkRepository,
     private val contourRepository: ContourRepository,
+    private val meshConfigRepository: MeshConfigRepository,
 ) : EmergencyPositionBroadcastRepository {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -37,7 +31,7 @@ class EmergencyPositionBroadcastRepositoryImpl(
 
     init {
         scope.launch {
-            val wasActive = contourRepository.observeEmergencyIsActive().first()
+            val wasActive = contourRepository.observeSosMode().first()
             if (wasActive) start()
         }
     }
@@ -47,7 +41,9 @@ class EmergencyPositionBroadcastRepositoryImpl(
         _isActive.value = true
         broadcastJob = scope.launch {
             while (true) {
-                gpsRepository.location.value?.let { sendPositionMark(it) }
+                gpsRepository.location.value?.let { location ->
+                    meshConfigRepository.setFixedPosition(location.latitude, location.longitude, 0)
+                }
                 delay(BROADCAST_INTERVAL_MS)
             }
         }
@@ -57,22 +53,6 @@ class EmergencyPositionBroadcastRepositoryImpl(
         broadcastJob?.cancel()
         broadcastJob = null
         _isActive.value = false
-    }
-
-    private suspend fun sendPositionMark(location: GpsLocation) {
-        val nowSeconds = System.currentTimeMillis() / 1_000
-        val markId = UUID.randomUUID().toString()
-        geoMarkRepository.sendGeoMark(
-            GeoMarkModel(
-                id = markId,
-                waypointId = GeoMarkWaypointAdapter.waypointIdFromMarkId(markId),
-                type = GeoMarkType.POINT,
-                points = listOf(GeoPoint(location.latitude, location.longitude)),
-                authorNodeId = "",
-                createdAt = nowSeconds,
-                expiresAt = null,
-                isSelf = true,
-            )
-        )
+        meshConfigRepository.removeOwnFixedPosition()
     }
 }

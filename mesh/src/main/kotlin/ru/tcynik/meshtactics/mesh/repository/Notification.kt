@@ -25,6 +25,7 @@ data class Notification(
     val isSilent: Boolean = false,
     val group: String? = null,
     val id: Int? = null,
+    val channelSlot: Int? = null,
 ) {
     enum class Type {
         None,

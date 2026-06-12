@@ -18,12 +18,14 @@ package ru.tcynik.meshtactics.mesh.data.manager
 
 import co.touchlab.kermit.Logger
 import kotlinx.atomicfu.atomic
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.withTimeoutOrNull
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import org.koin.core.annotation.Single
@@ -49,9 +51,12 @@ import org.meshtastic.proto.MeshPacket
 import org.meshtastic.proto.Neighbor
 import org.meshtastic.proto.NeighborInfo
 import org.meshtastic.proto.PortNum
+import org.meshtastic.proto.Routing
 import org.meshtastic.proto.Telemetry
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.absoluteValue
 import kotlin.random.Random
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 
 @Suppress("TooManyFunctions", "CyclomaticComplexMethod")
@@ -71,12 +76,20 @@ class CommandSenderImpl(
     private val channelSet = MutableStateFlow(ChannelSet())
     override val channelSetFlow: StateFlow<ChannelSet> get() = channelSet
 
+    private val _sessionPasskeyFlow = MutableStateFlow(ByteString.EMPTY)
+    override val sessionPasskeyFlow: StateFlow<ByteString> get() = _sessionPasskeyFlow
+
+    private val passkeyAwaiters = ConcurrentHashMap<Int, CompletableDeferred<ByteString?>>()
+    private val lastNodeRebootAtMs = atomic(0L)
+
     // We'll need a way to track connection state in shared code,
     // maybe via ServiceRepository or similar.
     // For now I'll assume it's injected or available.
 
     override fun start(scope: CoroutineScope) {
         this.scope = scope
+        sessionPasskey.value = ByteString.EMPTY
+        _sessionPasskeyFlow.value = ByteString.EMPTY
         radioConfigRepository.localConfigFlow.onEach { localConfig.value = it }.launchIn(scope)
         radioConfigRepository.channelSetFlow.onEach { channelSet.value = it }.launchIn(scope)
     }
@@ -95,6 +108,79 @@ class CommandSenderImpl(
 
     override fun setSessionPasskey(key: ByteString) {
         sessionPasskey.value = key
+        _sessionPasskeyFlow.value = key
+        if (key.size == 0) {
+            clearPasskeyAwaiters()
+        }
+    }
+
+    override suspend fun awaitAdminPasskey(replyId: Int, timeout: Duration): ByteString? {
+        if (replyId == 0) return null
+        sessionPasskey.value.takeIf { it.size > 0 }?.let { return it }
+
+        val deferred = CompletableDeferred<ByteString?>()
+        passkeyAwaiters[replyId] = deferred
+        return try {
+            withTimeoutOrNull(timeout) { deferred.await() }
+        } finally {
+            passkeyAwaiters.remove(replyId, deferred)
+        }
+    }
+
+    override fun notifyAdminRoutingResult(requestId: Int, errorReason: Int) {
+        if (requestId == 0 || errorReason == Routing.Error.NONE.value) return
+        val waiter = passkeyAwaiters.remove(requestId) ?: return
+        waiter.complete(null)
+        Logger.w("MT/Contour") {
+            "session_passkey: routing error=$errorReason reqId=${requestId.toUInt()}"
+        }
+    }
+
+    override fun notifyNodeRebooted() {
+        lastNodeRebootAtMs.value = nowMillis
+        setSessionPasskey(ByteString.EMPTY)
+        passkeyAwaiters.values.forEach { runCatching { it.complete(null) } }
+        passkeyAwaiters.clear()
+        Logger.i("MT/Node") { "nodeReboot: admin session invalidated" }
+    }
+
+    override fun nodeRebootedAfter(epochMs: Long): Boolean = lastNodeRebootAtMs.value > epochMs
+
+    override fun ingestAdminSessionPasskey(packet: MeshPacket) {
+        val payload = packet.decoded?.payload ?: return
+        val admin = AdminMessage.ADAPTER.decode(payload)
+        val replyId = packet.decoded?.reply_id ?: 0
+        if (admin.session_passkey.size > 0) {
+            Logger.i("MT/Contour") {
+                "session_passkey received size=${admin.session_passkey.size} " +
+                    "from=${packet.from.toUInt()} replyId=${replyId.toUInt()} packetId=${packet.id.toUInt()}"
+            }
+            setSessionPasskey(admin.session_passkey)
+            completePasskeyAwaiter(replyId, admin.session_passkey)
+            if (replyId == 0) {
+                passkeyAwaiters.values.forEach { runCatching { it.complete(admin.session_passkey) } }
+                passkeyAwaiters.clear()
+            }
+        } else if (
+            admin.get_channel_response != null ||
+            admin.get_config_response != null ||
+            admin.get_owner_response != null
+        ) {
+            Logger.i("MT/Contour") {
+                "session_passkey MISSING: get_x_response from=${packet.from.toUInt()} replyId=${replyId.toUInt()}"
+            }
+            completePasskeyAwaiter(replyId, null)
+        }
+    }
+
+    private fun completePasskeyAwaiter(replyId: Int, passkey: ByteString?) {
+        if (replyId == 0) return
+        passkeyAwaiters.remove(replyId)?.complete(passkey)
+    }
+
+    private fun clearPasskeyAwaiters() {
+        passkeyAwaiters.values.forEach { it.cancel() }
+        passkeyAwaiters.clear()
     }
 
     private fun computeHopLimit(): Int = (localConfig.value.lora?.hop_limit ?: 0).takeIf { it > 0 } ?: DEFAULT_HOP_LIMIT
@@ -164,18 +250,29 @@ class CommandSenderImpl(
         packetHandler.sendToRadio(meshPacket)
     }
 
-    override fun sendAdmin(destNum: Int, requestId: Int, wantResponse: Boolean, initFn: () -> AdminMessage) {
+    override fun sendAdmin(destNum: Int, requestId: Int, wantResponse: Boolean, initFn: () -> AdminMessage): Int {
         val adminMsg = initFn().copy(session_passkey = sessionPasskey.value)
+        if (adminMsg.outgoingRequiresSessionPasskey() && sessionPasskey.value.size == 0) {
+            Logger.e("MT/Contour") {
+                "session_passkey MISSING: sendAdmin to=${destNum.toUInt()} requestId=$requestId"
+            }
+        }
         Logger.d { "CHANNEL_DEBUG: sendAdmin to=${destNum.toUInt()} requestId=$requestId wantResponse=$wantResponse payload=${adminMsg}" }
         val packet =
             buildAdminPacket(to = destNum, id = requestId, wantResponse = wantResponse, adminMessage = adminMsg)
-        packetHandler.sendToRadio(packet)
+        if (destNum == nodeManager.myNodeNum) {
+            packetHandler.sendLocalAdminPacket(packet)
+        } else {
+            packetHandler.sendToRadio(packet)
+        }
+        return packet.id
     }
 
     override fun sendPosition(pos: org.meshtastic.proto.Position, destNum: Int?, wantResponse: Boolean) {
         val myNum = nodeManager.myNodeNum ?: return
-        val idNum = destNum ?: myNum
-        Logger.d { "Sending our position/time to=$idNum $pos" }
+        val idNum = destNum ?: DataPacket.NODENUM_BROADCAST
+        val channel = if (destNum == null) 0 else nodeManager.nodeDBbyNodeNum[destNum]?.channel ?: 0
+        Logger.d("MT/PhoneGPS→radio") { "sendPosition to=$idNum ch=$channel" }
 
         if (localConfig.value.position?.fixed_position != true) {
             nodeManager.handleReceivedPosition(myNum, myNum, pos, nowMillis)
@@ -184,7 +281,7 @@ class CommandSenderImpl(
         packetHandler.sendToRadio(
             buildMeshPacket(
                 to = idNum,
-                channel = if (destNum == null) 0 else nodeManager.nodeDBbyNodeNum[destNum]?.channel ?: 0,
+                channel = channel,
                 priority = MeshPacket.Priority.BACKGROUND,
                 decoded =
                 Data(
@@ -196,18 +293,36 @@ class CommandSenderImpl(
         )
     }
 
+    override fun broadcastPosition(pos: org.meshtastic.proto.Position, channelIndex: Int) {
+        packetHandler.sendToRadio(
+            buildMeshPacket(
+                to = DataPacket.NODENUM_BROADCAST,
+                channel = channelIndex,
+                priority = MeshPacket.Priority.BACKGROUND,
+                decoded = Data(
+                    portnum = PortNum.POSITION_APP,
+                    payload = pos.encode().toByteString(),
+                ),
+            ),
+        )
+    }
+
     override fun requestPosition(destNum: Int, currentPosition: Position) {
+        requestPosition(destNum, currentPosition, nodeManager.nodeDBbyNodeNum[destNum]?.channel ?: 0)
+    }
+
+    override fun requestPosition(destNum: Int, position: Position, channelIndex: Int) {
         val meshPosition =
             org.meshtastic.proto.Position(
-                latitude_i = Position.degI(currentPosition.latitude),
-                longitude_i = Position.degI(currentPosition.longitude),
-                altitude = currentPosition.altitude,
+                latitude_i = Position.degI(position.latitude),
+                longitude_i = Position.degI(position.longitude),
+                altitude = position.altitude,
                 time = (nowMillis / 1000L).toInt(),
             )
         packetHandler.sendToRadio(
             buildMeshPacket(
                 to = destNum,
-                channel = nodeManager.nodeDBbyNodeNum[destNum]?.channel ?: 0,
+                channel = channelIndex,
                 priority = MeshPacket.Priority.BACKGROUND,
                 decoded =
                 Data(
@@ -377,12 +492,12 @@ class CommandSenderImpl(
         to: Int,
         wantAck: Boolean = false,
         id: Int = generatePacketId(), // always assign a packet ID if we didn't already have one
-        hopLimit: Int = 0,
+        hopLimit: Int = -1,
         channel: Int = 0,
         priority: MeshPacket.Priority = MeshPacket.Priority.UNSET,
         decoded: Data,
     ): MeshPacket {
-        val actualHopLimit = if (hopLimit > 0) hopLimit else computeHopLimit()
+        val actualHopLimit = if (hopLimit >= 0) hopLimit else computeHopLimit()
 
         var pkiEncrypted = false
         var publicKey: ByteString = ByteString.EMPTY
@@ -394,8 +509,9 @@ class CommandSenderImpl(
             actualChannel = 0
         }
 
+        val fromNum = resolvePacketFrom(to)
         return MeshPacket(
-            from = nodeManager.myNodeNum ?: 0,
+            from = fromNum,
             to = to,
             id = id,
             want_ack = wantAck,
@@ -409,16 +525,25 @@ class CommandSenderImpl(
         )
     }
 
+    /** Phone-originated packets to the connected node use from=0; see AdminModule.cpp. */
+    private fun resolvePacketFrom(to: Int): Int {
+        val myNum = nodeManager.myNodeNum
+        if (myNum != null && to == myNum) return 0
+        return myNum ?: 0
+    }
+
     private fun buildAdminPacket(
         to: Int,
         id: Int = generatePacketId(), // always assign a packet ID if we didn't already have one
         wantResponse: Boolean = false,
         adminMessage: AdminMessage,
-    ): MeshPacket =
-        buildMeshPacket(
+    ): MeshPacket {
+        val isLocal = to == nodeManager.myNodeNum
+        return buildMeshPacket(
             to = to,
             id = id,
             wantAck = true,
+            hopLimit = if (isLocal) 0 else -1,
             channel = getAdminChannelIndex(to),
             priority = MeshPacket.Priority.RELIABLE,
             decoded =
@@ -428,6 +553,20 @@ class CommandSenderImpl(
                 payload = adminMessage.encode().toByteString(),
             ),
         )
+    }
+
+    private fun AdminMessage.outgoingRequiresSessionPasskey(): Boolean {
+        if (get_channel_request != 0) return false
+        if (get_owner_request == true) return false
+        if (get_config_request != null) return false
+        if (get_module_config_request != null) return false
+        if (get_canned_message_module_messages_request == true) return false
+        if (get_device_metadata_request == true) return false
+        if (get_ringtone_request == true) return false
+        if (get_device_connection_status_request == true) return false
+        if (begin_edit_settings == true) return false
+        return true
+    }
 
     companion object {
         private const val PACKET_ID_MASK = 0xffffffffL

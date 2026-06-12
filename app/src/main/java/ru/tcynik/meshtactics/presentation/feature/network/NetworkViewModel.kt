@@ -8,25 +8,32 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
-import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ConfirmChannelSyncUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.logger.Logger
+import ru.tcynik.meshtactics.domain.mesh.model.ContourNodeModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.model.MeshNodeModel
+import ru.tcynik.meshtactics.domain.mesh.model.NodeSyncCyclePhase
+import ru.tcynik.meshtactics.mesh.ble.toMeshtasticDisplayShortName
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceParams
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveContourNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveOurNodeUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.ObserveNetworkEnabledUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.SetNetworkEnabledUseCase
@@ -45,17 +52,18 @@ class NetworkViewModel(
     private val scanDevices: ScanMeshDevicesUseCase,
     private val connectToDevice: ConnectToMeshDeviceUseCase,
     private val disconnectFromMesh: DisconnectFromMeshUseCase,
-    private val observeNodes: ObserveMeshNodesUseCase,
+    private val observeNodes: ObserveContourNodesUseCase,
     private val observeOurNode: ObserveOurNodeUseCase,
     private val checkContourSync: CheckNodeSyncUseCase,
-    private val syncContoursOnConnect: SyncContoursOnConnectUseCase,
-    private val rebootNode: RebootNodeUseCase,
+    private val observeNodeChannels: ObserveNodeChannelsUseCase,
+    private val confirmChannelSync: ConfirmChannelSyncUseCase,
     private val syncStateRepository: ContourSyncStateRepository,
     private val rebootStateRepository: RebootStateRepository,
     private val observeAppUser: ObserveAppUserUseCase,
     private val saveAppUser: SaveAppUserUseCase,
     private val observeNetworkEnabled: ObserveNetworkEnabledUseCase,
     private val setNetworkEnabled: SetNetworkEnabledUseCase,
+    private val observeDeviceConfig: ObserveDeviceConfigUseCase,
     private val logger: Logger,
 ) : ViewModel() {
 
@@ -66,11 +74,17 @@ class NetworkViewModel(
 
     private var scanJob: Job? = null
     private var wasConnected = false
-    private var rebootDisconnectObserved = false
     private var userStoppedScan = false
     private var pendingConnectAddress: String? = null
+    private var lastMeshStatus: MeshConnectionStatus = MeshConnectionStatus.Disconnected
 
     init {
+        observeDeviceConfig(NoParams)
+            .onEach { config ->
+                _uiState.update { it.copy(hasNodeConfig = config != null) }
+            }
+            .launchIn(viewModelScope)
+
         observeNetworkEnabled(NoParams)
             .onEach { enabled ->
                 val wasEnabled = _uiState.value.networkEnabled
@@ -82,16 +96,17 @@ class NetworkViewModel(
             }
             .launchIn(viewModelScope)
 
-        rebootStateRepository.isRebooting
-            .onEach { rebooting ->
+        rebootStateRepository.syncCyclePhase
+            .onEach { phase ->
                 _uiState.update { state ->
+                    val uiStatus = resolveConnectionStatusUi(
+                        meshStatus = lastMeshStatus,
+                        syncPhase = phase,
+                        currentUiStatus = state.connectionStatus,
+                    ) ?: lastMeshStatus.toUi()
                     state.copy(
-                        isRebooting = rebooting,
-                        connectionStatus = if (rebooting) {
-                            MeshConnectionStatusUi.Rebooting
-                        } else {
-                            state.connectionStatus
-                        },
+                        isRebooting = phase != NodeSyncCyclePhase.Idle,
+                        connectionStatus = uiStatus,
                     )
                 }
             }
@@ -99,23 +114,19 @@ class NetworkViewModel(
 
         observeConnectionStatus(NoParams).onEach { status ->
             if (!_uiState.value.networkEnabled) return@onEach
-
-            logger.i("App", "DBG connectionStatus flow emitted: $status")
-            val isRebooting = rebootStateRepository.isRebooting.value
-            if (isRebooting && status !is MeshConnectionStatus.Connected) {
-                rebootDisconnectObserved = true
-            }
-            if (isRebooting && rebootDisconnectObserved && status is MeshConnectionStatus.Connected) {
-                rebootStateRepository.setRebooting(false)
-                rebootDisconnectObserved = false
-            }
-            val uiStatus = when {
-                isRebooting -> MeshConnectionStatusUi.Rebooting
-                userStoppedScan && status is MeshConnectionStatus.Scanning -> MeshConnectionStatusUi.Disconnected
-                else -> status.toUi()
+            lastMeshStatus = status
+            val syncPhase = rebootStateRepository.syncCyclePhase.value
+            val uiStatus = resolveConnectionStatusUi(
+                meshStatus = status,
+                syncPhase = syncPhase,
+                currentUiStatus = _uiState.value.connectionStatus,
+            ) ?: status.toUi()
+            if (syncPhase != NodeSyncCyclePhase.Idle) {
+                logger.i("Node", "syncUi: mesh=$status phase=$syncPhase ui=$uiStatus")
             }
             _uiState.update { state ->
-                val isScanInProgress = status is MeshConnectionStatus.Scanning && !userStoppedScan || scanJob != null
+                val isScanInProgress = (status is MeshConnectionStatus.Scanning && !userStoppedScan || scanJob != null)
+                    && state.connection.connectingAddress == null
                 state.copy(
                     connectionStatus = uiStatus,
                     lastConnectedNodeName = when (status) {
@@ -137,13 +148,21 @@ class NetworkViewModel(
                                 scannedDevices = state.connection.scannedDevices
                                     .filterNot { it.address == connectedAddress }
                                     .toImmutableList(),
+                                connectingAddress = null,
                             )
                         )
                     }
                     pendingConnectAddress = null
                 }
-                if (!wasConnected && !isRebooting) {
+                if (!wasConnected) {
                     viewModelScope.launch {
+                        if (rebootStateRepository.shouldSkipSyncCheckAfterReboot()) {
+                            return@launch
+                        }
+                        if (rebootStateRepository.isRebooting.value) return@launch
+                        withTimeoutOrNull(10_000) {
+                            observeNodeChannels(NoParams).filter { it.isNotEmpty() }.firstOrNull()
+                        }
                         if (checkContourSync() is NodeSyncResult.NeedsSync) {
                             _uiState.update { it.copy(showSyncDialog = true) }
                         }
@@ -151,7 +170,8 @@ class NetworkViewModel(
                 }
             }
             wasConnected = status is MeshConnectionStatus.Connected
-            if (status is MeshConnectionStatus.Scanning && scanJob == null && !isRebooting && !userStoppedScan) {
+            val isSyncCycleActive = syncPhase != NodeSyncCyclePhase.Idle
+            if (status is MeshConnectionStatus.Scanning && scanJob == null && !isSyncCycleActive && !userStoppedScan) {
                 startScan()
             }
             if (status is MeshConnectionStatus.Connecting) {
@@ -242,11 +262,8 @@ class NetworkViewModel(
     fun onConfirmChannelSync() {
         _uiState.update { it.copy(showSyncDialog = false) }
         viewModelScope.launch {
-            rebootDisconnectObserved = false
-            rebootStateRepository.setRebooting(true)
-            syncContoursOnConnect()
-            rebootNode()
-            syncStateRepository.clear()
+            logger.i("Node", "syncConfirm: start name=${_uiState.value.lastConnectedNodeName}")
+            confirmChannelSync(NoParams)
         }
     }
 
@@ -326,7 +343,13 @@ class NetworkViewModel(
             }
             return
         }
-        viewModelScope.launch { connectToPendingDevice(address, deviceName) }
+        viewModelScope.launch {
+            val currentConnecting = _uiState.value.connection.connectingAddress
+            if (currentConnecting != null && currentConnecting != address) {
+                disconnectFromMesh(NoParams)
+            }
+            connectToPendingDevice(address, deviceName)
+        }
     }
 
     private suspend fun connectToPendingDevice(address: String, deviceName: String) {
@@ -335,8 +358,8 @@ class NetworkViewModel(
         logger.i("App", "DBG onConnectClick: address=$address name=$deviceName")
         _uiState.update { state ->
             state.copy(
-                connectionStatus = MeshConnectionStatusUi.Connecting(deviceName),
-                connection = state.connection.copy(isScanning = false),
+                connectionStatus = MeshConnectionStatusUi.Connecting(deviceName.toMeshtasticDisplayShortName()),
+                connection = state.connection.copy(isScanning = false, connectingAddress = address),
             )
         }
         runCatching { connectToDevice(ConnectToMeshDeviceParams(address, deviceName)) }
@@ -344,7 +367,10 @@ class NetworkViewModel(
                 pendingConnectAddress = null
                 logger.e("App", "DBG onConnectClick: connectToDevice failed: ${e.message}", e)
                 _uiState.update {
-                    it.copy(connectionStatus = MeshConnectionStatusUi.Error(e.message ?: "Connection failed"))
+                    it.copy(
+                        connectionStatus = MeshConnectionStatusUi.Error(e.message ?: "Connection failed"),
+                        connection = it.connection.copy(connectingAddress = null),
+                    )
                 }
             }
     }
@@ -374,6 +400,26 @@ class NetworkViewModel(
         }
     }
 
+    private fun resolveConnectionStatusUi(
+        meshStatus: MeshConnectionStatus?,
+        syncPhase: NodeSyncCyclePhase,
+        currentUiStatus: MeshConnectionStatusUi,
+    ): MeshConnectionStatusUi? {
+        if (meshStatus is MeshConnectionStatus.Connecting && syncPhase != NodeSyncCyclePhase.Idle) {
+            return meshStatus.toUi()
+        }
+        return when (syncPhase) {
+            NodeSyncCyclePhase.Syncing -> MeshConnectionStatusUi.Syncing
+            NodeSyncCyclePhase.Rebooting -> MeshConnectionStatusUi.Rebooting
+            NodeSyncCyclePhase.WaitingForNode -> MeshConnectionStatusUi.WaitingForNode
+            NodeSyncCyclePhase.Idle -> when {
+                meshStatus == null -> null
+                userStoppedScan && meshStatus is MeshConnectionStatus.Scanning -> MeshConnectionStatusUi.Disconnected
+                else -> null
+            }
+        }
+    }
+
     private fun MeshConnectionStatus.toUi(): MeshConnectionStatusUi = when (this) {
         MeshConnectionStatus.Disconnected -> MeshConnectionStatusUi.Disconnected
         MeshConnectionStatus.Scanning -> MeshConnectionStatusUi.Scanning
@@ -388,19 +434,27 @@ class NetworkViewModel(
         is MeshConnectionStatus.Error -> MeshConnectionStatusUi.Error(message)
     }
 
-    private fun MeshNodeModel.toNodeUi() = ru.tcynik.meshtactics.presentation.feature.network.state.MeshNodeUi(
-        nodeId = nodeId,
-        shortName = shortName,
-        longName = longName,
-        snr = if (snr == 0f) "—" else "%.1f dB".format(snr),
-        lastHeardFormatted = if (lastHeard > 0)
+    private fun ContourNodeModel.toNodeUi() = ru.tcynik.meshtactics.presentation.feature.network.state.MeshNodeUi(
+        nodeId = node.nodeId,
+        shortName = node.shortName,
+        longName = node.longName,
+        snr = if (node.snr == 0f) "—" else "%.1f dB".format(node.snr),
+        lastHeardFormatted = if (node.lastHeard > 0)
             DateUtils.getRelativeTimeSpanString(
-                lastHeard * 1000L,
+                node.lastHeard * 1000L,
                 System.currentTimeMillis(),
                 DateUtils.MINUTE_IN_MILLIS,
             ).toString()
         else "never",
-        hopsAway = if (hopsAway > 0) hopsAway else null,
+        lastPositionFormatted = if (node.positionTime > 0)
+            DateUtils.getRelativeTimeSpanString(
+                node.positionTime * 1000L,
+                System.currentTimeMillis(),
+                DateUtils.MINUTE_IN_MILLIS,
+            ).toString()
+        else null,
+        hopsAway = if (node.hopsAway > 0) node.hopsAway else null,
+        contourName = contourName,
     )
 
     private fun formatUptime(seconds: Long): String {

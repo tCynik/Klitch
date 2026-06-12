@@ -19,17 +19,23 @@ import ru.tcynik.meshtactics.domain.map.usecase.ImportMapFileUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveImportedMapsUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ObserveSelectedOverlaysUseCase
 import ru.tcynik.meshtactics.domain.map.usecase.ToggleImportedMapSelectionUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.BeginSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.CommitSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveContourNodesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveNodeSecurityConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeyUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.SyncEmergencyMuteUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.CancelEmergencyUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.AutoExpireGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ToggleGeoMarkVisibilityUseCase
@@ -40,10 +46,11 @@ import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.marker.repository.GeoMarkPreferencesRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
-import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ConfirmChannelSyncUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ReconnectAfterNodeRebootUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SetGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
@@ -61,6 +68,19 @@ import ru.tcynik.meshtactics.domain.settings.usecase.SetScreenOrientationModeUse
 import ru.tcynik.meshtactics.domain.settings.usecase.SetTileCacheModeUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveTrackRecordingStateUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.PauseTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ResumeTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.StartTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.StopTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.DiscardTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTracksUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTrackPointsUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ToggleRecordedTrackVisibilityUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.DeleteRecordedTracksUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.UpdateTrackRecordingNameUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.UpdateTrackRecordingColorUseCase
+import ru.tcynik.meshtactics.data.track.datasource.TrackSettingsDataSource
 import ru.tcynik.meshtactics.presentation.feature.settings.SettingsViewModel
 import ru.tcynik.meshtactics.presentation.feature.settings.UserSettingsViewModel
 
@@ -96,6 +116,7 @@ val presentationModule = module {
             ingestReceivedGeoMarks = get<IngestReceivedGeoMarksUseCase>(),
             autoExpireGeoMarks = get<AutoExpireGeoMarksUseCase>(),
             ingestReceivedChatMessages = get<IngestReceivedChatMessagesUseCase>(),
+            syncEmergencyMute = get<SyncEmergencyMuteUseCase>(),
             observeLogicalChannels = get<ObserveContoursUseCase>(),
             observeNodeChannels = get<ObserveNodeChannelsUseCase>(),
             syncStateRepository = get<ContourSyncStateRepository>(),
@@ -104,6 +125,21 @@ val presentationModule = module {
             refreshNodePublicKey = get<RefreshNodePublicKeyUseCase>(),
             observeAppUser = get<ObserveAppUserUseCase>(),
             geoMarkPrefsRepository = get<GeoMarkPreferencesRepository>(),
+            observeTrackRecordingState = get<ObserveTrackRecordingStateUseCase>(),
+            startTrackRecording = get<StartTrackRecordingUseCase>(),
+            pauseTrackRecording = get<PauseTrackRecordingUseCase>(),
+            resumeTrackRecording = get<ResumeTrackRecordingUseCase>(),
+            stopTrackRecording = get<StopTrackRecordingUseCase>(),
+            discardTrackRecording = get<DiscardTrackRecordingUseCase>(),
+            updateTrackRecordingName = get<UpdateTrackRecordingNameUseCase>(),
+            updateTrackRecordingColor = get<UpdateTrackRecordingColorUseCase>(),
+            trackSettingsDataSource = get<TrackSettingsDataSource>(),
+            gpsRepository = get(),
+            observeRecordedTracks = get<ObserveRecordedTracksUseCase>(),
+            observeRecordedTrackPoints = get<ObserveRecordedTrackPointsUseCase>(),
+            observeEmergencyMode = get<ObserveEmergencyModeUseCase>(),
+            cancelEmergency = get<CancelEmergencyUseCase>(),
+            triggerEmergency = get(),
         )
     }
 
@@ -134,13 +170,17 @@ val presentationModule = module {
             saveContour = get(),
             deleteContour = get(),
             setContourActive = get(),
+            setPrimaryContour = get(),
+            contourRepository = get(),
             observeNodeChannels = get(),
+            beginSettingsEdit = get<BeginSettingsEditUseCase>(),
+            commitSettingsEdit = get<CommitSettingsEditUseCase>(),
             writeChannel = get(),
             resolveSlot = get(),
             observeConnectionStatus = get(),
             channelSlotResolver = get(),
-            syncContoursOnConnect = get(),
-            enableNodePositionBroadcastReady = get(),
+            confirmChannelSync = get<ConfirmChannelSyncUseCase>(),
+            prepareNodeForAppDrivenBroadcast = get(),
             disableNodePositionBroadcast = get(),
             observeEmergencyMode = get(),
             triggerEmergency = get(),
@@ -149,6 +189,7 @@ val presentationModule = module {
             syncStateRepository = get<ContourSyncStateRepository>(),
             disconnectFromMesh = get<DisconnectFromMeshUseCase>(),
             rebootNode = get<RebootNodeUseCase>(),
+            reconnectAfterNodeReboot = get<ReconnectAfterNodeRebootUseCase>(),
             rebootStateRepository = get<RebootStateRepository>(),
             observeGpsBroadcastEnabled = get<ObserveGpsBroadcastEnabledUseCase>(),
             setGpsBroadcastEnabled = get<SetGpsBroadcastEnabledUseCase>(),
@@ -157,6 +198,7 @@ val presentationModule = module {
             checkOwnPkcHealth = get<CheckOwnPkcHealthUseCase>(),
             refreshNodePublicKeys = get<RefreshNodePublicKeysUseCase>(),
             regeneratePkcKeys = get<RegeneratePkcKeysUseCase>(),
+            logger = get(),
         )
     }
     viewModel {
@@ -165,6 +207,7 @@ val presentationModule = module {
             observeConnectionStatus = get(),
             regeneratePkcKeys = get<RegeneratePkcKeysUseCase>(),
             rebootNode = get<RebootNodeUseCase>(),
+            logger = get(),
         )
     }
     viewModelOf(::NodeStatusViewModel)
@@ -178,6 +221,9 @@ val presentationModule = module {
             deleteGeoMarks = get(),
             extendGeoMark = get(),
             sendGeoMark = get(),
+            observeRecordedTracks = get<ObserveRecordedTracksUseCase>(),
+            toggleTrackVisibility = get<ToggleRecordedTrackVisibilityUseCase>(),
+            deleteRecordedTracks = get<DeleteRecordedTracksUseCase>(),
             logger = get(),
         )
     }
@@ -194,14 +240,15 @@ val presentationModule = module {
             observeNodes = get(),
             observeOurNode = get(),
             checkContourSync = get<CheckNodeSyncUseCase>(),
-            syncContoursOnConnect = get<SyncContoursOnConnectUseCase>(),
-            rebootNode = get<RebootNodeUseCase>(),
+            observeNodeChannels = get<ObserveNodeChannelsUseCase>(),
+            confirmChannelSync = get<ConfirmChannelSyncUseCase>(),
             syncStateRepository = get<ContourSyncStateRepository>(),
             rebootStateRepository = get<RebootStateRepository>(),
             observeAppUser = get<ObserveAppUserUseCase>(),
             saveAppUser = get<SaveAppUserUseCase>(),
             observeNetworkEnabled = get(),
             setNetworkEnabled = get(),
+            observeDeviceConfig = get(),
             logger = get(),
         )
     }
@@ -210,6 +257,8 @@ val presentationModule = module {
             observeConnectionStatus = get(),
             observeDeviceConfig = get(),
             requestDeviceConfig = get(),
+            beginSettingsEdit = get<BeginSettingsEditUseCase>(),
+            commitSettingsEdit = get<CommitSettingsEditUseCase>(),
             writeOwner = get(),
             writeChannel = get(),
             observeOurNode = get(),
@@ -218,6 +267,7 @@ val presentationModule = module {
             writePositionConfig = get(),
             writeChannelPositionPrecision = get(),
             removeFixedPosition = get(),
+            uiPrefs = get(),
             logger = get(),
         )
     }

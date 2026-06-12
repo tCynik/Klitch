@@ -42,9 +42,6 @@ import ru.tcynik.meshtactics.mesh.repository.NodeRepository
 import ru.tcynik.meshtactics.mesh.repository.Notification
 import ru.tcynik.meshtactics.mesh.repository.NotificationManager
 import ru.tcynik.meshtactics.mesh.repository.ServiceBroadcasts
-import ru.tcynik.meshtactics.mesh.resources.Res
-import ru.tcynik.meshtactics.mesh.resources.getStringSuspend
-import ru.tcynik.meshtactics.mesh.resources.new_node_seen
 import org.meshtastic.proto.DeviceMetadata
 import org.meshtastic.proto.HardwareModel
 import org.meshtastic.proto.Paxcount
@@ -199,9 +196,10 @@ class NodeManagerImpl(
                 scope.handledLaunch {
                     notificationManager.dispatch(
                         Notification(
-                            title = getStringSuspend(Res.string.new_node_seen, next.user.short_name),
+                            title = next.user.short_name,
                             message = next.user.long_name,
                             category = Notification.Category.NodeEvent,
+                            channelSlot = channel,
                         ),
                     )
                 }
@@ -210,13 +208,16 @@ class NodeManagerImpl(
         }
     }
 
-    override fun handleReceivedPosition(fromNum: Int, myNodeNum: Int, p: ProtoPosition, defaultTime: Long) {
+    override fun handleReceivedPosition(fromNum: Int, myNodeNum: Int, p: ProtoPosition, defaultTime: Long, channel: Int) {
         val isZeroPos = (p.latitude_i ?: 0) == 0 && (p.longitude_i ?: 0) == 0
         @Suppress("ComplexCondition")
         if (myNodeNum == fromNum && isZeroPos && p.sats_in_view == 0 && p.time == 0) {
             Logger.d { "Ignoring empty position update for the local node" }
             return
         }
+
+        val isOwnNode = fromNum == myNodeNum
+        Logger.withTag("MT/NodeMgr").d { "handleReceivedPosition: fromNum=$fromNum ownNode=$isOwnNode channel=$channel isZeroPos=$isZeroPos lat_i=${p.latitude_i} lon_i=${p.longitude_i}" }
 
         updateNode(fromNum) { node ->
             val posTime = if (p.time != 0) p.time else (defaultTime / TIME_MS_TO_S).toInt()
@@ -235,7 +236,9 @@ class NodeManagerImpl(
                     p.copy(time = posTime)
                 }
 
-            node.copy(position = newPos, lastHeard = newLastHeard)
+            val prevSlot = node.positionChannel
+            Logger.withTag("MT/NodeMgr").d { "handleReceivedPosition: fromNum=$fromNum positionChannel: $prevSlot -> $channel" }
+            node.copy(position = newPos, lastHeard = newLastHeard, channel = channel, positionChannel = channel)
         }
     }
 
@@ -289,6 +292,7 @@ class NodeManagerImpl(
                     lastHeard = info.last_heard,
                     deviceMetrics = info.device_metrics ?: next.deviceMetrics,
                     channel = info.channel,
+                    positionChannel = next.positionChannel,
                     viaMqtt = info.via_mqtt,
                     hopsAway = info.hops_away ?: -1,
                     isFavorite = info.is_favorite,

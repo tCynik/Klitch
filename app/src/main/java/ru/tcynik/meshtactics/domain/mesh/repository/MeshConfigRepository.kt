@@ -19,8 +19,16 @@ interface MeshConfigRepository {
     fun observeNodeChannels(): Flow<List<NodeChannelSlot>>
     fun observeDeviceConfig(): Flow<MeshDeviceConfigModel?>
     fun requestDeviceConfig()
-    fun writeOwner(longName: String, shortName: String)
-    fun writeChannel(index: Int, name: String, pskBase64: String)
+    /** @return true if session passkey acquired and edit session is open */
+    suspend fun beginSettingsEdit(): Boolean
+    suspend fun commitSettingsEdit()
+    suspend fun writeOwner(longName: String, shortName: String)
+    suspend fun writeChannel(
+        index: Int,
+        name: String,
+        pskBase64: String,
+        positionPrecision: Int,
+    )
 
     fun observeLocationConfig(nodeNum: Int): Flow<LocationConfigModel>
     fun setProvideLocation(nodeNum: Int, provide: Boolean)
@@ -33,13 +41,25 @@ interface MeshConfigRepository {
         flags: Int,
     )
     fun writeChannelPositionPrecision(destNum: Int, channelIndex: Int, precision: Int)
+    fun setFixedPosition(lat: Double, lon: Double, altMeters: Int)
     fun removeFixedPosition(destNum: Int)
+    fun removeOwnFixedPosition()
 
-    /** Configures the connected node for active geo broadcast (position_broadcast_secs=60, precision=13). */
-    fun enableNodePositionBroadcastReady()
+    /**
+     * Silences firmware autonomous position broadcast and prepares the node for app-driven sending:
+     * `position_broadcast_secs = Int.MAX_VALUE`, smart broadcast off, `is_power_saving = false`.
+     * Waits for position config.
+     */
+    suspend fun prepareNodeForAppDrivenBroadcast()
 
-    /** Disables position broadcast on the connected node (position_broadcast_secs=MAX). */
-    fun disableNodePositionBroadcast()
+    /** Disables position broadcast on the connected node (position_broadcast_secs=MAX). Waits for position config. */
+    suspend fun disableNodePositionBroadcast()
+
+    /** Returns the current position_broadcast_secs from local node config, or null if not yet loaded. */
+    suspend fun getPositionBroadcastSecs(): Int?
+
+    /** Returns true if position_broadcast_smart_enabled is set, false if not, null on timeout. */
+    suspend fun isPositionSmartBroadcastEnabled(): Boolean?
 
     fun rebootNode()
 }

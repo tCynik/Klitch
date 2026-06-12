@@ -20,6 +20,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.collections.immutable.toImmutableList
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.ChannelSyncStatus
+import ru.tcynik.meshtactics.domain.logger.Logger
 import ru.tcynik.meshtactics.domain.channel.model.Contour
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.ContourId
@@ -28,6 +29,7 @@ import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.model.NodeChannelSlot
 import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.isEmergency
+import ru.tcynik.meshtactics.domain.channel.model.meshtasticChannelName
 import ru.tcynik.meshtactics.domain.channel.usecase.DeleteContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
@@ -36,22 +38,28 @@ import ru.tcynik.meshtactics.domain.channel.usecase.SaveContourUseCase
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
+import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
+import ru.tcynik.meshtactics.domain.channel.usecase.ConfirmChannelSyncUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.SetPrimaryContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SlotResolution
-import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.CancelEmergencyUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
+import ru.tcynik.meshtactics.domain.mesh.model.NodeSyncCyclePhase
 import ru.tcynik.meshtactics.domain.mesh.usecase.CheckOwnPkcHealthUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.PrepareNodeForAppDrivenBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.BeginSettingsEditUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.CommitSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ReconnectAfterNodeRebootUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SetGpsBroadcastEnabledUseCase
@@ -73,13 +81,17 @@ class UserSettingsViewModel(
     private val saveContour: SaveContourUseCase,
     private val deleteContour: DeleteContourUseCase,
     private val setContourActive: SetContourActiveUseCase,
+    private val setPrimaryContour: SetPrimaryContourUseCase,
+    private val contourRepository: ContourRepository,
     private val observeNodeChannels: ObserveNodeChannelsUseCase,
+    private val beginSettingsEdit: BeginSettingsEditUseCase,
+    private val commitSettingsEdit: CommitSettingsEditUseCase,
     private val writeChannel: WriteChannelUseCase,
     private val resolveSlot: ResolveChannelSlotUseCase,
     private val observeConnectionStatus: ObserveConnectionStatusUseCase,
     private val channelSlotResolver: ChannelSlotResolver,
-    private val syncContoursOnConnect: SyncContoursOnConnectUseCase,
-    private val enableNodePositionBroadcastReady: EnableNodePositionBroadcastReadyUseCase,
+    private val confirmChannelSync: ConfirmChannelSyncUseCase,
+    private val prepareNodeForAppDrivenBroadcast: PrepareNodeForAppDrivenBroadcastUseCase,
     private val disableNodePositionBroadcast: DisableNodePositionBroadcastUseCase,
     private val observeEmergencyMode: ObserveEmergencyModeUseCase,
     private val triggerEmergency: TriggerEmergencyUseCase,
@@ -88,6 +100,7 @@ class UserSettingsViewModel(
     private val syncStateRepository: ContourSyncStateRepository,
     private val disconnectFromMesh: DisconnectFromMeshUseCase,
     private val rebootNode: RebootNodeUseCase,
+    private val reconnectAfterNodeReboot: ReconnectAfterNodeRebootUseCase,
     private val rebootStateRepository: RebootStateRepository,
     private val observeGpsBroadcastEnabled: ObserveGpsBroadcastEnabledUseCase,
     private val setGpsBroadcastEnabled: SetGpsBroadcastEnabledUseCase,
@@ -96,6 +109,7 @@ class UserSettingsViewModel(
     private val checkOwnPkcHealth: CheckOwnPkcHealthUseCase,
     private val refreshNodePublicKeys: RefreshNodePublicKeysUseCase,
     private val regeneratePkcKeys: RegeneratePkcKeysUseCase,
+    private val logger: Logger,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UserSettingsUiState())
@@ -106,6 +120,7 @@ class UserSettingsViewModel(
 
     private var cachedContours: List<Contour> = emptyList()
     private var cachedNodeChannels: List<NodeChannelSlot> = emptyList()
+    private var cachedPrimaryId: ContourId? = null
     private var connectionStatus: MeshConnectionStatus = MeshConnectionStatus.Disconnected
     private var initialized = false
     private var needsPkcRegen: Boolean = false
@@ -132,7 +147,9 @@ class UserSettingsViewModel(
             observeContours(NoParams),
             observeNodeChannels(NoParams),
             observeConnectionStatus(NoParams),
-        ) { contours, nodeChannels, status ->
+            contourRepository.observePrimaryContourId(),
+        ) { contours, nodeChannels, status, primaryId ->
+            cachedPrimaryId = primaryId
             cachedContours = contours
             cachedNodeChannels = nodeChannels
             val wasConnected = connectionStatus is MeshConnectionStatus.Connected
@@ -147,11 +164,13 @@ class UserSettingsViewModel(
                     exclusivityTime = contour.exclusivityTime,
                     isActive = contour.isActive,
                     isEmergency = contour.isEmergency,
-                    syncStatus = computeSyncStatus(contour, nodeChannels, status),
+                    isPrimary = contour.id == primaryId,
+                    syncStatus = computeSyncStatus(contour, primaryId, nodeChannels, status),
                 )
             }
             _uiState.update {
                 it.copy(
+                    primaryContourId = primaryId,
                     contours = items.toImmutableList(),
                     isNodeConnected = status is MeshConnectionStatus.Connected,
                 )
@@ -167,14 +186,6 @@ class UserSettingsViewModel(
 
     private fun onConnected(contours: List<Contour>) {
         viewModelScope.launch {
-            val emergencyActive = contours.find { it.isEmergency }?.isActive ?: false
-            val broadcastEnabled = observeGpsBroadcastEnabled().first()
-            if (emergencyActive || !broadcastEnabled) {
-                disableNodePositionBroadcast()
-            } else {
-                enableNodePositionBroadcastReady()
-            }
-
             needsPkcRegen = checkOwnPkcHealth()
             refreshNodePublicKeys()
             delay(30_000)
@@ -184,23 +195,41 @@ class UserSettingsViewModel(
 
     private fun computeSyncStatus(
         contour: Contour,
+        primaryId: ContourId,
         nodeChannels: List<NodeChannelSlot>,
         status: MeshConnectionStatus,
     ): ChannelSyncStatus {
-        if (contour.id == DefaultContour.ID) return ChannelSyncStatus.OnNode(0)
+        if (contour.id == primaryId) return ChannelSyncStatus.OnNode(0)
+        if (contour.isEmergency) {
+            if (status !is MeshConnectionStatus.Connected) return ChannelSyncStatus.NotConnected
+            val slot1 = nodeChannels.find { it.index == 1 }
+            val onSlot1 = slot1 != null && slot1.isEnabled &&
+                slot1.name == DefaultContour.CHANNEL_NAME &&
+                ContourHash.compute(slot1.name, slot1.psk) == DefaultContour.CHANNEL_HASH
+            return if (onSlot1) ChannelSyncStatus.OnNode(1) else ChannelSyncStatus.NotOnNode
+        }
         if (status !is MeshConnectionStatus.Connected) return ChannelSyncStatus.NotConnected
         val hash = contour.transport.meshtastic.channelHash
+        val expectedName = meshtasticChannelName(contour)
         val matched = nodeChannels.find { slot ->
             slot.index != 0 && slot.isEnabled &&
+                slot.name == expectedName &&
                 ContourHash.compute(slot.name, slot.psk) == hash
         }
         if (matched != null) return ChannelSyncStatus.OnNode(matched.index)
-        val hasFreeSlot = nodeChannels.any { it.index != 0 && !it.isEnabled }
+        val reservedSlots = if (primaryId == DefaultContour.ID) setOf(0) else setOf(0, 1)
+        val hasFreeSlot = nodeChannels.any { it.index !in reservedSlots && !it.isEnabled } ||
+            (2..7).any { index -> index !in reservedSlots && nodeChannels.none { it.index == index } }
         return if (hasFreeSlot) ChannelSyncStatus.NotOnNode else ChannelSyncStatus.NoFreeSlot
     }
 
     private fun pushContourToNode(contour: Contour, slot: Int) {
-        writeChannel(slot, contour.name, contour.transport.meshtastic.psk)
+        viewModelScope.launch {
+            logger.i("Node", "pushContourToNode: writing contour='${contour.name}' to slot=$slot — firmware reboot expected")
+            beginSettingsEdit()
+            writeChannel(slot, meshtasticChannelName(contour), contour.transport.meshtastic.psk)
+            commitSettingsEdit()
+        }
     }
 
     fun onPushToNode(id: ContourId) {
@@ -228,10 +257,25 @@ class UserSettingsViewModel(
         val hash = contour.transport.meshtastic.channelHash
         val slot = channelSlotResolver.hashToSlot[hash] ?: return
         if (slot == 0) return
-        writeChannel(slot, "", "")
+        viewModelScope.launch {
+            logger.i("Node", "onDeleteFromNode: clearing slot=$slot contour='${contour.name}' — firmware reboot expected")
+            beginSettingsEdit()
+            writeChannel(slot, "", "")
+            commitSettingsEdit()
+        }
+    }
+
+    fun onSetPrimary(id: ContourId) {
+        val contour = cachedContours.find { it.id == id } ?: return
+        if (contour.isEmergency) return
+        if (id == cachedPrimaryId) return
+        viewModelScope.launch { setPrimaryContour(id) }
     }
 
     fun onToggleActive(id: ContourId, isActive: Boolean) {
+        val contour = cachedContours.find { it.id == id } ?: return
+        if (contour.isEmergency) return
+        if (!isActive && id == cachedPrimaryId) return
         viewModelScope.launch {
             setContourActive(id, isActive)
             if (isActive && connectionStatus is MeshConnectionStatus.Connected) {
@@ -249,10 +293,7 @@ class UserSettingsViewModel(
                 regeneratePkcKeys()
                 needsPkcRegen = false
             }
-            syncContoursOnConnect()
-            rebootStateRepository.setRebooting(true)
-            rebootNode()
-            syncStateRepository.clear()
+            confirmChannelSync(NoParams)
         }
     }
 
@@ -274,7 +315,7 @@ class UserSettingsViewModel(
         viewModelScope.launch {
             setGpsBroadcastEnabled(enabled)
             if (connectionStatus is MeshConnectionStatus.Connected) {
-                if (enabled) enableNodePositionBroadcastReady()
+                if (enabled) prepareNodeForAppDrivenBroadcast()
                 else disableNodePositionBroadcast()
             }
         }
@@ -321,12 +362,16 @@ class UserSettingsViewModel(
             val shortName = withTimeoutOrNull(5_000) {
                 observeDeviceConfig(NoParams).first { it != null }
             }?.shortName ?: ""
+            logger.i("Node", "onSaveAndReboot: writing owner='$name' + PKC regen — firmware reboot expected")
+            rebootStateRepository.setSyncCyclePhase(NodeSyncCyclePhase.Syncing)
             writeOwner(_uiState.value.displayName, shortName)
             regeneratePkcKeys()
             saveAppUser(AppUser(displayName = _uiState.value.displayName))
             _uiState.update { it.copy(hasUnsavedUserChanges = false) }
-            rebootStateRepository.setRebooting(true)
+            rebootStateRepository.markSyncAppliedBeforeReboot()
+            rebootStateRepository.setSyncCyclePhase(NodeSyncCyclePhase.Rebooting)
             rebootNode()
+            reconnectAfterNodeReboot(NoParams)
             _navigateBack.tryEmit(Unit)
         }
     }
@@ -394,7 +439,7 @@ class UserSettingsViewModel(
 
         val id = editor.id ?: ContourId(UUID.randomUUID().toString())
         val existing = cachedContours.find { it.id == id }
-        val hash = ContourHash.compute(editor.name, pskBytes)
+        val hash = ContourHash.compute(meshtasticChannelName(id, editor.name), pskBytes)
         val contour = Contour(
             id = id,
             name = editor.name,

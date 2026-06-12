@@ -29,6 +29,7 @@ import ru.tcynik.meshtactics.mesh.repository.MeshConfigHandler
 import ru.tcynik.meshtactics.mesh.repository.NodeManager
 import ru.tcynik.meshtactics.mesh.repository.RadioConfigRepository
 import ru.tcynik.meshtactics.mesh.repository.ServiceRepository
+import co.touchlab.kermit.Logger
 import org.meshtastic.proto.Channel
 import org.meshtastic.proto.Config
 import org.meshtastic.proto.LocalConfig
@@ -70,6 +71,9 @@ class MeshConfigHandlerImpl(
     }
 
     override fun handleChannel(channel: Channel) {
+        val pskHex = channel.settings?.psk?.toByteArray()?.joinToString("") { "%02x".format(it) } ?: "null"
+        Logger.d("MT/Contour") { "handleChannel: index=${channel.index} role=${channel.role} name='${channel.settings?.name}' pskSize=${channel.settings?.psk?.size} psk=$pskHex" }
+
         // We always want to save channel settings we receive from the radio
         scope.handledLaunch { radioConfigRepository.updateChannelSettings(channel) }
 

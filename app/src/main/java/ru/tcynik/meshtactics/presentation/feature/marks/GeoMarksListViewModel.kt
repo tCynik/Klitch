@@ -21,6 +21,10 @@ import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkParams
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ToggleGeoMarkVisibilityUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveMeshNodesUseCase
+import ru.tcynik.meshtactics.domain.track.model.RecordedTrack
+import ru.tcynik.meshtactics.domain.track.usecase.DeleteRecordedTracksUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTracksUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ToggleRecordedTrackVisibilityUseCase
 import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkContourOptionUi
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliveryFilterButtonUi
@@ -29,9 +33,13 @@ import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkDeliverySt
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarkListItemUiModel
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarksDeleteConfirmUi
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarksListUiState
+import ru.tcynik.meshtactics.presentation.feature.marks.models.RecordedTrackListItemUiModel
 import ru.tcynik.meshtactics.presentation.feature.main.GEO_MARK_LOCAL_STORAGE_ID
 import ru.tcynik.meshtactics.presentation.feature.marks.models.GeoMarksSendContourPickerUi
 import ru.tcynik.meshtactics.presentation.feature.marks.models.resolveGeoMarkDeliveryState
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class GeoMarksListViewModel(
     private val observeGeoMarks: ObserveGeoMarksUseCase,
@@ -41,6 +49,9 @@ class GeoMarksListViewModel(
     private val deleteGeoMarks: DeleteGeoMarksUseCase,
     private val extendGeoMark: ExtendGeoMarkUseCase,
     private val sendGeoMark: SendGeoMarkUseCase,
+    private val observeRecordedTracks: ObserveRecordedTracksUseCase,
+    private val toggleTrackVisibility: ToggleRecordedTrackVisibilityUseCase,
+    private val deleteRecordedTracks: DeleteRecordedTracksUseCase,
     private val logger: Logger,
     /** Periodic TTL label refresh; disable in unit tests to avoid non-terminating delay loops. */
     private val refreshTtlLabels: Boolean = true,
@@ -55,6 +66,8 @@ class GeoMarksListViewModel(
     private var nowSeconds: Long = System.currentTimeMillis() / 1000
     private val visibleDeliveryFilters = mutableSetOf<GeoMarkDeliveryState>()
     private var knownPresentTypes = emptySet<GeoMarkDeliveryState>()
+    private var allCachedTracks: List<RecordedTrackListItemUiModel> = emptyList()
+    private var tracksFilterEnabled = true
 
     init {
         viewModelScope.launch {
@@ -85,6 +98,12 @@ class GeoMarksListViewModel(
                     nowSeconds = System.currentTimeMillis() / 1000
                     rebuildItems()
                 }
+            }
+        }
+        viewModelScope.launch {
+            observeRecordedTracks(NoParams).collect { tracks ->
+                allCachedTracks = tracks.map { it.toUiModel() }
+                rebuildTracksState()
             }
         }
     }
@@ -285,6 +304,67 @@ class GeoMarksListViewModel(
         type !in presentTypes -> GeoMarkDeliveryFilterStatus.INACTIVE
         type in visibleDeliveryFilters -> GeoMarkDeliveryFilterStatus.SELECTED
         else -> GeoMarkDeliveryFilterStatus.UNSELECTED
+    }
+
+    fun onTracksFilterToggle() {
+        tracksFilterEnabled = !tracksFilterEnabled
+        rebuildTracksState()
+        logger.d("Tracks", "tracks filter toggled: enabled=$tracksFilterEnabled")
+    }
+
+    private fun rebuildTracksState() {
+        val hasTracks = allCachedTracks.isNotEmpty()
+        val status = when {
+            !hasTracks -> GeoMarkDeliveryFilterStatus.INACTIVE
+            tracksFilterEnabled -> GeoMarkDeliveryFilterStatus.SELECTED
+            else -> GeoMarkDeliveryFilterStatus.UNSELECTED
+        }
+        val visibleTracks = if (tracksFilterEnabled) allCachedTracks else emptyList()
+        _uiState.update {
+            it.copy(
+                recordedTracks = visibleTracks.toImmutableList(),
+                tracksFilterStatus = status,
+            )
+        }
+    }
+
+    fun onTrackVisibilityToggle(id: String, visible: Boolean) {
+        viewModelScope.launch {
+            toggleTrackVisibility(id, visible)
+            logger.d("Tracks", "visibility toggled: id=$id visible=$visible")
+        }
+    }
+
+    fun onTrackDeleteClick(id: String) {
+        viewModelScope.launch {
+            deleteRecordedTracks(listOf(id))
+            logger.d("Tracks", "deleted track: id=$id")
+        }
+    }
+
+    private val dateFormat = SimpleDateFormat("dd.MM HH:mm", Locale.getDefault())
+
+    private fun RecordedTrack.toUiModel(): RecordedTrackListItemUiModel {
+        val startedAtLabel = dateFormat.format(Date(startedAt * 1000L))
+        val durationLabel = finishedAt?.let { end ->
+            val secs = end - startedAt
+            val h = secs / 3600
+            val m = (secs % 3600) / 60
+            if (h > 0) "%dч %02dм".format(h, m) else "%dм".format(m)
+        } ?: "записывается"
+        val distanceLabel = finishedAt?.let {
+            if (totalDistanceMeters >= 1000.0) "%.1f км".format(totalDistanceMeters / 1000.0)
+            else "%.0f м".format(totalDistanceMeters)
+        } ?: "—"
+        return RecordedTrackListItemUiModel(
+            id = id,
+            name = name,
+            colorArgb = GeoMarkColor.colorAt(color),
+            startedAtLabel = startedAtLabel,
+            durationLabel = durationLabel,
+            distanceLabel = distanceLabel,
+            isVisible = isVisible,
+        )
     }
 
 }

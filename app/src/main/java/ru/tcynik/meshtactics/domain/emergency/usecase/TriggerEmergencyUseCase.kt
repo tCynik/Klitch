@@ -1,6 +1,8 @@
 package ru.tcynik.meshtactics.domain.emergency.usecase
 
 import kotlinx.coroutines.flow.first
+import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
+import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.chat.usecase.SendChatMessageParams
 import ru.tcynik.meshtactics.domain.chat.usecase.SendChatMessageUseCase
@@ -8,17 +10,16 @@ import ru.tcynik.meshtactics.domain.emergency.repository.EmergencyPositionBroadc
 import ru.tcynik.meshtactics.domain.gps.repository.GpsRepository
 import ru.tcynik.meshtactics.domain.user.repository.AppUserRepository
 
-private const val EMERGENCY_CHANNEL = 0
-
 class TriggerEmergencyUseCase(
     private val contourRepository: ContourRepository,
     private val appUserRepository: AppUserRepository,
     private val gpsRepository: GpsRepository,
     private val sendChatMessage: SendChatMessageUseCase,
     private val broadcast: EmergencyPositionBroadcastRepository,
+    private val channelSlotResolver: ChannelSlotResolver,
 ) {
     suspend operator fun invoke() {
-        contourRepository.setEmergencyActive(true)
+        contourRepository.setSosMode(true)
 
         val callsign = appUserRepository.observeUser().first().displayName.ifBlank { "Неизвестный" }
         val location = gpsRepository.location.value
@@ -29,7 +30,8 @@ class TriggerEmergencyUseCase(
             "$callsign просит помощи"
         }
 
-        sendChatMessage(SendChatMessageParams(text = text, contactId = "^all", channel = EMERGENCY_CHANNEL))
+        val emergencySlot = channelSlotResolver.hashToSlot[DefaultContour.CHANNEL_HASH] ?: 0
+        sendChatMessage(SendChatMessageParams(text = text, contactId = "^all", channel = emergencySlot))
         broadcast.start()
     }
 }

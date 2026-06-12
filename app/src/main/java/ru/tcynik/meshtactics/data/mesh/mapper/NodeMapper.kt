@@ -24,4 +24,5 @@ fun Node.toMeshNodeModel(): MeshNodeModel = MeshNodeModel(
     isOnline = isOnline,
     groundSpeed = position.ground_speed ?: 0,
     groundTrack = position.ground_track ?: 0,
+    receivedOnSlot = positionChannel,
 )

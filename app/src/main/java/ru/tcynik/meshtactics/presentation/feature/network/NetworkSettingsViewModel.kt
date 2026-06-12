@@ -3,6 +3,8 @@ package ru.tcynik.meshtactics.presentation.feature.network
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,8 +13,10 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import ru.tcynik.meshtactics.domain.logger.Logger
 import ru.tcynik.meshtactics.domain.mesh.model.GpsMode
+import ru.tcynik.meshtactics.mesh.repository.UiPrefs
 import ru.tcynik.meshtactics.domain.mesh.model.LocationConfigModel
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
@@ -23,6 +27,8 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.RemoveFixedPositionUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RequestDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SetProvideLocationUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelPositionPrecisionUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.BeginSettingsEditUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.CommitSettingsEditUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WritePositionConfigUseCase
@@ -38,6 +44,8 @@ class NetworkSettingsViewModel(
     private val observeConnectionStatus: ObserveConnectionStatusUseCase,
     private val observeDeviceConfig: ObserveDeviceConfigUseCase,
     private val requestDeviceConfig: RequestDeviceConfigUseCase,
+    private val beginSettingsEdit: BeginSettingsEditUseCase,
+    private val commitSettingsEdit: CommitSettingsEditUseCase,
     private val writeOwner: WriteOwnerUseCase,
     private val writeChannel: WriteChannelUseCase,
     private val observeOurNode: ObserveOurNodeUseCase,
@@ -46,6 +54,7 @@ class NetworkSettingsViewModel(
     private val writePositionConfig: WritePositionConfigUseCase,
     private val writeChannelPositionPrecision: WriteChannelPositionPrecisionUseCase,
     private val removeFixedPosition: RemoveFixedPositionUseCase,
+    private val uiPrefs: UiPrefs,
     private val logger: Logger,
 ) : ViewModel() {
 
@@ -53,11 +62,30 @@ class NetworkSettingsViewModel(
     val uiState: StateFlow<NetworkSettingsUiState> = _uiState.asStateFlow()
 
     private val myNodeNumFlow = MutableStateFlow<Int?>(null)
+    private var wasConnected = false
+    private var readConfigTimeoutJob: Job? = null
 
     init {
         observeConnectionStatus(NoParams)
             .onEach { status ->
-                _uiState.update { it.copy(connectionStatus = status.toUi()) }
+                val isConnected = status is MeshConnectionStatus.Connected
+                _uiState.update { state ->
+                    state.copy(
+                        connectionStatus = status.toUi(),
+                        settings = if (!isConnected && state.settings.isLoading) {
+                            state.settings.copy(isLoading = false)
+                        } else {
+                            state.settings
+                        },
+                    )
+                }
+                if (isConnected && !wasConnected) {
+                    val settings = _uiState.value.settings
+                    if (!settings.isLoading && settings.originalDeviceConfig == null) {
+                        requestConfigFromDevice()
+                    }
+                }
+                wasConnected = isConnected
             }
             .launchIn(viewModelScope)
 
@@ -65,31 +93,34 @@ class NetworkSettingsViewModel(
             logger.i("App", "DBG observeDeviceConfig emitted: config=${config?.let { "longName=${it.longName}" } ?: "null"}")
             if (config != null) {
                 _uiState.update { state ->
-                    val updatedChannels = if (state.settings.isEditing) {
-                        state.settings.channels
-                    } else {
-                        config.channels.map { ch ->
-                            ChannelConfigUi(
-                                index = ch.index,
-                                channelName = ch.name,
-                                pskBase64 = ch.pskBase64,
-                            )
-                        }
+                    val mapped = config.channels.map { ch ->
+                        ChannelConfigUi(index = ch.index, channelName = ch.name, pskBase64 = ch.pskBase64)
                     }
+                    // После reconnect handleMyInfo очищает channelSet до завершения handshake.
+                    val safeChannels = if (mapped.isEmpty() && state.settings.originalChannels.isNotEmpty()) {
+                        state.settings.originalChannels
+                    } else {
+                        mapped
+                    }
+                    val newDeviceConfig = DeviceConfigUi(
+                        longName = config.longName,
+                        shortName = config.shortName,
+                        loraPreset = config.loraPreset,
+                        txPowerDbm = config.txPowerDbm,
+                        region = config.region,
+                    )
+                    val hasUnsaved = state.settings.hasChanges
                     state.copy(
                         settings = state.settings.copy(
                             isLoading = false,
-                            deviceConfig = DeviceConfigUi(
-                                longName = config.longName,
-                                shortName = config.shortName,
-                                loraPreset = config.loraPreset,
-                                txPowerDbm = config.txPowerDbm,
-                                region = config.region,
-                            ),
-                            channels = updatedChannels,
+                            deviceConfig = if (hasUnsaved) state.settings.deviceConfig else newDeviceConfig,
+                            channels = if (hasUnsaved) state.settings.channels else safeChannels,
+                            originalDeviceConfig = newDeviceConfig,
+                            originalChannels = safeChannels,
                         )
                     )
                 }
+                readConfigTimeoutJob?.cancel()
             }
         }.launchIn(viewModelScope)
 
@@ -107,18 +138,35 @@ class NetworkSettingsViewModel(
                 }
             }
             .launchIn(viewModelScope)
+
+        uiPrefs.useWakeLock
+            .onEach { enabled ->
+                _uiState.update { state ->
+                    state.copy(settings = state.settings.copy(useWakeLock = enabled))
+                }
+            }
+            .launchIn(viewModelScope)
     }
 
     fun onReadConfigClick() {
-        _uiState.update { state ->
-            state.copy(settings = state.settings.copy(isLoading = true, isEditing = false))
-        }
-        requestDeviceConfig()
+        requestConfigFromDevice()
     }
 
-    fun onEditConfigClick() {
+    private fun requestConfigFromDevice() {
         _uiState.update { state ->
-            state.copy(settings = state.settings.copy(isEditing = true))
+            state.copy(settings = state.settings.copy(isLoading = true))
+        }
+        requestDeviceConfig()
+        readConfigTimeoutJob?.cancel()
+        readConfigTimeoutJob = viewModelScope.launch {
+            delay(READ_CONFIG_TIMEOUT_MS)
+            _uiState.update { state ->
+                if (state.settings.isLoading) {
+                    state.copy(settings = state.settings.copy(isLoading = false))
+                } else {
+                    state
+                }
+            }
         }
     }
 
@@ -132,21 +180,31 @@ class NetworkSettingsViewModel(
     fun onConfigShortNameChange(value: String) {
         _uiState.update { state ->
             val cfg = state.settings.deviceConfig ?: return@update state
-            state.copy(settings = state.settings.copy(deviceConfig = cfg.copy(shortName = value)))
+            state.copy(settings = state.settings.copy(deviceConfig = cfg.copy(shortName = value.take(4))))
         }
     }
 
     fun onWriteConfigClick() {
         val settings = _uiState.value.settings
         val cfg = settings.deviceConfig ?: return
-        writeOwner(cfg.longName, cfg.shortName)
-        settings.channels.forEach { ch ->
-            if (ch.pskError == null) {
-                writeChannel(ch.index, ch.channelName, ch.pskBase64)
+        viewModelScope.launch {
+            logger.i("Node", "onWriteConfigClick: writing owner='${cfg.longName}' + ${settings.channels.count { it.pskError == null }} channels — firmware reboot expected")
+            beginSettingsEdit()
+            writeOwner(cfg.longName, cfg.shortName)
+            settings.channels.forEach { ch ->
+                if (ch.pskError == null) {
+                    writeChannel(ch.index, ch.channelName, ch.pskBase64)
+                }
             }
+            commitSettingsEdit()
         }
         _uiState.update { state ->
-            state.copy(settings = state.settings.copy(isEditing = false))
+            state.copy(
+                settings = state.settings.copy(
+                    originalDeviceConfig = state.settings.deviceConfig,
+                    originalChannels = state.settings.channels,
+                )
+            )
         }
     }
 
@@ -178,20 +236,14 @@ class NetworkSettingsViewModel(
         }
     }
 
-    fun onAddChannelClick() {
-        _uiState.update { state ->
-            val channels = state.settings.channels
-            if (channels.size >= 8) return@update state
-            val nextIndex = channels.size
-            val newChannel = ChannelConfigUi(index = nextIndex, channelName = "", pskBase64 = "")
-            state.copy(settings = state.settings.copy(channels = channels + newChannel))
-        }
-    }
-
     fun onProvideLocationToggle(enabled: Boolean) {
         val nodeNum = myNodeNumFlow.value ?: return
         setProvideLocation(nodeNum, enabled)
         if (enabled) removeFixedPosition(nodeNum)
+    }
+
+    fun onWakeLockToggle(enabled: Boolean) {
+        uiPrefs.setUseWakeLock(enabled)
     }
 
     fun onGpsModeChange(mode: GpsModeUi) {
@@ -292,5 +344,9 @@ class NetworkSettingsViewModel(
         GpsModeUi.DISABLED -> GpsMode.DISABLED
         GpsModeUi.ENABLED -> GpsMode.ENABLED
         GpsModeUi.NOT_PRESENT -> GpsMode.NOT_PRESENT
+    }
+
+    private companion object {
+        const val READ_CONFIG_TIMEOUT_MS = 15_000L
     }
 }

@@ -7,8 +7,13 @@ import ru.tcynik.meshtactics.domain.channel.model.ContourId
 
 interface ContourRepository {
     fun observeContours(): Flow<List<Contour>>
-    fun observeEmergencyIsActive(): Flow<Boolean>
-    suspend fun setEmergencyActive(isActive: Boolean)
+    fun observePrimaryContourId(): Flow<ContourId>
+    suspend fun getPrimaryContourId(): ContourId
+    suspend fun setPrimaryContour(id: ContourId)
+    fun observeSosMode(): Flow<Boolean>
+    suspend fun setSosMode(active: Boolean)
+    suspend fun getPreSosPrimaryId(): ContourId?
+    suspend fun savePreSosPrimaryId(id: ContourId?)
     suspend fun seedDefaultsIfAbsent()
     suspend fun saveContour(contour: Contour)
     suspend fun deleteContour(id: ContourId)

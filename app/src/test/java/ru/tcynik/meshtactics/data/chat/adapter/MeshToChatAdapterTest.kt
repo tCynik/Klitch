@@ -19,6 +19,7 @@ import ru.tcynik.meshtactics.domain.channel.model.Contour
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
 import ru.tcynik.meshtactics.domain.channel.model.ContourId
 import ru.tcynik.meshtactics.domain.channel.model.ContourTransport
+import ru.tcynik.meshtactics.domain.channel.model.DefaultContour
 import ru.tcynik.meshtactics.domain.channel.model.MeshtasticChannel
 import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.mesh.model.DataPacket
@@ -73,10 +74,12 @@ class MeshToChatAdapterTest {
         contours: List<Contour>,
         maps: ChannelSlotMaps = resolvedMaps,
         myNode: Node? = null,
+        sosMode: Boolean = false,
     ) {
         every { packetRepository.getContacts() } returns flowOf(mapOf(channelContactKey to lastPacket))
         every { packetRepository.getContactSettings() } returns flowOf(emptyMap())
         every { channelRepository.observeContours() } returns flowOf(contours)
+        every { channelRepository.observeSosMode() } returns flowOf(sosMode)
         every { channelSlotResolver.mapsFlow } returns MutableStateFlow(maps)
         every { packetRepository.getUnreadCountFlow(channelContactKey) } returns flowOf(0)
         every { nodeRepository.nodeDBbyNum } returns MutableStateFlow(emptyMap())
@@ -286,6 +289,7 @@ class MeshToChatAdapterTest {
         )
         every { packetRepository.getContactSettings() } returns flowOf(emptyMap())
         every { channelRepository.observeContours() } returns flowOf(listOf(makeContour(isActive = true)))
+        every { channelRepository.observeSosMode() } returns flowOf(false)
         every { channelSlotResolver.mapsFlow } returns MutableStateFlow(resolvedMaps)
         every { packetRepository.getUnreadCountFlow(channelContactKey) } returns flowOf(0)
         every { packetRepository.getUnreadCountFlow(pkcKey) } returns flowOf(0)
@@ -297,6 +301,78 @@ class MeshToChatAdapterTest {
             val contacts = awaitItem()
             val privateContact = contacts.firstOrNull { it.type == ru.tcynik.meshtactics.domain.chat.model.ContactType.PRIVATE }
             assertEquals("8!nodeA", privateContact?.id)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── Emergency silent mode ─────────────────────────────────────────────────
+
+    @Test
+    fun `Emergency contact unreadCount is 0 when SOS inactive`() = runTest {
+        val emergencyHash = DefaultContour.CHANNEL_HASH
+        val emergencyContactKey = "1^all"
+        val emergencyMaps = ChannelSlotMaps(
+            slotToHash = mapOf(1 to emergencyHash),
+            hashToSlot = mapOf(emergencyHash to 1),
+        )
+        val emergencyContour = Contour(
+            id = DefaultContour.ID,
+            name = DefaultContour.DISPLAY_NAME,
+            description = null,
+            expiration = null,
+            exclusivityTime = null,
+            isActive = true,
+            transport = DefaultContour.TRANSPORT,
+        )
+        every { packetRepository.getContacts() } returns flowOf(mapOf(emergencyContactKey to lastPacket))
+        every { packetRepository.getContactSettings() } returns flowOf(emptyMap())
+        every { channelRepository.observeContours() } returns flowOf(listOf(emergencyContour))
+        every { channelRepository.observeSosMode() } returns flowOf(false)
+        every { channelSlotResolver.mapsFlow } returns MutableStateFlow(emergencyMaps)
+        every { packetRepository.getUnreadCountFlow(emergencyContactKey) } returns flowOf(5)
+        every { nodeRepository.nodeDBbyNum } returns MutableStateFlow(emptyMap())
+        every { nodeRepository.myId } returns MutableStateFlow("!me")
+        every { nodeRepository.ourNodeInfo } returns MutableStateFlow(null)
+
+        adapter.observeContactsAsFlow().test {
+            val contacts = awaitItem()
+            val emergency = contacts.firstOrNull { it.id == DefaultContour.ID.value }
+            assertEquals(0, emergency?.unreadCount)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `Emergency contact unreadCount visible when SOS active`() = runTest {
+        val emergencyHash = DefaultContour.CHANNEL_HASH
+        val emergencyContactKey = "1^all"
+        val emergencyMaps = ChannelSlotMaps(
+            slotToHash = mapOf(1 to emergencyHash),
+            hashToSlot = mapOf(emergencyHash to 1),
+        )
+        val emergencyContour = Contour(
+            id = DefaultContour.ID,
+            name = DefaultContour.DISPLAY_NAME,
+            description = null,
+            expiration = null,
+            exclusivityTime = null,
+            isActive = true,
+            transport = DefaultContour.TRANSPORT,
+        )
+        every { packetRepository.getContacts() } returns flowOf(mapOf(emergencyContactKey to lastPacket))
+        every { packetRepository.getContactSettings() } returns flowOf(emptyMap())
+        every { channelRepository.observeContours() } returns flowOf(listOf(emergencyContour))
+        every { channelRepository.observeSosMode() } returns flowOf(true)
+        every { channelSlotResolver.mapsFlow } returns MutableStateFlow(emergencyMaps)
+        every { packetRepository.getUnreadCountFlow(emergencyContactKey) } returns flowOf(5)
+        every { nodeRepository.nodeDBbyNum } returns MutableStateFlow(emptyMap())
+        every { nodeRepository.myId } returns MutableStateFlow("!me")
+        every { nodeRepository.ourNodeInfo } returns MutableStateFlow(null)
+
+        adapter.observeContactsAsFlow().test {
+            val contacts = awaitItem()
+            val emergency = contacts.firstOrNull { it.id == DefaultContour.ID.value }
+            assertEquals(5, emergency?.unreadCount)
             cancelAndIgnoreRemainingEvents()
         }
     }

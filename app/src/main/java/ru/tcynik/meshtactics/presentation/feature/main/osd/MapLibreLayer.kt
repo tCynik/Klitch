@@ -76,11 +76,13 @@ import androidx.compose.runtime.setValue
 import ru.tcynik.meshtactics.presentation.feature.main.MarkToolTapDispatcher
 import ru.tcynik.meshtactics.presentation.feature.main.markToolMapTapGestures
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.OverlayRenderModel
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.RecordedTrackRenderModel
 
 // BaseStyle.Empty has no `glyphs` URL — SymbolLayer text rendering fails without it and breaks
-// all other layers too. This style adds the MapLibre demotiles glyph server.
+// all other layers too. Glyphs are served from bundled assets to avoid network dependency on
+// external glyph servers (which can fail on some devices and silently break all SymbolLayers).
 private val BASE_STYLE_WITH_GLYPHS = BaseStyle.Json(
-    """{"version":8,"glyphs":"https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf","sources":{},"layers":[{"id":"background","type":"background","paint":{"background-color":"#f5f3e7"}}]}"""
+    """{"version":8,"glyphs":"asset://fonts/{fontstack}/{range}.pbf","sources":{},"layers":[{"id":"background","type":"background","paint":{"background-color":"#f5f3e7"}}]}"""
 )
 
 // Animation duration for marker position interpolation, in milliseconds.
@@ -112,6 +114,7 @@ fun MapLibreLayer(
     selectedOverlays: ImmutableList<OverlayRenderModel> = persistentListOf(),
     geoMarks: ImmutableList<GeoMarkModel> = persistentListOf(),
     selectedGeoMarkId: String? = null,
+    recordedTracks: ImmutableList<RecordedTrackRenderModel> = persistentListOf(),
     pendingMarkPoints: ImmutableList<ru.tcynik.meshtactics.domain.marker.model.GeoPoint> = persistentListOf(),
     pendingMarkColor: Int = 0,
     pendingMarkShape: GeoMarkShape = GeoMarkShape.CIRCLE,
@@ -289,30 +292,66 @@ fun MapLibreLayer(
         val peerOnlineSource  = rememberGeoJsonSource(GeoJsonData.JsonString(animatedOnlineJson))
         val peerOfflineSource = rememberGeoJsonSource(GeoJsonData.JsonString(animatedOfflineJson))
         val peerStaleSource   = rememberGeoJsonSource(GeoJsonData.JsonString(animatedStaleJson))
+        // rememberGeoJsonSource uses LaunchedEffect keyed by lambda — unreliable when style is
+        // loading. SideEffect runs synchronously after every recomposition, bypassing isUnloaded.
+        androidx.compose.runtime.SideEffect {
+            peerOnlineSource.setData(GeoJsonData.JsonString(animatedOnlineJson))
+            peerOfflineSource.setData(GeoJsonData.JsonString(animatedOfflineJson))
+            peerStaleSource.setData(GeoJsonData.JsonString(animatedStaleJson))
+        }
 
         val markerSize = MarkerSizeConfig.fromLevel(markerSizeLevel)
         val nodeMarkerRadius = MarkerSizeConfig.nodeMarkerRadius(markerSize)
         val nodeMarkerStrokeWidth = MarkerSizeConfig.nodeMarkerStrokeWidth(markerSize)
         val nodeIconSize = markerSize
 
-        // Stale nodes (position older than 2 min) — grey circle + grey label
+        // Stale + online: position outdated but node still sending telemetry — blue-grey dot
         CircleLayer(
-            id = "node-stale-dot",
+            id = "node-stale-online-dot",
             source = peerStaleSource,
-            color = const(Color(0xFF9E9E9E)),
+            filter = feature.has("isOnlineProp"),
+            color = const(Color(0xFF546E7A)),
+            radius = const(nodeMarkerRadius),
+            strokeColor = const(Color.White),
+            strokeWidth = const(nodeMarkerStrokeWidth),
+        )
+
+        // Stale + offline: node not heard within online window — grey dot
+        CircleLayer(
+            id = "node-stale-offline-dot",
+            source = peerStaleSource,
+            filter = !feature.has("isOnlineProp"),
+            color = const(Color(0xFF757575)),
             radius = const(nodeMarkerRadius),
             strokeColor = const(Color.White),
             strokeWidth = const(nodeMarkerStrokeWidth),
         )
 
         SymbolLayer(
-            id = "node-stale-label",
+            id = "node-stale-online-label",
             source = peerStaleSource,
+            filter = feature.has("isOnlineProp"),
             textField = format(span(feature["longName"].asString())),
+            textFont = const(listOf("Noto Sans Regular")),
             textAnchor = const(SymbolAnchor.Bottom),
             textOffset = offset(0f.em, (-1.2f).em),
             textSize = const(12.sp),
-            textColor = const(Color(0xFF9E9E9E)),
+            textColor = const(Color(0xFF90A4AE)),
+            textHaloColor = const(Color.Black),
+            textHaloWidth = const(1.5.dp),
+            textAllowOverlap = const(true),
+        )
+
+        SymbolLayer(
+            id = "node-stale-offline-label",
+            source = peerStaleSource,
+            filter = !feature.has("isOnlineProp"),
+            textField = format(span(feature["longName"].asString())),
+            textFont = const(listOf("Noto Sans Regular")),
+            textAnchor = const(SymbolAnchor.Bottom),
+            textOffset = offset(0f.em, (-1.2f).em),
+            textSize = const(12.sp),
+            textColor = const(Color(0xFF757575)),
             textHaloColor = const(Color.Black),
             textHaloWidth = const(1.5.dp),
             textAllowOverlap = const(true),
@@ -357,6 +396,7 @@ fun MapLibreLayer(
             id = "node-remote-online-label",
             source = peerOnlineSource,
             textField = format(span(feature["longName"].asString())),
+            textFont = const(listOf("Noto Sans Regular")),
             textAnchor = const(SymbolAnchor.Bottom),
             textOffset = offset(0f.em, (-1.2f).em),
             textSize = const(12.sp),
@@ -369,6 +409,7 @@ fun MapLibreLayer(
             id = "node-remote-offline-label",
             source = peerOfflineSource,
             textField = format(span(feature["longName"].asString())),
+            textFont = const(listOf("Noto Sans Regular")),
             textAnchor = const(SymbolAnchor.Bottom),
             textOffset = offset(0f.em, (-1.2f).em),
             textSize = const(12.sp),
@@ -481,6 +522,7 @@ fun MapLibreLayer(
                 id = "geo-received-point-labels",
                 source = receivedPointsSource,
                 textField = format(span(feature["name"].asString())),
+                textFont = const(listOf("Noto Sans Regular")),
                 textAnchor = const(SymbolAnchor.Top),
                 textOffset = offset(0f.em, 1.2f.em),
                 textSize = const(11.sp),
@@ -542,6 +584,22 @@ fun MapLibreLayer(
             iconAllowOverlap = const(true),
         )
 
+        val recordedTracksSource = rememberGeoJsonSource(
+            GeoJsonData.JsonString(buildRecordedTracksGeoJson(recordedTracks))
+        )
+        LineLayer(
+            id = "recorded-tracks-outline",
+            source = recordedTracksSource,
+            color = const(Color(0x80000000)),
+            width = const(5.dp),
+        )
+        LineLayer(
+            id = "recorded-tracks",
+            source = recordedTracksSource,
+            color = feature["color"].convertToColor(const(Color(0xFF43A047))),
+            width = const(3.dp),
+        )
+
     }
 }
 
@@ -560,7 +618,8 @@ private fun buildNodeGeoJson(nodes: List<NodeMarkerModel>): String {
         } else {
             ""
         }
-        """{"type":"Feature","geometry":{"type":"Point","coordinates":[$lon,$lat]},"properties":{"longName":"$name","isStale":${node.isStale}$bearingProps}}"""
+        val onlineProp = if (node.isOnline) ""","isOnlineProp":1""" else ""
+        """{"type":"Feature","geometry":{"type":"Point","coordinates":[$lon,$lat]},"properties":{"longName":"$name","isStale":${node.isStale}$onlineProp$bearingProps}}"""
     }
     return """{"type":"FeatureCollection","features":[$features]}"""
 }
@@ -601,19 +660,15 @@ private fun animateGeoJsonInterpolation(
         val target = nodeMarkers.toList()
         animationState = MarkerAnimationState(previous, target)
 
-        // Build lookup: previous positions keyed by nodeId.
         val previousPositions = previous.associateBy { it.nodeId }
-
         val totalFrames = (MARKER_ANIMATION_MS / FRAME_INTERVAL_MS).toInt()
         for (frame in 0..totalFrames) {
             val rawT = frame.toFloat() / totalFrames
             val t = quadraticEaseInOut(rawT)
 
-            // Interpolate each marker's position.
             val interpolated = target.map { targetNode ->
                 val prev = previousPositions[targetNode.nodeId]
                 if (prev != null) {
-                    // Only interpolate if the position actually changed.
                     val startLon = prev.position.longitude
                     val startLat = prev.position.latitude
                     val endLon = targetNode.position.longitude
@@ -628,7 +683,6 @@ private fun animateGeoJsonInterpolation(
                         targetNode
                     }
                 } else {
-                    // New marker — no previous position to interpolate from.
                     targetNode
                 }
             }
@@ -701,6 +755,18 @@ private fun buildReceivedPointsGeoJson(marks: List<GeoMarkModel>): String {
 }
 
 private fun String.jsonEscape(): String = replace("\\", "\\\\").replace("\"", "\\\"")
+
+private fun buildRecordedTracksGeoJson(tracks: List<RecordedTrackRenderModel>): String {
+    if (tracks.isEmpty()) return """{"type":"FeatureCollection","features":[]}"""
+    val features = tracks
+        .filter { it.points.size >= 2 }
+        .joinToString(",") { track ->
+            val coords = track.points.joinToString(",") { (lat, lon) -> "[$lon,$lat]" }
+            val hex = markColorHex(track.color)
+            """{"type":"Feature","geometry":{"type":"LineString","coordinates":[$coords]},"properties":{"color":"$hex"}}"""
+        }
+    return """{"type":"FeatureCollection","features":[$features]}"""
+}
 
 private fun buildReceivedTracksGeoJson(marks: List<GeoMarkModel>): String {
     if (marks.isEmpty()) return """{"type":"FeatureCollection","features":[]}"""

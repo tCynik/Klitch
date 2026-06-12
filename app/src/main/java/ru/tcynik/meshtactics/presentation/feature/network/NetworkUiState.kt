@@ -15,4 +15,5 @@ data class NetworkUiState(
     val callsignGateDialog: CallsignGateDialogState? = null,
     val isRebooting: Boolean = false,
     val lastConnectedNodeName: String = "",
+    val hasNodeConfig: Boolean = false,
 )

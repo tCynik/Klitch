@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import ru.tcynik.meshtactics.domain.logger.Logger
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveNodeSecurityConfigUseCase
@@ -22,6 +23,7 @@ class NodeSettingsViewModel(
     private val observeConnectionStatus: ObserveConnectionStatusUseCase,
     private val regeneratePkcKeys: RegeneratePkcKeysUseCase,
     private val rebootNode: RebootNodeUseCase,
+    private val logger: Logger,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(NodeSettingsUiState())
@@ -51,6 +53,7 @@ class NodeSettingsViewModel(
 
     fun onRegenerateConfirm() {
         _uiState.update { it.copy(showRegenerateDialog = false) }
+        logger.i("Node", "NodeSettingsViewModel.onRegenerateConfirm: PKC keys regeneration confirmed — firmware reboot expected")
         regeneratePkcKeys()
         viewModelScope.launch {
             delay(300)

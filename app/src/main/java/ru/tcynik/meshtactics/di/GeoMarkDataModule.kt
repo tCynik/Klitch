@@ -61,6 +61,8 @@ val geoMarkDataModule = module {
             geoMarkRepository   = get(),
             adapter             = get(),
             channelSlotResolver = get(),
+            resolveContourFromSlot = get(),
+            applyDeliveryPolicy = get(),
             logger              = get(),
         )
     }

@@ -35,6 +35,8 @@ import ru.tcynik.meshtactics.domain.map.usecase.SaveLastMapPositionUseCase
 import ru.tcynik.meshtactics.domain.location.model.GpsSignalLevel
 import ru.tcynik.meshtactics.domain.location.usecase.ObserveGpsStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
+import ru.tcynik.meshtactics.domain.mesh.model.NodeSyncCyclePhase
+import ru.tcynik.meshtactics.mesh.ble.toMeshtasticDisplayShortName
 import ru.tcynik.meshtactics.domain.settings.usecase.GetGeoMarkSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetMarkerSizeLevelUseCase
 import ru.tcynik.meshtactics.domain.settings.usecase.GetShowGeoMarkNamesUseCase
@@ -49,7 +51,10 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.GetLastConnectedDeviceUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveCallsignChangesUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeyUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.withTimeoutOrNull
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import ru.tcynik.meshtactics.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.NodeProvisioningUseCase
@@ -81,9 +86,13 @@ import android.os.SystemClock
 import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkParams
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.SyncEmergencyMuteUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.CancelEmergencyUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkAddressee
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarksSheetUiState
-import ru.tcynik.meshtactics.domain.channel.model.ContourHash
+
 import ru.tcynik.meshtactics.domain.channel.repository.ContourSyncStateRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
@@ -99,6 +108,23 @@ import ru.tcynik.meshtactics.presentation.feature.main.osd.models.DraftPointCont
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.ExistingMarkContextMenuEvent
 import ru.tcynik.meshtactics.presentation.feature.marks.GeoMarkTitleFormatter
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MenuDrawerUiState
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.TrackRecordingSheetUiState
+import ru.tcynik.meshtactics.data.track.datasource.TrackSettingsDataSource
+import ru.tcynik.meshtactics.domain.track.model.TrackRecordingPreset
+import ru.tcynik.meshtactics.domain.track.model.TrackRecordingState
+import ru.tcynik.meshtactics.domain.track.repository.StopResult
+import ru.tcynik.meshtactics.domain.gps.repository.GpsRepository
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveTrackRecordingStateUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.DiscardTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.PauseTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ResumeTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.StartTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.UpdateTrackRecordingColorUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.UpdateTrackRecordingNameUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.StopTrackRecordingUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTracksUseCase
+import ru.tcynik.meshtactics.domain.track.usecase.ObserveRecordedTrackPointsUseCase
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.RecordedTrackRenderModel
 import java.util.UUID
 import kotlin.math.cos
 
@@ -139,6 +165,7 @@ class MainViewModel(
     ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase,
     autoExpireGeoMarks: AutoExpireGeoMarksUseCase,
     ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase,
+    syncEmergencyMute: SyncEmergencyMuteUseCase,
     observeLogicalChannels: ObserveContoursUseCase,
     observeNodeChannels: ObserveNodeChannelsUseCase,
     private val checkNodeSync: CheckNodeSyncUseCase,
@@ -148,10 +175,33 @@ class MainViewModel(
     private val refreshNodePublicKey: RefreshNodePublicKeyUseCase,
     private val observeAppUser: ObserveAppUserUseCase,
     private val geoMarkPrefsRepository: GeoMarkPreferencesRepository,
+    private val observeTrackRecordingState: ObserveTrackRecordingStateUseCase,
+    private val startTrackRecording: StartTrackRecordingUseCase,
+    private val pauseTrackRecording: PauseTrackRecordingUseCase,
+    private val resumeTrackRecording: ResumeTrackRecordingUseCase,
+    private val stopTrackRecording: StopTrackRecordingUseCase,
+    private val discardTrackRecording: DiscardTrackRecordingUseCase,
+    private val updateTrackRecordingName: UpdateTrackRecordingNameUseCase,
+    private val updateTrackRecordingColor: UpdateTrackRecordingColorUseCase,
+    private val trackSettingsDataSource: TrackSettingsDataSource,
+    private val gpsRepository: GpsRepository,
+    observeRecordedTracks: ObserveRecordedTracksUseCase,
+    observeRecordedTrackPoints: ObserveRecordedTrackPointsUseCase,
+    private val observeEmergencyMode: ObserveEmergencyModeUseCase,
+    private val cancelEmergency: CancelEmergencyUseCase,
+    private val triggerEmergency: TriggerEmergencyUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
     private val _formState = MutableStateFlow(GeoMarksFormState())
+    private val _trackFormState = MutableStateFlow(TrackRecordingFormState())
+    private data class StopDialogState(val requestedAt: Long? = null, val trimToMovement: Boolean = false)
+    private val _stopDialogState = MutableStateFlow(StopDialogState())
+    private val _pendingExitOnStop = MutableStateFlow(false)
+    private val _exitAppEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val exitAppEvent: SharedFlow<Unit> = _exitAppEvent.asSharedFlow()
+    private val _trackNoMovementDiscardedEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val trackNoMovementDiscardedEvent: SharedFlow<Unit> = _trackNoMovementDiscardedEvent.asSharedFlow()
     private var connectedLabelJob: Job? = null
     private var scanJob: Job? = null
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
@@ -183,12 +233,44 @@ class MainViewModel(
 
     // Portrait HUD state — named buttons replace the generic slot list.
     // Contains lambdas → separate StateFlow, same pattern as hudConfig.
-    val hudUiState: StateFlow<HudUiState> = combine(_uiState, _navCallbacks, _formState) { state, nav, form ->
-        buildHudUiState(state, nav, form)
+    val hudUiState: StateFlow<HudUiState> = combine(
+        _uiState,
+        _navCallbacks,
+        _formState,
+        _trackFormState,
+        observeTrackRecordingState(NoParams),
+    ) { state, nav, form, trackForm, trackState ->
+        buildHudUiState(state, nav, form, trackState)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
-        initialValue = buildHudUiState(MainUiState(), HudNavCallbacks(), GeoMarksFormState()),
+        initialValue = buildHudUiState(MainUiState(), HudNavCallbacks(), GeoMarksFormState(), TrackRecordingState.Idle),
+    )
+
+    // Track recording sheet state — contains lambdas → separate StateFlow.
+    val trackRecordingSheetUiState: StateFlow<TrackRecordingSheetUiState> = combine(
+        _trackFormState,
+        observeTrackRecordingState(NoParams),
+        kotlinx.coroutines.flow.flow {
+            while (true) {
+                emit(System.currentTimeMillis() / 1000L)
+                kotlinx.coroutines.delay(1000)
+            }
+        },
+        _stopDialogState,
+        gpsRepository.location,
+    ) { trackForm, trackState, nowSeconds, stopDialog, gpsLocation ->
+        val durationSeconds = when {
+            trackState !is TrackRecordingState.Recording -> 0L
+            trackState.isPaused -> trackState.accumulatedSeconds
+            stopDialog.requestedAt != null -> trackState.accumulatedSeconds + (stopDialog.requestedAt - trackState.activeFromSeconds)
+            else -> trackState.accumulatedSeconds + (nowSeconds - trackState.activeFromSeconds)
+        }
+        buildTrackRecordingSheetUiState(trackForm, trackState, durationSeconds, stopDialog, gpsLocation?.speed)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = buildTrackRecordingSheetUiState(TrackRecordingFormState(), TrackRecordingState.Idle, 0L, StopDialogState(), null),
     )
 
     // Geo marks sheet state — contains lambdas → separate StateFlow.
@@ -231,6 +313,10 @@ class MainViewModel(
             .onEach { rebooting -> _uiState.update { it.copy(isRebooting = rebooting) } }
             .launchIn(viewModelScope)
 
+        rebootStateRepository.syncCyclePhase
+            .onEach { phase -> _uiState.update { it.copy(syncCyclePhase = phase) } }
+            .launchIn(viewModelScope)
+
         observeConnectionStatus(NoParams)
             .onEach { status ->
                 if (status is MeshConnectionStatus.Connected) {
@@ -240,13 +326,18 @@ class MainViewModel(
                     val wasConnected = _uiState.value.connectionStatus is MeshConnectionStatus.Connected
                     _uiState.update { it.copy(connectionStatus = status) }
                     if (!wasConnected) {
-                        if (rebootStateRepository.isRebooting.value) rebootStateRepository.setRebooting(false)
-                        viewModelScope.launch { nodeProvisioning.provision() }
-                        viewModelScope.launch {
-                            if (checkNodeSync() is NodeSyncResult.NeedsSync)
-                                syncStateRepository.setSyncRequired(true)
-                            else
-                                syncStateRepository.clear()
+                        val skipSyncCheck = rebootStateRepository.shouldSkipSyncCheckAfterReboot()
+                        if (!skipSyncCheck) {
+                            viewModelScope.launch { nodeProvisioning.provision() }
+                            viewModelScope.launch {
+                                withTimeoutOrNull(10_000) {
+                                    observeNodeChannels(NoParams).filter { it.isNotEmpty() }.firstOrNull()
+                                }
+                                if (checkNodeSync() is NodeSyncResult.NeedsSync)
+                                    syncStateRepository.setSyncRequired(true)
+                                else
+                                    syncStateRepository.clear()
+                            }
                         }
                         _uiState.update { it.copy(showConnectionLabel = true) }
                         connectedLabelJob?.cancel()
@@ -260,7 +351,7 @@ class MainViewModel(
                     connectedLabelJob?.cancel()
                     connectedLabelJob = null
                     _uiState.update { it.copy(connectionStatus = status, showConnectionLabel = false) }
-                    if (wasConnected && _uiState.value.isRebooting) {
+                    if (wasConnected && _uiState.value.isRebooting && !rebootStateRepository.shouldSkipSyncCheckAfterReboot()) {
                         viewModelScope.launch {
                             delay(3_000)
                             startAutoConnectIfEnabled()
@@ -332,7 +423,31 @@ class MainViewModel(
         ingestReceivedChatMessages.observe()
             .launchIn(viewModelScope)
 
+        syncEmergencyMute.observe()
+            .launchIn(viewModelScope)
+
         autoExpireGeoMarks.observe().launchIn(viewModelScope)
+
+        combine(
+            observeRecordedTracks(NoParams),
+            observeRecordedTrackPoints(NoParams),
+            observeTrackRecordingState(NoParams),
+        ) { tracks, allPoints, recordingState ->
+            val recordingId = (recordingState as? TrackRecordingState.Recording)?.trackId
+            val pointsByTrack = allPoints.groupBy { it.trackId }
+            val renderModels = tracks
+                .filter { it.isVisible }
+                .map { track ->
+                    RecordedTrackRenderModel(
+                        id = track.id,
+                        color = track.color,
+                        isRecording = track.id == recordingId,
+                        points = (pointsByTrack[track.id] ?: emptyList())
+                            .map { it.lat to it.lon },
+                    )
+                }
+            _uiState.update { it.copy(recordedTracks = renderModels.toImmutableList()) }
+        }.launchIn(viewModelScope)
 
         combine(
             observeLogicalChannels(NoParams),
@@ -365,21 +480,7 @@ class MainViewModel(
             }
             .launchIn(viewModelScope)
 
-        combine(
-            observeLogicalChannels(NoParams),
-            observeNodeChannels(NoParams),
-        ) { contours, nodeSlots ->
-            if (contours.isEmpty()) return@combine true
-            contours.any { contour ->
-                val hash = contour.transport.meshtastic.channelHash
-                nodeSlots.any { slot ->
-                    slot.index != 0 && slot.isEnabled &&
-                        ContourHash.compute(slot.name, slot.psk) == hash
-                }
-            }
-        }
-            .onEach { hasChannel -> _uiState.update { it.copy(hasChannelOnNode = hasChannel) } }
-            .launchIn(viewModelScope)
+
 
         syncStateRepository.syncRequired
             .onEach { required -> _uiState.update { it.copy(syncRequired = required) } }
@@ -409,7 +510,54 @@ class MainViewModel(
             }
             .launchIn(viewModelScope)
 
+        observeEmergencyMode()
+            .onEach { active -> _uiState.update { it.copy(isSosActive = active) } }
+            .launchIn(viewModelScope)
+
+        viewModelScope.launch {
+            if (observeEmergencyMode().first()) {
+                _uiState.update { it.copy(showSosRestoredDialog = true) }
+            }
+        }
+
         startAutoConnectIfEnabled()
+
+        trackSettingsDataSource.observeSettings()
+            .onEach { settings ->
+                _trackFormState.update { it.copy(settings = settings) }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    fun onSosRestoredKeep() {
+        _uiState.update { it.copy(showSosRestoredDialog = false) }
+    }
+
+    fun onSosRestoredDisable() {
+        _uiState.update { it.copy(showSosRestoredDialog = false) }
+        viewModelScope.launch { cancelEmergency() }
+    }
+
+    fun onSosButtonClick() {
+        if (_uiState.value.isSosActive) {
+            _uiState.update { it.copy(showSosCancelDialog = true) }
+        } else {
+            _uiState.update { it.copy(showSosTriggerDialog = true) }
+        }
+    }
+
+    fun onTriggerSosConfirm() {
+        _uiState.update { it.copy(showSosTriggerDialog = false) }
+        viewModelScope.launch { triggerEmergency() }
+    }
+
+    fun onCancelSosConfirm() {
+        _uiState.update { it.copy(showSosCancelDialog = false) }
+        viewModelScope.launch { cancelEmergency() }
+    }
+
+    fun onDismissSosDialog() {
+        _uiState.update { it.copy(showSosTriggerDialog = false, showSosCancelDialog = false) }
     }
 
     fun onCameraPositionChanged(position: MapCameraPosition) {
@@ -476,6 +624,7 @@ class MainViewModel(
 
     fun toggleGeoMarksSheet() {
         val isOpening = !_formState.value.isSheetVisible
+        if (isOpening) closeTrackRecordingSheetVisibility()
         _formState.update { it.copy(isSheetVisible = isOpening) }
         if (isOpening) {
             _uiState.update { it.copy(markToolActive = true) }
@@ -498,6 +647,158 @@ class MainViewModel(
         if (_uiState.value.markToolActive) {
             _uiState.update { it.copy(markToolActive = false).withPendingMarkPoints(persistentListOf()) }
         }
+    }
+
+    // ── Track recording ───────────────────────────────────────────────────────
+
+    fun toggleTrackRecordingSheet() {
+        val isOpening = !_trackFormState.value.isSheetVisible
+        if (isOpening) closeGeoMarksSheet()
+        _trackFormState.update { it.copy(isSheetVisible = isOpening) }
+    }
+
+    fun closeTrackRecordingSheetVisibility() {
+        _trackFormState.update { it.copy(isSheetVisible = false) }
+    }
+
+    fun toggleTrackSheetCollapsed() {
+        _trackFormState.update { it.copy(isCollapsed = !it.isCollapsed) }
+    }
+
+    fun startTrackRecordingAction() {
+        viewModelScope.launch {
+            startTrackRecording(_trackFormState.value.settings)
+            val s = _trackFormState.value.settings
+            val nextCounter = s.nameCounter?.plus(1)
+            _trackFormState.update { it.copy(settings = s.copy(nameCounter = nextCounter)) }
+            viewModelScope.launch { persistTrackSettings(_trackFormState.value.settings) }
+        }
+    }
+
+    fun pauseTrackRecordingAction() {
+        viewModelScope.launch { pauseTrackRecording() }
+    }
+
+    fun resumeTrackRecordingAction() {
+        viewModelScope.launch { resumeTrackRecording() }
+    }
+
+    fun stopTrackRecordingAction() {
+        _stopDialogState.update { it.copy(requestedAt = System.currentTimeMillis() / 1000L) }
+    }
+
+    fun setStopDialogTrimToMovement(checked: Boolean) {
+        _stopDialogState.update { it.copy(trimToMovement = checked) }
+    }
+
+    fun requestExitApp() {
+        _uiState.update { it.copy(menuDrawerOpen = false) }
+        if (trackRecordingSheetUiState.value.recordingState is TrackRecordingState.Recording) {
+            _pendingExitOnStop.value = true
+            stopTrackRecordingAction()
+        } else {
+            viewModelScope.launch { _exitAppEvent.emit(Unit) }
+        }
+    }
+
+    fun confirmTrackStopSave(name: String) {
+        val shouldExit = _pendingExitOnStop.value
+        val trimToMovement = _stopDialogState.value.trimToMovement
+        _stopDialogState.value = StopDialogState()
+        _pendingExitOnStop.value = false
+        closeTrackRecordingSheetVisibility()
+        viewModelScope.launch {
+            val result = stopTrackRecording(name, trimToMovement)
+            if (result == StopResult.DiscardedNoMovement) {
+                _trackNoMovementDiscardedEvent.emit(Unit)
+            }
+            if (shouldExit) _exitAppEvent.emit(Unit)
+        }
+    }
+
+    fun confirmTrackStopDiscard() {
+        val shouldExit = _pendingExitOnStop.value
+        _stopDialogState.value = StopDialogState()
+        _pendingExitOnStop.value = false
+        closeTrackRecordingSheetVisibility()
+        viewModelScope.launch {
+            discardTrackRecording()
+            if (shouldExit) _exitAppEvent.emit(Unit)
+        }
+    }
+
+    fun cancelTrackStopDialog() {
+        _stopDialogState.value = StopDialogState()
+        _pendingExitOnStop.value = false
+    }
+
+    fun setTrackPreset(preset: TrackRecordingPreset) {
+        _trackFormState.update { form ->
+            form.copy(
+                settings = form.settings.copy(
+                    preset = preset,
+                    intervalSeconds = preset.defaultIntervalSeconds(),
+                    minDistanceMeters = preset.defaultMinDistanceMeters(),
+                ),
+            )
+        }
+        viewModelScope.launch { persistTrackSettings(_trackFormState.value.settings) }
+    }
+
+    fun setTrackInterval(seconds: Int?) {
+        _trackFormState.update { form ->
+            form.copy(
+                settings = form.settings.copy(
+                    intervalSeconds = seconds,
+                    preset = TrackRecordingPreset.CUSTOM,
+                ),
+            )
+        }
+        viewModelScope.launch { persistTrackSettings(_trackFormState.value.settings) }
+    }
+
+    fun setTrackMinDistance(meters: Int) {
+        _trackFormState.update { form ->
+            form.copy(
+                settings = form.settings.copy(
+                    minDistanceMeters = meters,
+                    preset = TrackRecordingPreset.CUSTOM,
+                ),
+            )
+        }
+        viewModelScope.launch { persistTrackSettings(_trackFormState.value.settings) }
+    }
+
+    fun setTrackName(name: String) {
+        _trackFormState.update { form ->
+            form.copy(settings = form.settings.copy(name = name))
+        }
+        viewModelScope.launch { persistTrackSettings(_trackFormState.value.settings) }
+    }
+
+    fun setTrackNameCounter(counter: Int?) {
+        _trackFormState.update { form ->
+            form.copy(settings = form.settings.copy(nameCounter = counter?.coerceAtLeast(1)))
+        }
+        viewModelScope.launch { persistTrackSettings(_trackFormState.value.settings) }
+    }
+
+    fun setTrackColor(colorIndex: Int) {
+        _trackFormState.update { form ->
+            form.copy(settings = form.settings.copy(color = colorIndex))
+        }
+        viewModelScope.launch {
+            persistTrackSettings(_trackFormState.value.settings)
+            updateTrackRecordingColor(colorIndex)
+        }
+    }
+
+    fun setRecordingTrackName(name: String) {
+        viewModelScope.launch { updateTrackRecordingName(name) }
+    }
+
+    private suspend fun persistTrackSettings(settings: ru.tcynik.meshtactics.domain.track.model.TrackRecordingSettings) {
+        trackSettingsDataSource.saveSettings(settings)
     }
 
     fun setMarkType(type: GeoMarkType) {
@@ -802,7 +1103,7 @@ class MainViewModel(
         right = buildRightColumn(state, nav),
     )
 
-    private fun buildHudUiState(state: MainUiState, nav: HudNavCallbacks, form: GeoMarksFormState): HudUiState = HudUiState(
+    private fun buildHudUiState(state: MainUiState, nav: HudNavCallbacks, form: GeoMarksFormState, trackState: TrackRecordingState): HudUiState = HudUiState(
         menuDrawer = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_menu, label = "меню", onClick = { toggleMenuDrawer() }), info = emptyInfoSlot()),
         zoomIn   = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_zoom_in,  label = "+", onClick = {}), info = emptyInfoSlot()),
         zoomOut  = HudRowConfig(button = HudButtonSlot(iconRes = R.drawable.ic_zoom_out, label = "-", onClick = {}), info = emptyInfoSlot()),
@@ -873,6 +1174,15 @@ class MainViewModel(
             ),
             info = emptyInfoSlot(),
         ),
+        trackRecord = HudRowConfig(
+            button = HudButtonSlot(
+                iconRes  = R.drawable.ic_track_record,
+                label    = "трек",
+                selected = trackState is TrackRecordingState.Recording,
+                onClick  = { toggleTrackRecordingSheet() },
+            ),
+            info = emptyInfoSlot(),
+        ),
     )
 
     private fun buildMenuDrawerUiState(state: MainUiState, nav: HudNavCallbacks): MenuDrawerUiState = MenuDrawerUiState(
@@ -915,6 +1225,8 @@ class MainViewModel(
             ),
         ),
         onDismiss = ::toggleMenuDrawer,
+        isSosActive = state.isSosActive,
+        onSosClick = ::onSosButtonClick,
     )
 
     private fun buildCompassButton(state: MainUiState): HudButtonSlot {
@@ -1039,14 +1351,18 @@ class MainViewModel(
             else
                 HudInfoSlot(content = "Поиск...", color = Color.Red)
         is MeshConnectionStatus.Connecting ->
-            HudInfoSlot(content = "Сопряжение с ${status.deviceName}", color = Color.Black)
+            HudInfoSlot(
+                content = "Сопряжение с ${status.deviceName.toMeshtasticDisplayShortName()}",
+                color = Color.Black,
+            )
         is MeshConnectionStatus.Connected ->
             if (state.syncRequired)
                 HudInfoSlot(content = "требуется синхронизация", color = Color.Red)
-            else if (!state.hasChannelOnNode)
-                HudInfoSlot(content = "Настройте канал", color = Color.Red)
             else if (state.showConnectionLabel)
-                HudInfoSlot(content = "Сопряжено с ${status.shortName}", color = Color.Black)
+                HudInfoSlot(
+                    content = "Сопряжено с ${status.shortName.toMeshtasticDisplayShortName()}",
+                    color = Color.Black,
+                )
             else if (status.batteryLevel in 1..100)
                 HudInfoSlot(
                     content = "🔋${status.batteryLevel}%",
@@ -1055,10 +1371,19 @@ class MainViewModel(
             else
                 emptyInfoSlot()
         else ->
-            if (state.isRebooting)
-                HudInfoSlot(content = "Перезагрузка...", color = Color.Black)
-            else
-                emptyInfoSlot()
+            when (state.syncCyclePhase) {
+                NodeSyncCyclePhase.Syncing ->
+                    HudInfoSlot(content = "Синхронизация...", color = Color.Black)
+                NodeSyncCyclePhase.Rebooting ->
+                    HudInfoSlot(content = "Перезагрузка...", color = Color.Black)
+                NodeSyncCyclePhase.WaitingForNode ->
+                    HudInfoSlot(content = "Ожидание ноды...", color = Color.Black)
+                NodeSyncCyclePhase.Idle ->
+                    if (state.isRebooting)
+                        HudInfoSlot(content = "Перезагрузка...", color = Color.Black)
+                    else
+                        emptyInfoSlot()
+            }
     }
 
     private fun buildNodeStatusColor(state: MainUiState): Color {
@@ -1185,19 +1510,20 @@ class MainViewModel(
 
     private suspend fun persistFormState() {
         val form = _formState.value
+        val prefs = GeoMarkFormPreferences(
+            selectedType         = form.selectedType.name,
+            selectedColor        = form.selectedColor,
+            selectedShape        = form.selectedShape.name,
+            selectedTrackEndType = form.selectedTrackEndType.ends.toInt(),
+            selectedTtlSeconds   = form.selectedTtlSeconds,
+            pointMarkName        = form.pointMarkName,
+            trackMarkName        = form.trackMarkName,
+            pointNameCounter     = form.pointNameCounter,
+            trackNameCounter     = form.trackNameCounter,
+            selectedContourId    = form.selectedContourId,)
+
         geoMarkPrefsRepository.savePreferences(
-            GeoMarkFormPreferences(
-                selectedType         = form.selectedType.name,
-                selectedColor        = form.selectedColor,
-                selectedShape        = form.selectedShape.name,
-                selectedTrackEndType = form.selectedTrackEndType.ends.toInt(),
-                selectedTtlSeconds   = form.selectedTtlSeconds,
-                pointMarkName        = form.pointMarkName,
-                trackMarkName        = form.trackMarkName,
-                pointNameCounter     = form.pointNameCounter,
-                trackNameCounter     = form.trackNameCounter,
-                selectedContourId    = form.selectedContourId,
-            )
+            prefs
         )
     }
 
@@ -1227,4 +1553,38 @@ class MainViewModel(
                 GeoTrackDistance.totalMeters(points),
             ),
         )
+
+    private fun buildTrackRecordingSheetUiState(
+        form: TrackRecordingFormState,
+        trackState: TrackRecordingState,
+        durationSeconds: Long,
+        stopDialog: StopDialogState,
+        speedMps: Float?,
+    ): TrackRecordingSheetUiState = TrackRecordingSheetUiState(
+        isVisible             = form.isSheetVisible,
+        isCollapsed           = form.isCollapsed,
+        settings              = form.settings,
+        recordingState        = trackState,
+        durationSeconds       = durationSeconds,
+        speedMps              = speedMps,
+        showStopDialog        = stopDialog.requestedAt != null,
+        trimToMovement        = stopDialog.trimToMovement,
+        onClose               = ::closeTrackRecordingSheetVisibility,
+        onToggleCollapsed     = ::toggleTrackSheetCollapsed,
+        onStart               = ::startTrackRecordingAction,
+        onPause               = ::pauseTrackRecordingAction,
+        onResume              = ::resumeTrackRecordingAction,
+        onStop                = ::stopTrackRecordingAction,
+        onStopDialogSave      = ::confirmTrackStopSave,
+        onStopDialogDiscard   = ::confirmTrackStopDiscard,
+        onStopDialogCancel    = ::cancelTrackStopDialog,
+        onTrimToMovementChanged = ::setStopDialogTrimToMovement,
+        onPresetSelected      = ::setTrackPreset,
+        onIntervalSelected    = ::setTrackInterval,
+        onMinDistanceSelected = ::setTrackMinDistance,
+        onNameChanged         = ::setTrackName,
+        onNameCounterChanged  = ::setTrackNameCounter,
+        onColorSelected       = ::setTrackColor,
+        onTrackNameChanged    = ::setRecordingTrackName,
+    )
 }

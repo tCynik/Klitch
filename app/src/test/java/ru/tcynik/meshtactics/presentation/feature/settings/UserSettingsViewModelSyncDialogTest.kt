@@ -20,6 +20,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import ru.tcynik.meshtactics.logger.NoOpLogger
 import ru.tcynik.meshtactics.domain.channel.ChannelSlotResolver
 import ru.tcynik.meshtactics.domain.channel.model.Contour
 import ru.tcynik.meshtactics.domain.channel.model.ContourHash
@@ -35,21 +36,27 @@ import ru.tcynik.meshtactics.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.ResolveChannelSlotUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SaveContourUseCase
+import ru.tcynik.meshtactics.domain.channel.model.DefaultActiveContour
+import ru.tcynik.meshtactics.domain.channel.repository.ContourRepository
 import ru.tcynik.meshtactics.domain.channel.usecase.SetContourActiveUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.SetPrimaryContourUseCase
 import ru.tcynik.meshtactics.domain.channel.usecase.SlotResolution
-import ru.tcynik.meshtactics.domain.channel.usecase.SyncContoursOnConnectUseCase
+import ru.tcynik.meshtactics.domain.channel.usecase.ConfirmChannelSyncUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.CancelEmergencyUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
-import ru.tcynik.meshtactics.domain.mesh.usecase.EnableNodePositionBroadcastReadyUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.BeginSettingsEditUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.CommitSettingsEditUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.PrepareNodeForAppDrivenBroadcastUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.meshtactics.domain.mesh.usecase.RebootNodeUseCase
+import ru.tcynik.meshtactics.domain.mesh.usecase.ReconnectAfterNodeRebootUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.SetGpsBroadcastEnabledUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.WriteOwnerUseCase
@@ -59,6 +66,7 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
 import ru.tcynik.meshtactics.domain.user.model.AppUser
 import ru.tcynik.meshtactics.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.meshtactics.domain.user.usecase.SaveAppUserUseCase
+import ru.tcynik.meshtactics.domain.usecase.base.NoParams
 import java.util.Base64
 import java.util.UUID
 
@@ -70,13 +78,17 @@ class UserSettingsViewModelSyncDialogTest {
     private val saveContour: SaveContourUseCase = mockk(relaxed = true)
     private val deleteContour: DeleteContourUseCase = mockk(relaxed = true)
     private val setContourActive: SetContourActiveUseCase = mockk(relaxed = true)
+    private val setPrimaryContour: SetPrimaryContourUseCase = mockk(relaxed = true)
+    private val contourRepository: ContourRepository = mockk()
     private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
+    private val beginSettingsEdit: BeginSettingsEditUseCase = mockk(relaxed = true)
+    private val commitSettingsEdit: CommitSettingsEditUseCase = mockk(relaxed = true)
     private val writeChannel: WriteChannelUseCase = mockk(relaxed = true)
     private val resolveSlot: ResolveChannelSlotUseCase = mockk()
     private val observeConnectionStatus: ObserveConnectionStatusUseCase = mockk()
     private val channelSlotResolver: ChannelSlotResolver = mockk()
-    private val syncContoursOnConnect: SyncContoursOnConnectUseCase = mockk(relaxed = true)
-    private val enableNodePositionBroadcastReady: EnableNodePositionBroadcastReadyUseCase = mockk(relaxed = true)
+    private val confirmChannelSync: ConfirmChannelSyncUseCase = mockk(relaxed = true)
+    private val prepareNodeForAppDrivenBroadcast: PrepareNodeForAppDrivenBroadcastUseCase = mockk(relaxed = true)
     private val disableNodePositionBroadcast: DisableNodePositionBroadcastUseCase = mockk(relaxed = true)
     private val observeEmergencyMode: ObserveEmergencyModeUseCase = mockk()
     private val triggerEmergency: TriggerEmergencyUseCase = mockk(relaxed = true)
@@ -85,6 +97,7 @@ class UserSettingsViewModelSyncDialogTest {
     private val syncStateRepository: ContourSyncStateRepository = mockk(relaxed = true)
     private val disconnectFromMesh: DisconnectFromMeshUseCase = mockk(relaxed = true)
     private val rebootNode: RebootNodeUseCase = mockk(relaxed = true)
+    private val reconnectAfterNodeReboot: ReconnectAfterNodeRebootUseCase = mockk(relaxed = true)
     private val rebootStateRepository: RebootStateRepository = mockk(relaxed = true)
     private val observeGpsBroadcastEnabled: ObserveGpsBroadcastEnabledUseCase = mockk()
     private val setGpsBroadcastEnabled: SetGpsBroadcastEnabledUseCase = mockk(relaxed = true)
@@ -98,6 +111,7 @@ class UserSettingsViewModelSyncDialogTest {
     private val nodeChannelsFlow = MutableStateFlow<List<NodeChannelSlot>>(emptyList())
     private val connectionStatusFlow = MutableStateFlow<MeshConnectionStatus>(MeshConnectionStatus.Disconnected)
     private val syncRequiredFlow = MutableStateFlow(false)
+    private val primaryIdFlow = MutableStateFlow(DefaultActiveContour.ID)
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var viewModel: UserSettingsViewModel
@@ -122,6 +136,7 @@ class UserSettingsViewModelSyncDialogTest {
         every { channelSlotResolver.hashToSlot } returns emptyMap()
         every { resolveSlot.invoke(any(), any()) } returns SlotResolution.NoFreeSlot
         every { observeEmergencyMode.invoke() } returns flowOf(false)
+        every { contourRepository.observePrimaryContourId() } returns primaryIdFlow
         every { observeGpsBroadcastEnabled.invoke() } returns flowOf(true)
         every { observeDeviceConfig.invoke(any()) } returns flowOf(null)
         every { syncStateRepository.syncRequired } returns syncRequiredFlow
@@ -133,13 +148,17 @@ class UserSettingsViewModelSyncDialogTest {
             saveContour = saveContour,
             deleteContour = deleteContour,
             setContourActive = setContourActive,
+            setPrimaryContour = setPrimaryContour,
+            contourRepository = contourRepository,
             observeNodeChannels = observeNodeChannels,
+            beginSettingsEdit = beginSettingsEdit,
+            commitSettingsEdit = commitSettingsEdit,
             writeChannel = writeChannel,
             resolveSlot = resolveSlot,
             observeConnectionStatus = observeConnectionStatus,
             channelSlotResolver = channelSlotResolver,
-            syncContoursOnConnect = syncContoursOnConnect,
-            enableNodePositionBroadcastReady = enableNodePositionBroadcastReady,
+            confirmChannelSync = confirmChannelSync,
+            prepareNodeForAppDrivenBroadcast = prepareNodeForAppDrivenBroadcast,
             disableNodePositionBroadcast = disableNodePositionBroadcast,
             observeEmergencyMode = observeEmergencyMode,
             triggerEmergency = triggerEmergency,
@@ -148,6 +167,7 @@ class UserSettingsViewModelSyncDialogTest {
             syncStateRepository = syncStateRepository,
             disconnectFromMesh = disconnectFromMesh,
             rebootNode = rebootNode,
+            reconnectAfterNodeReboot = reconnectAfterNodeReboot,
             rebootStateRepository = rebootStateRepository,
             observeGpsBroadcastEnabled = observeGpsBroadcastEnabled,
             setGpsBroadcastEnabled = setGpsBroadcastEnabled,
@@ -156,6 +176,7 @@ class UserSettingsViewModelSyncDialogTest {
             checkOwnPkcHealth = checkOwnPkcHealth,
             refreshNodePublicKeys = refreshNodePublicKeys,
             regeneratePkcKeys = regeneratePkcKeys,
+            logger = NoOpLogger(),
         )
     }
 
@@ -251,20 +272,11 @@ class UserSettingsViewModelSyncDialogTest {
     }
 
     @Test
-    fun `onConfirmChannelSync — вызывает syncContoursOnConnect и rebootNode`() = runTest(testDispatcher) {
+    fun `onConfirmChannelSync — вызывает confirmChannelSync`() = runTest(testDispatcher) {
         viewModel.onConfirmChannelSync()
         runCurrent()
 
-        coVerify(exactly = 1) { syncContoursOnConnect.invoke() }
-        verify(exactly = 1) { rebootNode.invoke() }
-    }
-
-    @Test
-    fun `onConfirmChannelSync — вызывает syncStateRepository clear`() = runTest(testDispatcher) {
-        viewModel.onConfirmChannelSync()
-        runCurrent()
-
-        verify(exactly = 1) { syncStateRepository.clear() }
+        coVerify(exactly = 1) { confirmChannelSync.invoke(NoParams) }
     }
 
     // ── onDismissChannelSync ──────────────────────────────────────────────────

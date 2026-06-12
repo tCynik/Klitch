@@ -6,13 +6,19 @@ import android.content.pm.PackageManager
 import android.util.Base64
 import androidx.core.content.ContextCompat
 import ru.tcynik.meshtactics.domain.logger.Logger
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
+import org.meshtastic.proto.AdminMessage
 import org.meshtastic.proto.Channel
 import org.meshtastic.proto.ChannelSettings
 import org.meshtastic.proto.Config
@@ -31,16 +37,24 @@ import ru.tcynik.meshtactics.mesh.model.Position
 import ru.tcynik.meshtactics.mesh.repository.CommandSender
 import ru.tcynik.meshtactics.mesh.repository.MeshRouter
 import ru.tcynik.meshtactics.mesh.repository.NodeRepository
+import ru.tcynik.meshtactics.mesh.repository.PacketHandler
 import ru.tcynik.meshtactics.mesh.repository.UiPrefs
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class MeshConfigRepositoryImpl(
     private val meshRouter: MeshRouter,
     private val nodeRepository: NodeRepository,
     private val commandSender: CommandSender,
+    private val packetHandler: PacketHandler,
     private val uiPrefs: UiPrefs,
     private val context: Context,
     private val logger: Logger,
 ) : MeshConfigRepository {
+
+    private var settingsEditOpen = false
+    private val settingsEditMutex = Mutex()
 
     override fun observeNodeChannels(): Flow<List<NodeChannelSlot>> =
         commandSender.channelSetFlow.map { channelSet ->
@@ -59,24 +73,165 @@ class MeshConfigRepositoryImpl(
         meshRouter.configFlowManager.triggerWantConfig()
     }
 
-    override fun writeChannel(index: Int, name: String, pskBase64: String) {
-        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
-        val pskBytes = if (pskBase64.isBlank()) ByteArray(0)
-                       else Base64.decode(pskBase64.trim(), Base64.DEFAULT)
-        val channel = Channel(
-            index = index,
-            settings = ChannelSettings(
-                name = name,
-                psk = pskBytes.toByteString(),
-                module_settings = ModuleSettings(position_precision = CHANNEL_POSITION_PRECISION),
-            ),
-            role = if (index == 0) Channel.Role.PRIMARY else Channel.Role.SECONDARY,
-        )
-        meshRouter.actionHandler.handleSetChannel(Channel.ADAPTER.encode(channel), myNodeNum)
+    override suspend fun beginSettingsEdit(): Boolean = settingsEditMutex.withLock {
+        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: run {
+            logger.w("Contour", "beginSettingsEdit: myNodeNum unavailable")
+            return@withLock false
+        }
+        settingsEditOpen = false
+        commandSender.setSessionPasskey(ByteString.EMPTY)
+        packetHandler.prepareForAdminBurst()
+        logger.i("Contour", "session_passkey: beginSettingsEdit start nodeNum=$myNodeNum")
+
+        val beginPacketId = meshRouter.actionHandler.handleBeginEditSettings(myNodeNum)
+        if (beginPacketId == 0) {
+            logger.e("Contour", "session_passkey MISSING: begin_edit_settings not sent")
+            return@withLock false
+        }
+
+        if (!awaitAdminPacket("beginSettingsEdit/begin", beginPacketId)) {
+            logger.w(
+                "Contour",
+                "beginSettingsEdit: begin TX timeout id=${beginPacketId.toUInt()} — " +
+                    "node may be rebooting or BLE session stale; aborting passkey",
+            )
+            settingsEditOpen = false
+            return@withLock false
+        }
+
+        val passkey = acquireSessionPasskey(myNodeNum)
+        if (passkey != null && passkey.size > 0) {
+            settingsEditOpen = true
+            logger.i("Contour", "session_passkey acquired size=${passkey.size}")
+            true
+        } else {
+            settingsEditOpen = false
+            logger.e("Contour", "session_passkey MISSING: acquireSessionPasskey — no passkey")
+            false
+        }
     }
 
-    override fun writeOwner(longName: String, shortName: String) {
-        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
+    private fun snapshotSessionPasskey(): ByteString? =
+        commandSender.sessionPasskeyFlow.value.takeIf { it.size > 0 }
+
+    private suspend fun waitForSessionPasskey(label: String, timeout: Duration): ByteString? {
+        snapshotSessionPasskey()?.let {
+            logger.i("Contour", "session_passkey $label: already present size=${it.size}")
+            return it
+        }
+        val waitStartMs = System.currentTimeMillis()
+        val deadlineMs = waitStartMs + timeout.inWholeMilliseconds
+        while (System.currentTimeMillis() < deadlineMs) {
+            if (commandSender.nodeRebootedAfter(waitStartMs)) {
+                logger.w("Contour", "session_passkey $label: aborted — node rebooted during wait")
+                return null
+            }
+            delay(PASSKEY_POLL_INTERVAL_MS)
+            snapshotSessionPasskey()?.let {
+                logger.i("Contour", "session_passkey $label: received size=${it.size}")
+                return it
+            }
+        }
+        logger.w("Contour", "session_passkey $label: timeout ${timeout.inWholeSeconds}s")
+        return null
+    }
+
+    private suspend fun acquireSessionPasskey(myNodeNum: Int): ByteString? {
+        snapshotSessionPasskey()?.let { return it }
+
+        // begin_edit_settings returns routing ACK only — passkey comes in get_channel_response.
+        delay(BEGIN_SETTLE_DELAY_MS)
+
+        repeat(PASSKEY_ATTEMPTS) { attempt ->
+            val attemptNum = attempt + 1
+            snapshotSessionPasskey()?.let { return it }
+
+            val channelReqId = commandSender.generatePacketId()
+            logger.i(
+                "Contour",
+                "session_passkey: get_channel reqId=${channelReqId.toUInt()} attempt=$attemptNum/$PASSKEY_ATTEMPTS",
+            )
+            meshRouter.actionHandler.handleGetRemoteChannel(channelReqId, myNodeNum, 0)
+
+            val passkey = waitForSessionPasskey("beginSettingsEdit/getChannelResponse", PASSKEY_RESPONSE_TIMEOUT)
+            if (passkey != null) return passkey
+
+            logger.w(
+                "Contour",
+                "beginSettingsEdit: get_channel no passkey reqId=${channelReqId.toUInt()}",
+            )
+
+            logger.w("Contour", "beginSettingsEdit: passkey attempt $attemptNum/$PASSKEY_ATTEMPTS failed")
+            if (attempt < PASSKEY_ATTEMPTS - 1) delay(PASSKEY_RETRY_DELAY_MS)
+        }
+
+        return requestPasskeyViaGetOwner(myNodeNum)
+    }
+
+    private suspend fun requestPasskeyViaGetOwner(myNodeNum: Int): ByteString? {
+        snapshotSessionPasskey()?.let { return it }
+
+        val ownerReqId = commandSender.generatePacketId()
+        logger.i("Contour", "session_passkey: get_owner reqId=${ownerReqId.toUInt()} fallback")
+        meshRouter.actionHandler.handleGetRemoteOwner(ownerReqId, myNodeNum)
+
+        return waitForSessionPasskey("beginSettingsEdit/getOwnerResponse", PASSKEY_RESPONSE_TIMEOUT)
+            .also { passkey ->
+                if (passkey == null) {
+                    logger.w("Contour", "beginSettingsEdit: get_owner no passkey reqId=${ownerReqId.toUInt()}")
+                }
+            }
+    }
+
+    private fun canWriteSettings(): Boolean =
+        settingsEditOpen && commandSender.sessionPasskeyFlow.value.size > 0
+
+    override suspend fun commitSettingsEdit() {
+        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: run {
+            logger.w("Contour", "commitSettingsEdit: myNodeNum unavailable")
+            return
+        }
+        logger.i("Node", "commitSettingsEdit: committing channel changes nodeNum=$myNodeNum — firmware reboot expected")
+        if (!canWriteSettings()) {
+            logger.w("Contour", "commitSettingsEdit: edit session not open")
+            return
+        }
+        val packetId = meshRouter.actionHandler.handleCommitEditSettings(myNodeNum)
+        awaitAdminPacket("commitSettingsEdit", packetId)
+        settingsEditOpen = false
+    }
+
+    override suspend fun writeChannel(
+        index: Int,
+        name: String,
+        pskBase64: String,
+        positionPrecision: Int,
+    ) {
+        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: run {
+            logger.w("Contour", "writeChannel: myNodeNum unavailable, slot=$index name='$name'")
+            return
+        }
+        val channel = buildChannel(index, name, pskBase64, positionPrecision)
+        val passkeySize = commandSender.sessionPasskeyFlow.value.size
+        logger.i("Contour", "session_passkey writeChannel slot=$index name='$name' passkeySize=$passkeySize settingsEditOpen=$settingsEditOpen")
+        if (!canWriteSettings()) {
+            logger.w("Contour", "writeChannel: edit session not open slot=$index name='$name'")
+            return
+        }
+        val packetId = meshRouter.actionHandler.handleSetChannel(Channel.ADAPTER.encode(channel), myNodeNum)
+        awaitAdminPacket("writeChannel slot=$index name='$name'", packetId)
+    }
+
+    override suspend fun writeOwner(longName: String, shortName: String) {
+        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: run {
+            logger.w("Node", "writeOwner: myNodeNum unavailable longName='$longName'")
+            return
+        }
+        logger.i("Node", "writeOwner: set_owner longName='$longName' nodeNum=$myNodeNum — firmware reboot expected")
+        if (!canWriteSettings()) {
+            logger.w("Node", "writeOwner: edit session not open longName='$longName'")
+            return
+        }
         val existingUser = nodeRepository.nodeDBbyNum.value[myNodeNum]?.user
         val meshUser = MeshUser(
             id = existingUser?.id ?: "",
@@ -86,7 +241,34 @@ class MeshConfigRepositoryImpl(
             isLicensed = existingUser?.is_licensed ?: false,
             role = existingUser?.role?.value ?: 0,
         )
-        meshRouter.actionHandler.handleSetOwner(meshUser, myNodeNum)
+        val packetId = meshRouter.actionHandler.handleSetOwner(meshUser, myNodeNum)
+        awaitAdminPacket("writeOwner longName='$longName'", packetId)
+    }
+
+    private fun buildChannel(index: Int, name: String, pskBase64: String, positionPrecision: Int): Channel {
+        val pskBytes = if (pskBase64.isBlank()) ByteArray(0)
+                       else Base64.decode(pskBase64.trim(), Base64.DEFAULT)
+        return Channel(
+            index = index,
+            settings = ChannelSettings(
+                name = name,
+                psk = pskBytes.toByteString(),
+                module_settings = ModuleSettings(position_precision = positionPrecision),
+            ),
+            role = if (index == 0) Channel.Role.PRIMARY else Channel.Role.SECONDARY,
+        )
+    }
+
+    private suspend fun awaitAdminPacket(label: String, packetId: Int): Boolean {
+        if (packetId == 0) {
+            logger.w("Contour", "$label: packet not sent")
+            return false
+        }
+        val delivered = packetHandler.awaitPacketSendResult(packetId, ADMIN_PACKET_TIMEOUT)
+        if (!delivered) {
+            logger.w("Contour", "$label: delivery timeout id=${packetId.toUInt()}")
+        }
+        return delivered
     }
 
     override fun observeLocationConfig(nodeNum: Int): Flow<LocationConfigModel> =
@@ -123,6 +305,7 @@ class MeshConfigRepositoryImpl(
         smartMinDist: Int,
         flags: Int,
     ) {
+        logger.i("Node", "writePositionConfig: destNum=$destNum gpsMode=$gpsMode broadcastSecs=$broadcastSecs — firmware reboot expected")
         val current = meshRouter.configHandler.localConfig.value.position
             ?: Config.PositionConfig()
         val updated = current.copy(
@@ -137,6 +320,7 @@ class MeshConfigRepositoryImpl(
     }
 
     override fun writeChannelPositionPrecision(destNum: Int, channelIndex: Int, precision: Int) {
+        logger.i("Node", "writeChannelPositionPrecision: destNum=$destNum channelIndex=$channelIndex precision=$precision — firmware reboot expected")
         val channelSet = commandSender.channelSetFlow.value
         val existing = channelSet.settings.getOrNull(channelIndex) ?: ChannelSettings()
         val updated = existing.copy(
@@ -152,36 +336,87 @@ class MeshConfigRepositoryImpl(
         meshRouter.actionHandler.handleSetChannel(Channel.ADAPTER.encode(channel), destNum)
     }
 
+    override fun setFixedPosition(lat: Double, lon: Double, altMeters: Int) {
+        val destNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
+        commandSender.setFixedPosition(destNum, Position(lat, lon, altMeters))
+    }
+
     override fun removeFixedPosition(destNum: Int) {
         commandSender.setFixedPosition(destNum, Position(0.0, 0.0, 0))
     }
 
-    override fun enableNodePositionBroadcastReady() {
+    override fun removeOwnFixedPosition() {
         val destNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
-        val current = meshRouter.configHandler.localConfig.value.position ?: Config.PositionConfig()
+        commandSender.setFixedPosition(destNum, Position(0.0, 0.0, 0))
+    }
+
+    override suspend fun prepareNodeForAppDrivenBroadcast() {
+        val destNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
+        val localConfig = withTimeoutOrNull(POSITION_CONFIG_WAIT_MS) {
+            meshRouter.configHandler.localConfig.first { it.position != null }
+        } ?: return
+        val current = localConfig.position!!
+        val powerSavingOff = localConfig.power?.is_power_saving != true
+        if (current.position_broadcast_secs == GEO_BROADCAST_READY_SECS &&
+            !current.position_broadcast_smart_enabled &&
+            powerSavingOff
+        ) {
+            logger.d("Node", "prepareNodeForAppDrivenBroadcast: already configured, skip")
+            return
+        }
+        logger.i("Node", "prepareNodeForAppDrivenBroadcast: destNum=$destNum broadcastSecs=$GEO_BROADCAST_READY_SECS — firmware reboot expected")
         val updated = current.copy(
             position_broadcast_secs = GEO_BROADCAST_READY_SECS,
             position_broadcast_smart_enabled = false,
         )
         val payload = Config.ADAPTER.encode(Config(position = updated))
-        meshRouter.actionHandler.handleSetConfig(payload, destNum)
-        writeChannelPositionPrecision(destNum, channelIndex = 0, precision = GEO_CHANNEL_PRECISION)
+        val packetId = meshRouter.actionHandler.handleSetConfig(payload, destNum)
+        awaitAdminPacket("prepareNodeForAppDrivenBroadcast/position", packetId)
+        localConfig.power?.takeIf { it.is_power_saving == true }?.let { power ->
+            logger.i("Node", "prepareNodeForAppDrivenBroadcast: disabling is_power_saving for background BLE")
+            val powerPayload = Config.ADAPTER.encode(Config(power = power.copy(is_power_saving = false)))
+            val powerPacketId = meshRouter.actionHandler.handleSetConfig(powerPayload, destNum)
+            awaitAdminPacket("prepareNodeForAppDrivenBroadcast/power", powerPacketId)
+        }
     }
 
-    override fun disableNodePositionBroadcast() {
+    override suspend fun disableNodePositionBroadcast() {
         val destNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
-        val current = meshRouter.configHandler.localConfig.value.position ?: Config.PositionConfig()
+        val current = withTimeoutOrNull(POSITION_CONFIG_WAIT_MS) {
+            meshRouter.configHandler.localConfig.first { it.position != null }.position!!
+        } ?: return
+        if (current.position_broadcast_secs == GEO_BROADCAST_DISABLED_SECS && !current.position_broadcast_smart_enabled) {
+            logger.d("Node", "disableNodePositionBroadcast: already disabled, skip")
+            return
+        }
+        logger.i("Node", "disableNodePositionBroadcast: destNum=$destNum broadcastSecs=$GEO_BROADCAST_DISABLED_SECS — firmware reboot expected")
         val updated = current.copy(
             position_broadcast_secs = GEO_BROADCAST_DISABLED_SECS,
             position_broadcast_smart_enabled = false,
         )
         val payload = Config.ADAPTER.encode(Config(position = updated))
-        meshRouter.actionHandler.handleSetConfig(payload, destNum)
+        val packetId = meshRouter.actionHandler.handleSetConfig(payload, destNum)
+        awaitAdminPacket("disableNodePositionBroadcast", packetId)
     }
 
+    override suspend fun getPositionBroadcastSecs(): Int? =
+        withTimeoutOrNull(5_000L) {
+            meshRouter.configHandler.localConfig.first { it.position != null }.position!!.position_broadcast_secs
+        }
+
+    override suspend fun isPositionSmartBroadcastEnabled(): Boolean? =
+        withTimeoutOrNull(5_000L) {
+            meshRouter.configHandler.localConfig.first { it.position != null }.position!!.position_broadcast_smart_enabled
+        }
+
     override fun rebootNode() {
-        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
-        meshRouter.actionHandler.handleRequestReboot(commandSender.generatePacketId(), myNodeNum)
+        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: run {
+            logger.w("Node", "rebootNode: myNodeNum unavailable")
+            return
+        }
+        val requestId = commandSender.generatePacketId()
+        logger.i("Node", "rebootNode: initiating reboot nodeNum=$myNodeNum requestId=${requestId.toUInt()}")
+        meshRouter.actionHandler.handleRequestReboot(requestId, myNodeNum)
     }
 
     override fun isOwnPkcKeyBroken(): Boolean {
@@ -201,7 +436,11 @@ class MeshConfigRepositoryImpl(
     }
 
     override fun regeneratePkcKeys() {
-        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return
+        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: run {
+            logger.w("Node", "regeneratePkcKeys: myNodeNum unavailable")
+            return
+        }
+        logger.i("Node", "regeneratePkcKeys: clearing private_key nodeNum=$myNodeNum — firmware reboot expected")
         val currentSec = meshRouter.configHandler.localConfig.value.security
             ?: Config.SecurityConfig()
         val resetSec = currentSec.copy(private_key = ByteString.EMPTY)
@@ -234,10 +473,22 @@ class MeshConfigRepositoryImpl(
     }
 
     companion object {
-        private const val GEO_BROADCAST_READY_SECS = 60
+        // Both constants write Int.MAX_VALUE — firmware never broadcasts autonomously in either state.
+        // The behavioral difference is in the callers:
+        //   READY   → prepareNodeForAppDrivenBroadcast() also disables is_power_saving
+        //   DISABLED → disableNodePositionBroadcast() leaves is_power_saving unchanged
+        // TODO: restore is_power_saving=true in disableNodePositionBroadcast() once the
+        //       full power-state lifecycle (Phase 3+) is implemented.
+        private const val GEO_BROADCAST_READY_SECS = Int.MAX_VALUE
         private const val GEO_BROADCAST_DISABLED_SECS = Int.MAX_VALUE
         private const val GEO_CHANNEL_PRECISION = 13
-        private const val CHANNEL_POSITION_PRECISION = 32
+        private const val POSITION_CONFIG_WAIT_MS = 15_000L
+        private const val PASSKEY_ATTEMPTS = 2
+        private const val PASSKEY_POLL_INTERVAL_MS = 100L
+        private const val PASSKEY_RETRY_DELAY_MS = 300L
+        private const val BEGIN_SETTLE_DELAY_MS = 300L
+        private val ADMIN_PACKET_TIMEOUT = 12.seconds
+        private val PASSKEY_RESPONSE_TIMEOUT = 12.seconds
     }
 
     private fun hasLocationPermission(): Boolean =

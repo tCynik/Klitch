@@ -5,5 +5,5 @@ import ru.tcynik.meshtactics.domain.mesh.repository.MeshConfigRepository
 class DisableNodePositionBroadcastUseCase(
     private val repository: MeshConfigRepository,
 ) {
-    operator fun invoke() = repository.disableNodePositionBroadcast()
+    suspend operator fun invoke() = repository.disableNodePositionBroadcast()
 }

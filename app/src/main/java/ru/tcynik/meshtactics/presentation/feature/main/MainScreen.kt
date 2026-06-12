@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -55,10 +57,12 @@ import org.maplibre.spatialk.geojson.Position
 import ru.tcynik.meshtactics.di.orientation.DeviceOrientationProvider
 import ru.tcynik.meshtactics.domain.map.model.MapCameraPosition
 import ru.tcynik.meshtactics.presentation.feature.main.osd.GeoMarksSheet
+import ru.tcynik.meshtactics.presentation.feature.main.osd.TrackRecordingSheet
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkContextMenuEvent
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.DraftPointContextMenuEvent
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.ExistingMarkContextMenuEvent
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarksSheetUiState
+import ru.tcynik.meshtactics.presentation.feature.main.osd.models.TrackRecordingSheetUiState
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudConfig
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.HudUiState
 import ru.tcynik.meshtactics.presentation.feature.main.osd.HudControlsLayer
@@ -91,6 +95,7 @@ fun MainScreen(
     onSendGeoMark: (String) -> Unit = {},
     menuDrawerUiState: MenuDrawerUiState,
     geoMarksSheetUiState: GeoMarksSheetUiState,
+    trackRecordingSheetUiState: TrackRecordingSheetUiState,
     onFollowMeDeactivated: () -> Unit = {},
     resetBearingEvents: Flow<Unit> = emptyFlow(),
     restoreZoomEvents: Flow<Double> = emptyFlow(),
@@ -101,6 +106,11 @@ fun MainScreen(
     onClearGeoMarkSelection: () -> Unit = {},
     onConfirmDeleteGeoMark: () -> Unit = {},
     onDismissDeleteGeoMarkConfirm: () -> Unit = {},
+    onSosRestoredKeep: () -> Unit = {},
+    onSosRestoredDisable: () -> Unit = {},
+    onSosTriggerConfirm: () -> Unit = {},
+    onSosCancelConfirm: () -> Unit = {},
+    onSosDismiss: () -> Unit = {},
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val density = LocalDensity.current
@@ -269,6 +279,7 @@ fun MainScreen(
                 selectedOverlays = uiState.selectedOverlays,
                 geoMarks = uiState.geoMarks,
                 selectedGeoMarkId = uiState.selectedGeoMarkId,
+                recordedTracks = uiState.recordedTracks,
                 pendingMarkPoints = uiState.pendingMarkPoints,
                 pendingMarkColor = geoMarksSheetUiState.selectedColor,
                 pendingMarkShape = geoMarksSheetUiState.selectedShape,
@@ -298,7 +309,10 @@ fun MainScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsTopHeight(WindowInsets.statusBars)
-                .background(Color.Black.copy(alpha = 0.35f))
+                .background(
+                    if (uiState.isSosActive) Color.Red.copy(alpha = 0.55f)
+                    else Color.Black.copy(alpha = 0.35f)
+                )
                 .align(Alignment.TopCenter),
         )
 
@@ -352,6 +366,14 @@ fun MainScreen(
                 state = geoMarksSheetUiState,
                 pendingPoints = uiState.pendingMarkPoints,
                 trackDistanceLabel = uiState.trackDraftDistanceLabel,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
+
+        // z5 — track recording sheet (portrait only)
+        if (!isLandscape) {
+            TrackRecordingSheet(
+                state = trackRecordingSheetUiState,
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
@@ -422,6 +444,52 @@ fun MainScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = onDismissDeleteGeoMarkConfirm) { Text("Отмена") }
+                },
+            )
+        }
+
+        if (uiState.showSosRestoredDialog) {
+            AlertDialog(
+                onDismissRequest = onSosRestoredKeep,
+                title = { Text("Режим СОС активен") },
+                text = { Text("Режим СОС был активирован. Отключить?") },
+                confirmButton = {
+                    TextButton(onClick = onSosRestoredDisable) { Text("Отключить") }
+                },
+                dismissButton = {
+                    TextButton(onClick = onSosRestoredKeep) { Text("Оставить") }
+                },
+            )
+        }
+
+        if (uiState.showSosTriggerDialog) {
+            AlertDialog(
+                onDismissRequest = onSosDismiss,
+                title = { Text("Активировать СОС?") },
+                confirmButton = {
+                    Button(
+                        onClick = onSosTriggerConfirm,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError,
+                        ),
+                    ) { Text("Активировать") }
+                },
+                dismissButton = {
+                    TextButton(onClick = onSosDismiss) { Text("Отмена") }
+                },
+            )
+        }
+
+        if (uiState.showSosCancelDialog) {
+            AlertDialog(
+                onDismissRequest = onSosDismiss,
+                title = { Text("Отключить режим СОС?") },
+                confirmButton = {
+                    TextButton(onClick = onSosCancelConfirm) { Text("Отключить") }
+                },
+                dismissButton = {
+                    TextButton(onClick = onSosDismiss) { Text("Отмена") }
                 },
             )
         }

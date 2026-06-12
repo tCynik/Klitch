@@ -140,10 +140,41 @@ These token decisions were established during the Emergency SOS feature and appl
 |---|---|---|---|
 | MeshIconButton | `app/.../MeshIconButton.kt` | Defined | See `/icon-designer` |
 | EmergencyContourCard | `app/.../feature/settings/UserTabContent.kt` | Defined | SOS button + alert card; see Emergency SOS token decisions above |
+| ContourCard | `app/.../feature/settings/user/UserTabContent.kt` | Defined | Primary radio + inactive alpha + dropdown — see ContourCard pattern below |
 | SyncRequiredDialog | `app/.../ui/components/SyncRequiredDialog.kt` | Defined | AlertDialog; stateless; used in MainScreen + UserTabContent when `showSyncDialog = true` |
 | InactiveContourBanner | `app/.../feature/chat/ChatScreen.kt` | Defined | `Surface(tonalElevation=4dp)`, height=56dp, centered `bodyMedium` text `onSurfaceVariant`; replaces `ChatInputBar` when `isSelectedChatActive = false` |
 | TileCacheModeSelector | `app/.../feature/settings/SettingsScreen.kt` (private fun) | Defined | Labeled radio group pattern for settings tabs — see below |
 | MenuDrawer | `app/.../feature/main/osd/MenuDrawer.kt` | Defined | Slide-out overlay from left edge, portrait only — see Drawer Overlay Pattern below |
+
+**ContourCard pattern (Primary radio + inactive dim + dropdown):**
+
+Layout: `Card → Row(start=4dp, end=4dp, top/bottom=8dp)` — left RadioButton, content Column (weight=1f), trailing MoreVert IconButton + DropdownMenu.
+
+| Element | Token / Value | Notes |
+|---|---|---|
+| Card container | default Material3 `Card` | No `containerColor` override |
+| Primary indicator | `RadioButton(selected = item.isPrimary, onClick = onSetPrimary)` | Left-most; padding start+end 4dp |
+| Inactive dim | `Modifier.alpha(if (item.isActive) 1f else 0.5f)` | Applied to content Column only; RadioButton stays full alpha |
+| Name text | `bodyLarge` + `FontWeight.Bold` | `TextDecoration.LineThrough` when expired |
+| Primary badge | `Badge(containerColor = primaryContainer)` + `Text(color = onPrimaryContainer, labelSmall)` | Shown inline next to name when `isPrimary = true` |
+| Sync status badge | `SyncStatusBadge` — `secondaryContainer`/`onSecondaryContainer` for OnNode, `errorContainer`/`onErrorContainer` for NotOnNode | See `SyncStatusBadge` private fun |
+| Description text | `bodySmall` + `FontWeight.Light` + `onSurfaceVariant` | Shown only when not null/blank |
+| Dropdown trigger | `IconButton { Icon(MoreVert) }` | No padding modifier — default touch target |
+
+**Dropdown menu item rules (ContourCard):**
+
+| Item | Visible when | Action |
+|---|---|---|
+| Set as Primary | `!isPrimary` | `onSetPrimary()` |
+| Disable | `!isPrimary && isActive` | `onToggleActive(false)` |
+| Enable | `!isPrimary && !isActive` | `onToggleActive(true)` |
+| Push to node | always | `onPushToNode()` |
+| Edit | always | `onEdit()` |
+| Delete | `!isPrimary` | `onDelete()` |
+
+Primary contour: only "Push to node" and "Edit" are available — Set/Disable/Delete hidden. This prevents the user from accidentally removing the Primary invariant.
+
+---
 
 **Drawer Overlay Pattern (MenuDrawer):**
 

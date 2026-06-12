@@ -33,7 +33,7 @@
 | Чат | ✅ Done |
 | Маркеры / заметки | ✅ Done |
 | Список гео-меток | ✅ Done |
-| Контуры (CRUD + isActive + Geo Protection) | ✅ Done |
+| Контуры (Primary + SOS + Exclusive + UI) | ✅ Done |
 | Emergency SOS (кнопка SOS, трансляция геопозиции) | ✅ Done |
 | Настройки кэша тайлов (OkHttp duration modes) | ✅ Done |
 | Настройки экрана (размер маркеров + геоточек, имена точек) | ✅ Done |
@@ -62,10 +62,15 @@
 | `/icon-designer` | Иконки в стиле MeshIconButton (делегировано из `/ui-designer`) |
 | `/tester` | Шаблоны тестов: FlowUseCase/Turbine, ViewModel/MockK, SQLDelight integration |
 | `/iterate` | Дебаг и итерация по готовым фичам: диагностика багов, скоупные расширения, ревью состояния фичи |
+| `/debug-log` | Лог дебага по фиче: сохранение и просмотр истории попыток фиксов (`save:` / `show:`) |
 
 ---
 
 ## Правила работы
+
+### Дебаг
+- При начале дебага любой фичи — всегда проверять `.claude/debug/<feature-slug>.md` на наличие истории фиксов
+- Если история существует — прочитать и сообщить о повторяющихся паттернах до начала диагностики
 
 ### Язык общения
 - Запрос на английском → ответ на английском
@@ -100,6 +105,7 @@
 
 Живая документация по реализованным фичам: `.claude/docs/`
 Архив завершённых планов: `.claude/archive/`
+Дебаг-история по фичам: `.claude/debug/`
 
 | Фича | Документ |
 |---|---|
@@ -111,15 +117,17 @@
 | Phone GPS to Radio | `.claude/docs/phone-gps-to-radio.md` |
 | HUD Structure | `.claude/docs/hud-structure.md` |
 | Directional Node Markers | `.claude/docs/directional-node-markers.md` |
-| GPS Sending Logic & Location Settings | `.claude/docs/fix-gps-sending-logic.md` |
+| MapLibre Layer Architecture + Fonts | `.claude/docs/map-layer.md` |
+| Location Sharing Config | `.claude/docs/location-sharing-config.md` |
+| GPS Pipeline Debug (незавершён) | `.claude/docs/gps-pipeline-debug.md` |
 | KMZ/KML Import | `.claude/docs/kmz-kml-import.md` |
 | KMZ/KML Rendering | `.claude/docs/kmz-kml-rendering.md` |
 | GPS Background Service | `.claude/docs/gps-background-service.md` |
 | Universal Orientation | `.claude/docs/universal-orientation.md` |
 | Auto-connect on Start | `.claude/docs/auto-connect-on-start.md` |
 | Chat | `.claude/docs/chat.md` |
-| Contour Management | `.claude/docs/logical-channels-management.md` |
-| Contour Design Concepts | `.claude/docs/contour-design.md` |
+| Contours (единый источник) | `.claude/docs/contours.md` |
+| Packet Channel Attribution | `.claude/docs/packet-channel-attribution.md` |
 | Emergency SOS | `.claude/docs/emergency-sos.md` |
 | Channel Sync Validation | `.claude/docs/channel-sync-validation.md` |
 | User Settings Write Mechanics | `.claude/docs/user-settings-write-mechanics.md` |
@@ -134,6 +142,9 @@
 | Callsign (позывной как сущность) | `.claude/docs/callsign.md` |
 | Callsign Gate on Connect (реализация) | `.claude/docs/callsign-gate-on-connect.md` |
 | Network Screen | `.claude/docs/network-screen.md` |
+| Filter-at-Input (замена Slot Discovery) | `.claude/docs/position-channel-slot-discovery.md` |
+| GPS Position Staleness Pipeline | `.claude/docs/gps-position-staleness.md` |
+| Background Position Pipeline (BleBackgroundPolicy) | `.claude/docs/background-position-pipeline.md` |
 
 ---
 
@@ -169,3 +180,7 @@
 | Geo Marks List | `.claude/archive/geo-marks-list.md` | Done |
 | Geo Marks UI Completion | `.claude/archive/geo-marks-ui-completion.md` | Done |
 | Screen Orientation Lock | `.claude/archive/screen-orientation-lock.md` | Done |
+| Background Position Pipeline | `.claude/archive/background-position-pipeline.md` | Done |
+| Packet Channel Attribution | `.claude/archive/packet-channel-attribution.md` | Archived |
+| Node GPS Position Source | `.claude/plans/node-gps-position-source.md` | Planned |
+| Contours Redesign (Primary + SOS + Isolation) | `.claude/archive/contours-redesign.md` | Done |

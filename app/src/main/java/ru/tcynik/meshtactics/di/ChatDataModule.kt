@@ -26,6 +26,7 @@ import ru.tcynik.meshtactics.domain.chat.usecase.ObserveTotalUnreadChatCountUseC
 import ru.tcynik.meshtactics.domain.chat.usecase.SendChatMessageUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.ToggleChatArchivedUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.ToggleChatFavoriteUseCase
+import ru.tcynik.meshtactics.domain.chat.usecase.SyncEmergencyMuteUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.ToggleChatPinnedUseCase
 
 val chatDataModule = module {
@@ -73,12 +74,15 @@ val chatDataModule = module {
     single { ClearChatHistoryUseCase(get()) }
     single { MarkChatAsReadUseCase(get()) }
     single { ObserveTotalUnreadChatCountUseCase(get()) }
+    single { SyncEmergencyMuteUseCase(get()) }
     single {
         IngestReceivedChatMessagesUseCase(
             adapter = get(),
             channelRepository = get(),
             chatMessageRepository = get(),
             channelSlotResolver = get(),
+            resolveContourFromSlot = get(),
+            applyDeliveryPolicy = get(),
             logger = get(),
         )
     }

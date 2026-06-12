@@ -3,6 +3,8 @@ package ru.tcynik.meshtactics.data.mesh.repository
 import kotlinx.coroutines.delay
 import ru.tcynik.meshtactics.domain.logger.Logger
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
@@ -25,6 +27,7 @@ import ru.tcynik.meshtactics.mesh.model.InterfaceId
 import ru.tcynik.meshtactics.mesh.repository.NodeRepository
 import ru.tcynik.meshtactics.mesh.repository.RadioInterfaceService
 import ru.tcynik.meshtactics.mesh.repository.ServiceRepository
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.ExperimentalUuidApi
 
@@ -60,7 +63,6 @@ class MeshConnectionRepositoryImpl(
             } else {
                 state.toMeshConnectionStatus(node, pendingDeviceName, bleRssi)
             }
-            logger.d("BLE", "connectionStatus: combined -> $status")
             status
         }
 
@@ -72,6 +74,7 @@ class MeshConnectionRepositoryImpl(
         }
         activeScanCount.incrementAndGet()
         _isScanning.value = true
+        logger.i("BLE", "scanDevices: start activeScans=${activeScanCount.get()}")
         try {
             val discovered = mutableMapOf<String, Pair<MeshDeviceModel, Long>>()
             val expiryMs = 10_000L
@@ -98,6 +101,33 @@ class MeshConnectionRepositoryImpl(
             }
         }
     }.distinctUntilChanged()
+
+    @OptIn(ExperimentalUuidApi::class)
+    override suspend fun findDeviceByAddress(address: String, timeoutMs: Long): MeshDeviceModel? {
+        if (!bluetoothRepository.state.value.enabled) {
+            logger.w("BLE", "findDeviceByAddress: Bluetooth disabled address=$address")
+            return null
+        }
+        logger.i("BLE", "findDeviceByAddress: start address=$address timeoutMs=$timeoutMs")
+        return kotlinx.coroutines.withTimeoutOrNull(timeoutMs) {
+            bleScanner.scan(
+                timeout = timeoutMs.milliseconds,
+                serviceUuid = MeshtasticBleConstants.SERVICE_UUID,
+                address = address,
+            ).first { it.address == address }
+        }?.let { device ->
+            MeshDeviceModel(
+                address = device.address,
+                name = device.name ?: device.address,
+                rssi = device.rssi,
+            ).also {
+                logger.i("BLE", "findDeviceByAddress: hit address=$address rssi=${it.rssi}")
+            }
+        } ?: run {
+            logger.w("BLE", "findDeviceByAddress: miss address=$address timeoutMs=$timeoutMs")
+            null
+        }
+    }
 
     override suspend fun connect(address: String, deviceName: String) {
         logger.i("BLE", "connect: address='$address' name='$deviceName'")

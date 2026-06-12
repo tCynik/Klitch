@@ -235,6 +235,7 @@ class BleRadioInterface(
     }
 
     private suspend fun onConnected() {
+        bleConnection.requestConnectionPriority(high = true)
         try {
             bleConnection.deviceFlow.first()?.let { device ->
                 val rssi = retryBleOperation(tag = address) { device.readRssi() }
