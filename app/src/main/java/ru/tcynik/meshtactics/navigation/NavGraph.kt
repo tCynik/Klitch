@@ -127,6 +127,8 @@ fun NavGraph() {
                     onDeleteGeoMark = mainViewModel::requestDeleteGeoMark,
                     onConfirmDeleteGeoMark = mainViewModel::confirmDeleteGeoMark,
                     onDismissDeleteGeoMarkConfirm = mainViewModel::dismissDeleteGeoMarkConfirm,
+                    onSosRestoredKeep = mainViewModel::onSosRestoredKeep,
+                    onSosRestoredDisable = mainViewModel::onSosRestoredDisable,
                     onSendGeoMark = mainViewModel::prepareGeoMarkForResend,
                     menuDrawerUiState = menuDrawerUiState,
                     geoMarksSheetUiState = geoMarksSheetUiState,

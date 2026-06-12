@@ -87,6 +87,35 @@ class ObserveGeoNodesUseCaseTest {
     }
 
     @Test
+    fun `node receivedOnSlot=null SOS active — included`() = runTest {
+        val peer = node(nodeId = "A", receivedOnSlot = null)
+        every { repository.observeNodes() } returns flowOf(listOf(peer))
+        every { contourRepository.observeSosMode() } returns flowOf(true)
+
+        useCase(NoParams).test {
+            assertEquals(1, awaitItem().size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `node receivedOnSlot=N inactive contour SOS active — included`() = runTest {
+        val psk = byteArrayOf(0x01)
+        val hash = ContourHash.compute("test", psk)
+        val inactiveContour = contour(hash, isActive = false)
+        val maps = ChannelSlotMaps(slotToHash = mapOf(3 to hash), hashToSlot = mapOf(hash to 3))
+        every { repository.observeNodes() } returns flowOf(listOf(node(nodeId = "A", receivedOnSlot = 3)))
+        every { contourRepository.observeContours() } returns flowOf(listOf(inactiveContour))
+        every { channelSlotResolver.mapsFlow } returns MutableStateFlow(maps)
+        every { contourRepository.observeSosMode() } returns flowOf(true)
+
+        useCase(NoParams).test {
+            assertEquals(1, awaitItem().size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `node receivedOnSlot=N inactive contour — excluded`() = runTest {
         val psk = byteArrayOf(0x01)
         val hash = ContourHash.compute("test", psk)

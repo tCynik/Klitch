@@ -87,6 +87,8 @@ import ru.tcynik.meshtactics.domain.marker.usecase.SendGeoMarkParams
 import ru.tcynik.meshtactics.domain.marker.usecase.DeleteGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.SyncEmergencyMuteUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.CancelEmergencyUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkAddressee
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarksSheetUiState
 
@@ -184,6 +186,8 @@ class MainViewModel(
     private val gpsRepository: GpsRepository,
     observeRecordedTracks: ObserveRecordedTracksUseCase,
     observeRecordedTrackPoints: ObserveRecordedTrackPointsUseCase,
+    private val observeEmergencyMode: ObserveEmergencyModeUseCase,
+    private val cancelEmergency: CancelEmergencyUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -504,6 +508,12 @@ class MainViewModel(
             }
             .launchIn(viewModelScope)
 
+        viewModelScope.launch {
+            if (observeEmergencyMode().first()) {
+                _uiState.update { it.copy(showSosRestoredDialog = true) }
+            }
+        }
+
         startAutoConnectIfEnabled()
 
         trackSettingsDataSource.observeSettings()
@@ -511,6 +521,15 @@ class MainViewModel(
                 _trackFormState.update { it.copy(settings = settings) }
             }
             .launchIn(viewModelScope)
+    }
+
+    fun onSosRestoredKeep() {
+        _uiState.update { it.copy(showSosRestoredDialog = false) }
+    }
+
+    fun onSosRestoredDisable() {
+        _uiState.update { it.copy(showSosRestoredDialog = false) }
+        viewModelScope.launch { cancelEmergency() }
     }
 
     fun onCameraPositionChanged(position: MapCameraPosition) {

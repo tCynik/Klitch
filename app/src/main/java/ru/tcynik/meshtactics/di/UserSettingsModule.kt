@@ -126,7 +126,7 @@ val userSettingsModule = module {
     single<ChannelSlotResolver> { ChannelSlotResolverImpl(get()) }
 
     single<EmergencyPositionBroadcastRepository>(createdAtStart = true) {
-        EmergencyPositionBroadcastRepositoryImpl(get(), get(), get(), get())
+        EmergencyPositionBroadcastRepositoryImpl(get(), get(), get())
     }
     single { ObserveEmergencyModeUseCase(get()) }
     single { TriggerEmergencyUseCase(get(), get(), get(), get(), get(), get()) }

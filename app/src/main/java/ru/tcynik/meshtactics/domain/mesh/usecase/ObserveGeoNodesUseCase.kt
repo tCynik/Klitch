@@ -51,6 +51,7 @@ class ObserveGeoNodesUseCase(
             nodes
                 .filter { it.nodeId != ourNodeId && it.hasValidPosition }
                 .filter { node ->
+                    if (sosMode) return@filter true
                     val slot = node.receivedOnSlot ?: return@filter false
                     resolveContourFromSlot(slot, contours, maps, primaryId, sosMode).allowsDisplay()
                 }

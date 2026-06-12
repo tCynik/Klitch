@@ -33,6 +33,8 @@ import ru.tcynik.meshtactics.domain.mesh.usecase.RefreshNodePublicKeysUseCase
 import ru.tcynik.meshtactics.domain.mesh.usecase.RegeneratePkcKeysUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCase
 import ru.tcynik.meshtactics.domain.chat.usecase.SyncEmergencyMuteUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.CancelEmergencyUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.AutoExpireGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.meshtactics.domain.marker.usecase.ToggleGeoMarkVisibilityUseCase
@@ -134,6 +136,8 @@ val presentationModule = module {
             gpsRepository = get(),
             observeRecordedTracks = get<ObserveRecordedTracksUseCase>(),
             observeRecordedTrackPoints = get<ObserveRecordedTrackPointsUseCase>(),
+            observeEmergencyMode = get<ObserveEmergencyModeUseCase>(),
+            cancelEmergency = get<CancelEmergencyUseCase>(),
         )
     }
 

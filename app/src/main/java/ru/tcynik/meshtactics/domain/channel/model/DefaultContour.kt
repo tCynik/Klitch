@@ -3,8 +3,8 @@ package ru.tcynik.meshtactics.domain.channel.model
 object DefaultContour {
     val ID = ContourId("00000000-0000-0000-0000-000000000001")
     const val DISPLAY_NAME = "Emergency"
-    const val CHANNEL_NAME = "LongFast"
-    const val OPEN_PSK = "AQ=="
+    const val CHANNEL_NAME = "MTTestSOS" // ВРЕМЕННО — не коммитить
+    const val OPEN_PSK = "QNnShqu6wbMFRBMvqPOzgA==" // ВРЕМЕННО — не коммитить
     const val IS_ACTIVE_DEFAULT = false
 
     val CHANNEL_HASH = ContourHash.compute(CHANNEL_NAME, OPEN_PSK)

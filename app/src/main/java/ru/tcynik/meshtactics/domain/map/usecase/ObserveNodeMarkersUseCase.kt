@@ -104,6 +104,7 @@ class ObserveNodeMarkersUseCase(
         val peers = nodes.filter { it.nodeId != ourNodeId }
         val withPosition = peers.filter { it.hasValidPosition }
         val contourVisible = withPosition.filter { node ->
+            if (sosMode) return@filter true
             val slot = node.receivedOnSlot ?: return@filter false
             resolveContourFromSlot(slot, contours, maps, primaryId, sosMode).allowsDisplay()
         }

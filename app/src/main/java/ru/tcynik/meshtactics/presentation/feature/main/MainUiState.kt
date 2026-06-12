@@ -56,4 +56,5 @@ data class MainUiState(
     val mapBearing: Float = 0f,
     val networkEnabled: Boolean = true,
     val recordedTracks: ImmutableList<RecordedTrackRenderModel> = persistentListOf(),
+    val showSosRestoredDialog: Boolean = false,
 )

@@ -104,6 +104,8 @@ fun MainScreen(
     onClearGeoMarkSelection: () -> Unit = {},
     onConfirmDeleteGeoMark: () -> Unit = {},
     onDismissDeleteGeoMarkConfirm: () -> Unit = {},
+    onSosRestoredKeep: () -> Unit = {},
+    onSosRestoredDisable: () -> Unit = {},
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val density = LocalDensity.current
@@ -434,6 +436,20 @@ fun MainScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = onDismissDeleteGeoMarkConfirm) { Text("Отмена") }
+                },
+            )
+        }
+
+        if (uiState.showSosRestoredDialog) {
+            AlertDialog(
+                onDismissRequest = onSosRestoredKeep,
+                title = { Text("Режим СОС активен") },
+                text = { Text("Режим СОС был активирован. Отключить?") },
+                confirmButton = {
+                    TextButton(onClick = onSosRestoredDisable) { Text("Отключить") }
+                },
+                dismissButton = {
+                    TextButton(onClick = onSosRestoredKeep) { Text("Оставить") }
                 },
             )
         }

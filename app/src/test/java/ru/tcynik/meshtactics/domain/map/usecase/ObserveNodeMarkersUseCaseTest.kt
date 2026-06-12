@@ -312,6 +312,45 @@ class ObserveNodeMarkersUseCaseTest {
     }
 
     @Test
+    fun `node receivedOnSlot=null SOS active — included`() = runTest {
+        val peer = node(nodeId = "A", receivedOnSlot = null)
+        every { repository.observeNodes() } returns flowOf(listOf(peer))
+        every { repository.observeOurNode() } returns flowOf(null)
+        every { contourRepository.observeSosMode() } returns flowOf(true)
+
+        useCase(NoParams).test {
+            assertEquals(1, awaitItem().size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `node receivedOnSlot=N inactive contour SOS active — included`() = runTest {
+        val psk = byteArrayOf(0x01)
+        val hash = ContourHash.compute("test", psk)
+        val inactiveContour = Contour(
+            id = ContourId("ccc"),
+            name = "test",
+            description = null,
+            expiration = null,
+            exclusivityTime = null,
+            isActive = false,
+            transport = ContourTransport(MeshtasticChannel(Base64.getEncoder().encodeToString(psk), hash)),
+        )
+        val maps = ChannelSlotMaps(slotToHash = mapOf(3 to hash), hashToSlot = mapOf(hash to 3))
+        every { repository.observeNodes() } returns flowOf(listOf(node(nodeId = "A", receivedOnSlot = 3)))
+        every { repository.observeOurNode() } returns flowOf(null)
+        every { contourRepository.observeContours() } returns flowOf(listOf(inactiveContour))
+        every { channelSlotResolver.mapsFlow } returns MutableStateFlow(maps)
+        every { contourRepository.observeSosMode() } returns flowOf(true)
+
+        useCase(NoParams).test {
+            assertEquals(1, awaitItem().size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `node receivedOnSlot=N inactive contour — excluded`() = runTest {
         val psk = byteArrayOf(0x01)
         val hash = ContourHash.compute("test", psk)
