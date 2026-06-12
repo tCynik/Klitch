@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,9 +33,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import ru.tcynik.meshtactics.R
 import ru.tcynik.meshtactics.presentation.feature.main.osd.layouts.MenuDrawerItem
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.MenuDrawerUiState
 
@@ -64,11 +69,16 @@ fun MenuDrawer(state: MenuDrawerUiState) {
         enter = slideInHorizontally(animationSpec = tween(250)) { -it },
         exit = slideOutHorizontally(animationSpec = tween(250)) { -it },
     ) {
+        val panelBackground = if (state.isSosActive)
+            MaterialTheme.colorScheme.errorContainer
+        else
+            MaterialTheme.colorScheme.surfaceContainerHigh
+
         Column(
             modifier = Modifier
                 .width(280.dp)
                 .fillMaxHeight()
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                .background(panelBackground)
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
@@ -79,7 +89,7 @@ fun MenuDrawer(state: MenuDrawerUiState) {
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = "MeshTactics",
@@ -102,6 +112,39 @@ fun MenuDrawer(state: MenuDrawerUiState) {
             state.items.forEachIndexed { index, item ->
                 MenuDrawerItem(item)
                 if (index < state.items.lastIndex) Spacer(Modifier.height(10.dp))
+            }
+
+            Spacer(Modifier.weight(1f))
+            HorizontalDivider()
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+            ) {
+                val sosButtonColors = if (state.isSosActive) {
+                    ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
+                    )
+                }
+                Button(
+                    onClick = state.onSosClick,
+                    colors = sosButtonColors,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_sos),
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
+                    Text(text = if (state.isSosActive) "Отмена тревоги" else "позвать на помощь")
+                }
             }
         }
     }

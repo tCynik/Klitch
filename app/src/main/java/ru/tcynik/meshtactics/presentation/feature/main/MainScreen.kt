@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -106,6 +108,9 @@ fun MainScreen(
     onDismissDeleteGeoMarkConfirm: () -> Unit = {},
     onSosRestoredKeep: () -> Unit = {},
     onSosRestoredDisable: () -> Unit = {},
+    onSosTriggerConfirm: () -> Unit = {},
+    onSosCancelConfirm: () -> Unit = {},
+    onSosDismiss: () -> Unit = {},
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val density = LocalDensity.current
@@ -304,7 +309,10 @@ fun MainScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsTopHeight(WindowInsets.statusBars)
-                .background(Color.Black.copy(alpha = 0.35f))
+                .background(
+                    if (uiState.isSosActive) Color.Red.copy(alpha = 0.55f)
+                    else Color.Black.copy(alpha = 0.35f)
+                )
                 .align(Alignment.TopCenter),
         )
 
@@ -450,6 +458,38 @@ fun MainScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = onSosRestoredKeep) { Text("Оставить") }
+                },
+            )
+        }
+
+        if (uiState.showSosTriggerDialog) {
+            AlertDialog(
+                onDismissRequest = onSosDismiss,
+                title = { Text("Активировать СОС?") },
+                confirmButton = {
+                    Button(
+                        onClick = onSosTriggerConfirm,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError,
+                        ),
+                    ) { Text("Активировать") }
+                },
+                dismissButton = {
+                    TextButton(onClick = onSosDismiss) { Text("Отмена") }
+                },
+            )
+        }
+
+        if (uiState.showSosCancelDialog) {
+            AlertDialog(
+                onDismissRequest = onSosDismiss,
+                title = { Text("Отключить режим СОС?") },
+                confirmButton = {
+                    TextButton(onClick = onSosCancelConfirm) { Text("Отключить") }
+                },
+                dismissButton = {
+                    TextButton(onClick = onSosDismiss) { Text("Отмена") }
                 },
             )
         }

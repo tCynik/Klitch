@@ -57,4 +57,7 @@ data class MainUiState(
     val networkEnabled: Boolean = true,
     val recordedTracks: ImmutableList<RecordedTrackRenderModel> = persistentListOf(),
     val showSosRestoredDialog: Boolean = false,
+    val isSosActive: Boolean = false,
+    val showSosTriggerDialog: Boolean = false,
+    val showSosCancelDialog: Boolean = false,
 )

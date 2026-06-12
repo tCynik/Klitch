@@ -89,6 +89,7 @@ import ru.tcynik.meshtactics.domain.chat.usecase.IngestReceivedChatMessagesUseCa
 import ru.tcynik.meshtactics.domain.chat.usecase.SyncEmergencyMuteUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.CancelEmergencyUseCase
 import ru.tcynik.meshtactics.domain.emergency.usecase.ObserveEmergencyModeUseCase
+import ru.tcynik.meshtactics.domain.emergency.usecase.TriggerEmergencyUseCase
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarkAddressee
 import ru.tcynik.meshtactics.presentation.feature.main.osd.models.GeoMarksSheetUiState
 
@@ -188,6 +189,7 @@ class MainViewModel(
     observeRecordedTrackPoints: ObserveRecordedTrackPointsUseCase,
     private val observeEmergencyMode: ObserveEmergencyModeUseCase,
     private val cancelEmergency: CancelEmergencyUseCase,
+    private val triggerEmergency: TriggerEmergencyUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MainUiState())
@@ -508,6 +510,10 @@ class MainViewModel(
             }
             .launchIn(viewModelScope)
 
+        observeEmergencyMode()
+            .onEach { active -> _uiState.update { it.copy(isSosActive = active) } }
+            .launchIn(viewModelScope)
+
         viewModelScope.launch {
             if (observeEmergencyMode().first()) {
                 _uiState.update { it.copy(showSosRestoredDialog = true) }
@@ -530,6 +536,28 @@ class MainViewModel(
     fun onSosRestoredDisable() {
         _uiState.update { it.copy(showSosRestoredDialog = false) }
         viewModelScope.launch { cancelEmergency() }
+    }
+
+    fun onSosButtonClick() {
+        if (_uiState.value.isSosActive) {
+            _uiState.update { it.copy(showSosCancelDialog = true) }
+        } else {
+            _uiState.update { it.copy(showSosTriggerDialog = true) }
+        }
+    }
+
+    fun onTriggerSosConfirm() {
+        _uiState.update { it.copy(showSosTriggerDialog = false) }
+        viewModelScope.launch { triggerEmergency() }
+    }
+
+    fun onCancelSosConfirm() {
+        _uiState.update { it.copy(showSosCancelDialog = false) }
+        viewModelScope.launch { cancelEmergency() }
+    }
+
+    fun onDismissSosDialog() {
+        _uiState.update { it.copy(showSosTriggerDialog = false, showSosCancelDialog = false) }
     }
 
     fun onCameraPositionChanged(position: MapCameraPosition) {
@@ -1197,6 +1225,8 @@ class MainViewModel(
             ),
         ),
         onDismiss = ::toggleMenuDrawer,
+        isSosActive = state.isSosActive,
+        onSosClick = ::onSosButtonClick,
     )
 
     private fun buildCompassButton(state: MainUiState): HudButtonSlot {
