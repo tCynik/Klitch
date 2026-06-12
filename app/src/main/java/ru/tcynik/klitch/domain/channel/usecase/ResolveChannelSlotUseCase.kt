@@ -1,0 +1,45 @@
+﻿package ru.tcynik.klitch.domain.channel.usecase
+
+import ru.tcynik.klitch.domain.channel.model.Contour
+import ru.tcynik.klitch.domain.channel.model.ContourHash
+import ru.tcynik.klitch.domain.channel.model.NodeChannelSlot
+import ru.tcynik.klitch.domain.channel.model.meshtasticChannelName
+
+sealed interface SlotResolution {
+    data class AlreadySynced(val slot: Int) : SlotResolution
+    data class FreeSlot(val slot: Int) : SlotResolution
+    data object NoFreeSlot : SlotResolution
+}
+
+class ResolveChannelSlotUseCase {
+    operator fun invoke(
+        contour: Contour,
+        nodeChannels: List<NodeChannelSlot>,
+        usedSlots: Set<Int> = emptySet(),
+        checkPrecision: Boolean = false,
+    ): SlotResolution {
+        val contourHash = contour.transport.meshtastic.channelHash
+        val expectedName = meshtasticChannelName(contour)
+
+        val matched = nodeChannels.find { slot ->
+            slot.index != 0 && slot.index !in usedSlots && slot.isEnabled &&
+                slot.name == expectedName &&
+                ContourHash.compute(slot.name, slot.psk) == contourHash
+        }
+        if (matched != null) {
+            return if (!checkPrecision || matched.positionPrecision > 0) SlotResolution.AlreadySynced(matched.index)
+            else SlotResolution.FreeSlot(matched.index)
+        }
+
+        val freeSlot = nodeChannels.find { slot ->
+            slot.index != 0 && slot.index !in usedSlots && !slot.isEnabled
+        }
+        if (freeSlot != null) return SlotResolution.FreeSlot(freeSlot.index)
+
+        val reportedIndices = nodeChannels.map { it.index }.toSet()
+        val unconfiguredIndex = (1..7).firstOrNull { it !in reportedIndices && it !in usedSlots }
+        if (unconfiguredIndex != null) return SlotResolution.FreeSlot(unconfiguredIndex)
+
+        return SlotResolution.NoFreeSlot
+    }
+}

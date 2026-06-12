@@ -1,4 +1,4 @@
-# MeshTactics — контекст для Claude
+﻿# MeshTactics — контекст для Claude
 
 ## Спецификация проекта
 

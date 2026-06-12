@@ -20,7 +20,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "MeshTactics"
+rootProject.name = "Klitch"
 include(":app")
 include(":shared")
 include(":mesh")

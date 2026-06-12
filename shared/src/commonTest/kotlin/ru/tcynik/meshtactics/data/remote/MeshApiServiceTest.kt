@@ -1,4 +1,4 @@
-package ru.tcynik.meshtactics.data.remote
+﻿package ru.tcynik.klitch.data.remote
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -10,7 +10,7 @@ import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
-import ru.tcynik.meshtactics.data.remote.api.MeshApiService
+import ru.tcynik.klitch.data.remote.api.MeshApiService
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

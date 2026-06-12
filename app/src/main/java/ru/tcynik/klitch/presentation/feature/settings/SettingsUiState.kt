@@ -1,0 +1,17 @@
+﻿package ru.tcynik.klitch.presentation.feature.settings
+
+import ru.tcynik.klitch.domain.settings.model.ScreenOrientationMode
+import ru.tcynik.klitch.domain.settings.model.TileCacheMode
+import ru.tcynik.klitch.presentation.feature.settings.models.MapItem
+
+data class SettingsUiState(
+    val markerSizeLevel: Int = 5,
+    val markerSizeLevelPending: Int = 5,
+    val geoMarkSizeLevelPending: Int = 5,
+    val showGeoMarkNamesPending: Boolean = false,
+    val orientationLockedPending: Boolean = false,
+    val orientationModePending: ScreenOrientationMode = ScreenOrientationMode.PORTRAIT,
+    val mapItems: List<MapItem> = emptyList(),
+    val deleteConfirmId: String? = null,
+    val tileCacheMode: TileCacheMode = TileCacheMode.DEFAULT,
+)

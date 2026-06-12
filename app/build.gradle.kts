@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "ru.tcynik.meshtactics"
+    namespace = "ru.tcynik.klitch"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "ru.tcynik.meshtactics"
+        applicationId = "ru.tcynik.klitch"
         minSdk = 24
         targetSdk = 36
         versionCode = 1

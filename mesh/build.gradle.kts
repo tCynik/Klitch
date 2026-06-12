@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "ru.tcynik.meshtactics.mesh"
+    namespace = "ru.tcynik.klitch.mesh"
     compileSdk = 36
 
     defaultConfig {
