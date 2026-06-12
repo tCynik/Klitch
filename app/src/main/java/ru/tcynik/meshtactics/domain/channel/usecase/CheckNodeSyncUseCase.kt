@@ -39,6 +39,11 @@ class CheckNodeSyncUseCase(
 
         logger.d("Contour", "check: localContours=${contours.size} nodeChannels=${nodeChannels.size} primary=${primaryContour?.name}")
 
+        if (observeEmergencyMode().first()) {
+            logger.d("Contour", "InSync: SOS active — skipping sync check")
+            return NodeSyncResult.InSync
+        }
+
         if (nodeChannels.isEmpty()) {
             logger.d("Contour", "InSync: channel data not yet available — skipping check")
             return NodeSyncResult.InSync
