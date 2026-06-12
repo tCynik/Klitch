@@ -1,0 +1,38 @@
+﻿package ru.tcynik.klitch.domain.channel.usecase
+
+import kotlinx.coroutines.flow.first
+import ru.tcynik.klitch.domain.channel.model.ContourId
+import ru.tcynik.klitch.domain.channel.model.DefaultContour
+import ru.tcynik.klitch.domain.channel.model.isEmergency
+import ru.tcynik.klitch.domain.channel.model.meshtasticChannelName
+import ru.tcynik.klitch.domain.channel.repository.ContourRepository
+import ru.tcynik.klitch.domain.mesh.model.ChannelPositionPrecision
+import ru.tcynik.klitch.domain.mesh.usecase.WriteChannelUseCase
+
+class ActivateExclusiveContourUseCase(
+    private val contourRepository: ContourRepository,
+    private val writeChannel: WriteChannelUseCase,
+) {
+    suspend operator fun invoke(contourId: ContourId) {
+        contourRepository.setPrimaryContour(contourId)
+        val contours = contourRepository.observeContours().first()
+        contours
+            .filter { !it.isEmergency && it.id != contourId }
+            .forEach { contourRepository.saveContour(it.copy(isActive = false)) }
+
+        val exclusive = contours.find { it.id == contourId } ?: return
+        if (!exclusive.isActive) contourRepository.saveContour(exclusive.copy(isActive = true))
+        val name = if (exclusive.isEmergency) DefaultContour.CHANNEL_NAME else meshtasticChannelName(exclusive)
+        val psk = if (exclusive.isEmergency) DefaultContour.OPEN_PSK else exclusive.transport.meshtastic.psk
+        writeChannel(0, name, psk)
+        writeChannel(
+            1,
+            DefaultContour.CHANNEL_NAME,
+            DefaultContour.OPEN_PSK,
+            ChannelPositionPrecision.DISABLED,
+        )
+        for (slot in 2..7) {
+            writeChannel(slot, "", "")
+        }
+    }
+}

@@ -14,10 +14,12 @@ You are the feature planner for the MeshTactics project. Your job is to decompos
 **Architecture**: Clean Architecture — `app` (presentation) → `shared/domain` ← `shared/data`
 
 **Available skills** *(read `.claude/commands/` to get the actual current list — this section is a snapshot)*:
+- `/research` — external research (APIs, protocols, libraries); spawns isolated subagent, returns compact summary; invoke in Phase 0; always save to `.claude/research/`
 - `/architect` — architectural design, layer decomposition, code scaffolding
 - `/ui-designer` — visual design system: colors, typography, spacing, components, UX patterns
 - `/icon-designer` — button icon design in MeshIconButton style (delegated from `/ui-designer`)
 - `/tester` — test scaffolding: FlowUseCase/Turbine, ViewModel/MockK, SQLDelight integration; invoke in Phase 4
+- `/iterate` — debug and iteration on existing features: bug diagnosis, scoped extensions, feature health review; invoke when returning to a Done feature
 - `/planner` — this skill
 
 **Before planning, always check `.claude/commands/` for skills added since this snapshot. If new skills exist, use them in the coordination map where appropriate.**
@@ -70,14 +72,20 @@ Output a structured plan with phases. Each phase must have:
 **Phase 0 — Research** *(skip if domain is well understood)*
 - Goal: eliminate unknowns before design
 - Tasks: investigate platform APIs / mesh protocol behavior / existing code patterns
-- Skill: Explore agent or direct code reading
-- Output: summary of findings, list of constraints
+- Skill: `/research <topic>` — **always use this skill, never do web search inline**
+- Output: `.claude/research/<topic-slug>.md` + one-message summary in the conversation
+
+> **Token checkpoint after Phase 0**: tell the user to run `/compact` before proceeding to Phase 1.
+> Reason: research web traffic is now summarized in the saved file — it must not accumulate in the context window.
 
 **Phase 1 — Architecture Design**
 - Goal: approved architecture plan — layers, interfaces, data flow
 - Tasks: domain model, repository interface, use case signatures, ViewModel state shape
 - Skill: `/architect feature: <description>`
 - Output: architecture plan (can be documented via `doc:` mode)
+
+> **Token checkpoint after Phase 1**: tell the user to run `/compact` before proceeding to Phase 2 or Phase 3.
+> Reason: architecture decisions are captured in the plan file — the architect's scaffolding output does not need to remain in context during implementation.
 
 **Phase 2 — UI / Icon Design** *(skip if no new UI elements)*
 - Goal: approved component designs, screen layout decisions, icon set
@@ -94,6 +102,8 @@ Output a structured plan with phases. Each phase must have:
 - Skill: direct coding (EnterPlanMode before starting)
 - After implementation is complete: run `/simplify` on changed files before Phase 5
 - Output: buildable code, simplified and ready for review
+
+> **Logger checklist**: every new class that logs anything adds `logger: Logger` to its constructor and `get()` to its Koin binding. Feature tag is a string constant local to the class (e.g. `"GPS"`, `"BLE"`, `"Map"`). Never use `android.util.Log` directly.
 
 **Phase 4 — Testing**
 - Goal: feature verified at unit + integration level
@@ -122,45 +132,90 @@ Output a structured plan with phases. Each phase must have:
 - Skill: direct edit of `.claude/commands/<skill>.md`
 - Output: updated skill files (or explicit "no changes needed" for each)
 
+**After updating each skill, run a size audit:**
+- Does the new/updated section duplicate info already readable from existing code or `architect.md`? If yes — replace with a file reference (`see ClassName.kt:Lnn`).
+- Are inline code examples the only way to convey this, or can they be replaced with a pointer to a real file in the project?
+- Is the skill still under ~150 lines? If over — flag the sections to trim before the next feature, and trim them now if obvious.
+
 **Rule**: this phase is never skipped. If there is nothing to update, say so explicitly for each skill — do not silently omit the phase.
 
 **Phase 6b — Project Docs & Memory Update** *(always, after Phase 6)*
-- Goal: project metadata and Claude's memory reflect the completed feature
+- Goal: project metadata, feature documentation, and Claude's memory reflect the completed feature
 - Tasks:
   - Update feature status in **CLAUDE.md** status table (e.g. `In Progress` → `Done`)
-  - Set plan file `.claude/plans/<feature-slug>.md` status to `Done`
+  - **Create or update `.claude/docs/<feature-slug>.md`** — see *Feature Doc Format* below
+  - **Move the plan to archive**: copy `.claude/plans/<feature-slug>.md` → `.claude/archive/<feature-slug>.md`, then delete the original from `plans/`. **After deletion, verify with `ls .claude/plans/` that the file is gone — do not proceed to Phase 7 until confirmed.**
   - Review memory files in `~/.claude/projects/.../memory/` — update `project_state.md` and any other stale entries (completed features, new patterns, resolved decisions)
   - If the feature introduced a workflow insight worth preserving — add it to `workflow_feedback.md`
+  - **Token log**: append to the archived plan file's Change Log: `- <date>: done | tokens: <value>`. Ask the user to check `/cost` or the status bar and provide the number. If not recorded — write `tokens: not recorded`.
 - Skill: direct edit (Write / Edit tools)
-- Output: CLAUDE.md accurate, plan file closed, memory up to date
+- Output: CLAUDE.md accurate, feature doc created/updated, plan archived, memory up to date, token cost recorded
 
 **Rule**: this phase is never skipped. If memory and docs are already accurate, say so explicitly — do not silently omit.
 
+#### Feature Doc Format
+
+File: `.claude/docs/<feature-slug>.md`
+
+```markdown
+# <Feature Name>
+
+## What it does
+1–2 sentences describing the user-facing behaviour.
+
+## Key classes
+- `ClassName` — role, which layer (domain / data / presentation)
+
+## Non-obvious decisions
+- <what and why — not "what the code does" but "why this approach over alternatives">
+
+## Known limitations / planned extensions
+- <MVP shortcuts, deferred scope, future work>
+
+## Source
+Plan: `.claude/archive/<feature-slug>.md`
+```
+
+**Rules for feature docs:**
+- This is a *living document* — update it whenever the feature changes (bugfix, extension, refactor)
+- The archive plan is historical — never modify it after archiving
+- Keep it short: if a decision is obvious from the code, omit it; only document what a reader *cannot* derive by reading the implementation
+- When returning to a Done feature for a bugfix or extension, read the feature doc first
+
 **Phase 7 — Commit Preparation** *(always, after Phase 5, Phase 6, and Phase 6b are complete)*
-- Goal: all changes — code, tests, and skill updates — committed in one coherent commit
+- Goal: all changes staged, commit message ready, waiting for user confirmation
 - Tasks:
-  - List all changed files explicitly (do not use `git add -A` — stage files by name)
-  - Draft a commit message following project style: `type(scope): short description` in Russian, imperative mood
-  - Use `/commit` skill to execute the commit
-- Skill: `/commit`
-- Output: committed changeset; clean `git status`
+  1. Run `git status` to enumerate all changed/untracked files
+  2. For each changed file decide: **stage** (git add) or **ignore** (add to `.gitignore`)
+     - Generated files, local secrets, IDE artifacts → `.gitignore`
+     - Everything else → stage by name (never `git add -A` or `git add .`)
+  3. Draft a commit message following project style: `type(scope): short description` in Russian, imperative mood; add a blank line + bullet list of key changes if needed
+  4. **Present to the user**:
+     - The list of staged files
+     - The proposed commit message
+     - Any files added to `.gitignore`
+  5. **Wait for explicit user confirmation** before running `git commit`
+  6. After confirmation — execute `git commit -m "..."` with the approved message
+- Skill: direct git commands (Bash tool)
+- Output: committed changeset after user approval; clean `git status`
 
 **Rule**: commit only after Phase 5 (architectural review clean), Phase 6 (skills updated), and Phase 6b (docs & memory updated) are done. A commit that precedes any of these is not a Phase 7 commit — it is a work-in-progress save and must be labeled as such.
+**Rule**: never commit without explicit user confirmation of the staged files and message.
 
 ### Step 4. Coordination Map
 
 Show which skills are invoked at which phase, and in what order, as a simple list:
 
 ```
-Phase 0: [Research agent]
-Phase 1: /architect feature: ...
+Phase 0: /research <topic> → save to .claude/research/ → [/compact]
+Phase 1: /architect feature: ... → [/compact]
 Phase 2: /icon-designer create: ...
 Phase 3: [direct coding] → /simplify
 Phase 4: [direct coding — tests]
 Phase 5: /architect review: ...
 Phase 6: [skill update review]
-Phase 6b: [docs & memory update — CLAUDE.md, plan file, memory/]
-Phase 7: /commit
+Phase 6b: [docs & memory — CLAUDE.md, create/update .claude/docs/<slug>.md, archive plan, memory/]
+Phase 7: [stage files by name] → [propose commit message] → [wait for confirmation] → git commit
 ```
 
 ### Step 5. Open Questions

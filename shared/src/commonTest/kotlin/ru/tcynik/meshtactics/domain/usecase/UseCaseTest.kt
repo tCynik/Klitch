@@ -1,8 +1,8 @@
-package ru.tcynik.meshtactics.domain.usecase
+﻿package ru.tcynik.klitch.domain.usecase
 
 import kotlinx.coroutines.test.runTest
-import ru.tcynik.meshtactics.domain.usecase.base.NoParams
-import ru.tcynik.meshtactics.domain.usecase.base.UseCase
+import ru.tcynik.klitch.domain.usecase.base.NoParams
+import ru.tcynik.klitch.domain.usecase.base.UseCase
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

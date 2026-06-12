@@ -83,7 +83,7 @@ kotlin {
 }
 
 android {
-    namespace = "ru.tcynik.meshtactics.shared"
+    namespace = "ru.tcynik.klitch.shared"
     compileSdk = 36
     defaultConfig {
         minSdk = 24
@@ -97,7 +97,8 @@ android {
 sqldelight {
     databases {
         create("AppDatabase") {
-            packageName.set("ru.tcynik.meshtactics.data.local")
+            packageName.set("ru.tcynik.klitch.data.local")
+            version = 12
         }
     }
 }

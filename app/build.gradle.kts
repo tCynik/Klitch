@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "ru.tcynik.meshtactics"
+    namespace = "ru.tcynik.klitch"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "ru.tcynik.meshtactics"
+        applicationId = "ru.tcynik.klitch"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
@@ -52,6 +52,7 @@ dependencies {
 
     // AndroidX
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.activity.compose)
 
     // Compose
@@ -75,8 +76,16 @@ dependencies {
     // Immutable collections
     implementation(libs.immutable.collections)
 
+    // DataStore
+    implementation(libs.datastore.preferences)
+    implementation(libs.serialization.json)
+
     // Coroutines
     implementation(libs.coroutines.android)
+
+    // SQLDelight — coroutines extensions (asFlow / mapToList used in ImportedMapRepositoryImpl)
+    implementation(libs.sqldelight.coroutines)
+    testImplementation(libs.sqldelight.jvm.driver)
 
     // WorkManager
     implementation(libs.work.runtime)
@@ -86,9 +95,15 @@ dependencies {
     implementation(libs.koin.compose)
     implementation(libs.koin.compose.viewmodel)
 
+    // OSMBonusPack — KML/KMZ parser
+    implementation("com.github.MKergall:osmbonuspack:6.9.0")
+
     // maplibre-compose — Jetpack Compose wrapper for MapLibre (pulls in android-sdk transitively)
     // Note: if field device OpenGL ES compatibility issues arise, investigate android-sdk-opengl variant
     implementation("org.maplibre.compose:maplibre-compose:0.12.1")
+
+    // OkHttp — explicit declaration required for TileCacheInterceptor / TileCacheOkHttpConfigurator
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // Тестирование
     testImplementation(libs.junit)

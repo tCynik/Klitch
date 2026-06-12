@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.MeshTactics" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.Klitch" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <style name="Theme.Klitch.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/launcher_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
+        <item name="postSplashScreenTheme">@style/Theme.Klitch</item>
+    </style>
 </resources>

@@ -1,0 +1,39 @@
+CREATE TABLE recorded_track (
+    id             TEXT    NOT NULL PRIMARY KEY,
+    name           TEXT    NOT NULL DEFAULT '',
+    started_at     INTEGER NOT NULL,
+    finished_at    INTEGER,
+    total_distance REAL    NOT NULL DEFAULT 0.0,
+    color          INTEGER NOT NULL DEFAULT 0,
+    is_visible     INTEGER NOT NULL DEFAULT 1
+);
+
+selectAll:
+SELECT * FROM recorded_track ORDER BY started_at DESC;
+
+selectById:
+SELECT * FROM recorded_track WHERE id = :id;
+
+selectUnfinished:
+SELECT * FROM recorded_track WHERE finished_at IS NULL;
+
+insert:
+INSERT INTO recorded_track(id, name, started_at, color, is_visible)
+VALUES (:id, :name, :startedAt, :color, 1);
+
+updateFinished:
+UPDATE recorded_track
+SET finished_at = :finishedAt, total_distance = :totalDistance
+WHERE id = :id;
+
+updateName:
+UPDATE recorded_track SET name = :name WHERE id = :id;
+
+updateColor:
+UPDATE recorded_track SET color = :color WHERE id = :id;
+
+setVisible:
+UPDATE recorded_track SET is_visible = :isVisible WHERE id = :id;
+
+deleteById:
+DELETE FROM recorded_track WHERE id = :id;
