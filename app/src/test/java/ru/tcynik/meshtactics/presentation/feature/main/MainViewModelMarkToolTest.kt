@@ -11,6 +11,7 @@ import io.mockk.unmockkStatic
 import ru.tcynik.meshtactics.domain.channel.model.NodeSyncResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -187,7 +188,7 @@ class MainViewModelMarkToolTest {
         every { gpsRepository.location } returns MutableStateFlow(null)
         every { observeRecordedTracks.invoke(any()) } returns flowOf(emptyList())
         every { observeRecordedTrackPoints.invoke(any()) } returns flowOf(emptyList())
-        every { observeCallsignChanges.invoke(any()) } returns flowOf(0)
+        every { observeCallsignChanges.invoke(any()) } returns emptyFlow()
         coEvery { checkNodeSync.invoke() } returns NodeSyncResult.InSync
         every { geoMarkPrefsRepository.observePreferences() } returns flowOf(GeoMarkFormPreferences())
         every { geoMarkPrefsRepository.observePresets() } returns flowOf(emptyList())
@@ -306,7 +307,8 @@ class MainViewModelMarkToolTest {
         viewModel.setMarkType(GeoMarkType.TRACK)
         viewModel.onMapClick(55.750, 37.620, 0f, 0f)
         viewModel.onMapClick(55.751, 37.621, 0f, 0f)
-        assertEquals(2, viewModel.uiState.value.pendingMarkPoints.size)
+        val marksSize = viewModel.uiState.value.pendingMarkPoints.size
+        assertEquals(2, marksSize)
     }
 
     @Test

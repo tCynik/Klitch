@@ -263,7 +263,7 @@ class MainViewModel(
         buildTrackRecordingSheetUiState(trackForm, trackState, durationSeconds, stopDialog, gpsLocation?.speed)
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.Eagerly,
+        started = SharingStarted.WhileSubscribed(5_000),
         initialValue = buildTrackRecordingSheetUiState(TrackRecordingFormState(), TrackRecordingState.Idle, 0L, StopDialogState(), null),
     )
 
