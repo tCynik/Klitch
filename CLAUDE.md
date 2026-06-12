@@ -1,4 +1,4 @@
-﻿# MeshTactics — контекст для Claude
+﻿# Klitch — контекст для Claude
 
 ## Спецификация проекта
 

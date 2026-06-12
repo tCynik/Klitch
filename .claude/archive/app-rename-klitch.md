@@ -1,7 +1,7 @@
 # Plan: App Rename MeshTactics → Klitch
 
 **Date**: 2026-06-12
-**Status**: Approved
+**Status**: Done
 **Branch**: `project_rename_to_klitch` (already created)
 
 ## Summary
@@ -286,3 +286,4 @@ File → Invalidate Caches → Invalidate and Restart
 ## Change Log
 
 - 2026-06-12: создан; добавлены Step 0 (git pre-flight), Step 7 (двойной сканер старого имени), Step 10 (детальный коммит), раздел git-рекомендаций для пользователя
+- 2026-06-12: выполнен; 891 файл изменён (831 rename + 60 modified); BUILD SUCCESSFUL; коммит baa46f0; tokens: not recorded
