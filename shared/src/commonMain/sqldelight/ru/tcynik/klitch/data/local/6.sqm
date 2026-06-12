@@ -1,2 +1,0 @@
-UPDATE contour SET description = 'Аварийный контур. Здесь можно попросить помощь.' WHERE id = '00000000-0000-0000-0000-000000000001' AND description IS NULL;
-UPDATE contour SET description = 'Делись своими приключениями здесь и сейчас' WHERE id = '00000000-0000-0000-0000-000000000002' AND description IS NULL;

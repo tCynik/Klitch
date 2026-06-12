@@ -1,1 +1,0 @@
-ALTER TABLE logical_channel ADD COLUMN is_auto_sync INTEGER NOT NULL DEFAULT 0;

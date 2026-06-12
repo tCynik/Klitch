@@ -98,7 +98,7 @@ sqldelight {
     databases {
         create("AppDatabase") {
             packageName.set("ru.tcynik.klitch.data.local")
-            version = 12
+            version = 1
         }
     }
 }

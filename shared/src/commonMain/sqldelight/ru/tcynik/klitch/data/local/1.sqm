@@ -1,1 +1,0 @@
-ALTER TABLE geo_mark ADD COLUMN logical_channel_id TEXT NOT NULL DEFAULT '';
