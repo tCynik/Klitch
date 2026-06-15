@@ -96,12 +96,6 @@ See `shared/src/commonMain/sqldelight/.../data/local/Node.sq:1`
 | `AndroidMeshLocationManager` | Smart-send: gate 30 s, heartbeat 180 s, фильтр distance > accuracy; лог `MT/SmartPos` |
 | `ObserveNodeMarkersUseCase` | Stale detection: `POSITION_FRESHNESS_SECONDS` (300 s) > `STATIONARY_INTERVAL_MS/1000` (180 s) |
 
-**Почему**: прошивка Meshtastic штампует `current_time` на каждый автономный re-broadcast → маркер остаётся «свежим» даже после отключения телефона от BLE. Единственный fix — передать ответственность за broadcast приложению.
-
-**Ограничение (принято)**: unattended beacon (радио без телефона) — маркер устаревает через 5 мин. Отдельная задача.
-
-**При настройке интервалов**: менять `STATIONARY_INTERVAL_MS` в `AndroidMeshLocationManager` и `POSITION_FRESHNESS_SECONDS` в `ObserveNodeMarkersUseCase` вместе; буфер ≥ 60 s.
-
 Документация: `.claude/docs/gps-position-staleness.md`
 
 ---
@@ -501,25 +495,6 @@ See: `domain/channel/usecase/SetPrimaryContourUseCase.kt`, `domain/channel/useca
 
 Use this pattern when a transient boolean/status flag must be shared between multiple ViewModels and survive across screen changes — but does NOT need persistence to DataStore.
 
-**Structure:**
-
-```kotlin
-// domain — interface only, no data imports
-interface ContourSyncStateRepository {
-    val syncRequired: StateFlow<Boolean>
-    fun setSyncRequired(value: Boolean)
-    fun clear()
-}
-
-// data — thin MutableStateFlow wrapper
-class ContourSyncStateRepositoryImpl : ContourSyncStateRepository {
-    private val _syncRequired = MutableStateFlow(false)
-    override val syncRequired: StateFlow<Boolean> = _syncRequired.asStateFlow()
-    override fun setSyncRequired(value: Boolean) { _syncRequired.value = value }
-    override fun clear() { _syncRequired.value = false }
-}
-```
-
 **DI:** `single<ContourSyncStateRepository> { ContourSyncStateRepositoryImpl() }` — one instance shared across all ViewModels.
 
 **Lifecycle:** flag is in-memory only; cleared on app restart. Each new connect triggers a fresh check. If stronger persistence is needed, add DataStore — but for MVP in-memory is sufficient.
@@ -585,17 +560,6 @@ private fun buildMenuDrawerUiState(state: MainUiState, nav: HudNavCallbacks) =
 |---|---|---|
 | `remember(key)` in NavGraph | HUD-level state assembled from multiple VMs; re-evaluated on any VM state change | `HudConfig`, `HudUiState`, `MenuDrawerUiState` |
 | `StateFlow` + `combine()` in ViewModel | Sheet-level state that must update reactively inside the ViewModel (independent of NavGraph recomposition) | `GeoMarksSheetUiState`, `TrackRecordingSheetUiState` |
-
-**`remember(key)` approach (HUD):**
-
-```kotlin
-// NavGraph composable:
-val mainState by mainVm.uiState.collectAsState()
-val connState by connectionVm.uiState.collectAsState()
-val menuState = remember(mainState, connState) {
-    HudStateMapper.buildMenuDrawerUiState(mainState, connState, navCallbacks)
-}
-```
 
 **`StateFlow` + `combine()` approach (sheets):**
 
@@ -710,29 +674,9 @@ See: `MainViewModel.kt` (`resetBearingEvent`, `contextMenuEvent`), `MainScreen.k
 
 ### Transport Repository Abstraction Contract
 
-All transports (Meshtastic, MQTT, WiFi) implement the same domain interfaces. Define in `domain/`; implementations in `data/`:
+All transports (Meshtastic, MQTT, WiFi) implement domain interfaces in `domain/mesh/repository/`. In MVP, only Meshtastic non-stub — MQTT and WiFi are `TODO()`.
 
-```kotlin
-// domain/mesh/repository/MessageRepository.kt
-interface MessageRepository {
-    fun observeMessages(): Flow<List<MessageModel>>
-    suspend fun sendMessage(text: String, channelIndex: Int)
-}
-
-// domain/mesh/repository/NodeRepository.kt
-interface NodeRepository {
-    fun observeNodes(): Flow<List<NodeModel>>
-    suspend fun connectToNode(nodeId: String)
-}
-
-// domain/mesh/repository/ChannelRepository.kt
-interface ChannelRepository {
-    fun observeChannels(): Flow<List<ChannelModel>>
-    suspend fun writeChannel(channel: ChannelModel)
-}
-```
-
-In MVP only Meshtastic implementations are non-stub. MQTT and WiFi implementations are `TODO()`.
+See: `domain/mesh/repository/MessageRepository.kt`, `NodeRepository.kt`, `ChannelRepository.kt`
 
 ---
 

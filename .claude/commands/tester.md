@@ -332,29 +332,4 @@ class MarkerRepositoryIntegrationTest {
 }
 ```
 
----
 
-## Required Test Dependencies
-
-```kotlin
-// app/build.gradle.kts
-testImplementation(libs.junit5)
-testImplementation(libs.kotlinx.coroutines.test)
-testImplementation(libs.turbine)
-testImplementation(libs.mockk)
-
-androidTestImplementation(libs.sqldelight.jdbc.driver)   // in-memory SQLDelight
-androidTestImplementation(libs.junit4.android)
-```
-
----
-
-## Testing Principles
-
-- **TDD for logic.** If a class contains `if`, `when`, data transformation, or calculation — write the test first.
-- **No mocking implementations.** MockK only mocks domain interfaces (`*Repository`, `*UseCase`). Never mock `*RepositoryImpl`.
-- **`runTest`, not `runBlocking`.** `runBlocking` blocks the thread; `runTest` handles virtual time and is safe for coroutine testing.
-- **Turbine for Flows.** Never `collect` manually in tests — use `turbineScope` or `.test {}` to avoid timing issues.
-- **Real DB for integration.** SQLDelight in-memory driver is fast and accurate. Mocking the DB hides schema bugs.
-- **One assertion focus per test.** Each test should have one reason to fail. Avoid combining multiple behaviors in one test method.
-- **NoOpLogger for logger-injected classes.** Any class under test that accepts `logger: Logger` in its constructor must receive `NoOpLogger()` — inject it directly, never `mockkStatic(android.util.Log::class)`. See `CheckNodeSyncUseCaseTest.kt` for a reference example.
