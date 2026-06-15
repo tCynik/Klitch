@@ -6,7 +6,7 @@
 `C:\Users\tcynik\Documents\Obsidian Vault\Проекты\MeshMap`
 
 Структурированный product brief для Claude (деривирован из Obsidian):
-`.claude/specs/product-brief.md`
+`docs/specs/product-brief.md`
 
 ---
 
@@ -70,7 +70,7 @@
 ## Правила работы
 
 ### Дебаг
-- При начале дебага любой фичи — всегда проверять `.claude/debug/<feature-slug>.md` на наличие истории фиксов
+- При начале дебага любой фичи — всегда проверять `docs/debug/<feature-slug>.md` на наличие истории фиксов
 - Если история существует — прочитать и сообщить о повторяющихся паттернах до начала диагностики
 
 ### Язык общения
@@ -92,7 +92,7 @@
 
 ## База знаний Meshtastic
 
-Технические справочники по протоколу: `.claude/knowledge/meshtastic/`
+Технические справочники по протоколу: `docs/knowledge/meshtastic/`
 
 | Файл | Содержание |
 |---|---|
@@ -104,49 +104,49 @@
 
 ## Документация
 
-Живая документация по реализованным фичам: `.claude/docs/`
-Архив завершённых планов: `.claude/archive/`
-Дебаг-история по фичам: `.claude/debug/`
+Живая документация по реализованным фичам: `docs/features/`
+Архив завершённых планов: `docs/archive/`
+Дебаг-история по фичам: `docs/debug/`
 
 | Фича | Документ |
 |---|---|
-| Geo Marks | `.claude/docs/geo-marks.md` |
-| Geo Marks List | `.claude/docs/geo-marks-list.md` |
-| App Structure | `.claude/docs/app-structure.md` |
-| Map Start Position | `.claude/docs/map-start-position.md` |
-| GPS User Position Marker | `.claude/docs/gps-user-position-marker.md` |
-| Phone GPS to Radio | `.claude/docs/phone-gps-to-radio.md` |
-| HUD Structure | `.claude/docs/hud-structure.md` |
-| Directional Node Markers | `.claude/docs/directional-node-markers.md` |
-| MapLibre Layer Architecture + Fonts | `.claude/docs/map-layer.md` |
-| Location Sharing Config | `.claude/docs/location-sharing-config.md` |
-| GPS Pipeline Debug (незавершён) | `.claude/docs/gps-pipeline-debug.md` |
-| KMZ/KML Import | `.claude/docs/kmz-kml-import.md` |
-| KMZ/KML Rendering | `.claude/docs/kmz-kml-rendering.md` |
-| GPS Background Service | `.claude/docs/gps-background-service.md` |
-| Universal Orientation | `.claude/docs/universal-orientation.md` |
-| Auto-connect on Start | `.claude/docs/auto-connect-on-start.md` |
-| Chat | `.claude/docs/chat.md` |
-| Contours (единый источник) | `.claude/docs/contours.md` |
-| Packet Channel Attribution | `.claude/docs/packet-channel-attribution.md` |
-| Emergency SOS | `.claude/docs/emergency-sos.md` |
-| Channel Sync Validation | `.claude/docs/channel-sync-validation.md` |
-| User Settings Write Mechanics | `.claude/docs/user-settings-write-mechanics.md` |
-| Tile Cache Settings | `.claude/docs/tile-cache-settings.md` |
-| Geo Marks Display Settings | `.claude/docs/geo-marks.md` |
-| Autonomous Beacon (concept) | `.claude/docs/autonomous-beacon.md` |
-| Node PKC Key Management | `.claude/docs/node-key-management.md` |
-| App Logger | `.claude/docs/logger.md` |
-| HUD Menu Drawer | `.claude/docs/hud-menu-drawer.md` |
-| Map Orientation Binding | `.claude/docs/map-orientation.md` |
-| Screen Orientation Lock | `.claude/docs/screen-orientation-lock.md` |
-| Callsign (позывной как сущность) | `.claude/docs/callsign.md` |
-| Callsign Gate on Connect (реализация) | `.claude/docs/callsign-gate-on-connect.md` |
-| Network Screen | `.claude/docs/network-screen.md` |
-| Filter-at-Input (замена Slot Discovery) | `.claude/docs/position-channel-slot-discovery.md` |
-| GPS Position Staleness Pipeline | `.claude/docs/gps-position-staleness.md` |
-| Background Position Pipeline (BleBackgroundPolicy) | `.claude/docs/background-position-pipeline.md` |
-| Main Screen ViewModel Architecture | `.claude/docs/main-viewmodel-architecture.md` |
+| Geo Marks | `docs/features/geo-marks.md` |
+| Geo Marks List | `docs/features/geo-marks-list.md` |
+| App Structure | `docs/features/app-structure.md` |
+| Map Start Position | `docs/features/map-start-position.md` |
+| GPS User Position Marker | `docs/features/gps-user-position-marker.md` |
+| Phone GPS to Radio | `docs/features/phone-gps-to-radio.md` |
+| HUD Structure | `docs/features/hud-structure.md` |
+| Directional Node Markers | `docs/features/directional-node-markers.md` |
+| MapLibre Layer Architecture + Fonts | `docs/features/map-layer.md` |
+| Location Sharing Config | `docs/features/location-sharing-config.md` |
+| GPS Pipeline Debug (незавершён) | `docs/features/gps-pipeline-debug.md` |
+| KMZ/KML Import | `docs/features/kmz-kml-import.md` |
+| KMZ/KML Rendering | `docs/features/kmz-kml-rendering.md` |
+| GPS Background Service | `docs/features/gps-background-service.md` |
+| Universal Orientation | `docs/features/universal-orientation.md` |
+| Auto-connect on Start | `docs/features/auto-connect-on-start.md` |
+| Chat | `docs/features/chat.md` |
+| Contours (единый источник) | `docs/features/contours.md` |
+| Packet Channel Attribution | `docs/features/packet-channel-attribution.md` |
+| Emergency SOS | `docs/features/emergency-sos.md` |
+| Channel Sync Validation | `docs/features/channel-sync-validation.md` |
+| User Settings Write Mechanics | `docs/features/user-settings-write-mechanics.md` |
+| Tile Cache Settings | `docs/features/tile-cache-settings.md` |
+| Geo Marks Display Settings | `docs/features/geo-marks.md` |
+| Autonomous Beacon (concept) | `docs/features/autonomous-beacon.md` |
+| Node PKC Key Management | `docs/features/node-key-management.md` |
+| App Logger | `docs/features/logger.md` |
+| HUD Menu Drawer | `docs/features/hud-menu-drawer.md` |
+| Map Orientation Binding | `docs/features/map-orientation.md` |
+| Screen Orientation Lock | `docs/features/screen-orientation-lock.md` |
+| Callsign (позывной как сущность) | `docs/features/callsign.md` |
+| Callsign Gate on Connect (реализация) | `docs/features/callsign-gate-on-connect.md` |
+| Network Screen | `docs/features/network-screen.md` |
+| Filter-at-Input (замена Slot Discovery) | `docs/features/position-channel-slot-discovery.md` |
+| GPS Position Staleness Pipeline | `docs/features/gps-position-staleness.md` |
+| Background Position Pipeline (BleBackgroundPolicy) | `docs/features/background-position-pipeline.md` |
+| Main Screen ViewModel Architecture | `docs/features/main-viewmodel-architecture.md` |
 
 ---
 
@@ -154,36 +154,36 @@
 
 | План | Файл | Статус |
 |---|---|---|
-| HUD Node Status Indicator | `.claude/archive/hud-node-status-indicator.md` | Done |
-| Connection Status HUD Info | `.claude/archive/connection-status-hud-info.md` | Done |
-| Map Orientation Binding | `.claude/archive/map-orientation.md` | Done |
-| Course-Up Mode | `.claude/archive/course-up.md` | Done |
-| Settings Screens Split | `.claude/archive/settings-screens-split.md` | Done |
-| Node PKC Key Management | `.claude/archive/node-key-management.md` | Done |
-| Chat Feature | `.claude/plans/chat-feature-plan.md` | Done |
-| Node Provisioning | `.claude/archive/node-provisioning.md` | Done |
-| Contour Concept | `.claude/archive/contour-concept.md` | Archived |
-| User & Channels Settings | `.claude/archive/user-and-channels-settings.md` | Archived |
-| Logical Channels Management | `.claude/archive/logical-channels-management.md` | Archived |
-| Emergency SOS | `.claude/archive/emergency-sos.md` | Archived |
-| Implementation Roadmap | `.claude/archive/implementation-roadmap.md` | Archived |
-| Channel Sync Validation | `.claude/archive/channel-sync-validation.md` | Archived |
-| User Settings Write Mechanics | `.claude/archive/user-settings-write-mechanics.md` | Archived |
-| Geo Nodes Tab | `.claude/archive/geo-nodes-tab.md` | Archived |
-| Node Markers on Map | `.claude/archive/node-markers-on-map.md` | Archived |
-| Settings Refactor | `.claude/archive/settings-refactor.md` | Archived |
-| Tile Cache Settings | `.claude/archive/tile-cache-settings.md` | Archived |
-| App Logger | `.claude/archive/logger.md` | Archived |
-| HUD Portrait Refactor | `.claude/archive/hud-portrait-refactor.md` | Archived |
-| HUD Menu Drawer | `.claude/archive/hud-menu-drawer.md` | Archived |
-| Follow Me | `.claude/archive/follow-me.md` | Archived |
-| Geo Marks Bottom Sheet | `.claude/archive/geo-marks-sheet.md` | Done |
-| Geo Marks Display Settings | `.claude/archive/geo-marks-display-settings.md` | Done |
-| Geo Marks List | `.claude/archive/geo-marks-list.md` | Done |
-| Geo Marks UI Completion | `.claude/archive/geo-marks-ui-completion.md` | Done |
-| Screen Orientation Lock | `.claude/archive/screen-orientation-lock.md` | Done |
-| Background Position Pipeline | `.claude/archive/background-position-pipeline.md` | Done |
-| Packet Channel Attribution | `.claude/archive/packet-channel-attribution.md` | Archived |
-| Node GPS Position Source | `.claude/plans/node-gps-position-source.md` | Planned |
-| Contours Redesign (Primary + SOS + Isolation) | `.claude/archive/contours-redesign.md` | Done |
-| MainViewModel Split | `.claude/archive/mainviewmodel-split.md` | Done |
+| HUD Node Status Indicator | `docs/archive/hud-node-status-indicator.md` | Done |
+| Connection Status HUD Info | `docs/archive/connection-status-hud-info.md` | Done |
+| Map Orientation Binding | `docs/archive/map-orientation.md` | Done |
+| Course-Up Mode | `docs/archive/course-up.md` | Done |
+| Settings Screens Split | `docs/archive/settings-screens-split.md` | Done |
+| Node PKC Key Management | `docs/archive/node-key-management.md` | Done |
+| Chat Feature | `docs/archive/chat-feature-plan.md` | Done |
+| Node Provisioning | `docs/archive/node-provisioning.md` | Done |
+| Contour Concept | `docs/archive/contour-concept.md` | Archived |
+| User & Channels Settings | `docs/archive/user-and-channels-settings.md` | Archived |
+| Logical Channels Management | `docs/archive/logical-channels-management.md` | Archived |
+| Emergency SOS | `docs/archive/emergency-sos.md` | Archived |
+| Implementation Roadmap | `docs/archive/implementation-roadmap.md` | Archived |
+| Channel Sync Validation | `docs/archive/channel-sync-validation.md` | Archived |
+| User Settings Write Mechanics | `docs/archive/user-settings-write-mechanics.md` | Archived |
+| Geo Nodes Tab | `docs/archive/geo-nodes-tab.md` | Archived |
+| Node Markers on Map | `docs/archive/node-markers-on-map.md` | Archived |
+| Settings Refactor | `docs/archive/settings-refactor.md` | Archived |
+| Tile Cache Settings | `docs/archive/tile-cache-settings.md` | Archived |
+| App Logger | `docs/archive/logger.md` | Archived |
+| HUD Portrait Refactor | `docs/archive/hud-portrait-refactor.md` | Archived |
+| HUD Menu Drawer | `docs/archive/hud-menu-drawer.md` | Archived |
+| Follow Me | `docs/archive/follow-me.md` | Archived |
+| Geo Marks Bottom Sheet | `docs/archive/geo-marks-sheet.md` | Done |
+| Geo Marks Display Settings | `docs/archive/geo-marks-display-settings.md` | Done |
+| Geo Marks List | `docs/archive/geo-marks-list.md` | Done |
+| Geo Marks UI Completion | `docs/archive/geo-marks-ui-completion.md` | Done |
+| Screen Orientation Lock | `docs/archive/screen-orientation-lock.md` | Done |
+| Background Position Pipeline | `docs/archive/background-position-pipeline.md` | Done |
+| Packet Channel Attribution | `docs/archive/packet-channel-attribution.md` | Archived |
+| Node GPS Position Source | `docs/plans/node-gps-position-source.md` | Planned |
+| Contours Redesign (Primary + SOS + Isolation) | `docs/archive/contours-redesign.md` | Done |
+| MainViewModel Split | `docs/archive/mainviewmodel-split.md` | Done |
