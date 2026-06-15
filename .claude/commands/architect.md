@@ -141,7 +141,7 @@ Box(Modifier.fillMaxSize()) {
 Conditional overlays:
 - Are **not** always rendered — they are gated on state or orientation
 - Must not contain spatial/map content (that belongs inside MapLibre)
-- Are driven by `StateFlow` from `MainViewModel`, never by local composable state
+- Are driven by `StateFlow` from the responsible ViewModel, never by local composable state
 - Examples: `MenuDrawer`, floating mark-tool action button
 
 ### Modals as NavGraph Destinations
@@ -579,11 +579,101 @@ private fun buildMenuDrawerUiState(state: MainUiState, nav: HudNavCallbacks) =
     )
 ```
 
-**DI / wiring:** `menuDrawerUiState` is collected in `NavGraph.kt` and passed as a parameter to `MainScreen`. Never injected inside the composable.
+**Two valid building mechanisms:**
 
-**When to use:** any UiState that mixes data fields with callback lambdas — `MenuDrawerUiState`, `HudUiState`, any feature-level interaction state.
+| Mechanism | Use when | Examples |
+|---|---|---|
+| `remember(key)` in NavGraph | HUD-level state assembled from multiple VMs; re-evaluated on any VM state change | `HudConfig`, `HudUiState`, `MenuDrawerUiState` |
+| `StateFlow` + `combine()` in ViewModel | Sheet-level state that must update reactively inside the ViewModel (independent of NavGraph recomposition) | `GeoMarksSheetUiState`, `TrackRecordingSheetUiState` |
 
-See: `presentation/feature/main/osd/models/MenuDrawerUiState.kt`, `MainViewModel.kt` (`menuDrawerUiState`, `buildMenuDrawerUiState`)
+**`remember(key)` approach (HUD):**
+
+```kotlin
+// NavGraph composable:
+val mainState by mainVm.uiState.collectAsState()
+val connState by connectionVm.uiState.collectAsState()
+val menuState = remember(mainState, connState) {
+    HudStateMapper.buildMenuDrawerUiState(mainState, connState, navCallbacks)
+}
+```
+
+**`StateFlow` + `combine()` approach (sheets):**
+
+```kotlin
+// Inside ViewModel:
+val geoMarksSheetUiState: StateFlow<GeoMarksSheetUiState> =
+    combine(_geoMarkUiState, _formState) { state, form ->
+        buildGeoMarksSheetUiState(state, form)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ...)
+```
+
+**When to use:** any UiState that mixes data fields with callback lambdas — `MenuDrawerUiState`, `HudUiState`, `GeoMarksSheetUiState`.
+
+See: `presentation/feature/main/osd/HudStateMapper.kt`, `presentation/feature/main/GeoMarkViewModel.kt`, `presentation/feature/main/osd/models/MenuDrawerUiState.kt`
+
+---
+
+### HudStateMapper — Pure Presentation Mapper
+
+When a screen collects from multiple ViewModels and needs to assemble composite HUD state, use a pure `object` mapper — no coroutines, no side-effects, no ViewModel dependencies.
+
+**Rule:** functions accept plain state values and `HudNavCallbacks` as parameters. No `Flow`, no `suspend`, no Android context, no repository calls.
+
+```kotlin
+// presentation/feature/main/osd/HudStateMapper.kt
+object HudStateMapper {
+    fun buildHudConfig(
+        mainState: MainUiState,
+        connState: ConnectionUiState,
+        nav: HudNavCallbacks,
+    ): HudConfig { ... }
+
+    fun buildHudUiState(
+        mainState: MainUiState,
+        connState: ConnectionUiState,
+        geoMarkState: GeoMarkUiState,
+        trackState: TrackRecordingState,
+        nav: HudNavCallbacks,
+    ): HudUiState { ... }
+
+    fun buildMenuDrawerUiState(
+        mainState: MainUiState,
+        connState: ConnectionUiState,
+        nav: HudNavCallbacks,
+    ): MenuDrawerUiState { ... }
+}
+```
+
+**Wired in NavGraph via `remember`:**
+
+```kotlin
+composable<Route.Main> {
+    val mainState  by mainVm.uiState.collectAsState()
+    val connState  by connectionVm.uiState.collectAsState()
+    val geoState   by geoMarkVm.uiState.collectAsState()
+    val trackState by trackVm.recordingState.collectAsState()
+
+    val hudConfig  = remember(mainState, connState)                       { HudStateMapper.buildHudConfig(mainState, connState, navCallbacks) }
+    val hudUiState = remember(mainState, connState, geoState, trackState) { HudStateMapper.buildHudUiState(mainState, connState, geoState, trackState, navCallbacks) }
+    val menuState  = remember(mainState, connState)                       { HudStateMapper.buildMenuDrawerUiState(mainState, connState, navCallbacks) }
+}
+```
+
+**Testing:** pure functions → test like mappers. No coroutines, no MockK, no `runTest`.
+
+**When to use:** multi-VM HUD assembly where `collectAsState()` in the NavGraph composable already re-triggers `remember` on any state change. Sheet-level states that contain lambdas and need reactivity inside a ViewModel stay as `StateFlow` + `combine()` (see Lambda-Containing UiState Pattern above).
+
+**Main screen VM split:** `MainScreen` collects from 5 scoped ViewModels:
+
+| ViewModel | Owns |
+|---|---|
+| `MainViewModel` | camera, GPS, markers, settings, overlays, orientation, menu drawer |
+| `ConnectionViewModel` | BLE scan, auto-connect, provisioning, callsign gate |
+| `GeoMarkViewModel` | marks form, CRUD, sheet state, map tap routing |
+| `TrackRecordingViewModel` | recording form, stop dialog, exit-on-stop flow |
+| `EmergencyViewModel` | SOS state + dialogs |
+
+See: `presentation/feature/main/osd/HudStateMapper.kt`
 
 ---
 

@@ -1,7 +1,7 @@
 # Plan: MainViewModel Split into Feature ViewModels
 
 **Date**: 2026-06-15
-**Status**: Approved (Phase 1–3 complete)
+**Status**: Done (Phases 1–6 complete)
 
 ## Summary
 
@@ -274,7 +274,7 @@ Run `/simplify` on all changed files after Phase 2 is complete.
 
 ---
 
-### Phase 4 — Architecture Review
+### Phase 4 — Architecture Review ✅ Done
 
 **Goal**: confirm no Clean Architecture violations introduced.
 
@@ -282,9 +282,15 @@ Run `/simplify` on all changed files after Phase 2 is complete.
 
 **Output**: review report, violations fixed.
 
+**Applied (2026-06-15):**
+- `GeoMarkViewModel`: `data.marker.adapter.GeoMarkWaypointAdapter` → `domain/marker/util/WaypointIdConverter` (создан)
+- `TrackRecordingViewModel`: `data.track.datasource.TrackSettingsDataSource` → `domain/track/repository/TrackSettingsRepository` (интерфейс создан, datasource реализует)
+- `TrackRecordingViewModel`: `domain.gps.repository.GpsRepository` → `ObserveGpsLocationUseCase` (создан, зарегистрирован в GpsModule)
+- `HudStateMapper`: `mesh.ble.toMeshtasticDisplayShortName` → `presentation/util/MeshtasticDisplayFormatter` (создан)
+
 ---
 
-### Phase 5 — Skill Update Review
+### Phase 5 — Skill Update Review ✅ Done
 
 Check each skill for updates needed:
 - `/architect` — new pattern: HudStateMapper as pure presentation mapper
@@ -293,14 +299,26 @@ Check each skill for updates needed:
 - `/icon-designer` — no changes needed
 - `/tester` — update ViewModel test patterns to reflect new scoped VMs
 
+**Applied (2026-06-15):**
+- `architect.md`: условные оверлеи — убрана жёсткая привязка к `MainViewModel`; Lambda-Containing UiState Pattern расширен двумя механизмами (`remember` vs `StateFlow+combine`); добавлен раздел HudStateMapper с VM-split таблицей
+- `tester.md`: в CLASSIFY добавлен `HudStateMapper`; ViewModel-шаблон переписан на `EmergencyViewModel`; добавлена заметка про тестирование HudStateMapper как чистого маппера
+
 ---
 
-### Phase 6 — Docs & Memory Update
+### Phase 6 — Docs & Memory Update ✅ Done
 
 - Update `CLAUDE.md` feature table (no new feature, but note MainViewModel is now 5 VMs)
 - Create `.claude/docs/main-viewmodel-architecture.md`
 - Archive this plan → `.claude/archive/mainviewmodel-split.md`
 - Update memory: project state
+
+**Applied (2026-06-15):**
+- CLAUDE.md: добавлена строка фичи "MainViewModel рефакторинг (5 VM + HudStateMapper)"
+- CLAUDE.md: добавлена строка документации "Main Screen ViewModel Architecture"
+- CLAUDE.md: добавлена строка плана в архив "MainViewModel Split | Done"
+- `.claude/docs/main-viewmodel-architecture.md`: создан
+- `.claude/archive/mainviewmodel-split.md`: архивирован
+- memory: обновлён project state
 
 ---
 
@@ -409,3 +427,5 @@ fun MainScreen(
 - 2026-06-15: Phase 2 complete — все 5 VM извлечены, HudStateMapper создан, MainScreen/NavGraph обновлены
 - 2026-06-15: Phase 3 complete — simplify на всех изменённых файлах
 - 2026-06-15: Phase 4 complete — архревью + 4 нарушения устранены (WaypointIdConverter в domain, TrackSettingsRepository интерфейс, ObserveGpsLocationUseCase, MeshtasticDisplayFormatter в presentation)
+- 2026-06-15: Phase 5 complete — скиллы обновлены (architect: HudStateMapper паттерн + VM-split таблица; tester: HudStateMapper как mapper-тест, шаблон ViewModel → EmergencyViewModel)
+- 2026-06-15: Phase 6 complete — документация создана, план архивирован, CLAUDE.md обновлён

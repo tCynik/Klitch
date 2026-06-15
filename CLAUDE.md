@@ -47,6 +47,7 @@
 | Кнопки масштаба на карте | ✅ Done |
 | Экран «Сеть» (BLE + телеметрия) | ✅ Done |
 | Настройки сети (конфиг ноды + location) | ✅ Done |
+| MainViewModel рефакторинг (5 VM + HudStateMapper) | ✅ Done |
 
 ---
 
@@ -145,6 +146,7 @@
 | Filter-at-Input (замена Slot Discovery) | `.claude/docs/position-channel-slot-discovery.md` |
 | GPS Position Staleness Pipeline | `.claude/docs/gps-position-staleness.md` |
 | Background Position Pipeline (BleBackgroundPolicy) | `.claude/docs/background-position-pipeline.md` |
+| Main Screen ViewModel Architecture | `.claude/docs/main-viewmodel-architecture.md` |
 
 ---
 
@@ -184,3 +186,4 @@
 | Packet Channel Attribution | `.claude/archive/packet-channel-attribution.md` | Archived |
 | Node GPS Position Source | `.claude/plans/node-gps-position-source.md` | Planned |
 | Contours Redesign (Primary + SOS + Isolation) | `.claude/archive/contours-redesign.md` | Done |
+| MainViewModel Split | `.claude/archive/mainviewmodel-split.md` | Done |
