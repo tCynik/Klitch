@@ -1,8 +1,9 @@
-﻿package ru.tcynik.klitch.presentation.feature.main
+package ru.tcynik.klitch.presentation.feature.main
 
-// Navigation callbacks for HUD right column buttons.
-// Provided by NavGraph (has navController access) via MainViewModel.provideNavCallbacks().
+// Navigation and action callbacks used by HUD state builders.
+// Provided by NavGraph (has navController + all VM access) via MainViewModel.provideNavCallbacks().
 data class HudNavCallbacks(
+    // Navigation
     val onRadioClick: () -> Unit = {},
     val onMeshClick: () -> Unit = {},
     val onChatClick: () -> Unit = {},
@@ -12,4 +13,12 @@ data class HudNavCallbacks(
     val onUserSettingsClick: () -> Unit = {},
     val onGeoMarksList: () -> Unit = {},
     val onExitApp: () -> Unit = {},
+    // VM actions wired into HUD buttons
+    val onToggleMenuDrawer: () -> Unit = {},
+    val onFollowMeToggle: () -> Unit = {},
+    val onCompassTap: () -> Unit = {},
+    val onToggleMarkTool: () -> Unit = {},
+    val onToggleGeoMarksSheet: () -> Unit = {},
+    val onToggleTrackRecordingSheet: () -> Unit = {},
+    val onSosClick: () -> Unit = {},
 )

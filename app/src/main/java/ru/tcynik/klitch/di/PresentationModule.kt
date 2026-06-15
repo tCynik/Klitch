@@ -1,11 +1,15 @@
-﻿package ru.tcynik.klitch.di
+package ru.tcynik.klitch.di
 
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 import ru.tcynik.klitch.presentation.feature.chat.ChatViewModel
 import ru.tcynik.klitch.presentation.feature.groups.GroupsViewModel
+import ru.tcynik.klitch.presentation.feature.main.ConnectionViewModel
+import ru.tcynik.klitch.presentation.feature.main.EmergencyViewModel
+import ru.tcynik.klitch.presentation.feature.main.GeoMarkViewModel
 import ru.tcynik.klitch.presentation.feature.main.MainViewModel
+import ru.tcynik.klitch.presentation.feature.main.TrackRecordingViewModel
 import ru.tcynik.klitch.presentation.feature.marks.GeoMarksListViewModel
 import ru.tcynik.klitch.presentation.feature.markers.MarkersViewModel
 import ru.tcynik.klitch.presentation.feature.network.NetworkSettingsViewModel
@@ -80,7 +84,8 @@ import ru.tcynik.klitch.domain.track.usecase.ToggleRecordedTrackVisibilityUseCas
 import ru.tcynik.klitch.domain.track.usecase.DeleteRecordedTracksUseCase
 import ru.tcynik.klitch.domain.track.usecase.UpdateTrackRecordingNameUseCase
 import ru.tcynik.klitch.domain.track.usecase.UpdateTrackRecordingColorUseCase
-import ru.tcynik.klitch.data.track.datasource.TrackSettingsDataSource
+import ru.tcynik.klitch.domain.gps.usecase.ObserveGpsLocationUseCase
+import ru.tcynik.klitch.domain.track.repository.TrackSettingsRepository
 import ru.tcynik.klitch.presentation.feature.settings.SettingsViewModel
 import ru.tcynik.klitch.presentation.feature.settings.UserSettingsViewModel
 
@@ -93,7 +98,6 @@ val presentationModule = module {
             getLastPosition = get(),
             saveLastPosition = get(),
             observeNodeMarkers = get(),
-            observeConnectionStatus = get(),
             observeGpsStatus = get(),
             getMarkerSizeLevel = get(),
             observeMarkerSizeLevel = get(),
@@ -101,31 +105,58 @@ val presentationModule = module {
             observeGeoMarkSizeLevel = get<ObserveGeoMarkSizeLevelUseCase>(),
             getShowGeoMarkNames = get<GetShowGeoMarkNamesUseCase>(),
             observeShowGeoMarkNames = get<ObserveShowGeoMarkNamesUseCase>(),
-            observeNetworkEnabled = get<ObserveNetworkEnabledUseCase>(),
             observeSelectedOverlays = get<ObserveSelectedOverlaysUseCase>(),
             observeTotalUnreadChatCount = get(),
+            ingestReceivedChatMessages = get<IngestReceivedChatMessagesUseCase>(),
+            observeRecordedTracks = get<ObserveRecordedTracksUseCase>(),
+            observeRecordedTrackPoints = get<ObserveRecordedTrackPointsUseCase>(),
+            observeTrackRecordingState = get<ObserveTrackRecordingStateUseCase>(),
+        )
+    }
+
+    viewModel {
+        EmergencyViewModel(
+            observeEmergencyMode = get<ObserveEmergencyModeUseCase>(),
+            triggerEmergency = get<TriggerEmergencyUseCase>(),
+            cancelEmergency = get<CancelEmergencyUseCase>(),
+            syncEmergencyMute = get<SyncEmergencyMuteUseCase>(),
+        )
+    }
+
+    viewModel {
+        ConnectionViewModel(
+            observeConnectionStatus = get(),
+            observeNetworkEnabled = get<ObserveNetworkEnabledUseCase>(),
             scanDevices = get<ScanMeshDevicesUseCase>(),
             connectToDevice = get<ConnectToMeshDeviceUseCase>(),
             getLastConnectedDevice = get<GetLastConnectedDeviceUseCase>(),
             nodeProvisioning = get<NodeProvisioningUseCase>(),
             checkNodeSync = get<CheckNodeSyncUseCase>(),
-            observeGeoMarks = get(),
-            toggleGeoMarkVisibility = get<ToggleGeoMarkVisibilityUseCase>(),
-            deleteGeoMarks = get(),
-            sendGeoMark = get(),
-            ingestReceivedGeoMarks = get<IngestReceivedGeoMarksUseCase>(),
-            autoExpireGeoMarks = get<AutoExpireGeoMarksUseCase>(),
-            ingestReceivedChatMessages = get<IngestReceivedChatMessagesUseCase>(),
-            syncEmergencyMute = get<SyncEmergencyMuteUseCase>(),
-            observeLogicalChannels = get<ObserveContoursUseCase>(),
             observeNodeChannels = get<ObserveNodeChannelsUseCase>(),
             syncStateRepository = get<ContourSyncStateRepository>(),
             rebootStateRepository = get<RebootStateRepository>(),
             observeCallsignChanges = get<ObserveCallsignChangesUseCase>(),
             refreshNodePublicKey = get<RefreshNodePublicKeyUseCase>(),
             observeAppUser = get<ObserveAppUserUseCase>(),
+        )
+    }
+
+    viewModel {
+        GeoMarkViewModel(
+            observeGeoMarks = get(),
+            ingestReceivedGeoMarks = get<IngestReceivedGeoMarksUseCase>(),
+            autoExpireGeoMarks = get<AutoExpireGeoMarksUseCase>(),
+            observeContours = get<ObserveContoursUseCase>(),
+            observeConnectionStatus = get(),
+            toggleGeoMarkVisibility = get<ToggleGeoMarkVisibilityUseCase>(),
+            deleteGeoMarks = get(),
+            sendGeoMark = get(),
             geoMarkPrefsRepository = get<GeoMarkPreferencesRepository>(),
-            observeTrackRecordingState = get<ObserveTrackRecordingStateUseCase>(),
+        )
+    }
+
+    viewModel {
+        TrackRecordingViewModel(
             startTrackRecording = get<StartTrackRecordingUseCase>(),
             pauseTrackRecording = get<PauseTrackRecordingUseCase>(),
             resumeTrackRecording = get<ResumeTrackRecordingUseCase>(),
@@ -133,13 +164,9 @@ val presentationModule = module {
             discardTrackRecording = get<DiscardTrackRecordingUseCase>(),
             updateTrackRecordingName = get<UpdateTrackRecordingNameUseCase>(),
             updateTrackRecordingColor = get<UpdateTrackRecordingColorUseCase>(),
-            trackSettingsDataSource = get<TrackSettingsDataSource>(),
-            gpsRepository = get(),
-            observeRecordedTracks = get<ObserveRecordedTracksUseCase>(),
-            observeRecordedTrackPoints = get<ObserveRecordedTrackPointsUseCase>(),
-            observeEmergencyMode = get<ObserveEmergencyModeUseCase>(),
-            cancelEmergency = get<CancelEmergencyUseCase>(),
-            triggerEmergency = get(),
+            trackSettingsRepository = get<TrackSettingsRepository>(),
+            observeGpsLocation = get<ObserveGpsLocationUseCase>(),
+            observeTrackRecordingState = get<ObserveTrackRecordingStateUseCase>(),
         )
     }
 

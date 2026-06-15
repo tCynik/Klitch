@@ -1,9 +1,11 @@
-﻿package ru.tcynik.klitch.navigation
+package ru.tcynik.klitch.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
@@ -16,10 +18,15 @@ import ru.tcynik.klitch.presentation.feature.chat.ChatScreen
 import ru.tcynik.klitch.presentation.feature.chat.ChatViewModel
 import ru.tcynik.klitch.presentation.feature.groups.GroupManagementScreen
 import ru.tcynik.klitch.presentation.feature.groups.GroupsViewModel
+import ru.tcynik.klitch.presentation.feature.main.ConnectionViewModel
+import ru.tcynik.klitch.presentation.feature.main.EmergencyViewModel
+import ru.tcynik.klitch.presentation.feature.main.GeoMarkViewModel
 import ru.tcynik.klitch.presentation.feature.main.HudNavCallbacks
 import ru.tcynik.klitch.presentation.feature.main.MainScreen
 import ru.tcynik.klitch.presentation.feature.main.MainViewModel
+import ru.tcynik.klitch.presentation.feature.main.TrackRecordingViewModel
 import ru.tcynik.klitch.domain.track.model.TrackRecordingState
+import ru.tcynik.klitch.presentation.feature.main.osd.HudStateMapper
 import ru.tcynik.klitch.presentation.feature.main.osd.TrackStopConfirmDialog
 import ru.tcynik.klitch.presentation.feature.marks.GeoMarksListScreen
 import ru.tcynik.klitch.presentation.feature.marks.GeoMarksListViewModel
@@ -44,18 +51,23 @@ import ru.tcynik.klitch.service.GpsService
 fun NavGraph() {
     val navController = rememberNavController()
     val context = LocalContext.current
-    val mainViewModel: MainViewModel = koinViewModel()
-    val trackState by mainViewModel.trackRecordingSheetUiState.collectAsState()
+    val mainVm: MainViewModel = koinViewModel()
+    val emergencyVm: EmergencyViewModel = koinViewModel()
+    val connectionVm: ConnectionViewModel = koinViewModel()
+    val geoMarkVm: GeoMarkViewModel = koinViewModel()
+    val trackVm: TrackRecordingViewModel = koinViewModel()
+
+    val trackSheetState by trackVm.trackRecordingSheetUiState.collectAsState()
 
     LaunchedEffect(Unit) {
-        mainViewModel.exitAppEvent.collect {
+        trackVm.exitAppEvent.collect {
             context.stopService(GpsService.createIntent(context))
             (context as? Activity)?.finishAndRemoveTask()
         }
     }
 
     LaunchedEffect(Unit) {
-        mainViewModel.trackNoMovementDiscardedEvent.collect {
+        trackVm.trackNoMovementDiscardedEvent.collect {
             android.widget.Toast.makeText(
                 context,
                 context.getString(ru.tcynik.klitch.R.string.track_no_movement_discarded),
@@ -64,15 +76,15 @@ fun NavGraph() {
         }
     }
 
-    val stopDialogRs = trackState.recordingState
-    if (trackState.showStopDialog && stopDialogRs is TrackRecordingState.Recording) {
+    val stopDialogRs = trackSheetState.recordingState
+    if (trackSheetState.showStopDialog && stopDialogRs is TrackRecordingState.Recording) {
         TrackStopConfirmDialog(
             initialName            = stopDialogRs.name,
-            trimToMovement         = trackState.trimToMovement,
-            onTrimToMovementChanged = trackState.onTrimToMovementChanged,
-            onSave                 = trackState.onStopDialogSave,
-            onDiscard              = trackState.onStopDialogDiscard,
-            onCancel               = trackState.onStopDialogCancel,
+            trimToMovement         = trackSheetState.trimToMovement,
+            onTrimToMovementChanged = trackSheetState.onTrimToMovementChanged,
+            onSave                 = trackSheetState.onStopDialogSave,
+            onDiscard              = trackSheetState.onStopDialogDiscard,
+            onCancel               = trackSheetState.onStopDialogCancel,
         )
     }
 
@@ -84,66 +96,99 @@ fun NavGraph() {
 
             // ── Primary destination ──────────────────────────────────────────
             composable<Route.Main> {
-                val uiState by mainViewModel.uiState.collectAsState()
-                val hudConfig by mainViewModel.hudConfig.collectAsState()
-                val hudUiState by mainViewModel.hudUiState.collectAsState()
-                val menuDrawerUiState by mainViewModel.menuDrawerUiState.collectAsState()
-                val geoMarksSheetUiState by mainViewModel.geoMarksSheetUiState.collectAsState()
-                val trackRecordingSheetUiState by mainViewModel.trackRecordingSheetUiState.collectAsState()
+                val mainState by mainVm.uiState.collectAsState()
+                val emergencyState by emergencyVm.uiState.collectAsState()
+                val connState by connectionVm.uiState.collectAsState()
+                val geoMarkState by geoMarkVm.uiState.collectAsState()
+                val geoMarksSheetUiState by geoMarkVm.geoMarksSheetUiState.collectAsState()
+                val trackRecordingSheetUiState = trackSheetState
                 val locationProvider: LocationProvider = koinInject()
                 val orientationProvider: DeviceOrientationProvider = koinInject()
 
-                // Provide navigation callbacks to ViewModel once navController is available.
-                // Unit key — callbacks are stable for the lifetime of this destination.
                 LaunchedEffect(Unit) {
-                    mainViewModel.onMainDestinationVisible()
-                    mainViewModel.provideNavCallbacks(
-                        HudNavCallbacks(
-                            onRadioClick           = { navController.navigate(Route.Network) },
-                            onMeshClick            = { navController.navigate(Route.Nodes) },
-                            onChatClick            = { navController.navigate(Route.Chat) },
-                            onMainSettingsClick    = { navController.navigate(Route.MainSettings) },
-                            onMapSettingsClick     = { navController.navigate(Route.MapSettings) },
-                            onDisplaySettingsClick = { navController.navigate(Route.DisplaySettings) },
-                            onUserSettingsClick    = { navController.navigate(Route.UserSettings) },
-                            onGeoMarksList         = { navController.navigate(Route.GeoMarksList) },
-                            onExitApp              = mainViewModel::requestExitApp,
-                        )
+                    geoMarkVm.onMainDestinationVisible()
+                }
+
+                val geoMarkSheetVisible = rememberUpdatedState(geoMarkState.isMarksSheetVisible)
+                val trackSheetVisible = rememberUpdatedState(trackRecordingSheetUiState.isVisible)
+
+                val navCallbacks = remember(navController) {
+                    HudNavCallbacks(
+                        onRadioClick           = { navController.navigate(Route.Network) },
+                        onMeshClick            = { navController.navigate(Route.Nodes) },
+                        onChatClick            = { navController.navigate(Route.Chat) },
+                        onMainSettingsClick    = { navController.navigate(Route.MainSettings) },
+                        onMapSettingsClick     = { navController.navigate(Route.MapSettings) },
+                        onDisplaySettingsClick = { navController.navigate(Route.DisplaySettings) },
+                        onUserSettingsClick    = { navController.navigate(Route.UserSettings) },
+                        onGeoMarksList         = { navController.navigate(Route.GeoMarksList) },
+                        onExitApp              = {
+                            mainVm.closeMenuDrawer()
+                            trackVm.requestExitIfSafe()
+                        },
+                        onToggleMenuDrawer     = mainVm::toggleMenuDrawer,
+                        onFollowMeToggle       = mainVm::onFollowMeToggle,
+                        onCompassTap           = mainVm::onCompassTap,
+                        onToggleMarkTool       = geoMarkVm::toggleMarkTool,
+                        onToggleGeoMarksSheet  = {
+                            if (!geoMarkSheetVisible.value) trackVm.closeTrackRecordingSheetVisibility()
+                            geoMarkVm.toggleGeoMarksSheet()
+                        },
+                        onToggleTrackRecordingSheet = {
+                            if (!trackSheetVisible.value) geoMarkVm.closeGeoMarksSheet()
+                            trackVm.toggleTrackRecordingSheet()
+                        },
+                        onSosClick = emergencyVm::onSosButtonClick,
                     )
                 }
 
+                val hudConfig = remember(mainState, connState, geoMarkState, navCallbacks) {
+                    HudStateMapper.buildHudConfig(mainState, connState, geoMarkState, navCallbacks)
+                }
+                val hudUiState = remember(mainState, connState, geoMarkState, trackSheetState.recordingState, navCallbacks) {
+                    HudStateMapper.buildHudUiState(mainState, connState, geoMarkState, trackSheetState.recordingState, navCallbacks)
+                }
+                val menuDrawerUiState = remember(mainState, emergencyState, navCallbacks) {
+                    HudStateMapper.buildMenuDrawerUiState(mainState, emergencyState.isSosActive, navCallbacks)
+                }
+
                 MainScreen(
-                    uiState = uiState,
+                    mainState = mainState,
+                    emergencyState = emergencyState,
+                    geoMarkUiState = geoMarkState,
                     hudConfig = hudConfig,
                     hudUiState = hudUiState,
-                    onCameraPositionChanged = mainViewModel::onCameraPositionChanged,
+                    onCameraPositionChanged = mainVm::onCameraPositionChanged,
                     locationProvider = locationProvider,
                     orientationProvider = orientationProvider,
-                    onMapClick = mainViewModel::onMapClick,
-                    onMapDoubleClick = mainViewModel::onMapDoubleClick,
-                    onMapLongClick = mainViewModel::onMapLongClick,
-                    contextMenuEvents = mainViewModel.contextMenuEvent,
-                    onHideGeoMark = mainViewModel::hideGeoMark,
-                    onDeleteGeoMark = mainViewModel::requestDeleteGeoMark,
-                    onConfirmDeleteGeoMark = mainViewModel::confirmDeleteGeoMark,
-                    onDismissDeleteGeoMarkConfirm = mainViewModel::dismissDeleteGeoMarkConfirm,
-                    onSosRestoredKeep = mainViewModel::onSosRestoredKeep,
-                    onSosRestoredDisable = mainViewModel::onSosRestoredDisable,
-                    onSosTriggerConfirm = mainViewModel::onTriggerSosConfirm,
-                    onSosCancelConfirm = mainViewModel::onCancelSosConfirm,
-                    onSosDismiss = mainViewModel::onDismissSosDialog,
-                    onSendGeoMark = mainViewModel::prepareGeoMarkForResend,
+                    onMapClick = { lat, lon, sx, sy ->
+                        val nodeNames = mainState.nodeMarkers.associate { it.nodeId to it.longName }
+                        geoMarkVm.onMapClick(lat, lon, sx, sy, nodeNames)
+                    },
+                    onMapDoubleClick = geoMarkVm::onMapDoubleClick,
+                    onMapLongClick = geoMarkVm::onMapLongClick,
+                    contextMenuEvents = geoMarkVm.contextMenuEvent,
+                    onHideGeoMark = geoMarkVm::hideGeoMark,
+                    onDeleteGeoMark = geoMarkVm::requestDeleteGeoMark,
+                    onConfirmDeleteGeoMark = geoMarkVm::confirmDeleteGeoMark,
+                    onDismissDeleteGeoMarkConfirm = geoMarkVm::dismissDeleteGeoMarkConfirm,
+                    onSosRestoredKeep = emergencyVm::onSosRestoredKeep,
+                    onSosRestoredDisable = emergencyVm::onSosRestoredDisable,
+                    onSosTriggerConfirm = emergencyVm::onTriggerSosConfirm,
+                    onSosCancelConfirm = emergencyVm::onCancelSosConfirm,
+                    onSosDismiss = emergencyVm::onDismissSosDialog,
+                    onSendGeoMark = geoMarkVm::prepareGeoMarkForResend,
                     menuDrawerUiState = menuDrawerUiState,
                     geoMarksSheetUiState = geoMarksSheetUiState,
                     trackRecordingSheetUiState = trackRecordingSheetUiState,
-                    onFollowMeDeactivated = mainViewModel::onFollowMeDeactivated,
-                    resetBearingEvents = mainViewModel.resetBearingEvent,
-                    restoreZoomEvents = mainViewModel.restoreZoomEvent,
-                    onMapBearingChanged = mainViewModel::onMapBearingChanged,
-                    onMapRotatedByUser = mainViewModel::onMapRotatedByUser,
-                    onCourseUpToggle = mainViewModel::onCourseUpToggle,
-                    onFollowMeRestoreZoom = mainViewModel::onFollowMeRestoreZoom,
-                    onClearGeoMarkSelection = mainViewModel::clearSelectedGeoMark,
+                    onFollowMeDeactivated = mainVm::onFollowMeDeactivated,
+                    resetBearingEvents = mainVm.resetBearingEvent,
+                    restoreZoomEvents = mainVm.restoreZoomEvent,
+                    onMapBearingChanged = mainVm::onMapBearingChanged,
+                    onMapRotatedByUser = mainVm::onMapRotatedByUser,
+                    onCourseUpToggle = mainVm::onCourseUpToggle,
+                    onFollowMeRestoreZoom = mainVm::onFollowMeRestoreZoom,
+                    onClearGeoMarkSelection = geoMarkVm::clearSelectedGeoMark,
                 )
             }
 
@@ -160,7 +205,10 @@ fun NavGraph() {
             composable<Route.MainSettings> {
                 MainSettingsScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onExitApp = mainViewModel::requestExitApp,
+                    onExitApp = {
+                        mainVm.closeMenuDrawer()
+                        trackVm.requestExitIfSafe()
+                    },
                 )
             }
 

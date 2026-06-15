@@ -7,6 +7,7 @@ import ru.tcynik.klitch.data.gps.GpsRepositoryImpl
 import ru.tcynik.klitch.data.gps.MeshLocationRepositoryAdapter
 import ru.tcynik.klitch.domain.gps.repository.GpsLifecycleController
 import ru.tcynik.klitch.domain.gps.repository.GpsRepository
+import ru.tcynik.klitch.domain.gps.usecase.ObserveGpsLocationUseCase
 import ru.tcynik.klitch.mesh.repository.LocationRepository
 
 val gpsModule = module {
@@ -18,4 +19,6 @@ val gpsModule = module {
     single<LocationRepository> {
         MeshLocationRepositoryAdapter(gpsRepository = get())
     }
+
+    single { ObserveGpsLocationUseCase(get()) }
 }

@@ -9,11 +9,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import ru.tcynik.klitch.domain.track.model.TrackRecordingPreset
 import ru.tcynik.klitch.domain.track.model.TrackRecordingSettings
+import ru.tcynik.klitch.domain.track.repository.TrackSettingsRepository
 
 class TrackSettingsDataSource(
     private val dataStore: DataStore<Preferences>,
-) {
-    fun observeSettings(): Flow<TrackRecordingSettings> =
+) : TrackSettingsRepository {
+    override fun observeSettings(): Flow<TrackRecordingSettings> =
         dataStore.data.map { prefs ->
             val preset = runCatching {
                 TrackRecordingPreset.valueOf(prefs[KEY_PRESET] ?: TrackRecordingPreset.WALKING.name)
@@ -28,7 +29,7 @@ class TrackSettingsDataSource(
             )
         }
 
-    suspend fun saveSettings(s: TrackRecordingSettings) {
+    override suspend fun saveSettings(s: TrackRecordingSettings) {
         dataStore.edit { prefs ->
             prefs[KEY_PRESET] = s.preset.name
             prefs[KEY_INTERVAL] = encodeInterval(s.intervalSeconds)
