@@ -4,7 +4,7 @@
 **Branch**: implementing_sos → contours_remake_may
 
 > Концепция контура Emergency, связь с Primary-механикой и SOS-режим как отдельный концепт
-> описаны в `.claude/docs/contours.md` (раздел "SOS-режим и Emergency как Primary").
+> описаны в `docs/features/contours.md` (раздел "SOS-режим и Emergency как Primary").
 > Этот документ: broadcast-логика, UI-компоненты, шаблоны сообщений.
 
 ## Summary

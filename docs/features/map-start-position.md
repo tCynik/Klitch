@@ -20,4 +20,4 @@ On launch the map opens at the last saved camera position (lat/lon/zoom). On fir
 - Default position hardcoded to Krasnoyarsk (56.0184, 92.8672) — TODO: replace with GPS first-fix on first launch
 
 ## Source
-Plan: `.claude/archive/map-start-position.md`
+Plan: `docs/archive/map-start-position.md`

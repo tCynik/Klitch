@@ -24,4 +24,4 @@ Displays the device GPS position as a bearing-aware navigation arrow on the map,
 - Track recording stub in `TrackRecordingRepository` — implementation is a separate plan
 
 ## Source
-Plans: `.claude/archive/gps-user-position-marker.md`, `.claude/archive/feature-user-location-arrow.md`, `.claude/archive/gps-background-service.md`
+Plans: `docs/archive/gps-user-position-marker.md`, `docs/archive/feature-user-location-arrow.md`, `docs/archive/gps-background-service.md`

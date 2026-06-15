@@ -486,8 +486,8 @@ After all tasks: run `/simplify` on changed files.
 ### Phase 6b — Project Docs & Memory Update
 
 - Add `| Запись трека | ✅ Done |` to CLAUDE.md status table
-- Create `.claude/docs/track-recording.md`; include a **"Calibration note"** section in *Known limitations / planned extensions*: preset default values (interval + min distance per preset) were chosen before device testing — after real-world testing these constants should be reviewed and can be adjusted directly in `TrackRecordingPreset` defaults or via a prompt.
-- Move plan to `.claude/archive/track-recording.md`; delete from `plans/`; verify with `ls .claude/plans/`
+- Create `docs/features/track-recording.md`; include a **"Calibration note"** section in *Known limitations / planned extensions*: preset default values (interval + min distance per preset) were chosen before device testing — after real-world testing these constants should be reviewed and can be adjusted directly in `TrackRecordingPreset` defaults or via a prompt.
+- Move plan to `docs/archive/track-recording.md`; delete from `docs/plans/`; verify with `ls docs/plans/`
 - Update `memory/project_state.md`
 - Token log: append to archived plan
 
@@ -511,7 +511,7 @@ Phase 3d: [direct coding — background reminder notification]
 Phase 4:  [direct coding — tests]
 Phase 5:  /architect review: domain/track/, data/track/, GpsService.kt, MainViewModel.kt
 Phase 6:  [skill updates: /architect, /ui-designer, /icon-designer, /planner]
-Phase 6b: [CLAUDE.md, .claude/docs/track-recording.md, archive plan, memory/]
+Phase 6b: [CLAUDE.md, docs/features/track-recording.md, archive plan, memory/]
 Phase 7:  [stage by name → propose commit → wait → git commit]
 ```
 

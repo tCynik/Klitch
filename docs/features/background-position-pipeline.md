@@ -51,10 +51,10 @@ GpsRepository (5 с)        BackgroundPositionSession (app-level singleton)
 
 ## Known limitations / planned extensions
 
-- **Node GPS mode** (Фаза 4): для нод со встроенным GPS (`gps_mode=ENABLED`) `BackgroundPositionSession` не должен запускать GPS телефона. Отдельный план: `.claude/plans/node-gps-position-source.md`.
+- **Node GPS mode** (Фаза 4): для нод со встроенным GPS (`gps_mode=ENABLED`) `BackgroundPositionSession` не должен запускать GPS телефона. Отдельный план: `docs/plans/node-gps-position-source.md`.
 - **`POSITION_FRESHNESS_SECONDS` (2 мин)** в `ObserveNodeMarkersUseCase` — при нормальном пайплайне не должен срабатывать. Потенциально можно увеличить до 5 мин после стабилизации.
 - **Два FGS** (`GpsService` + `MeshService`) → два notification. Объединение возможно, но не приоритетно.
 
 ## Source
 
-Plan: `.claude/archive/background-position-pipeline.md`
+Plan: `docs/archive/background-position-pipeline.md`

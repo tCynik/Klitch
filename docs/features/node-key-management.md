@@ -2,7 +2,7 @@
 
 **Статус**: ✅ Done  
 **Дата завершения**: 2026-05-15  
-**План**: `.claude/archive/node-key-management.md`
+**План**: `docs/archive/node-key-management.md`
 
 ---
 

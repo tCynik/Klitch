@@ -65,5 +65,5 @@ Still active for the landscape HUD (`HudControlsLayer`). Will be replaced when l
 
 ## Source
 
-Plan: `.claude/archive/hud-structure.md`  
-Refactor plan: `.claude/plans/hud-portrait-refactor.md`
+Plan: `docs/archive/hud-structure.md`  
+Refactor plan: `docs/plans/hud-portrait-refactor.md`

@@ -22,4 +22,4 @@
 - Settings live in `ConfigTab` (MeshTest debug screen), not in a proper NodeSettings screen — will migrate when NodeSettings is built
 
 ## Source
-Plan: `.claude/archive/fix-gps-sending-logic.md`
+Plan: `docs/archive/fix-gps-sending-logic.md`

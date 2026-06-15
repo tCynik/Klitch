@@ -20,4 +20,4 @@ Defines the Clean Architecture package tree, OSD layer composition (MapLibre + H
 - `meshtest` migration tracker: chat ☑, node_settings ☐, telemetry ☐, BLE ☐, packet log ☐
 
 ## Source
-Plan: `.claude/archive/app-structure.md`
+Plan: `docs/archive/app-structure.md`

@@ -1,6 +1,6 @@
 # Contour Management
 
-> **ARCHIVED** — содержимое перенесено в `.claude/docs/contours.md` (2026-05-29).
+> **ARCHIVED** — содержимое перенесено в `docs/features/contours.md` (2026-05-29).
 > Дизайн пересмотрен: Primary mechanic, Emergency не primary по умолчанию, Exclusive mode.
 > Актуальный дизайн — в `contours.md`.
 

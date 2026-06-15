@@ -1,8 +1,8 @@
 # Geo Marks List Screen
 
 **Date**: 2026-05-22 (актуализировано: контекстное меню, фильтры доставки, массовые действия)  
-**Plan archive**: `.claude/archive/geo-marks-list.md`  
-**Related**: `.claude/docs/geo-marks.md` (создание и отправка меток с карты)
+**Plan archive**: `docs/archive/geo-marks-list.md`  
+**Related**: `docs/features/geo-marks.md` (создание и отправка меток с карты)
 
 ---
 

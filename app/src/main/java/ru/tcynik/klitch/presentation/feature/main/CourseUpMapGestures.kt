@@ -21,7 +21,7 @@ private const val MAX_ZOOM = 20.0
  * Course-up overlay: single-finger vertical drag → zoom; short release under touch slop → map tap
  * (geo mark placement when [markToolActive]). Multi-touch is never classified as a tap.
  *
- * See `.claude/docs/map-orientation.md` — «Course-up + добавление геометок».
+ * See `docs/features/map-orientation.md` — «Course-up + добавление геометок».
  */
 fun Modifier.courseUpMapGestures(
     mapHeightPx: Float,

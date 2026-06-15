@@ -46,28 +46,30 @@ local.properties
 *.keystore
 keystore.properties
 .vscode/              ← сейчас исключён только API.txt
-.claude/archive/
-.claude/plans/
+docs/archive/
+docs/plans/
 ```
 
-### 0.3 — Аудит tracked-файлов `.claude/`
+### 0.3 — Аудит tracked-файлов `docs/`
 
-Текущее состояние: **97 файлов** в git, директория `.claude/plans/` — untracked (`??`).
+Документация перенесена из `.claude/` в `docs/` (в `.claude/` остались только `commands/` и `settings.json`).
 
-Tracked поддиректории:
+Tracked поддиректории `docs/`:
 ```
-.claude/archive/      ← внутренние планы разработки — исключить
-.claude/commands/     ← кастомные скиллы Claude Code — оставить (полезно контрибьюторам)
-.claude/docs/         ← документация фич — оставить
-.claude/knowledge/    ← база знаний Meshtastic — оставить
-.claude/specs/        ← product brief — оставить
+docs/archive/    ← внутренние планы разработки — исключить
+docs/plans/      ← активные планы — исключить
+docs/features/   ← документация фич — оставить (полезно контрибьюторам)
+docs/knowledge/  ← база знаний Meshtastic — оставить
+docs/specs/      ← product brief — оставить
+docs/research/   ← технические исследования — на усмотрение
+docs/debug/      ← история дебага — исключить
 ```
 
-Решение: убрать только `archive/` из tracking. `plans/` — ещё не tracked, добавить в `.gitignore`.
+Решение: убрать `archive/`, `plans/`, `debug/` из tracking.
 
 ```bash
-# Команда для удаления archive из tracking (не удаляет файлы локально)
-git rm -r --cached .claude/archive/
+# Команда для удаления из tracking (не удаляет файлы локально)
+git rm -r --cached docs/archive/ docs/plans/ docs/debug/
 ```
 
 ### 0.4 — Аудит лицензионных хедеров
@@ -108,9 +110,9 @@ grep -rn "C:\\Users\|/Users/" shared/src/ --include="*.xml"
 ### 0.7 — Зафиксировать решения перед выполнением
 
 По итогам фазы 0 подтвердить:
-- [ ] Исключать `.claude/archive/` из tracking? → **да**
-- [ ] Включать `.claude/plans/` в репо? → **нет, в .gitignore**
-- [ ] Оставлять `.claude/commands/`, `.claude/docs/`, `.claude/knowledge/`, `.claude/specs/`? → **да**
+- [ ] Исключать `docs/archive/`, `docs/plans/`, `docs/debug/` из tracking? → **да**
+- [ ] Оставлять `.claude/commands/`, `docs/features/`, `docs/knowledge/`, `docs/specs/`? → **да**
+- [ ] Включать `docs/research/` в репо? → **решить**
 
 ---
 
@@ -240,19 +242,20 @@ keystore.properties
 # IDE
 .vscode/
 
-# Claude Code internal
-.claude/archive/
-.claude/plans/
+# Internal dev artifacts
+docs/archive/
+docs/plans/
+docs/debug/
 ```
 
 ### 3.2 — Решить судьбу `.claude/` в git (97 tracked файлов)
 
 Варианты:
-- **Убрать всё**: `git rm -r --cached .claude/` + добавить `.claude/` в `.gitignore`
-- **Оставить `docs/` и `knowledge/`**: убрать только `archive/` и `plans/`
+- **Убрать всё**: `git rm -r --cached docs/archive/ docs/plans/ docs/debug/` + добавить в `.gitignore`
+- **Оставить только features/ и knowledge/**: убрать `archive/`, `plans/`, `debug/`, `research/`
 
-Рекомендация: убрать `archive/` и `plans/` — внутренние артефакты разработки.
-`docs/` и `knowledge/` — полезная документация для контрибьюторов, можно оставить.
+Рекомендация: убрать `archive/`, `plans/`, `debug/` — внутренние артефакты разработки.
+`docs/features/` и `docs/knowledge/` — полезная документация для контрибьюторов, оставить.
 
 ### 3.3 — Проверить `shared`-модуль
 
@@ -311,11 +314,11 @@ cd /tmp/meshtactics-test
 |---|---|---|
 | `LICENSE` файл | 🔴 Критично | 5 мин |
 | `app/build.gradle.kts` — signing config | 🔴 Критично | 20 мин |
-| `.gitignore` — ключи и `.claude/plans` | 🔴 Критично | 10 мин |
+| `.gitignore` — ключи и `docs/plans`, `docs/archive`, `docs/debug` | 🔴 Критично | 10 мин |
 | GPL-хедеры `.proto` + `.aidl` | 🔴 Критично | 1-2 ч |
 | `NOTICE` файл | 🟡 Важно | 15 мин |
 | `keystore.properties.example` | 🟡 Важно | 5 мин |
-| Решить судьбу `.claude/` в git | 🟡 Важно | 30 мин |
+| Решить судьбу `docs/` в git (archive/plans/debug) | 🟡 Важно | 30 мин |
 | `README.md` | 🟡 Важно | 1-2 ч |
 | Проверка `shared`-модуля | 🟢 Низко | 15 мин |
 | Регистрация Meshtastic third-party | 🟢 После публикации | 20 мин |

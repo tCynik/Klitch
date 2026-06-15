@@ -21,4 +21,4 @@ BLE scanning starts automatically on launch (after permissions). If the last use
 - Device selection UI (for "other nodes found" case) is in MeshTest Connection tab — dedicated radio/connection screen is planned
 
 ## Source
-Plan: `.claude/archive/auto-connect-on-start.md`
+Plan: `docs/archive/auto-connect-on-start.md`

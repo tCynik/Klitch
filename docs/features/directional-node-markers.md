@@ -22,4 +22,4 @@ Online mesh nodes are rendered as diamond markers on the map — stationary node
 - Online/offline visual distinction is implemented; signal strength colour-coding is deferred
 
 ## Source
-Plan: `.claude/archive/directional_nodes_marks.md`
+Plan: `docs/archive/directional_nodes_marks.md`

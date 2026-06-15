@@ -18,4 +18,4 @@ Removes the landscape orientation lock. Portrait rotation is supported with a te
 - May need separate `HudConfig` instances for landscape/portrait if button sets diverge
 
 ## Source
-Plan: `.claude/archive/universal-orientation.md`
+Plan: `docs/archive/universal-orientation.md`

@@ -1,8 +1,8 @@
 # Geo Marks — Points and Tracks
 
 **Date**: 2026-05-25 (track distance, optional name counter, map context menu, send queue)
-**Plan archives**: `.claude/archive/geo-marks-plan.md`, `.claude/archive/geo-marks-sheet.md`, `.claude/archive/geo-marks-display-settings.md`
-**Related**: `.claude/docs/geo-marks-list.md` (полноэкранный список, фильтры, массовые действия)
+**Plan archives**: `docs/archive/geo-marks-plan.md`, `docs/archive/geo-marks-sheet.md`, `docs/archive/geo-marks-display-settings.md`
+**Related**: `docs/features/geo-marks-list.md` (полноэкранный список, фильтры, массовые действия)
 
 ---
 
@@ -397,7 +397,7 @@ Non-modal bottom sheet. `AnimatedVisibility(slideInVertically + fadeIn)` at `Ali
 
 ### Map gestures (mark tool)
 
-Полная спецификация course-up (Y-zoom, без long-tap): `.claude/docs/map-orientation.md` → **Course-up + добавление геометок**.
+Полная спецификация course-up (Y-zoom, без long-tap): `docs/features/map-orientation.md` → **Course-up + добавление геометок**.
 
 #### Общий слой: `MarkToolTapDispatcher`
 
@@ -483,7 +483,7 @@ Long-tap на черновой вершине в 30 m (non–course-up) → `Dro
 
 Single-tap в 30 m от любой вершины видимой метки → `GeoMarkMapContextMenu` (`Popup`):
 
-- **Заголовок**: иконка типа, `{name} от {author}`, справа `GeoMarkCreatedAtFormatter` по `mark.createdAt` (формат как в списке — см. `.claude/docs/geo-marks-list.md`)
+- **Заголовок**: иконка типа, `{name} от {author}`, справа `GeoMarkCreatedAtFormatter` по `mark.createdAt` (формат как в списке — см. `docs/features/geo-marks-list.md`)
 - **Скрыть** → `hideGeoMark` (`ToggleGeoMarkVisibilityUseCase`, `is_visible = 0`)
 - **Удалить** → `deleteGeoMark` (`DeleteGeoMarksUseCase`)
 - **Отправить** → `prepareGeoMarkForResend` (открывает шторку, подставляет поля метки для повторной отправки)

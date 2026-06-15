@@ -21,4 +21,4 @@ Lets the user import KMZ/KML overlay files from device storage via Android SAF. 
 - No "show again" (re-import hidden items)
 
 ## Source
-Plan: `.claude/archive/kmz-kml-import.md`
+Plan: `docs/archive/kmz-kml-import.md`

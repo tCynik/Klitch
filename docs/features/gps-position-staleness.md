@@ -120,5 +120,5 @@ androidLocation.time (epoch ms)
 
 ## Source
 
-Debug: `.claude/debug/gps-position-staleness.md`
-Plan: `.claude/archive/app-driven-position-broadcasting.md`
+Debug: `docs/debug/gps-position-staleness.md`
+Plan: `docs/archive/app-driven-position-broadcasting.md`

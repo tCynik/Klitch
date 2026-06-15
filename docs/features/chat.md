@@ -2,7 +2,7 @@
 
 **Статус**: ✅ Done  
 **Дата завершения**: 2026-04-23  
-**План**: `.claude/plans/chat-feature-plan.md`
+**План**: `docs/plans/chat-feature-plan.md`
 
 ---
 

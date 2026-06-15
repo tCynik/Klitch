@@ -4,10 +4,10 @@
 **Status**: Revised design (Primary mechanic + Exclusive mode + isolation guarantees)
 
 Единый источник знаний по фиче Контур. Заменяет:
-- `.claude/docs/contour-design.md` (archived)
-- `.claude/docs/logical-channels-management.md` (archived)
+- `docs/features/contour-design.md` (archived)
+- `docs/features/logical-channels-management.md` (archived)
 
-Смежный документ: `.claude/docs/emergency-sos.md` (broadcast, UI, сообщения)
+Смежный документ: `docs/features/emergency-sos.md` (broadcast, UI, сообщения)
 
 ---
 
@@ -188,7 +188,7 @@ data class MeshNodeModel(
 ```
 
 Источник: `Node.positionChannel` → `NodeMapper`. Персистируется в Room DB (колонка `position_channel`).
-Подробности реализации, жизненный цикл, обнаружение слота при подключении: `.claude/docs/position-channel-slot-discovery.md`.
+Подробности реализации, жизненный цикл, обнаружение слота при подключении: `docs/features/position-channel-slot-discovery.md`.
 
 ### Repository interface
 
@@ -237,7 +237,7 @@ interface ContourRepository {
   - `observeAllowed() = flowOf(true)` — гео всегда разрешено; канал = slot 0 (Primary)
   - Удалить: `observeAllowed() = observeSosMode().map { !it }` (инвертированная логика — баг)
 - `NodeMapper`:
-  - `receivedOnSlot = positionChannel` — реализовано; подробности в `.claude/docs/position-channel-slot-discovery.md`
+  - `receivedOnSlot = positionChannel` — реализовано; подробности в `docs/features/position-channel-slot-discovery.md`
 - `ChannelSlotResolverImpl`: без изменений
 
 ---
@@ -275,7 +275,7 @@ writeChannel(0, newPrimary.name, newPrimary.pskBase64)
 
 **Единая точка резолва:** `ResolveContourFromSlotUseCase` — единственное место с правилами `slot → ContourResolution`.
 
-Подробный operational guide: `.claude/docs/packet-channel-attribution.md`
+Подробный operational guide: `docs/features/packet-channel-attribution.md`
 
 ```
 incoming packet.channel (Int)

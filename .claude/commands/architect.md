@@ -96,7 +96,7 @@ See `shared/src/commonMain/sqldelight/.../data/local/Node.sq:1`
 | `AndroidMeshLocationManager` | Smart-send: gate 30 s, heartbeat 180 s, фильтр distance > accuracy; лог `MT/SmartPos` |
 | `ObserveNodeMarkersUseCase` | Stale detection: `POSITION_FRESHNESS_SECONDS` (300 s) > `STATIONARY_INTERVAL_MS/1000` (180 s) |
 
-Документация: `.claude/docs/gps-position-staleness.md`
+Документация: `docs/features/gps-position-staleness.md`
 
 ---
 

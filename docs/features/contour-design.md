@@ -1,6 +1,6 @@
 # Contour — Design Concepts
 
-> **ARCHIVED** — содержимое перенесено в `.claude/docs/contours.md` (2026-05-29).
+> **ARCHIVED** — содержимое перенесено в `docs/features/contours.md` (2026-05-29).
 > Этот файл оставлен для истории решений. Актуальный дизайн — в `contours.md`.
 
 **Date**: 2026-04-25

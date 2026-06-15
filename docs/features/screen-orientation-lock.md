@@ -1,7 +1,7 @@
 # Screen Orientation Lock
 
 **Date**: 2026-05-26
-**Plan archive**: `.claude/archive/screen-orientation-lock.md`
+**Plan archive**: `docs/archive/screen-orientation-lock.md`
 
 ---
 

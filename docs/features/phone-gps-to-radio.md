@@ -28,10 +28,10 @@
 
 ## Known limitations / planned extensions
 
-- **Node GPS mode**: при `gps_mode=ENABLED` телефон не должен слать `sendPosition` — нода автономна. Отдельный план: `.claude/plans/node-gps-position-source.md`.
+- **Node GPS mode**: при `gps_mode=ENABLED` телефон не должен слать `sendPosition` — нода автономна. Отдельный план: `docs/plans/node-gps-position-source.md`.
 - `gps_mode=DISABLED` vs `NOT_PRESENT` — при `NOT_PRESENT` нода не имеет GPS-чипа; нужна позиция от телефона. При `DISABLED` — нода имеет чип, но он отключён.
 
 ## Source
 
-Plan: `.claude/archive/phone-gps-to-radio.md`
-See also: `.claude/docs/background-position-pipeline.md`
+Plan: `docs/archive/phone-gps-to-radio.md`
+See also: `docs/features/background-position-pipeline.md`

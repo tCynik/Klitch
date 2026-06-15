@@ -1,5 +1,5 @@
 # Debug History: GPS Position Staleness
-Ref: [.claude/docs/gps-position-staleness.md](.claude/docs/gps-position-staleness.md)
+Ref: [docs/features/gps-position-staleness.md](docs/features/gps-position-staleness.md)
 
 ---
 

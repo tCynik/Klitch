@@ -8,9 +8,9 @@
 Расширение `BackgroundPositionSession` для работы с нодами, имеющими встроенный GPS-чип (T-Beam, T-Deck, RAK с GPS и т.п.). Сейчас сессия всегда работает в режиме «Phone GPS»: телефон — единственный источник координат, непрерывно шлёт `sendPosition` через BLE. Для нод со встроенным GPS это избыточно и может конфликтовать с firmware GPS.
 
 Связанные документы:
-- `.claude/docs/background-position-pipeline.md` — описание реализованного пайплайна (Фазы 1–3)
-- `.claude/docs/phone-gps-to-radio.md`
-- `.claude/plans/background-position-pipeline.md` → `.claude/archive/background-position-pipeline.md`
+- `docs/features/background-position-pipeline.md` — описание реализованного пайплайна (Фазы 1–3)
+- `docs/features/phone-gps-to-radio.md`
+- `docs/plans/background-position-pipeline.md` → `docs/archive/background-position-pipeline.md`
 
 ---
 

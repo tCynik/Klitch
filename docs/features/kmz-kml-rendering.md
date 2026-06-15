@@ -24,4 +24,4 @@ Renders selected KMZ/KML overlays on the MapLibre map — vector geometry (Place
 - Already-imported files are not retroactively reparsed when the schema changes
 
 ## Source
-Plan: `.claude/archive/kmz-kml-rendering.md`
+Plan: `docs/archive/kmz-kml-rendering.md`

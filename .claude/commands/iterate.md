@@ -4,7 +4,7 @@ You are the iteration and debugging skill for the MeshTactics project. Your job 
 
 **Language rules:**
 - Chat output — match the language of the request.
-- Plan and doc files (`.claude/plans/`, `.claude/docs/`) — always in English.
+- Plan and doc files (`docs/plans/`, `docs/features/`) — always in English.
 
 ---
 
@@ -25,10 +25,10 @@ Before doing anything else, run these steps in order:
 
 1. **Identify the feature slug** from `$ARGUMENTS` (e.g. `node-autoconnect`, `kmz-kml-import`)
 2. **Load context** — read in this order, stop when you have enough to proceed:
-   - `.claude/docs/<feature-slug>.md` — living feature doc (primary source)
-   - `.claude/plans/<feature-slug>.md` — active plan if still in `plans/` (feature in progress)
-   - `.claude/archive/<feature-slug>.md` — archived plan if feature is Done
-3. **Check debug history** — look for `.claude/debug/<feature-slug>.md`; if it exists, run `/debug-log show: <feature-slug>` and surface recurring patterns before proceeding (bug: mode only — skip in extend: and review:)
+   - `docs/features/<feature-slug>.md` — living feature doc (primary source)
+   - `docs/plans/<feature-slug>.md` — active plan if still in `plans/` (feature in progress)
+   - `docs/archive/<feature-slug>.md` — archived plan if feature is Done
+3. **Check debug history** — look for `docs/debug/<feature-slug>.md`; if it exists, run `/debug-log show: <feature-slug>` and surface recurring patterns before proceeding (bug: mode only — skip in extend: and review:)
 4. **Scan changed files** — run `git log --oneline -10 -- <relevant paths>` to understand recent activity
 5. **Read the symptom or request** — restate it in one sentence to confirm understanding
 
@@ -73,7 +73,7 @@ State how to verify the fix:
 
 ### Step 5. Doc Update
 
-Update `.claude/docs/<feature-slug>.md`:
+Update `docs/features/<feature-slug>.md`:
 - If the bug revealed a non-obvious constraint — add it to **Non-obvious decisions**
 - If the fix introduces a known limitation — add it to **Known limitations**
 - If the fix changes key classes — update **Key classes**
@@ -109,7 +109,7 @@ Flat ordered list of steps. Each step:
 
 ### Step 4. Doc Update
 
-Update `.claude/docs/<feature-slug>.md` to reflect the extension:
+Update `docs/features/<feature-slug>.md` to reflect the extension:
 - **What it does** — if user-facing behaviour changed
 - **Key classes** — if new classes were added
 - **Non-obvious decisions** — if the extension introduced a non-obvious choice
@@ -156,7 +156,7 @@ After the fix or extension is complete:
 4. **Wait for explicit confirmation** before committing
 5. **After commit**: confirm clean `git status`
 6. **Offer debug log save** — if this was a non-trivial debug session (more than one hypothesis tried, or a subtle root cause found): suggest `"/debug-log save: <slug>"` to capture the history; skip if the fix was trivial
-7. **Plan archiving** — if a plan file exists at `.claude/plans/<feature-slug>.md` and the feature is now fully done: move it to `.claude/archive/<feature-slug>.md` and delete the original; update the plan status table in **CLAUDE.md** to `Done`
+7. **Plan archiving** — if a plan file exists at `docs/plans/<feature-slug>.md` and the feature is now fully done: move it to `docs/archive/<feature-slug>.md` and delete the original from `docs/plans/`; update the plan status table in **CLAUDE.md** to `Done`
 
 **Rule**: never commit without explicit user confirmation.
 **Rule**: commit messages in Russian, no `Co-Authored-By` line.
