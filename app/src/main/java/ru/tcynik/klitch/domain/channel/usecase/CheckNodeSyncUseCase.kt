@@ -37,75 +37,73 @@ class CheckNodeSyncUseCase(
         val primaryContour = contours.find { it.id == primaryId }
             ?: contours.firstOrNull { !it.isEmergency }
 
-        logger.d("Contour", "check: localContours=${contours.size} nodeChannels=${nodeChannels.size} primary=${primaryContour?.name}")
-
-        if (observeEmergencyMode().first()) {
-            logger.d("Contour", "InSync: SOS active — skipping sync check")
-            return NodeSyncResult.InSync
-        }
+        val sosActive = observeEmergencyMode().first()
+        logger.d("Contour", "check: localContours=${contours.size} nodeChannels=${nodeChannels.size} primary=${primaryContour?.name} sosActive=$sosActive")
 
         if (nodeChannels.isEmpty()) {
             logger.d("Contour", "InSync: channel data not yet available — skipping check")
             return NodeSyncResult.InSync
         }
 
-        val slot0 = nodeChannels.firstOrNull { it.index == 0 }
-        if (slot0 == null) {
-            logger.w("Contour", "NeedsSync: slot 0 missing on node")
-            return NodeSyncResult.NeedsSync
-        }
-
-        if (primaryContour != null) {
-            val expectedSlot0Hash = if (primaryContour.isEmergency) {
-                DefaultContour.CHANNEL_HASH
-            } else {
-                primaryContour.transport.meshtastic.channelHash
-            }
-            val expectedSlot0Name = meshtasticChannelName(primaryContour)
-            val slot0Hash = ContourHash.compute(slot0.name, slot0.psk)
-            if (slot0.name != expectedSlot0Name || slot0Hash != expectedSlot0Hash) {
-                val pskHex = slot0.psk.joinToString("") { "%02x".format(it) }
-                logger.w("Contour", "NeedsSync: slot0 mismatch — got name='${slot0.name}' hash=$slot0Hash expected name='$expectedSlot0Name' hash=$expectedSlot0Hash psk=$pskHex")
+        if (!sosActive) {
+            val slot0 = nodeChannels.firstOrNull { it.index == 0 }
+            if (slot0 == null) {
+                logger.w("Contour", "NeedsSync: slot 0 missing on node")
                 return NodeSyncResult.NeedsSync
             }
 
-            if (!primaryContour.isEmergency) {
-                val slot1 = nodeChannels.firstOrNull { it.index == 1 }
-                val slot1Hash = slot1?.let { ContourHash.compute(it.name, it.psk) }
-                if (slot1?.name != DefaultContour.CHANNEL_NAME ||
-                    slot1Hash != DefaultContour.CHANNEL_HASH ||
-                    slot1.positionPrecision != ChannelPositionPrecision.DISABLED
-                ) {
-                    logger.w(
-                        "Contour",
-                        "NeedsSync: slot1 emergency mismatch — got name='${slot1?.name}' hash=$slot1Hash precision=${slot1?.positionPrecision} " +
-                            "expected name='${DefaultContour.CHANNEL_NAME}' hash=${DefaultContour.CHANNEL_HASH} precision=${ChannelPositionPrecision.DISABLED}",
-                    )
+            if (primaryContour != null) {
+                val expectedSlot0Hash = if (primaryContour.isEmergency) {
+                    DefaultContour.CHANNEL_HASH
+                } else {
+                    primaryContour.transport.meshtastic.channelHash
+                }
+                val expectedSlot0Name = meshtasticChannelName(primaryContour)
+                val slot0Hash = ContourHash.compute(slot0.name, slot0.psk)
+                if (slot0.name != expectedSlot0Name || slot0Hash != expectedSlot0Hash) {
+                    val pskHex = slot0.psk.joinToString("") { "%02x".format(it) }
+                    logger.w("Contour", "NeedsSync: slot0 mismatch — got name='${slot0.name}' hash=$slot0Hash expected name='$expectedSlot0Name' hash=$expectedSlot0Hash psk=$pskHex")
                     return NodeSyncResult.NeedsSync
                 }
-            }
-        }
 
-        val activeNonPrimaryNonEmergency = contours.filter { it.isActive && !it.isEmergency && it.id != primaryId }
-        logger.d("Contour", "active non-primary non-emergency to check: ${activeNonPrimaryNonEmergency.map { it.name }}")
-
-        for (contour in activeNonPrimaryNonEmergency) {
-            val hash = contour.transport.meshtastic.channelHash
-            val expectedName = meshtasticChannelName(contour)
-            val matched = nodeChannels.any { slot ->
-                slot.index > 1 && slot.isEnabled && slot.positionPrecision > 0 &&
-                    slot.name == expectedName &&
-                    ContourHash.compute(slot.name, slot.psk) == hash
-            }
-            if (!matched) {
-                logger.w("Contour", "NeedsSync: contour '${contour.name}' hash=$hash psk='${contour.transport.meshtastic.psk}' not found on node")
-                logger.w("Contour", "  nodeChannels(${nodeChannels.size}):")
-                nodeChannels.forEach { slot ->
-                    val slotHash = ContourHash.compute(slot.name, slot.psk)
-                    val pskHex = slot.psk.joinToString("") { "%02x".format(it) }
-                    logger.w("Contour", "    [${slot.index}] name='${slot.name}' enabled=${slot.isEnabled} hash=$slotHash psk=$pskHex")
+                if (!primaryContour.isEmergency) {
+                    val slot1 = nodeChannels.firstOrNull { it.index == 1 }
+                    val slot1Hash = slot1?.let { ContourHash.compute(it.name, it.psk) }
+                    if (slot1?.name != DefaultContour.CHANNEL_NAME ||
+                        slot1Hash != DefaultContour.CHANNEL_HASH ||
+                        slot1.positionPrecision != ChannelPositionPrecision.DISABLED
+                    ) {
+                        logger.w(
+                            "Contour",
+                            "NeedsSync: slot1 emergency mismatch — got name='${slot1?.name}' hash=$slot1Hash precision=${slot1?.positionPrecision} " +
+                                "expected name='${DefaultContour.CHANNEL_NAME}' hash=${DefaultContour.CHANNEL_HASH} precision=${ChannelPositionPrecision.DISABLED}",
+                        )
+                        return NodeSyncResult.NeedsSync
+                    }
                 }
-                return NodeSyncResult.NeedsSync
+            }
+
+            val activeNonPrimaryNonEmergency = contours.filter { it.isActive && !it.isEmergency && it.id != primaryId }
+            logger.d("Contour", "active non-primary non-emergency to check: ${activeNonPrimaryNonEmergency.map { it.name }}")
+
+            for (contour in activeNonPrimaryNonEmergency) {
+                val hash = contour.transport.meshtastic.channelHash
+                val expectedName = meshtasticChannelName(contour)
+                val matched = nodeChannels.any { slot ->
+                    slot.index > 1 && slot.isEnabled && slot.positionPrecision > 0 &&
+                        slot.name == expectedName &&
+                        ContourHash.compute(slot.name, slot.psk) == hash
+                }
+                if (!matched) {
+                    logger.w("Contour", "NeedsSync: contour '${contour.name}' hash=$hash psk='${contour.transport.meshtastic.psk}' not found on node")
+                    logger.w("Contour", "  nodeChannels(${nodeChannels.size}):")
+                    nodeChannels.forEach { slot ->
+                        val slotHash = ContourHash.compute(slot.name, slot.psk)
+                        val pskHex = slot.psk.joinToString("") { "%02x".format(it) }
+                        logger.w("Contour", "    [${slot.index}] name='${slot.name}' enabled=${slot.isEnabled} hash=$slotHash psk=$pskHex")
+                    }
+                    return NodeSyncResult.NeedsSync
+                }
             }
         }
 
@@ -120,7 +118,6 @@ class CheckNodeSyncUseCase(
             }
         }
 
-        val sosActive = observeEmergencyMode().first()
         val broadcastEnabled = observeGpsBroadcastEnabled().first()
         val desiredBroadcastEnabled = !sosActive && broadcastEnabled
         val desiredSecs = if (desiredBroadcastEnabled) BROADCAST_READY_SECS else BROADCAST_DISABLED_SECS
