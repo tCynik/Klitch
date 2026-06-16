@@ -81,47 +81,54 @@ class ReconnectAfterNodeRebootUseCase(
 
         trace.step("phase_waiting_for_node", disconnectResult.describe())
 
+        try {
 
+            val connected = reconnectViaBleScan(
 
-        val connected = reconnectViaBleScan(
+                ReconnectViaBleScanParams(
 
-            ReconnectViaBleScanParams(
+                    logTag = "syncReconnect",
 
-                logTag = "syncReconnect",
+                    onStep = { name, details -> trace.step(name, details) },
 
-                onStep = { name, details -> trace.step(name, details) },
+                ),
 
-            ),
+            )
 
-        )
+            if (connected) {
 
-        if (connected) {
+                trace.step("connected", "via_ble_scan")
 
-            trace.step("connected", "via_ble_scan")
+                val syncVerified = if (rebootStateRepository.shouldSkipSyncCheckAfterReboot()) {
 
-            val syncVerified = if (rebootStateRepository.shouldSkipSyncCheckAfterReboot()) {
+                    verifySyncAfterReconnect(trace)
 
-                verifySyncAfterReconnect(trace)
+                } else {
 
-            } else {
+                    true
 
-                true
+                }
+
+                trace.step("finish", "syncVerified=$syncVerified totalMs=${trace.elapsedMs()}")
+
+                finishRebootCycle(syncVerified = syncVerified, trace)
+
+                return
 
             }
 
-            trace.step("finish", "syncVerified=$syncVerified totalMs=${trace.elapsedMs()}")
 
-            finishRebootCycle(syncVerified = syncVerified, trace)
 
-            return
+            trace.step("finish", "syncVerified=false reason=attempts_exhausted totalMs=${trace.elapsedMs()}")
+
+            finishRebootCycle(syncVerified = false, trace)
+
+        } finally {
+
+            // Coroutine cancellation (e.g. ViewModel scope destroyed) must not leave phase stuck
+            rebootStateRepository.setSyncCyclePhase(NodeSyncCyclePhase.Idle)
 
         }
-
-
-
-        trace.step("finish", "syncVerified=false reason=attempts_exhausted totalMs=${trace.elapsedMs()}")
-
-        finishRebootCycle(syncVerified = false, trace)
 
     }
 

@@ -363,16 +363,20 @@ class UserSettingsViewModel(
                 observeDeviceConfig(NoParams).first { it != null }
             }?.shortName ?: ""
             logger.i("Node", "onSaveAndReboot: writing owner='$name' + PKC regen — firmware reboot expected")
-            rebootStateRepository.setSyncCyclePhase(NodeSyncCyclePhase.Syncing)
-            writeOwner(_uiState.value.displayName, shortName)
-            regeneratePkcKeys()
-            saveAppUser(AppUser(displayName = _uiState.value.displayName))
-            _uiState.update { it.copy(hasUnsavedUserChanges = false) }
-            rebootStateRepository.markSyncAppliedBeforeReboot()
-            rebootStateRepository.setSyncCyclePhase(NodeSyncCyclePhase.Rebooting)
-            rebootNode()
-            reconnectAfterNodeReboot(NoParams)
-            _navigateBack.tryEmit(Unit)
+            try {
+                rebootStateRepository.setSyncCyclePhase(NodeSyncCyclePhase.Syncing)
+                writeOwner(_uiState.value.displayName, shortName)
+                regeneratePkcKeys()
+                saveAppUser(AppUser(displayName = _uiState.value.displayName))
+                _uiState.update { it.copy(hasUnsavedUserChanges = false) }
+                rebootStateRepository.markSyncAppliedBeforeReboot()
+                rebootStateRepository.setSyncCyclePhase(NodeSyncCyclePhase.Rebooting)
+                rebootNode()
+                reconnectAfterNodeReboot(NoParams)
+                _navigateBack.tryEmit(Unit)
+            } finally {
+                rebootStateRepository.setSyncCyclePhase(NodeSyncCyclePhase.Idle)
+            }
         }
     }
 
