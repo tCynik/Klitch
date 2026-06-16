@@ -1,4 +1,6 @@
-﻿package ru.tcynik.klitch.mesh.repository
+﻿// Copyright (c) 2025 tCynik — modifications under GPL-3.0
+
+package ru.tcynik.klitch.mesh.repository
 
 import kotlinx.coroutines.flow.Flow
 
