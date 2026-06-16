@@ -74,43 +74,50 @@ class ConfirmChannelSyncUseCase(
 
         rebootStateRepository.setSyncCyclePhase(NodeSyncCyclePhase.Syncing)
 
+        try {
 
+            when (val syncResult = runSyncWithReconnectRetry()) {
 
-        when (val syncResult = runSyncWithReconnectRetry()) {
+                SyncContoursResult.NothingToWrite -> {
 
-            SyncContoursResult.NothingToWrite -> {
+                    logger.i("Node", "syncConfirm: nothing to write")
 
-                logger.i("Node", "syncConfirm: nothing to write")
+                    rebootStateRepository.setSyncCyclePhase(NodeSyncCyclePhase.Idle)
 
-                rebootStateRepository.setSyncCyclePhase(NodeSyncCyclePhase.Idle)
+                }
+
+                SyncContoursResult.Success -> {
+
+                    rebootStateRepository.markSyncAppliedBeforeReboot()
+
+                    rebootStateRepository.setSyncCyclePhase(NodeSyncCyclePhase.Rebooting)
+
+                    rebootNode()
+
+                    logger.i("Node", "syncConfirm: reboot_sent -> reconnect")
+
+                    syncStateRepository.clear()
+
+                    reconnectAfterNodeReboot(NoParams)
+
+                }
+
+                SyncContoursResult.FailedNoSession -> {
+
+                    logger.e("Node", "syncConfirm: sync failed — channels not written")
+
+                    syncStateRepository.setSyncRequired(true)
+
+                    rebootStateRepository.setSyncCyclePhase(NodeSyncCyclePhase.Idle)
+
+                }
 
             }
 
-            SyncContoursResult.Success -> {
+        } finally {
 
-                rebootStateRepository.markSyncAppliedBeforeReboot()
-
-                rebootStateRepository.setSyncCyclePhase(NodeSyncCyclePhase.Rebooting)
-
-                rebootNode()
-
-                logger.i("Node", "syncConfirm: reboot_sent -> reconnect")
-
-                syncStateRepository.clear()
-
-                reconnectAfterNodeReboot(NoParams)
-
-            }
-
-            SyncContoursResult.FailedNoSession -> {
-
-                logger.e("Node", "syncConfirm: sync failed — channels not written")
-
-                syncStateRepository.setSyncRequired(true)
-
-                rebootStateRepository.setSyncCyclePhase(NodeSyncCyclePhase.Idle)
-
-            }
+            // Coroutine cancellation must not leave phase stuck in Syncing/Rebooting/WaitingForNode
+            rebootStateRepository.setSyncCyclePhase(NodeSyncCyclePhase.Idle)
 
         }
 

@@ -39,7 +39,7 @@ class ContourPositionChannelFilter(
                     }
                 }
             }.collect { slots ->
-                Log.d("MT/PosFilter", "activeSlots updated: $slots")
+                Log.d("Klitch/PosFilter", "activeSlots updated: $slots")
                 activeSlots.value = slots
             }
         }
@@ -47,7 +47,7 @@ class ContourPositionChannelFilter(
 
     override fun isChannelAccepted(channel: Int): Boolean {
         val accepted = channel in activeSlots.value
-        if (!accepted) Log.d("MT/PosFilter", "channel=$channel rejected, activeSlots=${activeSlots.value}")
+        if (!accepted) Log.d("Klitch/PosFilter", "channel=$channel rejected, activeSlots=${activeSlots.value}")
         return accepted
     }
 }

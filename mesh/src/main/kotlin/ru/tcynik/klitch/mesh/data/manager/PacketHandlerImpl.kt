@@ -115,14 +115,14 @@ class PacketHandlerImpl(
     }
 
     override fun sendLocalAdminPacket(packet: MeshPacket) {
-        Logger.i("MT/Contour") {
+        Logger.i("Klitch/Contour") {
             "sendLocalAdmin: id=${packet.id.toUInt()} to=${packet.to.toUInt()} from=${packet.from.toUInt()}"
         }
         val deferred = registerSendDeferred(packet.id)
         scope.launch {
             try {
                 if (serviceRepository.connectionState.value != ConnectionState.Connected) {
-                    Logger.w("MT/Contour") { "sendLocalAdmin skipped: not connected id=${packet.id.toUInt()}" }
+                    Logger.w("Klitch/Contour") { "sendLocalAdmin skipped: not connected id=${packet.id.toUInt()}" }
                     completeSendDeferred(packet.id, deferred, success = false)
                     return@launch
                 }
@@ -132,7 +132,7 @@ class PacketHandlerImpl(
                 val stillConnected = serviceRepository.connectionState.value == ConnectionState.Connected
                 completeSendDeferred(packet.id, deferred, success = stillConnected)
                 if (stillConnected) {
-                    Logger.i("MT/Contour") { "sendLocalAdmin: handoff ok id=${packet.id.toUInt()}" }
+                    Logger.i("Klitch/Contour") { "sendLocalAdmin: handoff ok id=${packet.id.toUInt()}" }
                 }
             } catch (ex: RadioNotConnectedException) {
                 Logger.w(ex) { "sendLocalAdmin skipped: Not connected to radio" }
@@ -153,7 +153,7 @@ class PacketHandlerImpl(
             count
         }
         if (dropped > 0) {
-            Logger.i("MT/Contour") { "prepareForAdminBurst: dropped $dropped queued packets" }
+            Logger.i("Klitch/Contour") { "prepareForAdminBurst: dropped $dropped queued packets" }
         }
     }
 
@@ -173,7 +173,7 @@ class PacketHandlerImpl(
     override fun handleQueueStatus(queueStatus: QueueStatus) {
         Logger.d { "[queueStatus] ${queueStatus.toOneLineString()}" }
         if (queueStatus.mesh_packet_id != 0) {
-            Logger.i("MT/Contour") {
+            Logger.i("Klitch/Contour") {
                 "queueStatus: id=${queueStatus.mesh_packet_id.toUInt()} res=${queueStatus.res} free=${queueStatus.free}"
             }
         }

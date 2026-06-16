@@ -35,7 +35,7 @@ import ru.tcynik.klitch.domain.usecase.base.UseCase
 
  *
 
- * Logcat: `tag:MT/Node syncReconnect` — пошаговая трассировка цикла.
+ * Logcat: `tag:Klitch/Node syncReconnect` — пошаговая трассировка цикла.
 
  */
 
