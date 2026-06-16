@@ -1,4 +1,6 @@
-﻿package ru.tcynik.klitch.mesh.model
+﻿// Copyright (c) 2025 tCynik — modifications under GPL-3.0
+
+package ru.tcynik.klitch.mesh.model
 
 /**
  * Type-safe wrapper for the DB contact key format: "${slot}${nodeId}".

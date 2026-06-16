@@ -4,7 +4,7 @@ You are the feature planner for the MeshTactics project. Your job is to decompos
 
 **Language rules:**
 - Chat output (plans, answers, clarifications) — match the language of the request.
-- Plan documents written to `.claude/plans/` — always in English, regardless of request language.
+- Plan documents written to `docs/plans/` — always in English, regardless of request language.
 
 ## Project Context
 
@@ -14,7 +14,7 @@ You are the feature planner for the MeshTactics project. Your job is to decompos
 **Architecture**: Clean Architecture — `app` (presentation) → `shared/domain` ← `shared/data`
 
 **Available skills** *(read `.claude/commands/` to get the actual current list — this section is a snapshot)*:
-- `/research` — external research (APIs, protocols, libraries); spawns isolated subagent, returns compact summary; invoke in Phase 0; always save to `.claude/research/`
+- `/research` — external research (APIs, protocols, libraries); spawns isolated subagent, returns compact summary; invoke in Phase 0; always save to `docs/research/`
 - `/architect` — architectural design, layer decomposition, code scaffolding
 - `/ui-designer` — visual design system: colors, typography, spacing, components, UX patterns
 - `/icon-designer` — button icon design in MeshIconButton style (delegated from `/ui-designer`)
@@ -73,7 +73,7 @@ Output a structured plan with phases. Each phase must have:
 - Goal: eliminate unknowns before design
 - Tasks: investigate platform APIs / mesh protocol behavior / existing code patterns
 - Skill: `/research <topic>` — **always use this skill, never do web search inline**
-- Output: `.claude/research/<topic-slug>.md` + one-message summary in the conversation
+- Output: `docs/research/<topic-slug>.md` + one-message summary in the conversation
 
 > **Token checkpoint after Phase 0**: tell the user to run `/compact` before proceeding to Phase 1.
 > Reason: research web traffic is now summarized in the saved file — it must not accumulate in the context window.
@@ -143,8 +143,8 @@ Output a structured plan with phases. Each phase must have:
 - Goal: project metadata, feature documentation, and Claude's memory reflect the completed feature
 - Tasks:
   - Update feature status in **CLAUDE.md** status table (e.g. `In Progress` → `Done`)
-  - **Create or update `.claude/docs/<feature-slug>.md`** — see *Feature Doc Format* below
-  - **Move the plan to archive**: copy `.claude/plans/<feature-slug>.md` → `.claude/archive/<feature-slug>.md`, then delete the original from `plans/`. **After deletion, verify with `ls .claude/plans/` that the file is gone — do not proceed to Phase 7 until confirmed.**
+  - **Create or update `docs/features/<feature-slug>.md`** — see *Feature Doc Format* below
+  - **Move the plan to archive**: copy `docs/plans/<feature-slug>.md` → `docs/archive/<feature-slug>.md`, then delete the original from `docs/plans/`. **After deletion, verify with `ls docs/plans/` that the file is gone — do not proceed to Phase 7 until confirmed.**
   - Review memory files in `~/.claude/projects/.../memory/` — update `project_state.md` and any other stale entries (completed features, new patterns, resolved decisions)
   - If the feature introduced a workflow insight worth preserving — add it to `workflow_feedback.md`
   - **Token log**: append to the archived plan file's Change Log: `- <date>: done | tokens: <value>`. Ask the user to check `/cost` or the status bar and provide the number. If not recorded — write `tokens: not recorded`.
@@ -155,7 +155,7 @@ Output a structured plan with phases. Each phase must have:
 
 #### Feature Doc Format
 
-File: `.claude/docs/<feature-slug>.md`
+File: `docs/features/<feature-slug>.md`
 
 ```markdown
 # <Feature Name>
@@ -173,7 +173,7 @@ File: `.claude/docs/<feature-slug>.md`
 - <MVP shortcuts, deferred scope, future work>
 
 ## Source
-Plan: `.claude/archive/<feature-slug>.md`
+Plan: `docs/archive/<feature-slug>.md`
 ```
 
 **Rules for feature docs:**
@@ -207,14 +207,14 @@ Plan: `.claude/archive/<feature-slug>.md`
 Show which skills are invoked at which phase, and in what order, as a simple list:
 
 ```
-Phase 0: /research <topic> → save to .claude/research/ → [/compact]
+Phase 0: /research <topic> → save to docs/research/ → [/compact]
 Phase 1: /architect feature: ... → [/compact]
 Phase 2: /icon-designer create: ...
 Phase 3: [direct coding] → /simplify
 Phase 4: [direct coding — tests]
 Phase 5: /architect review: ...
 Phase 6: [skill update review]
-Phase 6b: [docs & memory — CLAUDE.md, create/update .claude/docs/<slug>.md, archive plan, memory/]
+Phase 6b: [docs & memory — CLAUDE.md, create/update docs/features/<slug>.md, archive plan, memory/]
 Phase 7: [stage files by name] → [propose commit message] → [wait for confirmation] → git commit
 ```
 
@@ -251,7 +251,7 @@ Output a flat ordered list of steps. Each step:
 
 **Request**: $ARGUMENTS
 
-Produce a markdown plan document for the already-discussed feature. Save to `.claude/plans/<feature-slug>.md`.
+Produce a markdown plan document for the already-discussed feature. Save to `docs/plans/<feature-slug>.md`.
 
 Document structure:
 
