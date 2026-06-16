@@ -83,20 +83,20 @@
 
     <!-- HUD -->
     <string name="hud_radio_setup_channel">Set up channel</string>
-    <string name="hud_label_menu">menu</string>
-    <string name="hud_label_follow">follow</string>
-    <string name="hud_label_marks">marks</string>
-    <string name="hud_label_tools">tools</string>
-    <string name="hud_label_chats">chats</string>
-    <string name="hud_label_track">track</string>
-    <string name="hud_label_radio">radio</string>
-    <string name="hud_label_nodes">nodes</string>
+    <string name="hud_label_menu">Menu</string>
+    <string name="hud_label_follow">Follow</string>
+    <string name="hud_label_marks">Marks</string>
+    <string name="hud_label_tools">Tools</string>
+    <string name="hud_label_chats">Chats</string>
+    <string name="hud_label_track">Track</string>
+    <string name="hud_label_radio">Radio</string>
+    <string name="hud_label_nodes">Nodes</string>
     <string name="hud_label_settings_main">General</string>
     <string name="hud_label_settings_map">Map</string>
     <string name="hud_label_settings_display">Display</string>
     <string name="hud_label_settings_user">User</string>
     <string name="hud_label_settings_marks">Marks</string>
-    <string name="hud_label_bearing">bearing</string>
+    <string name="hud_label_bearing">Bearing</string>
     <string name="hud_info_set_callsign">set callsign</string>
     <string name="hud_info_select_node">select node</string>
     <string name="hud_info_scanning">Scanning…</string>

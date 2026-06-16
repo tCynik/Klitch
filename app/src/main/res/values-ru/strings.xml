@@ -83,20 +83,20 @@
 
     <!-- HUD -->
     <string name="hud_radio_setup_channel">Настройте канал</string>
-    <string name="hud_label_menu">меню</string>
-    <string name="hud_label_follow">привязка</string>
-    <string name="hud_label_marks">метки</string>
-    <string name="hud_label_tools">инструменты</string>
-    <string name="hud_label_chats">чаты</string>
-    <string name="hud_label_track">трек</string>
-    <string name="hud_label_radio">радио</string>
-    <string name="hud_label_nodes">ноды</string>
+    <string name="hud_label_menu">Меню</string>
+    <string name="hud_label_follow">Привязка</string>
+    <string name="hud_label_marks">Метки</string>
+    <string name="hud_label_tools">Инструменты</string>
+    <string name="hud_label_chats">Чаты</string>
+    <string name="hud_label_track">Трек</string>
+    <string name="hud_label_radio">Радио</string>
+    <string name="hud_label_nodes">Ноды</string>
     <string name="hud_label_settings_main">Главная</string>
     <string name="hud_label_settings_map">Карта</string>
     <string name="hud_label_settings_display">Экран</string>
     <string name="hud_label_settings_user">Пользователь</string>
     <string name="hud_label_settings_marks">Метки</string>
-    <string name="hud_label_bearing">направление</string>
+    <string name="hud_label_bearing">Направление</string>
     <string name="hud_info_set_callsign">установите позывной</string>
     <string name="hud_info_select_node">выбор узла</string>
     <string name="hud_info_scanning">Поиск…</string>
