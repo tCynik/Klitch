@@ -16,7 +16,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import ru.tcynik.klitch.R
 import kotlinx.collections.immutable.toImmutableList
 import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.klitch.presentation.feature.nodes.components.GeoNodesList
@@ -35,10 +37,10 @@ fun NodesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ноды") },
+                title = { Text(stringResource(R.string.nodes_screen_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.nodes_screen_cd_back))
                     }
                 },
             )

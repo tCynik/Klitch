@@ -21,6 +21,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.res.stringResource
+import ru.tcynik.klitch.R
 import ru.tcynik.klitch.presentation.feature.main.osd.GeoMarkMapContextMenu
 import ru.tcynik.klitch.presentation.feature.main.osd.GeoMarkMapContextMenuItem
 import androidx.compose.runtime.Composable
@@ -375,7 +377,7 @@ fun MainScreen(
                             onDismissRequest = dismissMenu,
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Удалить точку") },
+                                text = { Text(stringResource(R.string.geo_mark_delete_point_title)) },
                                 onClick = {
                                     geoMarksSheetUiState.onDeletePendingPoint(event.pointIndex)
                                     contextMenu = null
@@ -394,21 +396,21 @@ fun MainScreen(
                         onDismiss = dismissMenu,
                     ) {
                         GeoMarkMapContextMenuItem(
-                            text = "Скрыть",
+                            text = stringResource(R.string.geo_mark_hide),
                             onClick = {
                                 onHideGeoMark(event.markId)
                                 contextMenu = null
                             },
                         )
                         GeoMarkMapContextMenuItem(
-                            text = "Удалить",
+                            text = stringResource(R.string.geo_mark_delete),
                             onClick = {
                                 onDeleteGeoMark(event.markId)
                                 contextMenu = null
                             },
                         )
                         GeoMarkMapContextMenuItem(
-                            text = "Отправить",
+                            text = stringResource(R.string.geo_mark_send),
                             onClick = {
                                 onSendGeoMark(event.markId)
                                 contextMenu = null
@@ -420,15 +422,16 @@ fun MainScreen(
         }
 
         geoMarkUiState.deleteConfirmMarkId?.let { markId ->
-            val markName = geoMarkUiState.geoMarks.find { it.id == markId }?.name?.ifBlank { "—" } ?: "метку"
+            val markName = geoMarkUiState.geoMarks.find { it.id == markId }?.name?.ifBlank { "—" }
+                ?: stringResource(R.string.geo_mark_delete_fallback)
             AlertDialog(
                 onDismissRequest = onDismissDeleteGeoMarkConfirm,
-                text = { Text("Удалить метку $markName?") },
+                text = { Text(stringResource(R.string.geo_mark_delete_confirm, markName)) },
                 confirmButton = {
-                    TextButton(onClick = onConfirmDeleteGeoMark) { Text("Удалить") }
+                    TextButton(onClick = onConfirmDeleteGeoMark) { Text(stringResource(R.string.geo_mark_delete_confirm_button)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = onDismissDeleteGeoMarkConfirm) { Text("Отмена") }
+                    TextButton(onClick = onDismissDeleteGeoMarkConfirm) { Text(stringResource(R.string.geo_mark_delete_cancel)) }
                 },
             )
         }
@@ -436,13 +439,13 @@ fun MainScreen(
         if (emergencyState.showSosRestoredDialog) {
             AlertDialog(
                 onDismissRequest = onSosRestoredKeep,
-                title = { Text("Режим СОС активен") },
-                text = { Text("Режим СОС был активирован. Отключить?") },
+                title = { Text(stringResource(R.string.sos_restored_title)) },
+                text = { Text(stringResource(R.string.sos_restored_message)) },
                 confirmButton = {
-                    TextButton(onClick = onSosRestoredDisable) { Text("Отключить") }
+                    TextButton(onClick = onSosRestoredDisable) { Text(stringResource(R.string.sos_restored_disable)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = onSosRestoredKeep) { Text("Оставить") }
+                    TextButton(onClick = onSosRestoredKeep) { Text(stringResource(R.string.sos_restored_keep)) }
                 },
             )
         }
@@ -450,7 +453,7 @@ fun MainScreen(
         if (emergencyState.showSosTriggerDialog) {
             AlertDialog(
                 onDismissRequest = onSosDismiss,
-                title = { Text("Активировать СОС?") },
+                title = { Text(stringResource(R.string.sos_activate_title)) },
                 confirmButton = {
                     Button(
                         onClick = onSosTriggerConfirm,
@@ -458,10 +461,10 @@ fun MainScreen(
                             containerColor = MaterialTheme.colorScheme.error,
                             contentColor = MaterialTheme.colorScheme.onError,
                         ),
-                    ) { Text("Активировать") }
+                    ) { Text(stringResource(R.string.sos_activate_confirm)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = onSosDismiss) { Text("Отмена") }
+                    TextButton(onClick = onSosDismiss) { Text(stringResource(R.string.sos_activate_cancel)) }
                 },
             )
         }
@@ -469,12 +472,12 @@ fun MainScreen(
         if (emergencyState.showSosCancelDialog) {
             AlertDialog(
                 onDismissRequest = onSosDismiss,
-                title = { Text("Отключить режим СОС?") },
+                title = { Text(stringResource(R.string.sos_cancel_title)) },
                 confirmButton = {
-                    TextButton(onClick = onSosCancelConfirm) { Text("Отключить") }
+                    TextButton(onClick = onSosCancelConfirm) { Text(stringResource(R.string.sos_cancel_confirm)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = onSosDismiss) { Text("Отмена") }
+                    TextButton(onClick = onSosDismiss) { Text(stringResource(R.string.sos_activate_cancel)) }
                 },
             )
         }

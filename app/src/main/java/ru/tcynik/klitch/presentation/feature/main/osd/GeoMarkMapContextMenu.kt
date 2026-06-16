@@ -17,12 +17,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import kotlin.math.roundToInt
+import ru.tcynik.klitch.R
 import ru.tcynik.klitch.domain.marker.model.GeoMarkColor
 import ru.tcynik.klitch.domain.marker.model.GeoMarkModel
 import ru.tcynik.klitch.domain.marker.model.GeoMarkType
@@ -112,10 +114,10 @@ private fun GeoMarkMapContextMenuHeader(
         if (mark != null) {
             val nowSeconds = System.currentTimeMillis() / 1000
             val name = mark.name.ifBlank { "—" }
-            val author = GeoMarkTitleFormatter.authorLabel(mark, nodeNames)
+            val author = GeoMarkTitleFormatter.authorLabel(mark, nodeNames).resolve()
             val createdAtLabel = GeoMarkCreatedAtFormatter.format(mark.createdAt, nowSeconds)
             Text(
-                text = "$name от $author",
+                text = stringResource(R.string.geo_mark_selection_title, name, author),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 2,

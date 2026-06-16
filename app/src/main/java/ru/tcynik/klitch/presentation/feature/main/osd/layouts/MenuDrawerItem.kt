@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import ru.tcynik.klitch.presentation.feature.main.osd.models.DrawerMenuItem
@@ -25,6 +26,8 @@ fun MenuDrawerItem(item: DrawerMenuItem) {
     else
         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
 
+    val label = stringResource(item.label)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -34,11 +37,11 @@ fun MenuDrawerItem(item: DrawerMenuItem) {
     ) {
         Icon(
             imageVector = ImageVector.vectorResource(item.iconRes),
-            contentDescription = item.label,
+            contentDescription = label,
             modifier = Modifier.size(50.dp),
             tint = tint,
         )
         Spacer(Modifier.width(16.dp))
-        Text(item.label, style = MaterialTheme.typography.bodyMedium, color = tint)
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = tint)
     }
 }

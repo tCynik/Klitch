@@ -2,8 +2,9 @@
 
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
+import ru.tcynik.klitch.presentation.ui.UiText
 
 data class GeoMarksDeleteConfirmUi(
-    val message: String,
+    val message: UiText,
     val markIds: ImmutableList<String>,
 )

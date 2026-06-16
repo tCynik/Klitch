@@ -24,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -86,7 +87,7 @@ fun GeoMarkListItem(
             ) {
                 DeliveryStateIcon(state = item.deliveryState)
                 Text(
-                    text = "${item.createdAtLabel}  •  ${item.ttlLabel}  •  ${item.authorLabel}",
+                    text = "${item.createdAtLabel}  •  ${item.ttlLabel.resolve()}  •  ${item.authorLabel.resolve()}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -96,7 +97,7 @@ fun GeoMarkListItem(
             IconButton(onClick = { menuExpanded = true }) {
                 Icon(
                     painter = painterResource(R.drawable.ic_more_vert),
-                    contentDescription = "Меню",
+                    contentDescription = stringResource(R.string.geo_mark_list_action_menu),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -105,21 +106,21 @@ fun GeoMarkListItem(
                 onDismissRequest = { menuExpanded = false },
             ) {
                 DropdownMenuItem(
-                    text = { Text("Удалить") },
+                    text = { Text(stringResource(R.string.geo_mark_list_delete)) },
                     onClick = {
                         menuExpanded = false
                         onMenuDelete()
                     },
                 )
                 DropdownMenuItem(
-                    text = { Text("Продлить") },
+                    text = { Text(stringResource(R.string.geo_mark_list_extend)) },
                     onClick = {
                         menuExpanded = false
                         onMenuExtend()
                     },
                 )
                 DropdownMenuItem(
-                    text = { Text("Отправить") },
+                    text = { Text(stringResource(R.string.geo_mark_list_send)) },
                     onClick = {
                         menuExpanded = false
                         onMenuSend()
@@ -138,8 +139,8 @@ private fun DeliveryStateIcon(state: GeoMarkDeliveryState, modifier: Modifier = 
 @Composable
 private fun TypeBadge(type: GeoMarkType) {
     val label = when (type) {
-        GeoMarkType.POINT -> "точка"
-        GeoMarkType.TRACK -> "трек"
+        GeoMarkType.POINT -> stringResource(R.string.geo_mark_list_type_point)
+        GeoMarkType.TRACK -> stringResource(R.string.geo_mark_list_type_track)
     }
     Text(
         text = label,

@@ -23,9 +23,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import ru.tcynik.klitch.R
 import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.klitch.presentation.feature.network.components.CallsignGateDialog
 import ru.tcynik.klitch.presentation.feature.network.components.ConnectionContent
@@ -71,10 +73,10 @@ fun NetworkScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Сеть") },
+                title = { Text(stringResource(R.string.network_screen_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.network_screen_cd_back))
                     }
                 },
                 actions = {
@@ -84,7 +86,7 @@ fun NetworkScreen(
                         modifier = Modifier.padding(end = 8.dp),
                     ) {
                         Text(
-                            text = "Использовать",
+                            text = stringResource(R.string.network_screen_enable_label),
                             style = MaterialTheme.typography.labelLarge,
                         )
                         Switch(
@@ -139,7 +141,7 @@ fun NetworkScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "Для подключения к сети\nMeshtastic включите сеть",
+                        text = stringResource(R.string.network_screen_disabled_hint),
                         style = MaterialTheme.typography.bodyLarge,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

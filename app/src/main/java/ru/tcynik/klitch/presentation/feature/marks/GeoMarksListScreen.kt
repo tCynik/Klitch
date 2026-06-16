@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ru.tcynik.klitch.R
 import ru.tcynik.klitch.presentation.feature.marks.models.GeoMarkDeliveryFilterStatus
@@ -79,12 +80,12 @@ fun GeoMarksListScreen(
             Surface(color = containerColor) {
                 Column {
                     TopAppBar(
-                        title = { Text("Метки") },
+                        title = { Text(stringResource(R.string.geo_marks_list_title)) },
                         navigationIcon = {
                             IconButton(onClick = onBack) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Назад",
+                                    contentDescription = stringResource(R.string.geo_marks_list_cd_back),
                                 )
                             }
                         },
@@ -95,7 +96,7 @@ fun GeoMarksListScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Delete,
-                                    contentDescription = "Удалить",
+                                    contentDescription = stringResource(R.string.geo_marks_list_cd_delete),
                                 )
                             }
                         },
@@ -119,9 +120,9 @@ fun GeoMarksListScreen(
                                         Icons.Outlined.SelectAll
                                     },
                                     contentDescription = if (uiState.allFilteredVisible) {
-                                        "Скрыть все на карте"
+                                        stringResource(R.string.geo_marks_list_cd_hide_all)
                                     } else {
-                                        "Показать все на карте"
+                                        stringResource(R.string.geo_marks_list_cd_show_all)
                                     },
                                 )
                             }
@@ -190,7 +191,7 @@ private fun TracksFilterButton(
             }
             Icon(
                 painter = painterResource(R.drawable.ic_track_record),
-                contentDescription = "Фильтр треков",
+                contentDescription = stringResource(R.string.geo_marks_list_cd_track_filter),
                 modifier = Modifier.size(22.dp),
                 tint = tint,
             )
@@ -211,7 +212,7 @@ private fun CombinedListContent(
 ) {
     val hasAnything = uiState.hasMarks || uiState.tracksFilterStatus != GeoMarkDeliveryFilterStatus.INACTIVE
     if (!hasAnything) {
-        EmptyMarksMessage(text = "Ничего нет", modifier = modifier)
+        EmptyMarksMessage(text = stringResource(R.string.geo_marks_list_empty), modifier = modifier)
         return
     }
 
@@ -220,7 +221,7 @@ private fun CombinedListContent(
             if (uiState.items.isEmpty()) {
                 item(key = "marks_empty") {
                     Text(
-                        text = "Нет меток по выбранным фильтрам",
+                        text = stringResource(R.string.geo_marks_list_empty_filtered),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -244,7 +245,7 @@ private fun CombinedListContent(
         if (uiState.recordedTracks.isNotEmpty()) {
             item(key = "tracks_header") {
                 Text(
-                    text = "Записанные",
+                    text = stringResource(R.string.geo_marks_list_recorded_tab),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp),

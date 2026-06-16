@@ -193,10 +193,11 @@ class GpsService : Service() {
                 if (!state.isPaused) (nowSeconds - state.activeFromSeconds) else 0L
         val hours = totalSeconds / 3600
         val minutes = (totalSeconds % 3600) / 60
-        val durationLabel = if (hours > 0) "${hours}ч ${minutes}мин" else "${minutes} мин"
+        val durationLabel = if (hours > 0) getString(R.string.gps_notification_duration_hm, hours, minutes)
+        else getString(R.string.gps_notification_duration_m, minutes)
         val distanceKm = state.distanceMeters / 1000.0
-        val distanceLabel = if (distanceKm >= 1.0) "%.2f км".format(distanceKm)
-        else "${state.distanceMeters.toInt()} м"
+        val distanceLabel = if (distanceKm >= 1.0) getString(R.string.gps_notification_distance_km, distanceKm)
+        else getString(R.string.gps_notification_distance_m, state.distanceMeters.toInt())
         val statusLabel = if (state.isPaused)
             getString(R.string.track_recording_notification_paused)
         else

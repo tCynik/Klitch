@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ru.tcynik.klitch.presentation.feature.main.osd.models.HudButtonSlot
@@ -84,11 +85,13 @@ fun HudButtonSlotItem(
             }
         }
         // TODO: gap between button and label is 4.dp (provisional, confirm with /ui-designer)
-//        Spacer(modifier = Modifier.height(4.dp))
-//        Text(
-//            text = slot.label,
-//            // TODO: typography token is labelSmall (provisional, confirm with /ui-designer)
-//            style = MaterialTheme.typography.labelSmall,
-//        )
+//        slot.label?.let {
+//            Spacer(modifier = Modifier.height(4.dp))
+//            Text(
+//                text = stringResource(it),
+//                // TODO: typography token is labelSmall (provisional, confirm with /ui-designer)
+//                style = MaterialTheme.typography.labelSmall,
+//            )
+//        }
     }
 }

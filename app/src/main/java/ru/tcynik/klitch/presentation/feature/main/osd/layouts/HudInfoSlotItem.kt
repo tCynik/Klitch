@@ -15,7 +15,7 @@ import ru.tcynik.klitch.presentation.feature.main.osd.models.HudSide
 // Hidden slot (content = null): invisible placeholder that reserves the same space as a real slot.
 @Composable
 fun HudInfoSlotItem(slot: HudInfoSlot, side: HudSide, modifier: Modifier = Modifier) {
-    if (slot.content == null) {
+    val text = slot.content?.resolve() ?: run {
         Box(modifier = modifier)
         return
     }
@@ -30,7 +30,7 @@ fun HudInfoSlotItem(slot: HudInfoSlot, side: HudSide, modifier: Modifier = Modif
         contentAlignment = alignment,
     ) {
         Text(
-            text = slot.content,
+            text = text,
             // TODO: color token for slot.color — provisional direct Color use until design system
             //       defines signal-quality semantic tokens (see hud-structure.md open question 1)
             color = slot.color ?: Color.Black,
