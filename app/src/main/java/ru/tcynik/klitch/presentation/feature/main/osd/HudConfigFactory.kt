@@ -9,7 +9,6 @@ import ru.tcynik.klitch.presentation.feature.main.osd.models.HudRowConfig
 fun emptyButtonSlot() =
     HudButtonSlot(
         iconRes = null,
-        label = "",
         onClick = {})
 fun emptyInfoSlot() =
     HudInfoSlot(

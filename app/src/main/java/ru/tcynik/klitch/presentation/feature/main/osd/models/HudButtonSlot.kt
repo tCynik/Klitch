@@ -1,15 +1,16 @@
 ﻿package ru.tcynik.klitch.presentation.feature.main.osd.models
 
 import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.Color
 
 // One slot in the button column.
 // iconRes = null → empty slot: space is reserved but nothing is rendered.
 data class HudButtonSlot(
     @DrawableRes val iconRes: Int?,
-    // Short caption rendered below the button.
+    // Short caption rendered below the button. null = no label.
     // TODO: typography token — using labelSmall (provisional, confirm with /ui-designer)
-    val label: String,
+    @StringRes val label: Int? = null,
     val onClick: () -> Unit,
     val enabled: Boolean = true,
     // null  → regular button (no toggle state)

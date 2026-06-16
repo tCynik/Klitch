@@ -112,7 +112,7 @@ class MeshMessageProcessorImpl(
         logVariant(proto)
 
         if (proto.rebooted == true) {
-            Logger.i("MT/Node") { "nodeReboot: firmware rebooted notification" }
+            Logger.i("Klitch/Node") { "nodeReboot: firmware rebooted notification" }
             commandSender.notifyNodeRebooted()
             router.value.configFlowManager.triggerWantConfig()
             return

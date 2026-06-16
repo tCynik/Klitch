@@ -159,8 +159,8 @@ fun LocationConfigCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Section F: Background stability
-            SectionHeader("Фоновая стабильность")
-            SettingsRow(label = "Wake lock (удерживать CPU в фоне)") {
+            SectionHeader(stringResource(R.string.location_config_bg_stability_section))
+            SettingsRow(label = stringResource(R.string.node_settings_wake_lock)) {
                 Switch(
                     checked = useWakeLock,
                     onCheckedChange = onWakeLockToggle,

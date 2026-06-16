@@ -20,7 +20,7 @@ data class GeoMarksSheetUiState(
     val markName: String = "",
     val nameCounter: Int? = 1,
     val pendingPoints: ImmutableList<GeoPoint> = persistentListOf(),
-    val trackDraftDistanceLabel: String = "0.000/0.000км",
+    val trackDraftDistanceLabel: String = "0.000/0.000km",
     val availableContours: ImmutableList<GeoMarkAddressee> = persistentListOf(),
     val selectedContourId: String = "",
     val savedPresets: ImmutableList<GeoMarkPreset> = persistentListOf(),

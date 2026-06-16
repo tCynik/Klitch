@@ -187,3 +187,4 @@
 | Node GPS Position Source | `docs/plans/node-gps-position-source.md` | Planned |
 | Contours Redesign (Primary + SOS + Isolation) | `docs/archive/contours-redesign.md` | Done |
 | MainViewModel Split | `docs/archive/mainviewmodel-split.md` | Done |
+| English Localization | `docs/archive/english-localization.md` | Done |

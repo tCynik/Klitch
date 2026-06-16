@@ -63,8 +63,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import ru.tcynik.klitch.R
 import kotlinx.collections.immutable.ImmutableList
 import ru.tcynik.klitch.domain.marker.model.GeoMarkColor
 import ru.tcynik.klitch.domain.marker.model.GeoMarkShape
@@ -76,16 +78,16 @@ import ru.tcynik.klitch.presentation.feature.main.osd.models.GeoMarksSheetUiStat
 
 private val MVP_TRACK_END_TYPES = listOf(TrackEndType.NONE, TrackEndType.ARROW)
 
-private val TTL_OPTIONS = listOf(
-    900L    to "15 мин",
-    1800L   to "30 мин",
-    3600L   to "1 час",
-    7200L   to "2 часа",
-    18000L  to "5 часов",
-    28800L  to "8 часов",
-    43200L  to "12 часов",
-    86400L  to "24 часа",
-    259200L to "3 суток",
+private val TTL_OPTIONS: List<Pair<Long, Int>> = listOf(
+    900L    to R.string.geo_mark_ttl_option_15m,
+    1800L   to R.string.geo_mark_ttl_option_30m,
+    3600L   to R.string.geo_mark_ttl_option_1h,
+    7200L   to R.string.geo_mark_ttl_option_2h,
+    18000L  to R.string.geo_mark_ttl_option_5h,
+    28800L  to R.string.geo_mark_ttl_option_8h,
+    43200L  to R.string.geo_mark_ttl_option_12h,
+    86400L  to R.string.geo_mark_ttl_option_24h,
+    259200L to R.string.geo_mark_ttl_option_3d,
 )
 
 @Composable
@@ -208,11 +210,11 @@ private fun SheetHeader(
             Icon(
                 imageVector = if (state.isCollapsed) Icons.Default.KeyboardArrowUp
                               else Icons.Default.KeyboardArrowDown,
-                contentDescription = if (state.isCollapsed) "Развернуть" else "Свернуть",
+                contentDescription = if (state.isCollapsed) stringResource(R.string.geo_mark_sheet_expand) else stringResource(R.string.geo_mark_sheet_collapse),
             )
         }
         IconButton(onClick = state.onClose) {
-            Icon(Icons.Default.Close, contentDescription = "Закрыть")
+            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.geo_mark_sheet_close))
         }
     }
 }
@@ -248,10 +250,10 @@ private fun TypeDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
         modifier = modifier,
     ) {
         OutlinedTextField(
-            value = state.selectedType.displayName,
+            value = state.selectedType.displayName(),
             onValueChange = {},
             readOnly = true,
-            label = { Text("Тип") },
+            label = { Text(stringResource(R.string.geo_mark_sheet_label_type)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
             modifier = Modifier
                 .fillMaxWidth()
@@ -261,11 +263,11 @@ private fun TypeDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             types.forEach { type ->
                 DropdownMenuItem(
-                    text = { Text(type.displayName) },
+                    text = { Text(type.displayName()) },
                     onClick = { state.onMarkTypeSelected(type); expanded = false },
                 )
             }
-            listOf("Примитив", "Полигон").forEach { label ->
+            listOf(stringResource(R.string.geo_mark_sheet_type_primitive), stringResource(R.string.geo_mark_sheet_type_polygon)).forEach { label ->
                 DropdownMenuItem(
                     text = { Text(label, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)) },
                     onClick = {},
@@ -290,7 +292,7 @@ private fun TrackEndTypeDropdown(state: GeoMarksSheetUiState, modifier: Modifier
             value = " ",
             onValueChange = {},
             readOnly = true,
-            label = { Text("Вид") },
+            label = { Text(stringResource(R.string.geo_mark_sheet_label_kind)) },
             leadingIcon = {
                 TrackEndTypeIcon(endType = state.selectedTrackEndType, modifier = Modifier.size(20.dp))
             },
@@ -325,7 +327,7 @@ private fun ShapeDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
             value = " ",
             onValueChange = {},
             readOnly = true,
-            label = { Text("Вид") },
+            label = { Text(stringResource(R.string.geo_mark_sheet_label_kind)) },
             leadingIcon = {
                 ShapeIcon(shape = state.selectedShape, modifier = Modifier.size(20.dp))
             },
@@ -445,34 +447,36 @@ private fun TrackEndTypeIcon(
     }
 }
 
+@Composable
 private fun buildSheetHeaderTitle(state: GeoMarksSheetUiState): String {
-    val name = state.markName.trim().ifEmpty { state.selectedType.headerNameFallback }
+    val name = state.markName.trim().ifEmpty { state.selectedType.headerNameFallback() }
     val counterPart = state.nameCounter?.let { " $it" }.orEmpty()
     return "$name$counterPart/${formatTtlShort(state.selectedTtlSeconds)}"
 }
 
+@Composable
 private fun formatTtlShort(seconds: Long): String = when (seconds) {
-    900L    -> "15мин."
-    1800L   -> "30мин."
-    3600L   -> "1 ч."
-    7200L   -> "2 ч."
-    18000L  -> "5 ч."
-    28800L  -> "8 ч."
-    43200L  -> "12 ч."
-    86400L  -> "24 ч."
-    259200L -> "3 сут."
+    900L    -> stringResource(R.string.geo_mark_ttl_short_15m)
+    1800L   -> stringResource(R.string.geo_mark_ttl_short_30m)
+    3600L   -> stringResource(R.string.geo_mark_ttl_short_1h)
+    7200L   -> stringResource(R.string.geo_mark_ttl_short_2h)
+    18000L  -> stringResource(R.string.geo_mark_ttl_short_5h)
+    28800L  -> stringResource(R.string.geo_mark_ttl_short_8h)
+    43200L  -> stringResource(R.string.geo_mark_ttl_short_12h)
+    86400L  -> stringResource(R.string.geo_mark_ttl_short_24h)
+    259200L -> stringResource(R.string.geo_mark_ttl_short_3d)
     else -> when {
-        seconds < 3600  -> "${seconds / 60}мин."
-        seconds < 86400 -> "${seconds / 3600} ч."
-        else            -> "${seconds / 86400} сут."
+        seconds < 3600  -> stringResource(R.string.geo_mark_ttl_short_minutes, seconds / 60)
+        seconds < 86400 -> stringResource(R.string.geo_mark_ttl_short_hours, seconds / 3600)
+        else            -> stringResource(R.string.geo_mark_ttl_short_days, seconds / 86400)
     }
 }
 
-private val GeoMarkType.headerNameFallback: String
-    get() = when (this) {
-        GeoMarkType.POINT -> "точка"
-        GeoMarkType.TRACK -> "трек"
-    }
+@Composable
+private fun GeoMarkType.headerNameFallback(): String = when (this) {
+    GeoMarkType.POINT -> stringResource(R.string.geo_mark_name_point)
+    GeoMarkType.TRACK -> stringResource(R.string.geo_mark_name_track)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -489,7 +493,7 @@ private fun ColorDropdown(state: GeoMarksSheetUiState, modifier: Modifier) {
             value = " ",
             onValueChange = {},
             readOnly = true,
-            label = { Text("Цвет") },
+            label = { Text(stringResource(R.string.geo_mark_sheet_label_color)) },
             leadingIcon = {
                 Box(
                     modifier = Modifier
@@ -555,7 +559,7 @@ private fun TrackSection(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "точек: ${pendingPoints.size} / 27",
+            text = stringResource(R.string.geo_mark_sheet_points_counter, pendingPoints.size),
             style = MaterialTheme.typography.bodyMedium,
         )
         Text(
@@ -591,7 +595,7 @@ private fun NameAndTtlRow(state: GeoMarksSheetUiState) {
                     else -> v.toIntOrNull()?.let { state.onNameCounterChanged(it) }
                 }
             },
-            label = { Text("№") },
+            label = { Text(stringResource(R.string.track_label_counter)) },
             modifier = Modifier.width(64.dp),
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -605,7 +609,7 @@ private fun NameAndTtlRow(state: GeoMarksSheetUiState) {
                 value = ttlShort,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Время") },
+                label = { Text(stringResource(R.string.geo_mark_sheet_label_time)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(ttlExpanded) },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -614,9 +618,9 @@ private fun NameAndTtlRow(state: GeoMarksSheetUiState) {
                 singleLine = true,
             )
             ExposedDropdownMenu(expanded = ttlExpanded, onDismissRequest = { ttlExpanded = false }) {
-                TTL_OPTIONS.forEach { (seconds, label) ->
+                TTL_OPTIONS.forEach { (seconds, labelRes) ->
                     DropdownMenuItem(
-                        text = { Text(label) },
+                        text = { Text(stringResource(labelRes)) },
                         onClick = { state.onTtlSelected(seconds); ttlExpanded = false },
                     )
                 }
@@ -640,7 +644,7 @@ private fun MarkNameField(
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            label = { Text("Название") },
+            label = { Text(stringResource(R.string.geo_mark_sheet_label_name)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             interactionSource = interactionSource,
@@ -691,7 +695,7 @@ private fun BottomRow(state: GeoMarksSheetUiState) {
             onClick = state.onClearPendingPoints,
             enabled = hasPending,
         ) {
-            Text("Очистить")
+            Text(stringResource(R.string.geo_mark_sheet_clear))
         }
         SendSplitButton(state = state, modifier = Modifier.weight(1f))
     }
@@ -711,7 +715,7 @@ private fun SendSplitButton(state: GeoMarksSheetUiState, modifier: Modifier) {
             shape = sendLeadingShape,
             modifier = Modifier.weight(1f),
         ) {
-            Text("Отправить в", maxLines = 1)
+            Text(stringResource(R.string.geo_mark_sheet_send_to), maxLines = 1)
         }
 
         Box(modifier = Modifier.wrapContentSize()) {
@@ -721,7 +725,7 @@ private fun SendSplitButton(state: GeoMarksSheetUiState, modifier: Modifier) {
                 shape = sendTrailingShape,
             ) {
                 Text(
-                    text = selected?.displayName ?: "—",
+                    text = selected?.displayName?.resolve() ?: "—",
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -733,7 +737,7 @@ private fun SendSplitButton(state: GeoMarksSheetUiState, modifier: Modifier) {
             ) {
                 state.availableContours.forEach { addressee ->
                     DropdownMenuItem(
-                        text = { Text(addressee.displayName) },
+                        text = { Text(addressee.displayName.resolve()) },
                         onClick = { state.onAddresseeSelected(addressee.contourId); expanded = false },
                     )
                 }
@@ -742,8 +746,9 @@ private fun SendSplitButton(state: GeoMarksSheetUiState, modifier: Modifier) {
     }
 }
 
-private val GeoMarkType.displayName: String get() = when (this) {
-    GeoMarkType.POINT -> "Точка"
-    GeoMarkType.TRACK -> "Трек"
+@Composable
+private fun GeoMarkType.displayName(): String = when (this) {
+    GeoMarkType.POINT -> stringResource(R.string.geo_mark_sheet_type_point)
+    GeoMarkType.TRACK -> stringResource(R.string.geo_mark_sheet_type_track)
 }
 

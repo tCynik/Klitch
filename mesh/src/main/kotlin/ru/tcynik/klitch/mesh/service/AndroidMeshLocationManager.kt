@@ -80,10 +80,10 @@ class AndroidMeshLocationManager(private val context: Application, private val l
 
     override fun flushLastPosition() {
         val pos = lastPosition ?: run {
-            Logger.i("MT/PhoneGPS→radio") { "flushLastPosition: lastPosition=null, пропуск" }
+            Logger.i("Klitch/PhoneGPS→radio") { "flushLastPosition: lastPosition=null, пропуск" }
             return
         }
-        Logger.i("MT/PhoneGPS→radio") {
+        Logger.i("Klitch/PhoneGPS→radio") {
             "flushLastPosition time=${pos.time} lat=${Position.degD(pos.latitude_i ?: 0)} lon=${Position.degD(pos.longitude_i ?: 0)}"
         }
         sendPositionFn?.invoke(pos)
@@ -98,7 +98,7 @@ class AndroidMeshLocationManager(private val context: Application, private val l
         val fixTimeSeconds = if (fixAgeMs <= MAX_FIX_AGE_MS) {
             (location.time.milliseconds.inWholeSeconds).toInt()
         } else {
-            Logger.i("MT/PhoneGPS→radio") { "GPS fix stale by ${fixAgeMs / 1000}s, using nowMs as position.time" }
+            Logger.i("Klitch/PhoneGPS→radio") { "GPS fix stale by ${fixAgeMs / 1000}s, using nowMs as position.time" }
             (nowMs / 1_000L).toInt()
         }
         return ProtoPosition(
@@ -127,7 +127,7 @@ class AndroidMeshLocationManager(private val context: Application, private val l
         val elapsedMs = nowMs - lastSentAtMs
 
         if (lastSentAtMs > 0L && elapsedMs < MOBILE_INTERVAL_MS) {
-            Logger.d("MT/SmartPos") { "skip gate: elapsed=${elapsedMs / 1000}s < ${MOBILE_INTERVAL_MS / 1000}s" }
+            Logger.d("Klitch/SmartPos") { "skip gate: elapsed=${elapsedMs / 1000}s < ${MOBILE_INTERVAL_MS / 1000}s" }
             return
         }
 
@@ -138,10 +138,10 @@ class AndroidMeshLocationManager(private val context: Application, private val l
 
         if (hasMoved || stationaryExpired) {
             if (lastSentAtMs == 0L) {
-                Logger.i("MT/SmartPos") { "send first: acc=${"%.1f".format(accuracyM)}m" }
+                Logger.i("Klitch/SmartPos") { "send first: acc=${"%.1f".format(accuracyM)}m" }
             } else {
                 val reason = if (hasMoved) "distance" else "heartbeat"
-                Logger.d("MT/SmartPos") {
+                Logger.d("Klitch/SmartPos") {
                     "send $reason: dist=${"%.1f".format(distanceM)}m acc=${"%.1f".format(accuracyM)}m elapsed=${elapsedMs / 1000}s"
                 }
             }
@@ -150,7 +150,7 @@ class AndroidMeshLocationManager(private val context: Application, private val l
             lastSentLat = location.latitude
             lastSentLon = location.longitude
         } else {
-            Logger.d("MT/SmartPos") {
+            Logger.d("Klitch/SmartPos") {
                 "skip noise: dist=${"%.1f".format(distanceM)}m <= acc=${"%.1f".format(accuracyM)}m elapsed=${elapsedMs / 1000}s"
             }
         }

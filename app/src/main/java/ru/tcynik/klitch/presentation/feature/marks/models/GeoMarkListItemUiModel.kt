@@ -3,6 +3,7 @@
 import ru.tcynik.klitch.domain.marker.model.GeoMarkShape
 import ru.tcynik.klitch.domain.marker.model.GeoMarkType
 import ru.tcynik.klitch.domain.marker.model.TrackEndType
+import ru.tcynik.klitch.presentation.ui.UiText
 
 data class GeoMarkListItemUiModel(
     val id: String,
@@ -12,8 +13,9 @@ data class GeoMarkListItemUiModel(
     val type: GeoMarkType,
     val name: String,
     val createdAtLabel: String,
-    val ttlLabel: String,
-    val authorLabel: String,
+    val ttlLabel: UiText,
+    val authorLabel: UiText,
+    val isSelf: Boolean,
     val deliveryState: GeoMarkDeliveryState,
     val isVisible: Boolean,
 )

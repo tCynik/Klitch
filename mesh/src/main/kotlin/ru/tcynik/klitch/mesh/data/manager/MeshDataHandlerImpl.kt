@@ -247,11 +247,11 @@ class MeshDataHandlerImpl(
     }
 
     private fun handlePosition(packet: MeshPacket, dataPacket: DataPacket, myNodeNum: Int) {
-            Logger.withTag("MT/Pos").d { "has Position: from=${packet.from} channel=${packet.channel}" }
+            Logger.withTag("Klitch/Pos").d { "has Position: from=${packet.from} channel=${packet.channel}" }
         val payload = packet.decoded?.payload ?: return
         val p = Position.ADAPTER.decodeOrNull(payload, Logger) ?: return
 //        if (packet.from != myNodeNum && !positionChannelFilter.isChannelAccepted(packet.channel)) {
-//            Logger.withTag("MT/Pos").d { "Position dropped: from=${packet.from} channel=${packet.channel} not in active contour" }
+//            Logger.withTag("Klitch/Pos").d { "Position dropped: from=${packet.from} channel=${packet.channel} not in active contour" }
 //            return
 //        }
         Logger.d { "Position from ${packet.from}: ${Position.ADAPTER.toOneLiner(p)}" }

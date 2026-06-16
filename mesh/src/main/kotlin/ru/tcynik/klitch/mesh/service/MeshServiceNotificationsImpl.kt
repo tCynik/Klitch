@@ -51,7 +51,6 @@ import ru.tcynik.klitch.mesh.common.BuildConfigProvider
 import ru.tcynik.klitch.mesh.repository.MeshServiceNotifications
 import ru.tcynik.klitch.mesh.repository.NodeRepository
 import ru.tcynik.klitch.mesh.repository.PacketRepository
-import ru.tcynik.klitch.mesh.repository.SERVICE_NOTIFY_ID
 import ru.tcynik.klitch.mesh.R
 import ru.tcynik.klitch.mesh.resources.Res
 import ru.tcynik.klitch.mesh.resources.client_notification
@@ -354,14 +353,11 @@ class MeshServiceNotificationsImpl(
             cachedMessage = getString(Res.string.no_local_stats)
         }
 
-        val notification =
-            createServiceStateNotification(
-                name = summaryString.orEmpty(),
-                message = cachedMessage,
-                nextUpdateAt = nextStatsUpdateMillis,
-            )
-        notificationManager.notify(SERVICE_NOTIFY_ID, notification)
-        return notification
+        return createServiceStateNotification(
+            name = summaryString.orEmpty(),
+            message = cachedMessage,
+            nextUpdateAt = nextStatsUpdateMillis,
+        )
     }
 
     override suspend fun updateMessageNotification(

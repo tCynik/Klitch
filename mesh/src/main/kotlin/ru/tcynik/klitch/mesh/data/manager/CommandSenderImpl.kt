@@ -131,7 +131,7 @@ class CommandSenderImpl(
         if (requestId == 0 || errorReason == Routing.Error.NONE.value) return
         val waiter = passkeyAwaiters.remove(requestId) ?: return
         waiter.complete(null)
-        Logger.w("MT/Contour") {
+        Logger.w("Klitch/Contour") {
             "session_passkey: routing error=$errorReason reqId=${requestId.toUInt()}"
         }
     }
@@ -141,7 +141,7 @@ class CommandSenderImpl(
         setSessionPasskey(ByteString.EMPTY)
         passkeyAwaiters.values.forEach { runCatching { it.complete(null) } }
         passkeyAwaiters.clear()
-        Logger.i("MT/Node") { "nodeReboot: admin session invalidated" }
+        Logger.i("Klitch/Node") { "nodeReboot: admin session invalidated" }
     }
 
     override fun nodeRebootedAfter(epochMs: Long): Boolean = lastNodeRebootAtMs.value > epochMs
@@ -151,7 +151,7 @@ class CommandSenderImpl(
         val admin = AdminMessage.ADAPTER.decode(payload)
         val replyId = packet.decoded?.reply_id ?: 0
         if (admin.session_passkey.size > 0) {
-            Logger.i("MT/Contour") {
+            Logger.i("Klitch/Contour") {
                 "session_passkey received size=${admin.session_passkey.size} " +
                     "from=${packet.from.toUInt()} replyId=${replyId.toUInt()} packetId=${packet.id.toUInt()}"
             }
@@ -166,7 +166,7 @@ class CommandSenderImpl(
             admin.get_config_response != null ||
             admin.get_owner_response != null
         ) {
-            Logger.i("MT/Contour") {
+            Logger.i("Klitch/Contour") {
                 "session_passkey MISSING: get_x_response from=${packet.from.toUInt()} replyId=${replyId.toUInt()}"
             }
             completePasskeyAwaiter(replyId, null)
@@ -253,7 +253,7 @@ class CommandSenderImpl(
     override fun sendAdmin(destNum: Int, requestId: Int, wantResponse: Boolean, initFn: () -> AdminMessage): Int {
         val adminMsg = initFn().copy(session_passkey = sessionPasskey.value)
         if (adminMsg.outgoingRequiresSessionPasskey() && sessionPasskey.value.size == 0) {
-            Logger.e("MT/Contour") {
+            Logger.e("Klitch/Contour") {
                 "session_passkey MISSING: sendAdmin to=${destNum.toUInt()} requestId=$requestId"
             }
         }
@@ -272,7 +272,7 @@ class CommandSenderImpl(
         val myNum = nodeManager.myNodeNum ?: return
         val idNum = destNum ?: DataPacket.NODENUM_BROADCAST
         val channel = if (destNum == null) 0 else nodeManager.nodeDBbyNodeNum[destNum]?.channel ?: 0
-        Logger.d("MT/PhoneGPS→radio") { "sendPosition to=$idNum ch=$channel" }
+        Logger.d("Klitch/PhoneGPS→radio") { "sendPosition to=$idNum ch=$channel" }
 
         if (localConfig.value.position?.fixed_position != true) {
             nodeManager.handleReceivedPosition(myNum, myNum, pos, nowMillis)

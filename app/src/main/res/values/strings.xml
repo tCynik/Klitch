@@ -1,299 +1,498 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Klitch</string>
     <string name="gps_notification_channel_name">GPS Background</string>
-    <string name="gps_notification_title">GPS активен</string>
-    <string name="gps_notification_text">Работа GPS в фоне</string>
-    <string name="settings_title">Настройки</string>
-    <string name="settings_main_title">Главная</string>
-    <string name="settings_map_title">Карта</string>
-    <string name="settings_display_title">Экран</string>
-    <string name="settings_user_title">Пользователь</string>
-    <string name="settings_saved">Сохранено</string>
-    <string name="settings_back_description">Назад</string>
-    <string name="settings_marker_size_label">Размер маркера: %ddp (уровень %d)</string>
-    <string name="settings_geo_mark_size_label">Размер гео точек: %ddp (уровень %d)</string>
-    <string name="settings_geo_mark_names_label">Имена точек на карте</string>
-    <string name="settings_orientation_lock_label">Закрепить ориентацию экрана</string>
-    <string name="settings_orientation_portrait">Вертикальная</string>
-    <string name="settings_orientation_landscape">Горизонтальная</string>
-    <string name="settings_save_button">Сохранить</string>
-    <string name="settings_exit_app_description">Выйти из приложения</string>
-    <string name="settings_exit_app_icon">Иконка выхода</string>
-    <string name="map_add_button">Добавить</string>
-    <string name="map_item_more_actions">Дополнительные действия</string>
-    <string name="map_item_hide">Скрыть</string>
-    <string name="map_item_delete">Удалить</string>
-    <string name="map_delete_confirm_title">Удалить файл?</string>
-    <string name="map_delete_confirm_message">Файл будет удалён из системы. Это действие необратимо.</string>
-    <string name="map_delete_confirm_yes">Удалить</string>
-    <string name="map_delete_confirm_no">Отмена</string>
-    <string name="chat_title">Чаты</string>
-    <string name="chat_tab_filter">Фильтр</string>
-    <string name="chat_tab_chat">Чат</string>
-    <string name="chat_select_all">Выбрать всё</string>
-    <string name="chat_deselect_all">Снять выделение</string>
-    <string name="chat_select_favorite">Избранное</string>
-    <string name="chat_select_archive">Архив</string>
-    <string name="chat_search_hint">Поиск...</string>
-    <string name="chat_send">Отправить</string>
-    <string name="chat_input_hint">Сообщение...</string>
-    <string name="chat_menu_pin">Закрепить</string>
-    <string name="chat_menu_unpin">Открепить</string>
-    <string name="chat_menu_favorite">В избранное</string>
-    <string name="chat_menu_unfavorite">Убрать из избранного</string>
-    <string name="chat_menu_read">Пометить прочитанным</string>
-    <string name="chat_menu_archive">В архив</string>
-    <string name="chat_menu_unarchive">Из архива</string>
-    <string name="chat_menu_clear">Очистить</string>
-    <string name="chat_clear_confirm">Очистить чат?</string>
-    <string name="chat_clear_confirm_button">Очистить</string>
-    <string name="chat_cancel">Отмена</string>
-    <string name="chat_inactive_contour">Контур неактивен</string>
+    <string name="gps_notification_title">GPS active</string>
+    <string name="gps_notification_text">GPS running in background</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_main_title">General</string>
+    <string name="settings_map_title">Map</string>
+    <string name="settings_display_title">Display</string>
+    <string name="settings_user_title">User</string>
+    <string name="settings_saved">Saved</string>
+    <string name="settings_back_description">Back</string>
+    <string name="settings_marker_size_label">Marker size: %ddp (level %d)</string>
+    <string name="settings_geo_mark_size_label">Geo mark size: %ddp (level %d)</string>
+    <string name="settings_geo_mark_names_label">Show mark names on map</string>
+    <string name="settings_orientation_lock_label">Lock screen orientation</string>
+    <string name="settings_orientation_portrait">Portrait</string>
+    <string name="settings_orientation_landscape">Landscape</string>
+    <string name="settings_save_button">Save</string>
+    <string name="settings_exit_app_description">Exit app</string>
+    <string name="settings_exit_app_icon">Exit icon</string>
+    <string name="map_add_button">Add</string>
+    <string name="map_item_more_actions">More actions</string>
+    <string name="map_item_hide">Hide</string>
+    <string name="map_item_delete">Delete</string>
+    <string name="map_delete_confirm_title">Delete file?</string>
+    <string name="map_delete_confirm_message">The file will be permanently deleted from the system.</string>
+    <string name="map_delete_confirm_yes">Delete</string>
+    <string name="map_delete_confirm_no">Cancel</string>
+    <string name="chat_title">Chats</string>
+    <string name="chat_tab_filter">Filter</string>
+    <string name="chat_tab_chat">Chat</string>
+    <string name="chat_select_all">Select all</string>
+    <string name="chat_deselect_all">Deselect all</string>
+    <string name="chat_select_favorite">Favorites</string>
+    <string name="chat_select_archive">Archive</string>
+    <string name="chat_search_hint">Search...</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_input_hint">Message...</string>
+    <string name="chat_menu_pin">Pin</string>
+    <string name="chat_menu_unpin">Unpin</string>
+    <string name="chat_menu_favorite">Add to favorites</string>
+    <string name="chat_menu_unfavorite">Remove from favorites</string>
+    <string name="chat_menu_read">Mark as read</string>
+    <string name="chat_menu_archive">Archive</string>
+    <string name="chat_menu_unarchive">Unarchive</string>
+    <string name="chat_menu_clear">Clear</string>
+    <string name="chat_clear_confirm">Clear chat?</string>
+    <string name="chat_clear_confirm_button">Clear</string>
+    <string name="chat_cancel">Cancel</string>
+    <string name="chat_inactive_contour">Contour inactive</string>
 
     <!-- User Settings Tab -->
-    <string name="user_section_profile">Профиль</string>
-    <string name="user_display_name_label">Позывной</string>
-    <string name="user_short_name_label">Короткое имя</string>
-    <string name="user_save_button">Сохранить</string>
-    <string name="user_section_radio">Радио</string>
-    <string name="user_gps_broadcast_label">Транслировать геопозицию</string>
-    <string name="user_section_contours">Контуры</string>
-    <string name="user_add_contour_button">+ Добавить контур</string>
-    <string name="user_channel_edit">Редактировать</string>
-    <string name="user_channel_delete">Удалить</string>
-    <string name="user_channel_more_actions">Действия с каналом</string>
-    <string name="user_channel_delete_title">Удалить канал?</string>
-    <string name="user_channel_delete_message">Канал будет удалён. Это действие необратимо.</string>
-    <string name="user_channel_delete_confirm">Удалить</string>
-    <string name="user_channel_delete_cancel">Отмена</string>
+    <string name="user_section_profile">Profile</string>
+    <string name="user_display_name_label">Callsign</string>
+    <string name="user_short_name_label">Short name</string>
+    <string name="user_save_button">Save</string>
+    <string name="user_section_radio">Radio</string>
+    <string name="user_gps_broadcast_label">Broadcast GPS position</string>
+    <string name="user_section_contours">Contours</string>
+    <string name="user_add_contour_button">+ Add contour</string>
+    <string name="user_channel_edit">Edit</string>
+    <string name="user_channel_delete">Delete</string>
+    <string name="user_channel_more_actions">Channel actions</string>
+    <string name="user_channel_delete_title">Delete channel?</string>
+    <string name="user_channel_delete_message">The channel will be permanently deleted.</string>
+    <string name="user_channel_delete_confirm">Delete</string>
+    <string name="user_channel_delete_cancel">Cancel</string>
 
-    <string name="user_channel_push_to_node">Записать в ноду</string>
-    <string name="user_channel_delete_from_node">Удалить из ноды</string>
-    <string name="user_contour_set_primary">Сделать основным</string>
-    <string name="user_contour_enable">Включить</string>
-    <string name="user_contour_disable">Выключить</string>
-    <string name="user_contour_primary_badge">Основной</string>
+    <string name="user_channel_push_to_node">Push to node</string>
+    <string name="user_channel_delete_from_node">Remove from node</string>
+    <string name="user_contour_set_primary">Set as primary</string>
+    <string name="user_contour_enable">Enable</string>
+    <string name="user_contour_disable">Disable</string>
+    <string name="user_contour_primary_badge">Primary</string>
 
     <!-- Channel sync status badges -->
-    <string name="channel_sync_on_node">На ноде · слот %d</string>
-    <string name="channel_sync_not_on_node">Не на ноде</string>
-    <string name="channel_sync_no_free_slot">Нет слотов</string>
-    <string name="channel_auto_sync_label">Авто-синхронизация</string>
+    <string name="channel_sync_on_node">On node · slot %d</string>
+    <string name="channel_sync_not_on_node">Not on node</string>
+    <string name="channel_sync_no_free_slot">No slots available</string>
+    <string name="channel_auto_sync_label">Auto-sync</string>
 
     <!-- HUD -->
-    <string name="hud_radio_setup_channel">Настройте канал</string>
+    <string name="hud_radio_setup_channel">Set up channel</string>
+    <string name="hud_label_menu">Menu</string>
+    <string name="hud_label_follow">Follow</string>
+    <string name="hud_label_marks">Marks</string>
+    <string name="hud_label_tools">Tools</string>
+    <string name="hud_label_chats">Chats</string>
+    <string name="hud_label_track">Track</string>
+    <string name="hud_label_radio">Radio</string>
+    <string name="hud_label_nodes">Nodes</string>
+    <string name="hud_label_settings_main">General</string>
+    <string name="hud_label_settings_map">Map</string>
+    <string name="hud_label_settings_display">Display</string>
+    <string name="hud_label_settings_user">User</string>
+    <string name="hud_label_settings_marks">Marks</string>
+    <string name="hud_label_bearing">Bearing</string>
+    <string name="hud_info_set_callsign">set callsign</string>
+    <string name="hud_info_select_node">select node</string>
+    <string name="hud_info_scanning">Scanning…</string>
+    <string name="hud_info_pairing">Pairing with %s</string>
+    <string name="hud_info_sync_required">sync required</string>
+    <string name="hud_info_connected">Connected to %s</string>
+    <string name="hud_label_zoom_in">+</string>
+    <string name="hud_label_zoom_out">-</string>
+    <string name="hud_label_gps">GPS</string>
 
     <!-- Channel sync snackbar messages -->
-    <string name="channel_snackbar_sent">Канал «%s» записан в ноду</string>
-    <string name="channel_snackbar_not_connected">Нет подключения к ноде</string>
-    <string name="channel_snackbar_no_free_slot">Нет свободных слотов (1–7)</string>
+    <string name="channel_snackbar_sent">Channel \"%s\" pushed to node</string>
+    <string name="channel_snackbar_not_connected">Not connected to node</string>
+    <string name="channel_snackbar_no_free_slot">No free slots (1–7)</string>
 
     <!-- Channel Editor Sheet -->
-    <string name="channel_editor_title_new">Новый канал</string>
-    <string name="channel_editor_title_edit">Редактировать канал</string>
-    <string name="channel_editor_name_label">Название</string>
+    <string name="channel_editor_title_new">New channel</string>
+    <string name="channel_editor_title_edit">Edit channel</string>
+    <string name="channel_editor_name_label">Name</string>
     <string name="channel_editor_meshtastic_section">Meshtastic</string>
     <string name="channel_editor_psk_label">PSK (base64)</string>
-    <string name="channel_editor_psk_generate">Сгенерировать</string>
-    <string name="channel_editor_psk_error">Невалидный PSK: требуется 16 или 32 байта в base64</string>
-    <string name="channel_editor_cancel">Отмена</string>
-    <string name="channel_editor_save">Сохранить</string>
+    <string name="channel_editor_psk_generate">Generate</string>
+    <string name="channel_editor_psk_error">Invalid PSK: must be 16 or 32 bytes in base64</string>
+    <string name="channel_editor_cancel">Cancel</string>
+    <string name="channel_editor_save">Save</string>
 
-    <string name="emergency_trigger_dialog_title">Позвать на помощь?</string>
-    <string name="emergency_trigger_dialog_confirm">ДА</string>
-    <string name="emergency_trigger_dialog_dismiss">Отмена</string>
-    <string name="emergency_cancel_dialog_title">Всё хорошо? Отменить тревогу?</string>
-    <string name="emergency_cancel_dialog_confirm">Да</string>
-    <string name="emergency_cancel_dialog_dismiss">Нет</string>
-    <string name="emergency_toast_triggered">Запрос о помощи отправлен. Трансляция геопозиции начата.</string>
-    <string name="sync_required_dialog_title">Требуется синхронизация</string>
-    <string name="sync_required_dialog_message">Для работы в сети требуется синхронизация настроек ноды. После синхронизации нода будет перезагружена.</string>
-    <string name="sync_required_dialog_confirm">Да</string>
-    <string name="sync_required_dialog_dismiss">Нет</string>
+    <string name="emergency_trigger_dialog_title">Call for help?</string>
+    <string name="emergency_trigger_dialog_confirm">YES</string>
+    <string name="emergency_trigger_dialog_dismiss">Cancel</string>
+    <string name="emergency_cancel_dialog_title">All clear? Cancel the alert?</string>
+    <string name="emergency_cancel_dialog_confirm">Yes</string>
+    <string name="emergency_cancel_dialog_dismiss">No</string>
+    <string name="emergency_toast_triggered">Help request sent. Position broadcast started.</string>
+    <string name="sync_required_dialog_title">Sync required</string>
+    <string name="sync_required_dialog_message">Node settings sync is required to join the network. The node will reboot after sync.</string>
+    <string name="sync_required_dialog_confirm">Yes</string>
+    <string name="sync_required_dialog_dismiss">No</string>
 
     <!-- Callsign Gate Dialog -->
-    <string name="callsign_gate_dialog_title">Укажите позывной</string>
-    <string name="callsign_gate_dialog_message">Для подключения к сети необходимо задать ваш позывной.</string>
-    <string name="callsign_gate_dialog_confirm">Подключить</string>
-    <string name="callsign_gate_dialog_dismiss">Отмена</string>
-    <string name="user_display_name_error">Позывной не может быть пустым</string>
-    <string name="user_display_name_length_exceeded">Количество символов в позывном превышает допустимое (%1$d)</string>
-    <string name="user_display_name_length_exceeded_reset">Сбросить изменения</string>
-    <string name="user_display_name_length_exceeded_cancel">Отменить</string>
+    <string name="callsign_gate_dialog_title">Enter callsign</string>
+    <string name="callsign_gate_dialog_message">A callsign is required to connect to the network.</string>
+    <string name="callsign_gate_dialog_confirm">Connect</string>
+    <string name="callsign_gate_dialog_dismiss">Cancel</string>
+    <string name="user_display_name_error">Callsign cannot be empty</string>
+    <string name="user_display_name_length_exceeded">Callsign exceeds the maximum length (%1$d)</string>
+    <string name="user_display_name_length_exceeded_reset">Reset changes</string>
+    <string name="user_display_name_length_exceeded_cancel">Cancel</string>
 
     <!-- Leave Settings Dialog -->
-    <string name="leave_settings_dialog_title">Сохранить изменения?</string>
-    <string name="leave_settings_dialog_message">Нода будет перезагружена.</string>
-    <string name="leave_settings_dialog_save">Сохранить</string>
-    <string name="leave_settings_dialog_discard">Сбросить изменения</string>
+    <string name="leave_settings_dialog_title">Save changes?</string>
+    <string name="leave_settings_dialog_message">The node will reboot.</string>
+    <string name="leave_settings_dialog_save">Save</string>
+    <string name="leave_settings_dialog_discard">Discard changes</string>
 
     <!-- Network Disconnect Dialog -->
-    <string name="network_disconnect_dialog_title">Отключить ноду?</string>
-    <string name="network_disconnect_dialog_message">Вы уверены, что хотите отключиться от %1$s?</string>
-    <string name="network_disconnect_dialog_message_generic">Вы уверены, что хотите отключиться от устройства?</string>
-    <string name="network_disconnect_dialog_confirm">Отключить</string>
-    <string name="network_disconnect_dialog_dismiss">Отмена</string>
+    <string name="network_disconnect_dialog_title">Disconnect node?</string>
+    <string name="network_disconnect_dialog_message">Are you sure you want to disconnect from %1$s?</string>
+    <string name="network_disconnect_dialog_message_generic">Are you sure you want to disconnect from this device?</string>
+    <string name="network_disconnect_dialog_confirm">Disconnect</string>
+    <string name="network_disconnect_dialog_dismiss">Cancel</string>
 
     <!-- Network: connection -->
-    <string name="network_connection_title_scanning">Подключиться к ноде</string>
-    <string name="network_action_collapse">Свернуть</string>
-    <string name="network_action_expand">Развернуть</string>
-    <string name="network_connection_stop_scan">Остановить сканирование</string>
-    <string name="network_connection_start_scan">Начать сканирование</string>
-    <string name="network_connection_no_nodes_found">Ноды для сопряжения не обнаружены</string>
-    <string name="network_connection_nodes_found">Обнаружены ноды (%1$d):</string>
-    <string name="network_connection_unknown_device">Неизвестно</string>
+    <string name="network_connection_title_scanning">Connect to node</string>
+    <string name="network_action_collapse">Collapse</string>
+    <string name="network_action_expand">Expand</string>
+    <string name="network_connection_stop_scan">Stop scan</string>
+    <string name="network_connection_start_scan">Start scan</string>
+    <string name="network_connection_no_nodes_found">No nodes found</string>
+    <string name="network_connection_nodes_found">Nodes found (%1$d):</string>
+    <string name="network_connection_unknown_device">Unknown</string>
     <string name="network_connection_rssi">%1$d dBm</string>
-    <string name="network_connection_connecting">Соединение...</string>
-    <string name="network_connection_connect">Подключиться</string>
+    <string name="network_connection_connecting">Connecting...</string>
+    <string name="network_connection_connect">Connect</string>
 
     <!-- Network: telemetry -->
-    <string name="network_telemetry_title">Телеметрия</string>
-    <string name="network_telemetry_refresh">Обновить</string>
-    <string name="network_telemetry_nodes_title">Ноды (%1$d)</string>
-    <string name="network_telemetry_no_nodes">Ноды ещё не получены.</string>
-    <string name="network_telemetry_no_data">Данные отсутствуют.</string>
+    <string name="network_telemetry_title">Telemetry</string>
+    <string name="network_telemetry_refresh">Refresh</string>
+    <string name="network_telemetry_nodes_title">Nodes (%1$d)</string>
+    <string name="network_telemetry_no_nodes">No nodes received yet.</string>
+    <string name="network_telemetry_no_data">No data available.</string>
     <string name="network_value_placeholder">—</string>
-    <string name="network_metric_battery">Батарея</string>
-    <string name="network_metric_voltage">Напряжение</string>
-    <string name="network_metric_channel_utilization">Загрузка канала</string>
-    <string name="network_metric_air_util_tx">Эфирное время TX</string>
-    <string name="network_metric_uptime">Время работы</string>
+    <string name="network_metric_battery">Battery</string>
+    <string name="network_metric_voltage">Voltage</string>
+    <string name="network_metric_channel_utilization">Channel utilization</string>
+    <string name="network_metric_air_util_tx">Air TX utilization</string>
+    <string name="network_metric_uptime">Uptime</string>
     <string name="network_metric_battery_percent">%1$d%%</string>
     <string name="network_node_snr">SNR %1$s</string>
-    <string name="network_node_hops">%1$d хоп%2$s</string>
-    <string name="network_node_hops_suffix_plural"></string>
+    <string name="network_node_hops">%1$d hop%2$s</string>
+    <string name="network_node_hops_suffix_plural">s</string>
+    <string name="network_screen_title">Network</string>
+    <string name="network_screen_cd_back">Back</string>
+    <string name="network_screen_enable_label">Enable</string>
+    <string name="network_screen_disabled_hint">Enable the network to connect to Meshtastic</string>
+    <string name="network_settings_title_prefix">Node settings %s</string>
+    <string name="network_settings_cd_back">Back</string>
+    <string name="network_settings_no_data">No data. Connect to a node.</string>
+    <string name="network_settings_save">Save</string>
+    <string name="network_settings_short_name_empty">At least 1 character required</string>
+    <string name="network_settings_short_name_placeholder">1–4 characters</string>
+    <string name="mesh_status_disconnect">Disconnect</string>
+    <string name="mesh_status_cd_node_settings">Node settings</string>
+    <string name="mesh_status_syncing">Syncing…</string>
+    <string name="mesh_status_rebooting">Rebooting…</string>
+    <string name="mesh_status_waiting">Waiting for node…</string>
+    <string name="mesh_status_connecting">Connecting to %s…</string>
 
     <!-- Network: location config -->
-    <string name="network_location_config_title">Настройки геопозиции</string>
-    <string name="network_location_section_phone_to_node">Телефон → Нода</string>
-    <string name="network_location_provide_to_mesh">Передавать геопозицию в сеть</string>
-    <string name="network_location_permission">Разрешение геопозиции</string>
-    <string name="network_location_permission_granted">Выдано</string>
-    <string name="network_location_permission_denied">Отклонено</string>
-    <string name="network_location_section_node_source">Источник позиции ноды</string>
-    <string name="network_location_fixed_position">Фиксированная позиция</string>
-    <string name="network_location_remove">Удалить</string>
-    <string name="network_location_not_set">Не задана</string>
-    <string name="network_location_section_node_broadcast">Нода → Трансляция в сеть</string>
-    <string name="network_location_smart_broadcast">Умная трансляция</string>
-    <string name="network_location_section_flags">Флаги позиции</string>
-    <string name="network_location_section_precision">Точность канала (основной)</string>
-    <string name="network_location_banner_ready">Активно</string>
-    <string name="network_location_banner_warning">Внимание</string>
-    <string name="network_location_banner_blocked">Заблокировано</string>
-    <string name="network_location_banner_ready_details">Передача геопозиции активна</string>
-    <string name="network_location_reason_sharing_disabled">Передача отключена</string>
-    <string name="network_location_reason_permission_denied">Нет разрешения геопозиции</string>
-    <string name="network_location_reason_fixed_active">Фиксированная позиция активна</string>
-    <string name="network_location_reason_precision_zero">Точность канала = 0</string>
-    <string name="network_location_reason_no_flags">Нет флагов позиции</string>
-    <string name="network_location_reason_high_interval">Большой интервал трансляции</string>
-    <string name="network_location_reason_gps_conflict">GPS ноды может перезаписать</string>
-    <string name="network_location_gps_mode">Режим GPS</string>
-    <string name="network_flag_altitude">Высота</string>
-    <string name="network_flag_msl_altitude">Высота MSL</string>
-    <string name="network_flag_sats_in_view">Спутников в зоне</string>
-    <string name="network_flag_seq_no">Порядковый №</string>
-    <string name="network_flag_timestamp">Временная метка</string>
-    <string name="network_flag_heading">Курс</string>
-    <string name="network_flag_speed">Скорость</string>
-    <string name="network_interval_live">Сейчас</string>
-    <string name="network_interval_30s">30 с</string>
-    <string name="network_interval_1m">1 мин</string>
-    <string name="network_interval_2m">2 мин</string>
-    <string name="network_interval_5m">5 мин</string>
-    <string name="network_interval_10m">10 мин</string>
-    <string name="network_interval_15m">15 мин</string>
-    <string name="network_interval_30m">30 мин</string>
-    <string name="network_precision_off">Выкл</string>
-    <string name="network_precision_11km">~11 км</string>
-    <string name="network_precision_14km">~1.4 км</string>
-    <string name="network_precision_170m">~170 м</string>
-    <string name="network_precision_21m">~21 м</string>
-    <string name="network_precision_full">Полная</string>
+    <string name="network_location_config_title">Location settings</string>
+    <string name="network_location_section_phone_to_node">Phone → Node</string>
+    <string name="network_location_provide_to_mesh">Share position with mesh</string>
+    <string name="network_location_permission">Location permission</string>
+    <string name="network_location_permission_granted">Granted</string>
+    <string name="network_location_permission_denied">Denied</string>
+    <string name="network_location_section_node_source">Node position source</string>
+    <string name="network_location_fixed_position">Fixed position</string>
+    <string name="network_location_remove">Remove</string>
+    <string name="network_location_not_set">Not set</string>
+    <string name="network_location_section_node_broadcast">Node → Broadcast to mesh</string>
+    <string name="network_location_smart_broadcast">Smart broadcast</string>
+    <string name="network_location_section_flags">Position flags</string>
+    <string name="network_location_section_precision">Channel precision (primary)</string>
+    <string name="network_location_banner_ready">Active</string>
+    <string name="network_location_banner_warning">Warning</string>
+    <string name="network_location_banner_blocked">Blocked</string>
+    <string name="network_location_banner_ready_details">Position sharing active</string>
+    <string name="network_location_reason_sharing_disabled">Sharing disabled</string>
+    <string name="network_location_reason_permission_denied">Location permission denied</string>
+    <string name="network_location_reason_fixed_active">Fixed position is active</string>
+    <string name="network_location_reason_precision_zero">Channel precision = 0</string>
+    <string name="network_location_reason_no_flags">No position flags set</string>
+    <string name="network_location_reason_high_interval">Broadcast interval too high</string>
+    <string name="network_location_reason_gps_conflict">Node GPS may override</string>
+    <string name="network_location_gps_mode">GPS mode</string>
+    <string name="network_flag_altitude">Altitude</string>
+    <string name="network_flag_msl_altitude">MSL altitude</string>
+    <string name="network_flag_sats_in_view">Sats in view</string>
+    <string name="network_flag_seq_no">Seq no</string>
+    <string name="network_flag_timestamp">Timestamp</string>
+    <string name="network_flag_heading">Heading</string>
+    <string name="network_flag_speed">Speed</string>
+    <string name="network_interval_live">Live</string>
+    <string name="network_interval_30s">30 s</string>
+    <string name="network_interval_1m">1 min</string>
+    <string name="network_interval_2m">2 min</string>
+    <string name="network_interval_5m">5 min</string>
+    <string name="network_interval_10m">10 min</string>
+    <string name="network_interval_15m">15 min</string>
+    <string name="network_interval_30m">30 min</string>
+    <string name="network_precision_off">Off</string>
+    <string name="network_precision_11km">~11 km</string>
+    <string name="network_precision_14km">~1.4 km</string>
+    <string name="network_precision_170m">~170 m</string>
+    <string name="network_precision_21m">~21 m</string>
+    <string name="network_precision_full">Full</string>
+    <string name="location_config_bg_stability_section">Background stability</string>
 
     <!-- Track Recording — Sheet presets -->
-    <string name="track_preset_walking">Пешком</string>
-    <string name="track_preset_bicycle">Велосипед</string>
-    <string name="track_preset_moto">Мото</string>
-    <string name="track_preset_car">Авто</string>
-    <string name="track_preset_airplane">Авиа</string>
-    <string name="track_preset_custom">Ручной</string>
+    <string name="track_preset_walking">Walking</string>
+    <string name="track_preset_bicycle">Cycling</string>
+    <string name="track_preset_moto">Motorcycle</string>
+    <string name="track_preset_car">Car</string>
+    <string name="track_preset_airplane">Aviation</string>
+    <string name="track_preset_custom">Custom</string>
 
     <!-- Track Recording — Sheet interval options -->
-    <string name="track_option_none">нет</string>
-    <string name="track_interval_5s">5 сек</string>
-    <string name="track_interval_10s">10 сек</string>
-    <string name="track_interval_30s">30 сек</string>
-    <string name="track_interval_1m">1 мин</string>
-    <string name="track_interval_2m">2 мин</string>
-    <string name="track_interval_5m">5 мин</string>
-    <string name="track_interval_unknown_s">%dс</string>
+    <string name="track_option_none">none</string>
+    <string name="track_interval_5s">5 s</string>
+    <string name="track_interval_10s">10 s</string>
+    <string name="track_interval_30s">30 s</string>
+    <string name="track_interval_1m">1 min</string>
+    <string name="track_interval_2m">2 min</string>
+    <string name="track_interval_5m">5 min</string>
+    <string name="track_interval_unknown_s">%ds</string>
 
     <!-- Track Recording — Sheet distance options -->
-    <string name="track_distance_5m">5 м</string>
-    <string name="track_distance_10m">10 м</string>
-    <string name="track_distance_15m">15 м</string>
-    <string name="track_distance_30m">30 м</string>
-    <string name="track_distance_50m">50 м</string>
-    <string name="track_distance_100m">100 м</string>
-    <string name="track_distance_200m">200 м</string>
-    <string name="track_distance_unknown_m">%d м</string>
+    <string name="track_distance_5m">5 m</string>
+    <string name="track_distance_10m">10 m</string>
+    <string name="track_distance_15m">15 m</string>
+    <string name="track_distance_30m">30 m</string>
+    <string name="track_distance_50m">50 m</string>
+    <string name="track_distance_100m">100 m</string>
+    <string name="track_distance_200m">200 m</string>
+    <string name="track_distance_unknown_m">%d m</string>
 
     <!-- Track Recording — Sheet stats -->
-    <string name="track_stat_time">Время</string>
-    <string name="track_stat_distance">Дистанция</string>
-    <string name="track_stat_speed">Скорость</string>
-    <string name="track_stat_points">Точки</string>
+    <string name="track_stat_time">Time</string>
+    <string name="track_stat_distance">Distance</string>
+    <string name="track_stat_speed">Speed</string>
+    <string name="track_stat_points">Points</string>
 
     <!-- Track Recording — Field labels -->
-    <string name="track_label_preset">Режим</string>
-    <string name="track_label_interval">Интервал</string>
-    <string name="track_label_min_dist">Мин. дист.</string>
-    <string name="track_label_color">Цвет</string>
-    <string name="track_label_name">Название</string>
-    <string name="track_label_counter">№</string>
+    <string name="track_label_preset">Mode</string>
+    <string name="track_label_interval">Interval</string>
+    <string name="track_label_min_dist">Min dist</string>
+    <string name="track_label_color">Color</string>
+    <string name="track_label_name">Name</string>
+    <string name="track_label_counter">No</string>
 
     <!-- Track Recording — Actions -->
-    <string name="track_action_start">Начать запись</string>
-    <string name="track_action_pause">Пауза</string>
-    <string name="track_action_resume">Продолжить</string>
-    <string name="track_action_stop">Остановить</string>
-    <string name="track_action_save">Сохранить</string>
-    <string name="track_action_delete">Удалить</string>
-    <string name="track_action_cancel">Отмена</string>
+    <string name="track_action_start">Start recording</string>
+    <string name="track_action_pause">Pause</string>
+    <string name="track_action_resume">Resume</string>
+    <string name="track_action_stop">Stop</string>
+    <string name="track_action_save">Save</string>
+    <string name="track_action_delete">Delete</string>
+    <string name="track_action_cancel">Cancel</string>
 
     <!-- Track Recording — Status indicators -->
     <string name="track_status_rec">● REC</string>
-    <string name="track_status_paused">⏸ ПАУЗА</string>
+    <string name="track_status_paused">⏸ PAUSED</string>
 
     <!-- Track Recording — Content descriptions -->
-    <string name="track_cd_expand">Развернуть</string>
-    <string name="track_cd_collapse">Свернуть</string>
-    <string name="track_cd_close">Закрыть</string>
-    <string name="track_cd_menu">Меню</string>
+    <string name="track_cd_expand">Expand</string>
+    <string name="track_cd_collapse">Collapse</string>
+    <string name="track_cd_close">Close</string>
+    <string name="track_cd_menu">Menu</string>
 
     <!-- Track Recording — Stop dialog -->
-    <string name="track_stop_dialog_title">Сохранить трек перед остановкой?</string>
-    <string name="track_stop_trim_label">Обрезать до начала движения</string>
+    <string name="track_stop_dialog_title">Save track before stopping?</string>
+    <string name="track_stop_trim_label">Trim to first movement</string>
 
     <!-- Track Recording — Notification -->
-    <string name="track_recording_notification_channel_name">Запись трека</string>
-    <string name="track_recording_notification_active">Запись трека:</string>
-    <string name="track_recording_notification_paused">Пауза:</string>
-    <string name="track_no_movement_discarded">Трек не имеет движений и был удалён</string>
+    <string name="track_recording_notification_channel_name">Track recording</string>
+    <string name="track_recording_notification_active">Recording:</string>
+    <string name="track_recording_notification_paused">Paused:</string>
+    <string name="track_no_movement_discarded">Track had no movement and was discarded</string>
 
     <!-- Tile Cache Settings -->
-    <string name="tile_cache_section_label">Кэш тайлов</string>
-    <string name="tile_cache_mode_default">По умолчанию</string>
-    <string name="tile_cache_mode_default_desc">Заголовки сервера (~7 дней)</string>
-    <string name="tile_cache_mode_month">Месяц</string>
-    <string name="tile_cache_mode_month_desc">Хранить тайлы 30 дней</string>
-    <string name="tile_cache_mode_maximum">Максимально</string>
-    <string name="tile_cache_mode_maximum_desc">Хранить тайлы 1 год</string>
-    <string name="tile_cache_maximum_warning_title">Большой объём хранилища</string>
-    <string name="tile_cache_maximum_warning_message">Режим «Максимально» накапливает до 100 МБ тайлов на диске. Кэш не очищается автоматически.</string>
-    <string name="tile_cache_maximum_warning_confirm">Продолжить</string>
-    <string name="tile_cache_maximum_warning_dismiss">Отмена</string>
+    <string name="tile_cache_section_label">Tile cache</string>
+    <string name="tile_cache_mode_default">Default</string>
+    <string name="tile_cache_mode_default_desc">Server headers (~7 days)</string>
+    <string name="tile_cache_mode_month">Month</string>
+    <string name="tile_cache_mode_month_desc">Keep tiles for 30 days</string>
+    <string name="tile_cache_mode_maximum">Maximum</string>
+    <string name="tile_cache_mode_maximum_desc">Keep tiles for 1 year</string>
+    <string name="tile_cache_maximum_warning_title">Large storage usage</string>
+    <string name="tile_cache_maximum_warning_message">\"Maximum\" mode can accumulate up to 100 MB of tiles on disk. Cache is not cleared automatically.</string>
+    <string name="tile_cache_maximum_warning_confirm">Continue</string>
+    <string name="tile_cache_maximum_warning_dismiss">Cancel</string>
+
+    <!-- Geo marks -->
+    <string name="geo_mark_delete_point_title">Delete point</string>
+    <string name="geo_mark_hide">Hide</string>
+    <string name="geo_mark_delete">Delete</string>
+    <string name="geo_mark_send">Send</string>
+    <string name="geo_mark_delete_confirm">Delete mark \"%s\"?</string>
+    <string name="geo_mark_delete_fallback">mark</string>
+    <string name="geo_mark_delete_confirm_button">Delete</string>
+    <string name="geo_mark_delete_cancel">Cancel</string>
+    <string name="sos_restored_title">SOS mode is active</string>
+    <string name="sos_restored_message">SOS mode was activated. Disable?</string>
+    <string name="sos_restored_disable">Disable</string>
+    <string name="sos_restored_keep">Keep active</string>
+    <string name="sos_activate_title">Activate SOS?</string>
+    <string name="sos_activate_confirm">Activate</string>
+    <string name="sos_activate_cancel">Cancel</string>
+    <string name="sos_cancel_title">Disable SOS mode?</string>
+    <string name="sos_cancel_confirm">Disable</string>
+    <string name="sos_button_activate">Call for help</string>
+    <string name="sos_button_cancel">Cancel SOS</string>
+    <string name="hud_menu_cd_close">Close menu</string>
+    <string name="track_recording_default_name">Track</string>
+    <string name="geo_mark_sheet_expand">Expand</string>
+    <string name="geo_mark_sheet_collapse">Collapse</string>
+    <string name="geo_mark_sheet_close">Close</string>
+    <string name="geo_mark_sheet_label_type">Type</string>
+    <string name="geo_mark_sheet_label_kind">Kind</string>
+    <string name="geo_mark_sheet_label_color">Color</string>
+    <string name="geo_mark_sheet_label_time">Time</string>
+    <string name="geo_mark_sheet_label_name">Name</string>
+    <string name="geo_mark_sheet_type_primitive">Primitive</string>
+    <string name="geo_mark_sheet_type_polygon">Polygon</string>
+    <string name="geo_mark_sheet_type_point">Point</string>
+    <string name="geo_mark_sheet_type_track">Track</string>
+    <string name="geo_mark_sheet_points_counter">points: %d / 27</string>
+    <string name="geo_mark_sheet_clear">Clear</string>
+    <string name="geo_mark_sheet_send_to">Send to</string>
+    <string name="geo_mark_name_point">point</string>
+    <string name="geo_mark_name_track">track</string>
+    <string name="geo_mark_list_action_menu">Menu</string>
+    <string name="geo_mark_list_delete">Delete</string>
+    <string name="geo_mark_list_extend">Extend</string>
+    <string name="geo_mark_list_send">Send</string>
+    <string name="geo_mark_list_type_point">point</string>
+    <string name="geo_mark_list_type_track">track</string>
+    <string name="geo_marks_list_title">Marks</string>
+    <string name="geo_marks_list_cd_back">Back</string>
+    <string name="geo_marks_list_cd_delete">Delete</string>
+    <string name="geo_marks_list_cd_hide_all">Hide all on map</string>
+    <string name="geo_marks_list_cd_show_all">Show all on map</string>
+    <string name="geo_marks_list_cd_track_filter">Track filter</string>
+    <string name="geo_marks_list_empty">Nothing here</string>
+    <string name="geo_marks_list_empty_filtered">No marks for selected filters</string>
+    <string name="geo_marks_list_recorded_tab">Recorded</string>
+    <string name="geo_mark_send_contour_title">Send to contour</string>
+    <string name="geo_mark_send_contour_label">Mark: %s</string>
+    <string name="geo_mark_send_contour_cancel">Cancel</string>
+    <string name="geo_mark_delivery_local">Saved locally</string>
+    <string name="geo_mark_delivery_queued">Queued for sending</string>
+    <string name="geo_mark_delivery_sent">Sent</string>
+    <string name="geo_mark_delivery_received">Received from mesh</string>
+    <string name="geo_mark_self_label">Me</string>
+    <string name="geo_mark_ttl_expired">expired</string>
+    <string name="geo_mark_ttl_less_minute">&lt;1 min.</string>
+    <string name="geo_mark_ttl_minutes">%d min.</string>
+    <string name="geo_mark_ttl_hours">%dh</string>
+    <string name="geo_mark_ttl_hours_minutes">%1$dh %2$dm</string>
+    <string name="geo_mark_selection_title">%1$s from %2$s</string>
+    <string name="geo_mark_addressee_local">Storage</string>
+    <string name="geo_marks_delete_single">Delete mark \"%s\" (by %s)?</string>
+    <string name="geo_marks_delete_single_self">Delete mark \"%s\" (mine)?</string>
+    <string name="geo_marks_delete_multi">Delete %d selected marks?</string>
+    <string name="geo_marks_storage_name">Storage</string>
+    <string name="geo_mark_default_name_point">point</string>
+    <string name="geo_mark_default_name_track">Track</string>
+
+    <!-- Main settings screen -->
+    <string name="main_settings_placeholder">Main settings — TODO</string>
+
+    <!-- Node settings -->
+    <string name="node_settings_pkc_section">PKC / Security</string>
+    <string name="node_settings_pkc_active">PKC encryption: active</string>
+    <string name="node_settings_wake_lock">Wake lock (keep CPU in background)</string>
+    <string name="node_settings_title">Node settings</string>
+    <string name="node_settings_cd_back">Back</string>
+    <string name="node_settings_public_key">Public key</string>
+    <string name="node_settings_key_corrupt">Key is corrupted — PKC DM is unavailable. Regenerate keys.</string>
+    <string name="node_settings_key_missing">Key is missing — PKC DM is unavailable.</string>
+    <string name="node_settings_regen_button">Generate new PKC keys</string>
+    <string name="node_settings_regen_title">Reset PKC keys?</string>
+    <string name="node_settings_regen_message">The device will generate a new key pair and reboot. Contacts will lose trust in the old key — it will be updated automatically on reconnect.</string>
+    <string name="node_settings_regen_confirm">Confirm</string>
+    <string name="node_settings_regen_cancel">Cancel</string>
+
+    <!-- Nodes screen -->
+    <string name="nodes_screen_title">Nodes</string>
+    <string name="nodes_screen_cd_back">Back</string>
+
+    <!-- Track list — duration/distance labels -->
+    <string name="track_list_duration_recording">recording</string>
+    <string name="track_list_duration_hours_minutes">%1$dh %2$02dm</string>
+    <string name="track_list_duration_minutes">%1$dm</string>
+    <string name="track_list_distance_km">%1$.1f km</string>
+    <string name="track_list_distance_m">%1$.0f m</string>
+
+    <!-- BLE permission screen -->
+    <string name="ble_disabled_title">Bluetooth is off</string>
+    <string name="ble_disabled_message">Enable Bluetooth to connect to the Meshtastic node.</string>
+    <string name="ble_settings_button">Bluetooth settings</string>
+
+    <!-- Chat PKC status -->
+    <string name="chat_pkc_encrypted">PKC ✓ — encrypted</string>
+    <string name="chat_pkc_unencrypted">PKC ✗ — unencrypted</string>
+
+    <!-- Track sheet distance/speed -->
+    <string name="track_sheet_distance_km">%.1f km</string>
+    <string name="track_sheet_distance_m">%.0f m</string>
+    <string name="track_sheet_speed_fast">%.0f km/h</string>
+    <string name="track_sheet_speed">%.1f km/h</string>
+
+    <!-- GeoMark TTL option labels (dropdown picker) -->
+    <string name="geo_mark_ttl_option_15m">15 min</string>
+    <string name="geo_mark_ttl_option_30m">30 min</string>
+    <string name="geo_mark_ttl_option_1h">1 hour</string>
+    <string name="geo_mark_ttl_option_2h">2 hours</string>
+    <string name="geo_mark_ttl_option_5h">5 hours</string>
+    <string name="geo_mark_ttl_option_8h">8 hours</string>
+    <string name="geo_mark_ttl_option_12h">12 hours</string>
+    <string name="geo_mark_ttl_option_24h">24 hours</string>
+    <string name="geo_mark_ttl_option_3d">3 days</string>
+
+    <!-- GeoMark TTL short labels (sheet header) -->
+    <string name="geo_mark_ttl_short_15m">15m.</string>
+    <string name="geo_mark_ttl_short_30m">30m.</string>
+    <string name="geo_mark_ttl_short_1h">1h.</string>
+    <string name="geo_mark_ttl_short_2h">2h.</string>
+    <string name="geo_mark_ttl_short_5h">5h.</string>
+    <string name="geo_mark_ttl_short_8h">8h.</string>
+    <string name="geo_mark_ttl_short_12h">12h.</string>
+    <string name="geo_mark_ttl_short_24h">24h.</string>
+    <string name="geo_mark_ttl_short_3d">3d.</string>
+    <string name="geo_mark_ttl_short_minutes">%dm.</string>
+    <string name="geo_mark_ttl_short_hours">%dh.</string>
+    <string name="geo_mark_ttl_short_days">%dd.</string>
+
+    <!-- GpsService notification duration/distance -->
+    <string name="gps_notification_duration_hm">%1$dh %2$dmin</string>
+    <string name="gps_notification_duration_m">%1$d min</string>
+    <string name="gps_notification_distance_km">%.2f km</string>
+    <string name="gps_notification_distance_m">%d m</string>
+
+    <!-- Chat -->
+    <string name="chat_tab_title_feed">Feed</string>
+    <string name="chat_tab_title_chat">Chat</string>
+    <string name="chat_tab_title_chat_with">Chat with %s</string>
+    <string name="chat_tab_title_feed_count">Feed (%d)</string>
+    <string name="chat_archive_name">Archive</string>
 </resources>

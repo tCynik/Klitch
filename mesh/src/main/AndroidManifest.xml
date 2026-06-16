@@ -23,8 +23,7 @@
         <service
             android:name=".service.MeshService"
             android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="connectedDevice|location" />
+            android:exported="false" />
 
         <service
             android:name=".service.AndroidLocationService"

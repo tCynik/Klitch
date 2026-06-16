@@ -27,7 +27,9 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import ru.tcynik.klitch.R
 import ru.tcynik.klitch.presentation.feature.network.state.ChannelConfigUi
 import ru.tcynik.klitch.presentation.feature.network.state.DeviceConfigUi
 import ru.tcynik.klitch.presentation.feature.network.state.MeshConnectionStatusUi
@@ -86,7 +88,7 @@ fun NetworkSettingsContent(
             } else if (!state.isLoading) {
                 item(key = "empty_state") {
                     Text(
-                        text = "Нет данных. Подключитесь к ноде.",
+                        text = stringResource(R.string.network_settings_no_data),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -135,7 +137,7 @@ fun NetworkSettingsContent(
                     .fillMaxWidth()
                     .padding(16.dp),
             ) {
-                Text("Сохранить")
+                Text(stringResource(R.string.network_settings_save))
             }
         }
     }
@@ -144,7 +146,7 @@ fun NetworkSettingsContent(
 @Composable
 private fun DeviceConfigCard(
     config: DeviceConfigUi,
-    shortNameError: String?,
+    shortNameError: Int?,
     onLongNameChange: (String) -> Unit,
     onShortNameChange: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -162,12 +164,12 @@ private fun DeviceConfigCard(
                 value = config.shortName,
                 onValueChange = onShortNameChange,
                 label = { Text("Short name") },
-                placeholder = { Text("1–4 символа") },
+                placeholder = { Text(stringResource(R.string.network_settings_short_name_placeholder)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 isError = shortNameError != null,
-                supportingText = shortNameError?.let { err ->
-                    { Text(err, color = MaterialTheme.colorScheme.error) }
+                supportingText = shortNameError?.let { errRes ->
+                    { Text(stringResource(errRes), color = MaterialTheme.colorScheme.error) }
                 },
             )
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))

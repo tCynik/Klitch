@@ -21,7 +21,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import ru.tcynik.klitch.R
 import ru.tcynik.klitch.mesh.ble.toMeshtasticDisplayShortName
 import ru.tcynik.klitch.presentation.feature.network.state.MeshConnectionStatusUi
 
@@ -89,7 +91,7 @@ fun MeshStatusBar(
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
                 ) {
                     Text(
-                        text = if (status is MeshConnectionStatusUi.Connecting) "Cancel" else "Отключиться",
+                        text = if (status is MeshConnectionStatusUi.Connecting) "Cancel" else stringResource(R.string.mesh_status_disconnect),
                         style = MaterialTheme.typography.labelSmall,
                     )
                 }
@@ -103,7 +105,7 @@ fun MeshStatusBar(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
-                        contentDescription = "Настройки ноды",
+                        contentDescription = stringResource(R.string.mesh_status_cd_node_settings),
                     )
                 }
             }
@@ -132,16 +134,18 @@ private fun StatusDot(status: MeshConnectionStatusUi) {
     }
 }
 
+@Composable
 private fun statusLabel(status: MeshConnectionStatusUi, rebootingNodeName: String): String = when (status) {
     is MeshConnectionStatusUi.Disconnected -> "Not connected"
     is MeshConnectionStatusUi.Scanning -> "Scanning..."
     is MeshConnectionStatusUi.Syncing ->
-        nodeSyncLabel(rebootingNodeName, "Синхронизация...")
+        nodeSyncLabel(rebootingNodeName, stringResource(R.string.mesh_status_syncing))
     is MeshConnectionStatusUi.Rebooting ->
-        nodeSyncLabel(rebootingNodeName, "Перезагрузка...")
+        nodeSyncLabel(rebootingNodeName, stringResource(R.string.mesh_status_rebooting))
     is MeshConnectionStatusUi.WaitingForNode ->
-        nodeSyncLabel(rebootingNodeName, "Ожидание ноды...")
-    is MeshConnectionStatusUi.Connecting -> "Подключаюсь к ноде ${status.deviceName.toMeshtasticDisplayShortName()}..."
+        nodeSyncLabel(rebootingNodeName, stringResource(R.string.mesh_status_waiting))
+    is MeshConnectionStatusUi.Connecting ->
+        stringResource(R.string.mesh_status_connecting, status.deviceName.toMeshtasticDisplayShortName())
     is MeshConnectionStatusUi.Connected ->
         rebootingNodeName.toMeshtasticDisplayShortName()
             .ifBlank { status.deviceName.toMeshtasticDisplayShortName() }

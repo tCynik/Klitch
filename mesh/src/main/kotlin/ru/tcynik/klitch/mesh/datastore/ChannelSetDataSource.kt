@@ -54,7 +54,7 @@ class ChannelSetDataSource(@Named("CoreChannelSetDataStore") private val channel
     /** Updates the [ChannelSettings] list with the provided channel. */
     suspend fun updateChannelSettings(channel: Channel) {
         if (channel.role == Channel.Role.DISABLED) {
-            Logger.d("MT/Contour") { "updateChannelSettings: SKIP index=${channel.index} role=DISABLED" }
+            Logger.d("Klitch/Contour") { "updateChannelSettings: SKIP index=${channel.index} role=DISABLED" }
             return
         }
         channelSetStore.updateData { preference ->

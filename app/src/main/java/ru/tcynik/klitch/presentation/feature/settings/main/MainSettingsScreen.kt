@@ -53,7 +53,7 @@ fun MainSettingsScreen(
                 .padding(padding),
             contentAlignment = Alignment.Center,
         ) {
-            Text("Главная — TODO")
+            Text(stringResource(R.string.main_settings_placeholder))
         }
     }
 }

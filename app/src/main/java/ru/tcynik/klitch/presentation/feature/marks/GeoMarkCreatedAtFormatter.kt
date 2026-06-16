@@ -17,6 +17,6 @@ internal object GeoMarkCreatedAtFormatter {
             val time = createdZoned.toLocalTime()
             return "${time.hour}:${time.minute.toString().padStart(2, '0')}"
         }
-        return "${createdDate.monthValue}мес.${createdDate.dayOfMonth}"
+        return "${createdDate.monthValue}/${createdDate.dayOfMonth}"
     }
 }

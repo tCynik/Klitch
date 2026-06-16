@@ -42,12 +42,14 @@ import ru.tcynik.klitch.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.klitch.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.klitch.domain.usecase.base.NoParams
+import ru.tcynik.klitch.R
 import ru.tcynik.klitch.presentation.feature.main.osd.models.GeoMarkAddressee
 import ru.tcynik.klitch.presentation.feature.main.osd.models.GeoMarkContextMenuEvent
 import ru.tcynik.klitch.presentation.feature.main.osd.models.DraftPointContextMenuEvent
 import ru.tcynik.klitch.presentation.feature.main.osd.models.ExistingMarkContextMenuEvent
 import ru.tcynik.klitch.presentation.feature.main.osd.models.GeoMarksSheetUiState
 import ru.tcynik.klitch.presentation.feature.marks.GeoMarkTitleFormatter
+import ru.tcynik.klitch.presentation.ui.UiText
 import java.util.UUID
 import kotlin.math.cos
 
@@ -58,7 +60,7 @@ private const val LOCAL_STORAGE_ID = GEO_MARK_LOCAL_STORAGE_ID
 data class GeoMarkUiState(
     val markToolActive: Boolean = false,
     val pendingMarkPoints: ImmutableList<GeoPoint> = persistentListOf(),
-    val trackDraftDistanceLabel: String = "0.000/0.000км",
+    val trackDraftDistanceLabel: String = "0.000/0.000km",
     val geoMarks: ImmutableList<GeoMarkModel> = persistentListOf(),
     val selectedGeoMarkId: String? = null,
     val deleteConfirmMarkId: String? = null,
@@ -116,8 +118,8 @@ class GeoMarkViewModel(
         ) { contours, connectionStatus ->
             val isConnected = connectionStatus is MeshConnectionStatus.Connected
             val active = contours.filter { it.isActive }
-            val storage = GeoMarkAddressee(LOCAL_STORAGE_ID, "Хранилище")
-            val addressees = (active.map { GeoMarkAddressee(it.id.value, it.name) } + listOf(storage))
+            val storage = GeoMarkAddressee(LOCAL_STORAGE_ID, UiText.Static(R.string.geo_mark_addressee_local))
+            val addressees = (active.map { GeoMarkAddressee(it.id.value, UiText.Raw(it.name)) } + listOf(storage))
                 .toImmutableList()
             Triple(addressees, isConnected, active)
         }
@@ -193,7 +195,7 @@ class GeoMarkViewModel(
                 _contextMenuEvent.emit(
                     ExistingMarkContextMenuEvent(
                         markId = markId,
-                        title = GeoMarkTitleFormatter.selectionTitle(mark, nodeNames),
+                        title = mark.name.ifBlank { "—" },
                         screenX = screenX,
                         screenY = screenY,
                     ),

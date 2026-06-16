@@ -143,7 +143,7 @@ fun ChatScreen(
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = uiState.chatTabTitle,
+                                text = uiState.chatTabTitle.resolve(),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f, fill = false)
@@ -317,7 +317,7 @@ private fun ArchiveSectionItem(
                 modifier = Modifier.padding(start = 8.dp, end = 4.dp)
             )
             Text(
-                text = item.name,
+                text = stringResource(R.string.chat_archive_name),
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
                 modifier = Modifier.padding(horizontal = 4.dp)
@@ -741,7 +741,7 @@ private fun ChatTabContent(
 @Composable
 private fun PkcStatusBanner(partnerHasPKC: Boolean) {
     val color = if (partnerHasPKC) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
-    val text = if (partnerHasPKC) "PKC ✓ — зашифровано" else "PKC ✗ — незашифровано"
+    val text = if (partnerHasPKC) stringResource(R.string.chat_pkc_encrypted) else stringResource(R.string.chat_pkc_unencrypted)
     Row(
         modifier = Modifier
             .fillMaxWidth()
