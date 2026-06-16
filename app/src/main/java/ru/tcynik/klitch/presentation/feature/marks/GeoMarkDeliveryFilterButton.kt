@@ -10,9 +10,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import ru.tcynik.klitch.R
 import ru.tcynik.klitch.presentation.feature.marks.models.GeoMarkDeliveryFilterButtonUi
 import ru.tcynik.klitch.presentation.feature.marks.models.GeoMarkDeliveryFilterStatus
+import ru.tcynik.klitch.presentation.feature.marks.models.GeoMarkDeliveryState
 
 @Composable
 fun GeoMarkDeliveryFilterButton(
@@ -20,7 +23,13 @@ fun GeoMarkDeliveryFilterButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val (imageVector, contentDescription) = geoMarkDeliveryIconSpec(filter.deliveryState)
+    val imageVector = geoMarkDeliveryIconVector(filter.deliveryState)
+    val contentDescription = when (filter.deliveryState) {
+        GeoMarkDeliveryState.LOCAL -> stringResource(R.string.geo_mark_delivery_local)
+        GeoMarkDeliveryState.QUEUED -> stringResource(R.string.geo_mark_delivery_queued)
+        GeoMarkDeliveryState.SENT -> stringResource(R.string.geo_mark_delivery_sent)
+        GeoMarkDeliveryState.RECEIVED -> stringResource(R.string.geo_mark_delivery_received)
+    }
     val enabled = filter.status != GeoMarkDeliveryFilterStatus.INACTIVE
     val tint = when (filter.status) {
         GeoMarkDeliveryFilterStatus.INACTIVE ->

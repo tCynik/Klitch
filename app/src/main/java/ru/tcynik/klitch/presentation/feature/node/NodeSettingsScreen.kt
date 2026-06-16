@@ -23,7 +23,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import ru.tcynik.klitch.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,10 +39,10 @@ fun NodeSettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Настройки ноды") },
+                title = { Text(stringResource(R.string.node_settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.node_settings_cd_back))
                     }
                 },
             )
@@ -53,7 +55,7 @@ fun NodeSettingsScreen(
         ) {
             item {
                 Text(
-                    text = "PKC / Безопасность",
+                    text = stringResource(R.string.node_settings_pkc_section),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -66,7 +68,7 @@ fun NodeSettingsScreen(
                 } ?: "—"
 
                 ListItem(
-                    headlineContent = { Text("Публичный ключ") },
+                    headlineContent = { Text(stringResource(R.string.node_settings_public_key)) },
                     trailingContent = {
                         Text(
                             text = keyPreview,
@@ -80,15 +82,15 @@ fun NodeSettingsScreen(
             item {
                 when {
                     uiState.isMismatch -> WarningCard(
-                        text = "Ключ повреждён — PKC DM не работает. Сгенерируйте новые ключи.",
+                        text = stringResource(R.string.node_settings_key_corrupt),
                         isError = true,
                     )
                     !uiState.hasKey -> WarningCard(
-                        text = "Ключ отсутствует — PKC DM недоступен.",
+                        text = stringResource(R.string.node_settings_key_missing),
                         isError = true,
                     )
                     else -> ListItem(
-                        headlineContent = { Text("PKC-шифрование: активно") },
+                        headlineContent = { Text(stringResource(R.string.node_settings_pkc_active)) },
                         leadingContent = {
                             Text(
                                 text = "✓",
@@ -109,7 +111,7 @@ fun NodeSettingsScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp),
                 ) {
-                    Text("Сгенерировать новые ключи PKC")
+                    Text(stringResource(R.string.node_settings_regen_button))
                 }
             }
         }
@@ -117,18 +119,13 @@ fun NodeSettingsScreen(
         if (uiState.showRegenerateDialog) {
             AlertDialog(
                 onDismissRequest = onRegenerateDismiss,
-                title = { Text("Сбросить PKC-ключи?") },
-                text = {
-                    Text(
-                        "Устройство сгенерирует новую пару ключей и перезагрузится. " +
-                            "Контакты потеряют доверие к старому ключу — ключ обновится автоматически при reconnect."
-                    )
-                },
+                title = { Text(stringResource(R.string.node_settings_regen_title)) },
+                text = { Text(stringResource(R.string.node_settings_regen_message)) },
                 confirmButton = {
-                    TextButton(onClick = onRegenerateConfirm) { Text("Подтвердить") }
+                    TextButton(onClick = onRegenerateConfirm) { Text(stringResource(R.string.node_settings_regen_confirm)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = onRegenerateDismiss) { Text("Отмена") }
+                    TextButton(onClick = onRegenerateDismiss) { Text(stringResource(R.string.node_settings_regen_cancel)) }
                 },
             )
         }

@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ru.tcynik.klitch.R
 import ru.tcynik.klitch.presentation.feature.main.osd.layouts.MenuDrawerItem
@@ -102,7 +103,7 @@ fun MenuDrawer(state: MenuDrawerUiState) {
                 IconButton(onClick = state.onDismiss) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "закрыть меню",
+                        contentDescription = stringResource(R.string.hud_menu_cd_close),
                         tint = MaterialTheme.colorScheme.onSurface,
                     )
                 }
@@ -143,7 +144,7 @@ fun MenuDrawer(state: MenuDrawerUiState) {
                         contentDescription = null,
                         modifier = Modifier.padding(end = 8.dp),
                     )
-                    Text(text = if (state.isSosActive) "Отмена тревоги" else "позвать на помощь")
+                    Text(text = if (state.isSosActive) stringResource(R.string.sos_button_cancel) else stringResource(R.string.sos_button_activate))
                 }
             }
         }

@@ -13,6 +13,7 @@ import ru.tcynik.klitch.data.track.datasource.TrackSettingsDataSource
 import ru.tcynik.klitch.data.track.repository.TrackRepositoryImpl
 import ru.tcynik.klitch.domain.track.repository.RecordedTrackRepository
 import ru.tcynik.klitch.domain.track.repository.TrackRecordingRepository
+import ru.tcynik.klitch.domain.track.repository.TrackSettingsRepository
 import ru.tcynik.klitch.domain.track.usecase.DeleteRecordedTracksUseCase
 import ru.tcynik.klitch.domain.track.usecase.DiscardTrackRecordingUseCase
 import ru.tcynik.klitch.domain.track.usecase.ObserveRecordedTracksUseCase
@@ -33,7 +34,7 @@ val trackDataModule = module {
             produceFile = { androidContext().preferencesDataStoreFile("track_settings_ds") },
         )
     }
-    single { TrackSettingsDataSource(get(named("TrackSettingsDataStore"))) }
+    single { TrackSettingsDataSource(get(named("TrackSettingsDataStore"))) } binds arrayOf(TrackSettingsRepository::class)
 
     single(createdAtStart = true) {
         TrackRepositoryImpl(

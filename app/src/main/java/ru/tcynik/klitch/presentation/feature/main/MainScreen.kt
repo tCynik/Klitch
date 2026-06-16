@@ -1,4 +1,4 @@
-﻿package ru.tcynik.klitch.presentation.feature.main
+package ru.tcynik.klitch.presentation.feature.main
 
 import android.content.res.Configuration
 import androidx.compose.foundation.background
@@ -21,6 +21,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.res.stringResource
+import ru.tcynik.klitch.R
 import ru.tcynik.klitch.presentation.feature.main.osd.GeoMarkMapContextMenu
 import ru.tcynik.klitch.presentation.feature.main.osd.GeoMarkMapContextMenuItem
 import androidx.compose.runtime.Composable
@@ -80,7 +82,9 @@ private const val GEO_MARK_TAP_RADIUS_DP = 32f
 
 @Composable
 fun MainScreen(
-    uiState: MainUiState,
+    mainState: MainUiState,
+    emergencyState: EmergencyUiState,
+    geoMarkUiState: GeoMarkUiState,
     hudConfig: HudConfig,
     hudUiState: HudUiState,
     onCameraPositionChanged: (MapCameraPosition) -> Unit,
@@ -114,7 +118,7 @@ fun MainScreen(
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val density = LocalDensity.current
-    var lastKnownPosition by remember { mutableStateOf(uiState.initialCameraPosition) }
+    var lastKnownPosition by remember { mutableStateOf(mainState.initialCameraPosition) }
     var contextMenu by remember { mutableStateOf<GeoMarkContextMenuEvent?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
@@ -125,14 +129,14 @@ fun MainScreen(
     val cameraState = rememberCameraState(
         firstPosition = CameraPosition(
             target = Position(
-                longitude = uiState.initialCameraPosition.lon,
-                latitude  = uiState.initialCameraPosition.lat,
+                longitude = mainState.initialCameraPosition.lon,
+                latitude  = mainState.initialCameraPosition.lat,
             ),
-            zoom = uiState.initialCameraPosition.zoom,
+            zoom = mainState.initialCameraPosition.zoom,
         ),
     )
 
-    val currentGeoMarks by rememberUpdatedState(uiState.geoMarks)
+    val currentGeoMarks by rememberUpdatedState(geoMarkUiState.geoMarks)
     val geoMarkAwareOnMapClick: (Double, Double, Float, Float) -> Unit = remember(onMapClick) {
         { lat, lon, screenX, screenY ->
             val proj = cameraState.projection
@@ -176,8 +180,8 @@ fun MainScreen(
     val bearing by orientationProvider.bearing.collectAsStateWithLifecycle()
     val currentLocation by locationProvider.location.collectAsStateWithLifecycle()
 
-    LaunchedEffect(currentLocation, uiState.isFollowMeActive) {
-        if (uiState.isFollowMeActive && !uiState.isCourseUpActive) {
+    LaunchedEffect(currentLocation, mainState.isFollowMeActive) {
+        if (mainState.isFollowMeActive && !mainState.isCourseUpActive) {
             val pos = currentLocation?.position ?: return@LaunchedEffect
             cameraState.animateTo(
                 finalPosition = CameraPosition(
@@ -192,8 +196,7 @@ fun MainScreen(
 
     LaunchedEffect(cameraState.moveReason) {
         if (cameraState.moveReason == CameraMoveReason.GESTURE) {
-            if (uiState.isFollowMeActive && !uiState.isCourseUpActive) onFollowMeDeactivated()
-            // course-up: scroll disabled, zoom gestures are intentional — never deactivate
+            if (mainState.isFollowMeActive && !mainState.isCourseUpActive) onFollowMeDeactivated()
         }
     }
 
@@ -219,22 +222,17 @@ fun MainScreen(
 
     LaunchedEffect(cameraState.position.bearing) {
         val b = cameraState.position.bearing
-        // pan leaves bearing unchanged → this effect won't fire for pan
-        // animations (reset bearing, course-up) have non-GESTURE moveReason → don't clear north lock
         if (cameraState.moveReason == CameraMoveReason.GESTURE) onMapRotatedByUser(b)
         else onMapBearingChanged(b)
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        // Actual rendered composable dimensions — more reliable than LocalConfiguration
-        // (accounts for multi-window, foldables, insets not reflected in Configuration)
-        val mapWidthDp  = maxWidth.value   // dp
-        val mapHeightDp = maxHeight.value  // dp
-        val mapHeightPx = with(density) { maxHeight.toPx() }  // physical px, for pan-as-zoom
+        val mapWidthDp  = maxWidth.value
+        val mapHeightDp = maxHeight.value
+        val mapHeightPx = with(density) { maxHeight.toPx() }
 
-        // Course-up: map rotates with device bearing; user marker stays at lower-third anchor
-        LaunchedEffect(bearing, uiState.isCourseUpActive, currentLocation, cameraState.position.zoom) {
-            if (!uiState.isCourseUpActive) return@LaunchedEffect
+        LaunchedEffect(bearing, mainState.isCourseUpActive, currentLocation, cameraState.position.zoom) {
+            if (!mainState.isCourseUpActive) return@LaunchedEffect
             val userPos = currentLocation?.position ?: return@LaunchedEffect
             val zoom = cameraState.position.zoom
             val userLat = userPos.latitude
@@ -242,7 +240,6 @@ fun MainScreen(
             val userLatRad = Math.toRadians(userLat)
             val bearingRad = Math.toRadians(bearing.toDouble())
             val mpp = metersPerPixel(userLatRad, zoom)
-            // offset in metres: anchor (W/2, H − W/2) is (H/2 − W/2) dp below screen centre
             val offsetM = (mapHeightDp / 2f - mapWidthDp / 2f) * mpp
             val newLat = userLat + offsetM * cos(bearingRad) / 111320.0
             val newLon = userLon + offsetM * sin(bearingRad) / (111320.0 * cos(userLatRad))
@@ -257,47 +254,46 @@ fun MainScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
         ) {
-        if (uiState.tileUrlTemplate.isEmpty()) {
+        if (mainState.tileUrlTemplate.isEmpty()) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-        }
-        if (uiState.tileUrlTemplate.isNotEmpty()) {
+        } else {
             MapLibreLayer(
                 modifier = Modifier.fillMaxSize(),
-                tileUrlTemplate = uiState.tileUrlTemplate,
-                initialCameraPosition = uiState.initialCameraPosition,
+                tileUrlTemplate = mainState.tileUrlTemplate,
+                initialCameraPosition = mainState.initialCameraPosition,
                 onCameraPositionChanged = { position ->
                     lastKnownPosition = position
                     onCameraPositionChanged(position)
                 },
-                nodeMarkers = uiState.nodeMarkers,
+                nodeMarkers = mainState.nodeMarkers,
                 cameraState = cameraState,
-                markerSizeLevel = uiState.markerSizeLevel,
-                geoMarkSizeLevel = uiState.geoMarkSizeLevel,
-                showGeoMarkNames = uiState.showGeoMarkNames,
+                markerSizeLevel = mainState.markerSizeLevel,
+                geoMarkSizeLevel = mainState.geoMarkSizeLevel,
+                showGeoMarkNames = mainState.showGeoMarkNames,
                 userPosition = currentLocation?.position,
                 userBearing = bearing,
-                selectedOverlays = uiState.selectedOverlays,
-                geoMarks = uiState.geoMarks,
-                selectedGeoMarkId = uiState.selectedGeoMarkId,
-                recordedTracks = uiState.recordedTracks,
-                pendingMarkPoints = uiState.pendingMarkPoints,
+                selectedOverlays = mainState.selectedOverlays,
+                geoMarks = geoMarkUiState.geoMarks,
+                selectedGeoMarkId = geoMarkUiState.selectedGeoMarkId,
+                recordedTracks = mainState.recordedTracks,
+                pendingMarkPoints = geoMarkUiState.pendingMarkPoints,
                 pendingMarkColor = geoMarksSheetUiState.selectedColor,
                 pendingMarkShape = geoMarksSheetUiState.selectedShape,
-                markToolActive = uiState.markToolActive,
-                isCourseUpActive = uiState.isCourseUpActive,
+                markToolActive = geoMarkUiState.markToolActive,
+                isCourseUpActive = mainState.isCourseUpActive,
                 onMapClick = geoMarkAwareOnMapClick,
                 onMapDoubleClick = onMapDoubleClick,
                 onMapLongClick = onMapLongClick,
             )
         }
 
-        if (uiState.isCourseUpActive) {
+        if (mainState.isCourseUpActive) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .courseUpMapGestures(
                         mapHeightPx = mapHeightPx,
-                        markToolActive = uiState.markToolActive,
+                        markToolActive = geoMarkUiState.markToolActive,
                         cameraState = cameraState,
                         onMapClick = geoMarkAwareOnMapClick,
                         onMapDoubleClick = onMapDoubleClick,
@@ -310,13 +306,12 @@ fun MainScreen(
                 .fillMaxWidth()
                 .windowInsetsTopHeight(WindowInsets.statusBars)
                 .background(
-                    if (uiState.isSosActive) Color.Red.copy(alpha = 0.55f)
+                    if (emergencyState.isSosActive) Color.Red.copy(alpha = 0.55f)
                     else Color.Black.copy(alpha = 0.35f)
                 )
                 .align(Alignment.TopCenter),
         )
 
-        // HUD button columns
         if (isLandscape) {
             HudControlsLayer(
                 config = hudConfig,
@@ -332,7 +327,7 @@ fun MainScreen(
                     }
                 },
                 onFollowMeClick = {
-                    if (uiState.isCourseUpActive) onFollowMeRestoreZoom() else hudUiState.target.button.onClick()
+                    if (mainState.isCourseUpActive) onFollowMeRestoreZoom() else hudUiState.target.button.onClick()
                 },
                 onZoomInClick = {
                     val pos = cameraState.position
@@ -355,23 +350,14 @@ fun MainScreen(
             )
         }
 
-        // z3 — menu drawer overlay (portrait only)
         if (!isLandscape) {
             MenuDrawer(state = menuDrawerUiState)
-        }
-
-        // z4 — geo marks sheet (portrait only)
-        if (!isLandscape) {
             GeoMarksSheet(
                 state = geoMarksSheetUiState,
-                pendingPoints = uiState.pendingMarkPoints,
-                trackDistanceLabel = uiState.trackDraftDistanceLabel,
+                pendingPoints = geoMarkUiState.pendingMarkPoints,
+                trackDistanceLabel = geoMarkUiState.trackDraftDistanceLabel,
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
-        }
-
-        // z5 — track recording sheet (portrait only)
-        if (!isLandscape) {
             TrackRecordingSheet(
                 state = trackRecordingSheetUiState,
                 modifier = Modifier.align(Alignment.BottomCenter),
@@ -391,7 +377,7 @@ fun MainScreen(
                             onDismissRequest = dismissMenu,
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Удалить точку") },
+                                text = { Text(stringResource(R.string.geo_mark_delete_point_title)) },
                                 onClick = {
                                     geoMarksSheetUiState.onDeletePendingPoint(event.pointIndex)
                                     contextMenu = null
@@ -405,26 +391,26 @@ fun MainScreen(
                         screenXDp = event.screenX,
                         screenYDp = event.screenY,
                         title = event.title,
-                        mark = uiState.geoMarks.find { it.id == event.markId },
-                        nodeNames = uiState.nodeMarkers.associate { it.nodeId to it.longName },
+                        mark = geoMarkUiState.geoMarks.find { it.id == event.markId },
+                        nodeNames = mainState.nodeMarkers.associate { it.nodeId to it.longName },
                         onDismiss = dismissMenu,
                     ) {
                         GeoMarkMapContextMenuItem(
-                            text = "Скрыть",
+                            text = stringResource(R.string.geo_mark_hide),
                             onClick = {
                                 onHideGeoMark(event.markId)
                                 contextMenu = null
                             },
                         )
                         GeoMarkMapContextMenuItem(
-                            text = "Удалить",
+                            text = stringResource(R.string.geo_mark_delete),
                             onClick = {
                                 onDeleteGeoMark(event.markId)
                                 contextMenu = null
                             },
                         )
                         GeoMarkMapContextMenuItem(
-                            text = "Отправить",
+                            text = stringResource(R.string.geo_mark_send),
                             onClick = {
                                 onSendGeoMark(event.markId)
                                 contextMenu = null
@@ -434,38 +420,40 @@ fun MainScreen(
                 }
             }
         }
-        uiState.deleteConfirmMarkId?.let { markId ->
-            val markName = uiState.geoMarks.find { it.id == markId }?.name?.ifBlank { "—" } ?: "метку"
+
+        geoMarkUiState.deleteConfirmMarkId?.let { markId ->
+            val markName = geoMarkUiState.geoMarks.find { it.id == markId }?.name?.ifBlank { "—" }
+                ?: stringResource(R.string.geo_mark_delete_fallback)
             AlertDialog(
                 onDismissRequest = onDismissDeleteGeoMarkConfirm,
-                text = { Text("Удалить метку $markName?") },
+                text = { Text(stringResource(R.string.geo_mark_delete_confirm, markName)) },
                 confirmButton = {
-                    TextButton(onClick = onConfirmDeleteGeoMark) { Text("Удалить") }
+                    TextButton(onClick = onConfirmDeleteGeoMark) { Text(stringResource(R.string.geo_mark_delete_confirm_button)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = onDismissDeleteGeoMarkConfirm) { Text("Отмена") }
+                    TextButton(onClick = onDismissDeleteGeoMarkConfirm) { Text(stringResource(R.string.geo_mark_delete_cancel)) }
                 },
             )
         }
 
-        if (uiState.showSosRestoredDialog) {
+        if (emergencyState.showSosRestoredDialog) {
             AlertDialog(
                 onDismissRequest = onSosRestoredKeep,
-                title = { Text("Режим СОС активен") },
-                text = { Text("Режим СОС был активирован. Отключить?") },
+                title = { Text(stringResource(R.string.sos_restored_title)) },
+                text = { Text(stringResource(R.string.sos_restored_message)) },
                 confirmButton = {
-                    TextButton(onClick = onSosRestoredDisable) { Text("Отключить") }
+                    TextButton(onClick = onSosRestoredDisable) { Text(stringResource(R.string.sos_restored_disable)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = onSosRestoredKeep) { Text("Оставить") }
+                    TextButton(onClick = onSosRestoredKeep) { Text(stringResource(R.string.sos_restored_keep)) }
                 },
             )
         }
 
-        if (uiState.showSosTriggerDialog) {
+        if (emergencyState.showSosTriggerDialog) {
             AlertDialog(
                 onDismissRequest = onSosDismiss,
-                title = { Text("Активировать СОС?") },
+                title = { Text(stringResource(R.string.sos_activate_title)) },
                 confirmButton = {
                     Button(
                         onClick = onSosTriggerConfirm,
@@ -473,23 +461,23 @@ fun MainScreen(
                             containerColor = MaterialTheme.colorScheme.error,
                             contentColor = MaterialTheme.colorScheme.onError,
                         ),
-                    ) { Text("Активировать") }
+                    ) { Text(stringResource(R.string.sos_activate_confirm)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = onSosDismiss) { Text("Отмена") }
+                    TextButton(onClick = onSosDismiss) { Text(stringResource(R.string.sos_activate_cancel)) }
                 },
             )
         }
 
-        if (uiState.showSosCancelDialog) {
+        if (emergencyState.showSosCancelDialog) {
             AlertDialog(
                 onDismissRequest = onSosDismiss,
-                title = { Text("Отключить режим СОС?") },
+                title = { Text(stringResource(R.string.sos_cancel_title)) },
                 confirmButton = {
-                    TextButton(onClick = onSosCancelConfirm) { Text("Отключить") }
+                    TextButton(onClick = onSosCancelConfirm) { Text(stringResource(R.string.sos_cancel_confirm)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = onSosDismiss) { Text("Отмена") }
+                    TextButton(onClick = onSosDismiss) { Text(stringResource(R.string.sos_activate_cancel)) }
                 },
             )
         }

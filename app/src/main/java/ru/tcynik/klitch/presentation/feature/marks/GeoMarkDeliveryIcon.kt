@@ -10,13 +10,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import ru.tcynik.klitch.R
 import ru.tcynik.klitch.presentation.feature.marks.models.GeoMarkDeliveryState
 
-fun geoMarkDeliveryIconSpec(state: GeoMarkDeliveryState): Pair<ImageVector, String> = when (state) {
-    GeoMarkDeliveryState.LOCAL -> Icons.Outlined.Save to "Сохранено в базу"
-    GeoMarkDeliveryState.QUEUED -> Icons.Outlined.Schedule to "В очереди на отправку"
-    GeoMarkDeliveryState.SENT -> Icons.Outlined.Email to "Отправлено"
-    GeoMarkDeliveryState.RECEIVED -> Icons.Outlined.MoveToInbox to "Принято из сети"
+fun geoMarkDeliveryIconVector(state: GeoMarkDeliveryState): ImageVector = when (state) {
+    GeoMarkDeliveryState.LOCAL -> Icons.Outlined.Save
+    GeoMarkDeliveryState.QUEUED -> Icons.Outlined.Schedule
+    GeoMarkDeliveryState.SENT -> Icons.Outlined.Email
+    GeoMarkDeliveryState.RECEIVED -> Icons.Outlined.MoveToInbox
 }
 
 @Composable
@@ -24,9 +26,14 @@ fun GeoMarkDeliveryIcon(
     state: GeoMarkDeliveryState,
     modifier: Modifier = Modifier,
 ) {
-    val (imageVector, contentDescription) = geoMarkDeliveryIconSpec(state)
+    val contentDescription = when (state) {
+        GeoMarkDeliveryState.LOCAL -> stringResource(R.string.geo_mark_delivery_local)
+        GeoMarkDeliveryState.QUEUED -> stringResource(R.string.geo_mark_delivery_queued)
+        GeoMarkDeliveryState.SENT -> stringResource(R.string.geo_mark_delivery_sent)
+        GeoMarkDeliveryState.RECEIVED -> stringResource(R.string.geo_mark_delivery_received)
+    }
     Icon(
-        imageVector = imageVector,
+        imageVector = geoMarkDeliveryIconVector(state),
         contentDescription = contentDescription,
         modifier = modifier,
         tint = MaterialTheme.colorScheme.onSurfaceVariant,

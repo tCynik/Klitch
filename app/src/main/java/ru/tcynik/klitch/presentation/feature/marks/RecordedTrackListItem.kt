@@ -70,7 +70,7 @@ fun RecordedTrackListItem(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = "${item.startedAtLabel}  •  ${item.durationLabel}  •  ${item.distanceLabel}",
+                text = "${item.startedAtLabel}  •  ${item.durationLabel.resolve()}  •  ${item.distanceLabel.resolve()}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

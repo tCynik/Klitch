@@ -62,7 +62,10 @@ Determine what is being tested:
 - **UseCase** — suspend, one-shot operation
 - **SyncUseCase** — synchronous (`operator fun invoke`), no suspend/flow
 - **Mapper** — pure function, no dependencies
+- **HudStateMapper** — pure `object` functions (use Mapper template; no coroutines, no MockK)
 - **ViewModel** — collects Flow from use case, updates `StateFlow<UiState>`
+
+Main screen has 5 scoped ViewModels: `MainViewModel` (map/GPS/HUD), `ConnectionViewModel`, `GeoMarkViewModel`, `TrackRecordingViewModel`, `EmergencyViewModel`. Test each independently — they have no VM-to-VM dependencies.
 
 ### Step 2. Scaffold
 
@@ -241,43 +244,53 @@ class NodeMapperTest {
 
 ### ViewModel (Turbine + MockK)
 
-```kotlin
-// presentation/feature/main/MainViewModelTest.kt
-@ExtendWith(InstantTaskExecutorExtension::class)
-class MainViewModelTest {
+Test each scoped ViewModel in isolation — mock only the use cases it directly injects.
 
-    private val observeUserLocation: ObserveUserLocationUseCase = mockk()
-    private lateinit var viewModel: MainViewModel
+```kotlin
+// presentation/feature/main/EmergencyViewModelTest.kt
+@ExtendWith(InstantTaskExecutorExtension::class)
+class EmergencyViewModelTest {
+
+    private val observeEmergency: ObserveEmergencyModeUseCase = mockk()
+    private val triggerEmergency: TriggerEmergencyUseCase = mockk()
+    private val cancelEmergency: CancelEmergencyUseCase = mockk()
+    private val syncMute: SyncEmergencyMuteUseCase = mockk()
+    private lateinit var viewModel: EmergencyViewModel
 
     @BeforeEach
     fun setUp() {
-        every { observeUserLocation() } returns emptyFlow()
-        viewModel = MainViewModel(observeUserLocation)
+        every { observeEmergency(NoParams) } returns emptyFlow()
+        every { syncMute(NoParams) } returns emptyFlow()
+        viewModel = EmergencyViewModel(observeEmergency, triggerEmergency, cancelEmergency, syncMute)
     }
 
     @Test
-    fun `userLocation updates when use case emits`() = runTest {
-        val position = GeoPoint(55.75, 37.62)
-        every { observeUserLocation() } returns flowOf(position)
-
-        viewModel = MainViewModel(observeUserLocation)
+    fun `isSosActive reflects emitted SOS state`() = runTest {
+        every { observeEmergency(NoParams) } returns flowOf(true)
+        viewModel = EmergencyViewModel(observeEmergency, triggerEmergency, cancelEmergency, syncMute)
 
         viewModel.uiState.test {
+            skipItems(1) // initial false
             val state = awaitItem()
-            assertEquals(position, state.userLocation)
+            assertTrue(state.isSosActive)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `userLocation is null initially`() = runTest {
+    fun `initial state has all dialogs closed`() = runTest {
         viewModel.uiState.test {
-            assertNull(awaitItem().userLocation)
+            val state = awaitItem()
+            assertFalse(state.isSosActive)
+            assertFalse(state.showSosTriggerDialog)
+            assertFalse(state.showSosCancelDialog)
             cancelAndIgnoreRemainingEvents()
         }
     }
 }
 ```
+
+**HudStateMapper:** test as pure functions using the Mapper template — no coroutines, no MockK, plain `assertEquals`. Example: `presentation/feature/main/osd/HudStateMapperTest.kt`.
 
 ### SQLDelight Integration (in-memory driver)
 
@@ -319,29 +332,4 @@ class MarkerRepositoryIntegrationTest {
 }
 ```
 
----
 
-## Required Test Dependencies
-
-```kotlin
-// app/build.gradle.kts
-testImplementation(libs.junit5)
-testImplementation(libs.kotlinx.coroutines.test)
-testImplementation(libs.turbine)
-testImplementation(libs.mockk)
-
-androidTestImplementation(libs.sqldelight.jdbc.driver)   // in-memory SQLDelight
-androidTestImplementation(libs.junit4.android)
-```
-
----
-
-## Testing Principles
-
-- **TDD for logic.** If a class contains `if`, `when`, data transformation, or calculation — write the test first.
-- **No mocking implementations.** MockK only mocks domain interfaces (`*Repository`, `*UseCase`). Never mock `*RepositoryImpl`.
-- **`runTest`, not `runBlocking`.** `runBlocking` blocks the thread; `runTest` handles virtual time and is safe for coroutine testing.
-- **Turbine for Flows.** Never `collect` manually in tests — use `turbineScope` or `.test {}` to avoid timing issues.
-- **Real DB for integration.** SQLDelight in-memory driver is fast and accurate. Mocking the DB hides schema bugs.
-- **One assertion focus per test.** Each test should have one reason to fail. Avoid combining multiple behaviors in one test method.
-- **NoOpLogger for logger-injected classes.** Any class under test that accepts `logger: Logger` in its constructor must receive `NoOpLogger()` — inject it directly, never `mockkStatic(android.util.Log::class)`. See `CheckNodeSyncUseCaseTest.kt` for a reference example.

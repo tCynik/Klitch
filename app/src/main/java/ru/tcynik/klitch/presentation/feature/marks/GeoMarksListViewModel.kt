@@ -34,9 +34,11 @@ import ru.tcynik.klitch.presentation.feature.marks.models.GeoMarkListItemUiModel
 import ru.tcynik.klitch.presentation.feature.marks.models.GeoMarksDeleteConfirmUi
 import ru.tcynik.klitch.presentation.feature.marks.models.GeoMarksListUiState
 import ru.tcynik.klitch.presentation.feature.marks.models.RecordedTrackListItemUiModel
+import ru.tcynik.klitch.R
 import ru.tcynik.klitch.presentation.feature.main.GEO_MARK_LOCAL_STORAGE_ID
 import ru.tcynik.klitch.presentation.feature.marks.models.GeoMarksSendContourPickerUi
 import ru.tcynik.klitch.presentation.feature.marks.models.resolveGeoMarkDeliveryState
+import ru.tcynik.klitch.presentation.ui.UiText
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -80,8 +82,8 @@ class GeoMarksListViewModel(
         viewModelScope.launch {
             observeContours(NoParams).collect { contours ->
                 val active = contours.filter { it.isActive }
-                val storage = GeoMarkContourOptionUi(GEO_MARK_LOCAL_STORAGE_ID, "Память")
-                sendContourOptions = (active.map { GeoMarkContourOptionUi(it.id.value, it.name) } + storage)
+                val storage = GeoMarkContourOptionUi(GEO_MARK_LOCAL_STORAGE_ID, UiText.Static(R.string.geo_marks_storage_name))
+                sendContourOptions = (active.map { GeoMarkContourOptionUi(it.id.value, UiText.Raw(it.name)) } + storage)
                     .toImmutableList()
             }
         }
@@ -204,12 +206,18 @@ class GeoMarksListViewModel(
         markIds: List<String>,
         items: List<GeoMarkListItemUiModel>,
     ) {
-        val message = when (items.size) {
+        val message: UiText = when (items.size) {
             1 -> {
                 val item = items.single()
-                "Удалить метку ${item.name} (от ${item.authorLabel})?"
+                if (item.isSelf) {
+                    UiText.Dynamic(R.string.geo_marks_delete_single_self, item.name)
+                } else {
+                    val mark = cachedMarks.find { it.id == item.id }
+                    val authorName = mark?.let { cachedNodeNames[it.authorNodeId] ?: it.authorNodeId.take(6).ifBlank { "—" } } ?: "—"
+                    UiText.Dynamic(R.string.geo_marks_delete_single, item.name, authorName)
+                }
             }
-            else -> "Удалить выбранные метки(${items.size})?"
+            else -> UiText.Dynamic(R.string.geo_marks_delete_multi, items.size)
         }
         _uiState.update {
             it.copy(
@@ -239,6 +247,7 @@ class GeoMarksListViewModel(
                     createdAtLabel = GeoMarkCreatedAtFormatter.format(mark.createdAt, now),
                     ttlLabel = GeoMarkTtlFormatter.format(mark.expiresAt, now),
                     authorLabel = GeoMarkTitleFormatter.authorLabel(mark, cachedNodeNames),
+                    isSelf = mark.isSelf,
                     deliveryState = resolveGeoMarkDeliveryState(
                         isSelf = mark.isSelf,
                         logicalChannelId = mark.logicalChannelId,
@@ -346,16 +355,17 @@ class GeoMarksListViewModel(
 
     private fun RecordedTrack.toUiModel(): RecordedTrackListItemUiModel {
         val startedAtLabel = dateFormat.format(Date(startedAt * 1000L))
-        val durationLabel = finishedAt?.let { end ->
+        val durationLabel: UiText = finishedAt?.let { end ->
             val secs = end - startedAt
             val h = secs / 3600
             val m = (secs % 3600) / 60
-            if (h > 0) "%dч %02dм".format(h, m) else "%dм".format(m)
-        } ?: "записывается"
-        val distanceLabel = finishedAt?.let {
-            if (totalDistanceMeters >= 1000.0) "%.1f км".format(totalDistanceMeters / 1000.0)
-            else "%.0f м".format(totalDistanceMeters)
-        } ?: "—"
+            if (h > 0) UiText.Dynamic(R.string.track_list_duration_hours_minutes, h.toInt(), m.toInt())
+            else UiText.Dynamic(R.string.track_list_duration_minutes, m.toInt())
+        } ?: UiText.Static(R.string.track_list_duration_recording)
+        val distanceLabel: UiText = finishedAt?.let {
+            if (totalDistanceMeters >= 1000.0) UiText.Dynamic(R.string.track_list_distance_km, totalDistanceMeters / 1000.0)
+            else UiText.Dynamic(R.string.track_list_distance_m, totalDistanceMeters)
+        } ?: UiText.Raw("—")
         return RecordedTrackListItemUiModel(
             id = id,
             name = name,

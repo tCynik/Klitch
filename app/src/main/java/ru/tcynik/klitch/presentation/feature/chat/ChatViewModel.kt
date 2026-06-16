@@ -30,9 +30,11 @@ import ru.tcynik.klitch.domain.chat.usecase.ToggleChatPinnedUseCase
 import ru.tcynik.klitch.domain.chat.usecase.ToggleFavoriteParams
 import ru.tcynik.klitch.domain.chat.usecase.TogglePinnedParams
 import ru.tcynik.klitch.domain.usecase.base.NoParams
+import ru.tcynik.klitch.R
 import ru.tcynik.klitch.presentation.feature.chat.model.ChatFilterItem
 import ru.tcynik.klitch.presentation.feature.chat.model.ChatTab
 import ru.tcynik.klitch.presentation.feature.chat.model.ChatType
+import ru.tcynik.klitch.presentation.ui.UiText
 
 class ChatViewModel(
     private val observeContactsUseCase: ObserveChatContactsUseCase,
@@ -80,7 +82,7 @@ class ChatViewModel(
                         currentTab = ChatTab.FILTER,
                         selectedChatId = null,
                         isChatTabEnabled = true,
-                        chatTabTitle = "Лента",
+                        chatTabTitle = UiText.Static(R.string.chat_tab_title_feed),
                     )
                 }
             }
@@ -117,7 +119,10 @@ class ChatViewModel(
         val item = findItemById(chatId, _uiState.value.filterItems)
         val pkcStatus = if (item?.type == ChatType.DIRECT_CHAT) item.partnerHasPKC else null
         _uiState.update { state ->
-            val title = if (item != null) "Чат с ${item.name}" else "Чат"
+            val title = if (item != null)
+                UiText.Dynamic(R.string.chat_tab_title_chat_with, item.name)
+            else
+                UiText.Static(R.string.chat_tab_title_chat)
             state.copy(
                 selectedChatId = chatId,
                 currentTab = ChatTab.CHAT,
@@ -316,7 +321,7 @@ class ChatViewModel(
                         .map { it.toFilterItem(isChecked = false) }
                     val archiveSection = ChatFilterItem(
                         id = "archive_section",
-                        name = "Архив",
+                        name = "",
                         type = ChatType.CHANNEL,
                         isArchiveSection = true,
                         isExpanded = existingArchiveSection?.isExpanded ?: false,
@@ -394,20 +399,23 @@ class ChatViewModel(
             if (selectedId != null) {
                 val item = findItemById(selectedId, state.filterItems)
                 return@update state.copy(
-                    chatTabTitle = if (item != null) "Чат с ${item.name}" else "Чат",
+                    chatTabTitle = if (item != null)
+                        UiText.Dynamic(R.string.chat_tab_title_chat_with, item.name)
+                    else
+                        UiText.Static(R.string.chat_tab_title_chat),
                     isChatTabEnabled = true,
                 )
             }
             val checkedItems = state.filterItems
                 .filter { !it.isArchiveSection && it.id in _checkedIds.value }
             when {
-                checkedItems.isEmpty() -> state.copy(chatTabTitle = "Лента", isChatTabEnabled = true)
+                checkedItems.isEmpty() -> state.copy(chatTabTitle = UiText.Static(R.string.chat_tab_title_feed), isChatTabEnabled = true)
                 checkedItems.size == 1 -> state.copy(
-                    chatTabTitle = "Чат с ${checkedItems.first().name}",
+                    chatTabTitle = UiText.Dynamic(R.string.chat_tab_title_chat_with, checkedItems.first().name),
                     isChatTabEnabled = true,
                 )
                 else -> state.copy(
-                    chatTabTitle = "Лента (${checkedItems.size})",
+                    chatTabTitle = UiText.Dynamic(R.string.chat_tab_title_feed_count, checkedItems.size),
                     isChatTabEnabled = true,
                 )
             }

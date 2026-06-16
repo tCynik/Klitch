@@ -8,6 +8,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import ru.tcynik.klitch.R
 import ru.tcynik.klitch.presentation.feature.marks.models.GeoMarksSendContourPickerUi
 
 @Composable
@@ -18,13 +20,13 @@ fun GeoMarksSendContourDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Отправить в контур") },
+        title = { Text(stringResource(R.string.geo_mark_send_contour_title)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                Text("Метка: ${picker.markName}")
+                Text(stringResource(R.string.geo_mark_send_contour_label, picker.markName))
                 picker.contours.forEach { option ->
                     TextButton(onClick = { onContourSelected(option.contourId) }) {
-                        Text(option.displayName)
+                        Text(option.displayName.resolve())
                     }
                 }
             }
@@ -32,7 +34,7 @@ fun GeoMarksSendContourDialog(
         confirmButton = { /* выбор контура — кнопки в text */ },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Отмена")
+                Text(stringResource(R.string.geo_mark_send_contour_cancel))
             }
         },
     )

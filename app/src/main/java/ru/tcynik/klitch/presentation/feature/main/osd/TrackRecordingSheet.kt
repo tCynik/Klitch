@@ -541,11 +541,12 @@ private fun TrackActionRow(content: @Composable () -> Unit) {
     }
 }
 
+@Composable
 private fun buildHeaderTitle(state: TrackRecordingSheetUiState): String =
     when (val rs = state.recordingState) {
         is TrackRecordingState.Recording -> rs.name
         is TrackRecordingState.Idle -> {
-            val name = state.settings.name.trim().ifEmpty { "Трек" }
+            val name = state.settings.name.trim().ifEmpty { stringResource(R.string.track_recording_default_name) }
             val counter = state.settings.nameCounter?.let { " $it" }.orEmpty()
             "$name$counter"
         }
@@ -559,15 +560,17 @@ private fun formatDuration(seconds: Long): String {
     else "%02d:%02d".format(m, s)
 }
 
+@Composable
 private fun formatDistance(meters: Double): String = when {
-    meters >= 1000.0 -> "%.1f км".format(meters / 1000.0)
-    else             -> "%.0f м".format(meters)
+    meters >= 1000.0 -> stringResource(R.string.track_sheet_distance_km, meters / 1000.0)
+    else             -> stringResource(R.string.track_sheet_distance_m, meters)
 }
 
+@Composable
 private fun formatSpeed(mps: Float?): String = when {
     mps == null -> "—"
-    mps >= 1000f / 3.6f -> "%.0f км/ч".format(mps * 3.6f)
-    else -> "%.1f км/ч".format(mps * 3.6f)
+    mps >= 1000f / 3.6f -> stringResource(R.string.track_sheet_speed_fast, mps * 3.6f)
+    else -> stringResource(R.string.track_sheet_speed, mps * 3.6f)
 }
 
 @Composable

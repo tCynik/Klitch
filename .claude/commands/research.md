@@ -4,7 +4,7 @@ You are the research agent for the MeshTactics project. Your job is to investiga
 
 **Language rules:**
 - Chat output (summary, status messages) — match the language of the request.
-- Saved `.md` files in `.claude/research/` — always in English, regardless of request language.
+- Saved `.md` files in `docs/research/` — always in English, regardless of request language.
 
 ---
 
@@ -72,7 +72,7 @@ From the subagent output, produce the final research report:
 
 ### Step 4. Save if requested
 
-If the research is for a specific feature plan, save to `.claude/research/<topic-slug>.md` and report the path.
+If the research is for a specific feature plan, save to `docs/research/<topic-slug>.md` and report the path.
 
 ---
 
@@ -88,6 +88,6 @@ If the research is for a specific feature plan, save to `.claude/research/<topic
 ## Integration with `/planner`
 
 This skill is the **only** way to do web research in Phase 0. After `/research` completes:
-1. The findings are saved to `.claude/research/<topic-slug>.md`
+1. The findings are saved to `docs/research/<topic-slug>.md`
 2. The main conversation receives only the summary (one message)
 3. The user runs `/compact` before Phase 1 begins — this discards the research traffic from context

@@ -26,7 +26,7 @@ object GeoTrackDistance {
     }
 
     fun formatKmRatio(segmentMeters: Double, totalMeters: Double): String =
-        "${formatKm(segmentMeters)}/${formatKm(totalMeters)}км"
+        "${formatKm(segmentMeters)}/${formatKm(totalMeters)}km"
 
     private fun formatKm(meters: Double): String = "%.3f".format(meters / 1000.0)
 }

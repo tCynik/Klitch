@@ -14,7 +14,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import ru.tcynik.klitch.R
 import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.klitch.presentation.feature.network.components.NetworkSettingsContent
 import ru.tcynik.klitch.presentation.feature.network.state.MeshConnectionStatusUi
@@ -27,7 +29,8 @@ fun NetworkSettingsScreen(
     viewModel: NetworkSettingsViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val title = "Настройки ноды ${state.settings.deviceConfig?.shortName.orEmpty()}".trim()
+    val shortName = state.settings.deviceConfig?.shortName.orEmpty()
+    val title = stringResource(R.string.network_settings_title_prefix, shortName).trim()
     val context = LocalContext.current
 
     Scaffold(
@@ -36,7 +39,7 @@ fun NetworkSettingsScreen(
                 title = { Text(title) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.network_settings_cd_back))
                     }
                 },
             )

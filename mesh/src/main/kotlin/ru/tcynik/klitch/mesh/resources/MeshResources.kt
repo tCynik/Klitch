@@ -1,4 +1,6 @@
-﻿/*
+﻿// Copyright (c) 2025 tCynik — modifications under GPL-3.0
+
+/*
  * Bridge replacing Compose Multiplatform resources with standard Android string resources.
  * Provides the same API surface (Res.string.xxx, getString, getStringSuspend) so that
  * copied code from the KMP Meshtastic project compiles unchanged.

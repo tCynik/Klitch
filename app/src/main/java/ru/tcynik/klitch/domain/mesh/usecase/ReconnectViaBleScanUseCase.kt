@@ -13,7 +13,7 @@ import ru.tcynik.klitch.domain.usecase.base.UseCase
 /**
  * Разрывает BLE-сессию, сканирует эфир и подключается к последней ноде.
  *
- * Logcat: `tag:MT/Node syncReconnect|syncConfirm` + `tag:MT/BLE scanDevices`
+ * Logcat: `tag:Klitch/Node syncReconnect|syncConfirm` + `tag:Klitch/BLE scanDevices`
  */
 class ReconnectViaBleScanUseCase(
     private val disconnectFromMesh: DisconnectFromMeshUseCase,

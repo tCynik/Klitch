@@ -1,5 +1,7 @@
 ﻿package ru.tcynik.klitch.presentation.feature.network.state
 
+import androidx.annotation.StringRes
+import ru.tcynik.klitch.R
 import ru.tcynik.klitch.presentation.feature.network.state.models.LocationConfigUi
 
 data class NetworkSettingsState(
@@ -14,8 +16,9 @@ data class NetworkSettingsState(
     val hasChanges: Boolean
         get() = deviceConfig != originalDeviceConfig || channels != originalChannels
 
-    val shortNameError: String?
-        get() = if (deviceConfig?.shortName?.isEmpty() == true) "Минимум 1 символ" else null
+    @get:StringRes
+    val shortNameError: Int?
+        get() = if (deviceConfig?.shortName?.isEmpty() == true) R.string.network_settings_short_name_empty else null
 }
 
 data class DeviceConfigUi(

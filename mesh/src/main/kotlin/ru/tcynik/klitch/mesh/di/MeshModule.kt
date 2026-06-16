@@ -1,4 +1,6 @@
-﻿package ru.tcynik.klitch.mesh.di
+﻿// Copyright (c) 2025 tCynik — modifications under GPL-3.0
+
+package ru.tcynik.klitch.mesh.di
 
 import org.koin.core.annotation.Module
 import org.koin.core.module.Module as KoinModule

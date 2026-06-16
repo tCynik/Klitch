@@ -1,18 +1,14 @@
-﻿package ru.tcynik.klitch.presentation.feature.main
+package ru.tcynik.klitch.presentation.feature.main
 
 import android.os.SystemClock
 import app.cash.turbine.test
-import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
-import ru.tcynik.klitch.domain.channel.model.NodeSyncResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -26,126 +22,38 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import ru.tcynik.klitch.domain.channel.repository.ContourSyncStateRepository
-import ru.tcynik.klitch.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.klitch.domain.channel.usecase.ObserveContoursUseCase
-import ru.tcynik.klitch.domain.channel.usecase.ObserveNodeChannelsUseCase
-import ru.tcynik.klitch.domain.channel.usecase.SyncContoursOnConnectUseCase
-import ru.tcynik.klitch.domain.chat.usecase.IngestReceivedChatMessagesUseCase
-import ru.tcynik.klitch.domain.chat.usecase.SyncEmergencyMuteUseCase
-import ru.tcynik.klitch.domain.chat.usecase.ObserveTotalUnreadChatCountUseCase
-import ru.tcynik.klitch.domain.marker.usecase.AutoExpireGeoMarksUseCase
-import ru.tcynik.klitch.domain.location.model.GpsSignalLevel
-import ru.tcynik.klitch.domain.location.model.GpsStatusModel
-import ru.tcynik.klitch.domain.location.usecase.ObserveGpsStatusUseCase
-import ru.tcynik.klitch.domain.map.usecase.GetLastMapPositionUseCase
-import ru.tcynik.klitch.domain.map.usecase.GetTileUrlUseCase
-import ru.tcynik.klitch.domain.map.usecase.ObserveNodeMarkersUseCase
-import ru.tcynik.klitch.domain.map.usecase.ObserveSelectedOverlaysUseCase
-import ru.tcynik.klitch.domain.map.usecase.SaveLastMapPositionUseCase
 import ru.tcynik.klitch.domain.marker.model.GeoMarkFormPreferences
 import ru.tcynik.klitch.domain.marker.model.GeoMarkShape
 import ru.tcynik.klitch.domain.marker.model.GeoMarkType
-import ru.tcynik.klitch.presentation.feature.main.osd.models.DraftPointContextMenuEvent
 import ru.tcynik.klitch.domain.marker.repository.GeoMarkPreferencesRepository
+import ru.tcynik.klitch.domain.marker.usecase.AutoExpireGeoMarksUseCase
 import ru.tcynik.klitch.domain.marker.usecase.DeleteGeoMarksUseCase
 import ru.tcynik.klitch.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.klitch.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.klitch.domain.marker.usecase.SendGeoMarkUseCase
 import ru.tcynik.klitch.domain.marker.usecase.ToggleGeoMarkVisibilityUseCase
 import ru.tcynik.klitch.domain.mesh.model.MeshConnectionStatus
-import ru.tcynik.klitch.domain.mesh.usecase.ConnectToMeshDeviceUseCase
-import ru.tcynik.klitch.domain.mesh.usecase.GetLastConnectedDeviceUseCase
-import ru.tcynik.klitch.domain.mesh.usecase.NodeProvisioningUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveConnectionStatusUseCase
-import ru.tcynik.klitch.domain.mesh.usecase.RebootNodeUseCase
-import ru.tcynik.klitch.domain.mesh.usecase.ScanMeshDevicesUseCase
-import ru.tcynik.klitch.domain.mesh.usecase.ObserveCallsignChangesUseCase
-import ru.tcynik.klitch.domain.mesh.usecase.RefreshNodePublicKeyUseCase
-import ru.tcynik.klitch.domain.mesh.repository.RebootStateRepository
-import ru.tcynik.klitch.domain.settings.usecase.GetGeoMarkSizeLevelUseCase
-import ru.tcynik.klitch.domain.settings.usecase.GetMarkerSizeLevelUseCase
-import ru.tcynik.klitch.domain.settings.usecase.GetShowGeoMarkNamesUseCase
-import ru.tcynik.klitch.domain.settings.usecase.ObserveNetworkEnabledUseCase
-import ru.tcynik.klitch.domain.settings.usecase.ObserveGeoMarkSizeLevelUseCase
-import ru.tcynik.klitch.domain.settings.usecase.ObserveMarkerSizeLevelUseCase
-import ru.tcynik.klitch.domain.settings.usecase.ObserveShowGeoMarkNamesUseCase
-import ru.tcynik.klitch.domain.user.model.AppUser
-import ru.tcynik.klitch.domain.user.usecase.ObserveAppUserUseCase
-import ru.tcynik.klitch.data.track.datasource.TrackSettingsDataSource
-import ru.tcynik.klitch.domain.gps.repository.GpsRepository
-import ru.tcynik.klitch.domain.mesh.model.NodeSyncCyclePhase
-import ru.tcynik.klitch.domain.track.model.TrackRecordingSettings
-import ru.tcynik.klitch.domain.track.model.TrackRecordingState
-import ru.tcynik.klitch.domain.track.usecase.DiscardTrackRecordingUseCase
-import ru.tcynik.klitch.domain.track.usecase.ObserveRecordedTrackPointsUseCase
-import ru.tcynik.klitch.domain.track.usecase.ObserveRecordedTracksUseCase
-import ru.tcynik.klitch.domain.track.usecase.ObserveTrackRecordingStateUseCase
-import ru.tcynik.klitch.domain.track.usecase.PauseTrackRecordingUseCase
-import ru.tcynik.klitch.domain.track.usecase.ResumeTrackRecordingUseCase
-import ru.tcynik.klitch.domain.track.usecase.StartTrackRecordingUseCase
-import ru.tcynik.klitch.domain.track.usecase.StopTrackRecordingUseCase
-import ru.tcynik.klitch.domain.track.usecase.UpdateTrackRecordingColorUseCase
-import ru.tcynik.klitch.domain.track.usecase.UpdateTrackRecordingNameUseCase
+import ru.tcynik.klitch.presentation.feature.main.osd.models.DraftPointContextMenuEvent
 
-/** Step between [SystemClock.uptimeMillis] calls — must exceed [MainViewModel] 80 ms tap dedupe. */
+/** Step between [SystemClock.uptimeMillis] calls — must exceed [GeoMarkViewModel] 80 ms tap dedupe. */
 private const val MOCK_UPTIME_STEP_MS = 100L
 
-class MainViewModelMarkToolTest {
+class GeoMarkViewModelMarkToolTest {
 
-    // ── use case mocks ────────────────────────────────────────────────────────
-
-    private val getTileUrl: GetTileUrlUseCase = mockk()
-    private val getLastPosition: GetLastMapPositionUseCase = mockk()
-    private val saveLastPosition: SaveLastMapPositionUseCase = mockk(relaxed = true)
-    private val observeNodeMarkers: ObserveNodeMarkersUseCase = mockk()
-    private val observeConnectionStatus: ObserveConnectionStatusUseCase = mockk()
-    private val observeGpsStatus: ObserveGpsStatusUseCase = mockk()
-    private val getMarkerSizeLevel: GetMarkerSizeLevelUseCase = mockk()
-    private val observeMarkerSizeLevel: ObserveMarkerSizeLevelUseCase = mockk()
-    private val getGeoMarkSizeLevel: GetGeoMarkSizeLevelUseCase = mockk()
-    private val observeGeoMarkSizeLevel: ObserveGeoMarkSizeLevelUseCase = mockk()
-    private val getShowGeoMarkNames: GetShowGeoMarkNamesUseCase = mockk()
-    private val observeShowGeoMarkNames: ObserveShowGeoMarkNamesUseCase = mockk()
-    private val observeNetworkEnabled: ObserveNetworkEnabledUseCase = mockk()
-    private val observeSelectedOverlays: ObserveSelectedOverlaysUseCase = mockk()
-    private val observeTotalUnreadChatCount: ObserveTotalUnreadChatCountUseCase = mockk()
-    private val scanDevices: ScanMeshDevicesUseCase = mockk()
-    private val connectToDevice: ConnectToMeshDeviceUseCase = mockk(relaxed = true)
-    private val getLastConnectedDevice: GetLastConnectedDeviceUseCase = mockk()
-    private val nodeProvisioning: NodeProvisioningUseCase = mockk(relaxed = true)
     private val observeGeoMarks: ObserveGeoMarksUseCase = mockk()
+    private val ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase = mockk()
+    private val autoExpireGeoMarks: AutoExpireGeoMarksUseCase = mockk(relaxed = true)
+    private val observeContours: ObserveContoursUseCase = mockk()
+    private val observeConnectionStatus: ObserveConnectionStatusUseCase = mockk()
     private val toggleGeoMarkVisibility: ToggleGeoMarkVisibilityUseCase = mockk(relaxed = true)
     private val deleteGeoMarks: DeleteGeoMarksUseCase = mockk(relaxed = true)
     private val sendGeoMark: SendGeoMarkUseCase = mockk(relaxed = true)
-    private val ingestReceivedGeoMarks: IngestReceivedGeoMarksUseCase = mockk()
-    private val autoExpireGeoMarks: AutoExpireGeoMarksUseCase = mockk(relaxed = true)
-    private val ingestReceivedChatMessages: IngestReceivedChatMessagesUseCase = mockk()
-    private val syncEmergencyMute: SyncEmergencyMuteUseCase = mockk()
-    private val observeLogicalChannels: ObserveContoursUseCase = mockk()
-    private val observeNodeChannels: ObserveNodeChannelsUseCase = mockk()
-    private val checkNodeSync: CheckNodeSyncUseCase = mockk(relaxed = true)
-    private val syncStateRepository: ContourSyncStateRepository = mockk(relaxed = true)
-    private val rebootStateRepository: RebootStateRepository = mockk(relaxed = true)
-    private val observeCallsignChanges: ObserveCallsignChangesUseCase = mockk()
-    private val refreshNodePublicKey: RefreshNodePublicKeyUseCase = mockk(relaxed = true)
     private val geoMarkPrefsRepository: GeoMarkPreferencesRepository = mockk(relaxed = true)
-    private val observeAppUser: ObserveAppUserUseCase = mockk()
-    private val observeTrackRecordingState: ObserveTrackRecordingStateUseCase = mockk()
-    private val startTrackRecording: StartTrackRecordingUseCase = mockk(relaxed = true)
-    private val pauseTrackRecording: PauseTrackRecordingUseCase = mockk(relaxed = true)
-    private val resumeTrackRecording: ResumeTrackRecordingUseCase = mockk(relaxed = true)
-    private val stopTrackRecording: StopTrackRecordingUseCase = mockk(relaxed = true)
-    private val discardTrackRecording: DiscardTrackRecordingUseCase = mockk(relaxed = true)
-    private val updateTrackRecordingName: UpdateTrackRecordingNameUseCase = mockk(relaxed = true)
-    private val updateTrackRecordingColor: UpdateTrackRecordingColorUseCase = mockk(relaxed = true)
-    private val trackSettingsDataSource: TrackSettingsDataSource = mockk()
-    private val gpsRepository: GpsRepository = mockk()
-    private val observeRecordedTracks: ObserveRecordedTracksUseCase = mockk()
-    private val observeRecordedTrackPoints: ObserveRecordedTrackPointsUseCase = mockk()
 
     private val testDispatcher = UnconfinedTestDispatcher()
-    private lateinit var viewModel: MainViewModel
+    private lateinit var viewModel: GeoMarkViewModel
     private var mockUptimeMs = 0L
 
     @Before
@@ -157,91 +65,23 @@ class MainViewModelMarkToolTest {
             mockUptimeMs
         }
         Dispatchers.setMain(testDispatcher)
-        every { getTileUrl.invoke() } returns ""
-        every { getLastPosition.invoke() } returns null
-        every { observeNodeMarkers.invoke(any()) } returns flowOf(emptyList())
-        every { observeConnectionStatus.invoke(any()) } returns flowOf(MeshConnectionStatus.Disconnected)
-        every { observeGpsStatus.invoke(any()) } returns flowOf(GpsStatusModel.None)
-        every { getMarkerSizeLevel.invoke() } returns 5
-        every { observeMarkerSizeLevel.invoke(any()) } returns flowOf(5)
-        every { getGeoMarkSizeLevel.invoke() } returns 5
-        every { observeGeoMarkSizeLevel.invoke(any()) } returns flowOf(5)
-        every { getShowGeoMarkNames.invoke() } returns false
-        every { observeShowGeoMarkNames.invoke(any()) } returns flowOf(false)
-        every { observeNetworkEnabled.invoke(any()) } returns flowOf(true)
-        every { observeSelectedOverlays.invoke(any()) } returns flowOf(emptyList())
-        every { observeTotalUnreadChatCount.invoke(any()) } returns flowOf(0)
-        every { scanDevices.invoke(any()) } returns flow { kotlinx.coroutines.awaitCancellation() }
-        every { getLastConnectedDevice.invoke() } returns null
         every { observeGeoMarks.invoke(any()) } returns flowOf(emptyList())
         every { ingestReceivedGeoMarks.observe() } returns flowOf(Unit)
         every { autoExpireGeoMarks.observe() } returns flowOf(Unit)
-        every { ingestReceivedChatMessages.observe() } returns flowOf(Unit)
-        every { syncEmergencyMute.observe() } returns flowOf(Unit)
-        every { observeLogicalChannels.invoke(any()) } returns flowOf(emptyList())
-        every { observeNodeChannels.invoke(any()) } returns flowOf(emptyList())
-        every { syncStateRepository.syncRequired } returns MutableStateFlow(false)
-        every { rebootStateRepository.isRebooting } returns MutableStateFlow(false)
-        every { rebootStateRepository.syncCyclePhase } returns MutableStateFlow(NodeSyncCyclePhase.Idle)
-        every { observeTrackRecordingState.invoke(any()) } returns flowOf(TrackRecordingState.Idle)
-        every { trackSettingsDataSource.observeSettings() } returns flowOf(TrackRecordingSettings())
-        every { gpsRepository.location } returns MutableStateFlow(null)
-        every { observeRecordedTracks.invoke(any()) } returns flowOf(emptyList())
-        every { observeRecordedTrackPoints.invoke(any()) } returns flowOf(emptyList())
-        every { observeCallsignChanges.invoke(any()) } returns emptyFlow()
-        coEvery { checkNodeSync.invoke() } returns NodeSyncResult.InSync
+        every { observeContours.invoke(any()) } returns flowOf(emptyList())
+        every { observeConnectionStatus.invoke(any()) } returns flowOf(MeshConnectionStatus.Disconnected)
         every { geoMarkPrefsRepository.observePreferences() } returns flowOf(GeoMarkFormPreferences())
         every { geoMarkPrefsRepository.observePresets() } returns flowOf(emptyList())
-        every { observeAppUser.invoke(any()) } returns flowOf(AppUser(displayName = "Alpha"))
-        viewModel = MainViewModel(
-            getTileUrl = getTileUrl,
-            getLastPosition = getLastPosition,
-            saveLastPosition = saveLastPosition,
-            observeNodeMarkers = observeNodeMarkers,
-            observeConnectionStatus = observeConnectionStatus,
-            observeGpsStatus = observeGpsStatus,
-            getMarkerSizeLevel = getMarkerSizeLevel,
-            observeMarkerSizeLevel = observeMarkerSizeLevel,
-            getGeoMarkSizeLevel = getGeoMarkSizeLevel,
-            observeGeoMarkSizeLevel = observeGeoMarkSizeLevel,
-            getShowGeoMarkNames = getShowGeoMarkNames,
-            observeShowGeoMarkNames = observeShowGeoMarkNames,
-            observeNetworkEnabled = observeNetworkEnabled,
-            observeSelectedOverlays = observeSelectedOverlays,
-            observeTotalUnreadChatCount = observeTotalUnreadChatCount,
-            scanDevices = scanDevices,
-            connectToDevice = connectToDevice,
-            getLastConnectedDevice = getLastConnectedDevice,
-            nodeProvisioning = nodeProvisioning,
-            checkNodeSync = checkNodeSync,
+        viewModel = GeoMarkViewModel(
             observeGeoMarks = observeGeoMarks,
+            ingestReceivedGeoMarks = ingestReceivedGeoMarks,
+            autoExpireGeoMarks = autoExpireGeoMarks,
+            observeContours = observeContours,
+            observeConnectionStatus = observeConnectionStatus,
             toggleGeoMarkVisibility = toggleGeoMarkVisibility,
             deleteGeoMarks = deleteGeoMarks,
             sendGeoMark = sendGeoMark,
-            ingestReceivedGeoMarks = ingestReceivedGeoMarks,
-            autoExpireGeoMarks = autoExpireGeoMarks,
-            ingestReceivedChatMessages = ingestReceivedChatMessages,
-            syncEmergencyMute = syncEmergencyMute,
-            observeLogicalChannels = observeLogicalChannels,
-            observeNodeChannels = observeNodeChannels,
-            syncStateRepository = syncStateRepository,
-            rebootStateRepository = rebootStateRepository,
-            observeCallsignChanges = observeCallsignChanges,
-            refreshNodePublicKey = refreshNodePublicKey,
-            observeAppUser = observeAppUser,
             geoMarkPrefsRepository = geoMarkPrefsRepository,
-            observeTrackRecordingState = observeTrackRecordingState,
-            startTrackRecording = startTrackRecording,
-            pauseTrackRecording = pauseTrackRecording,
-            resumeTrackRecording = resumeTrackRecording,
-            stopTrackRecording = stopTrackRecording,
-            discardTrackRecording = discardTrackRecording,
-            updateTrackRecordingName = updateTrackRecordingName,
-            updateTrackRecordingColor = updateTrackRecordingColor,
-            trackSettingsDataSource = trackSettingsDataSource,
-            gpsRepository = gpsRepository,
-            observeRecordedTracks = observeRecordedTracks,
-            observeRecordedTrackPoints = observeRecordedTrackPoints,
         )
     }
 

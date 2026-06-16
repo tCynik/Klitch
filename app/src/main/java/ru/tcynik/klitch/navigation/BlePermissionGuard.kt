@@ -34,7 +34,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.compose.ui.res.stringResource
 import org.koin.compose.koinInject
+import ru.tcynik.klitch.R
 import ru.tcynik.klitch.mesh.ble.BluetoothRepository
 import ru.tcynik.klitch.service.GpsService
 
@@ -99,19 +101,19 @@ private fun BluetoothDisabledScreen() {
         )
         Spacer(Modifier.height(24.dp))
         Text(
-            text = "Bluetooth выключен",
+            text = stringResource(R.string.ble_disabled_title),
             style = MaterialTheme.typography.headlineSmall,
         )
         Spacer(Modifier.height(12.dp))
         Text(
-            text = "Включите Bluetooth для подключения к Meshtastic-узлу.",
+            text = stringResource(R.string.ble_disabled_message),
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(32.dp))
         Button(onClick = { context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }) {
-            Text("Настройки Bluetooth")
+            Text(stringResource(R.string.ble_settings_button))
         }
     }
 }
