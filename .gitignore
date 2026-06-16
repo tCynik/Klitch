@@ -54,4 +54,14 @@ shared/build/
 /.idea/inspectionProfiles/Project_Default.xml
 /claude-login.bat
 /claude-login.ps1
-/.vscode/API.txt
+/.vscode/
+
+# Signing
+keystore.properties
+*.jks
+*.keystore
+
+# Internal dev artifacts
+docs/archive/
+docs/plans/
+docs/debug/
