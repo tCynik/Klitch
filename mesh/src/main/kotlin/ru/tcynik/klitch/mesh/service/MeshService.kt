@@ -19,16 +19,12 @@ package ru.tcynik.klitch.mesh.service
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ServiceInfo
-import android.os.Build
 import android.os.IBinder
-import androidx.core.app.ServiceCompat
 import co.touchlab.kermit.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import org.koin.android.ext.android.inject
-import ru.tcynik.klitch.mesh.common.hasLocationPermission
 import ru.tcynik.klitch.mesh.common.util.toRemoteExceptions
 import ru.tcynik.klitch.mesh.model.DataPacket
 import ru.tcynik.klitch.mesh.model.DeviceVersion
@@ -43,7 +39,6 @@ import ru.tcynik.klitch.mesh.repository.MeshLocationManager
 import ru.tcynik.klitch.mesh.repository.MeshRouter
 import ru.tcynik.klitch.mesh.repository.NodeManager
 import ru.tcynik.klitch.mesh.repository.RadioInterfaceService
-import ru.tcynik.klitch.mesh.repository.SERVICE_NOTIFY_ID
 import ru.tcynik.klitch.mesh.repository.ServiceBroadcasts
 import ru.tcynik.klitch.mesh.repository.ServiceRepository
 import org.meshtastic.proto.PortNum
@@ -116,55 +111,14 @@ class MeshService : Service() {
         val a = radioInterfaceService.getDeviceAddress()
         val wantForeground = a != null && a != "n"
 
-        val notification = connectionManager.updateStatusNotification() as android.app.Notification
-
-        val foregroundServiceType =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                var types = ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
-                if (hasLocationPermission()) {
-                    types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
-                }
-                types
-            } else {
-                0
-            }
-
-        @Suppress("TooGenericExceptionCaught")
-        try {
-            ServiceCompat.startForeground(this, SERVICE_NOTIFY_ID, notification, foregroundServiceType)
-        } catch (ex: SecurityException) {
-            // On Android 14+ starting a location FGS from the background can fail with SecurityException
-            // if the app is not in an allowed state. Retry without the location type if that was requested.
-            val connectedDeviceOnly =
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
-                } else {
-                    0
-                }
-            if (foregroundServiceType != connectedDeviceOnly) {
-                Logger.w(ex) {
-                    "Failed to start foreground service with location type, retrying with connectedDevice only"
-                }
-                try {
-                    ServiceCompat.startForeground(this, SERVICE_NOTIFY_ID, notification, connectedDeviceOnly)
-                } catch (retryEx: Exception) {
-                    Logger.e(retryEx) { "Failed to start foreground service even after retry" }
-                }
-            } else {
-                Logger.e(ex) { "SecurityException starting foreground service" }
-            }
-        } catch (ex: Exception) {
-            Logger.e(ex) { "Error starting foreground service" }
-            return START_NOT_STICKY
-        }
+        connectionManager.updateStatusNotification()
 
         return if (!wantForeground) {
             Logger.i { "Stopping mesh service because no device is selected" }
-            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
             stopSelf()
             START_NOT_STICKY
         } else {
-            START_STICKY
+            START_NOT_STICKY
         }
     }
 
@@ -177,7 +131,6 @@ class MeshService : Service() {
 
     override fun onDestroy() {
         Logger.i { "Destroying mesh service" }
-        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         orchestrator.stop()
         serviceJob.cancel()
         super.onDestroy()

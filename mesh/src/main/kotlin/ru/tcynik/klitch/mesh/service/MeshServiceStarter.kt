@@ -16,45 +16,10 @@
  */
 package ru.tcynik.klitch.mesh.service
 
-import android.app.ForegroundServiceStartNotAllowedException
 import android.content.Context
-import android.os.Build
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.OutOfQuotaPolicy
-import androidx.work.WorkManager
 import co.touchlab.kermit.Logger
-import ru.tcynik.klitch.mesh.service.worker.ServiceKeepAliveWorker
 
-// / Helper function to start running our service
 fun MeshService.Companion.startService(context: Context) {
-    // Bind to our service using the same mechanism an external client would use (for testing coverage)
-    // The following would work for us, but not external users:
-    // val intent = Intent(this, MeshService::class.java)
-    // intent.action = IMeshService::class.java.name
-
-    // Before binding we want to explicitly create - so the service stays alive forever (so it can keep
-    // listening for the bluetooth packets arriving from the radio. And when they arrive forward them
-    // to Signal or whatever.
-    Logger.i { "Trying to start service debug=${false}" }
-
-    val intent = createIntent(context)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        try {
-            context.startForegroundService(intent)
-        } catch (ex: ForegroundServiceStartNotAllowedException) {
-            Logger.w { "Unable to start service foreground: ${ex.message}. Scheduling fallback worker." }
-            scheduleKeepAliveWorker(context)
-        }
-    } else {
-        context.startForegroundService(intent)
-    }
-}
-
-private fun scheduleKeepAliveWorker(context: Context) {
-    val request =
-        OneTimeWorkRequestBuilder<ServiceKeepAliveWorker>()
-            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-            .build()
-
-    WorkManager.getInstance(context).enqueue(request)
+    Logger.i { "Trying to start service" }
+    context.startService(createIntent(context))
 }
