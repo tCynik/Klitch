@@ -36,6 +36,7 @@ import ru.tcynik.klitch.domain.mesh.usecase.ObserveCallsignChangesUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.RefreshNodePublicKeyUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ScanMeshDevicesUseCase
+import ru.tcynik.klitch.domain.service.GpsServiceController
 import ru.tcynik.klitch.domain.settings.usecase.ObserveNetworkEnabledUseCase
 import ru.tcynik.klitch.domain.usecase.base.NoParams
 import ru.tcynik.klitch.domain.user.usecase.ObserveAppUserUseCase
@@ -65,6 +66,7 @@ class ConnectionViewModel(
     private val observeCallsignChanges: ObserveCallsignChangesUseCase,
     private val refreshNodePublicKey: RefreshNodePublicKeyUseCase,
     private val observeAppUser: ObserveAppUserUseCase,
+    private val gpsServiceController: GpsServiceController,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ConnectionUiState())
@@ -91,6 +93,7 @@ class ConnectionViewModel(
                     val wasConnected = _uiState.value.connectionStatus is MeshConnectionStatus.Connected
                     _uiState.update { it.copy(connectionStatus = status) }
                     if (!wasConnected) {
+                        gpsServiceController.onNodeConnected()
                         val skipSyncCheck = rebootStateRepository.shouldSkipSyncCheckAfterReboot()
                         if (!skipSyncCheck) {
                             viewModelScope.launch { nodeProvisioning.provision() }
@@ -133,6 +136,7 @@ class ConnectionViewModel(
                 if (enabled && !wasEnabled) {
                     startAutoConnectIfEnabled()
                 } else if (!enabled && wasEnabled) {
+                    gpsServiceController.onNetworkDisabled()
                     scanJob?.cancel()
                     scanJob = null
                     _uiState.update { it.copy(foundDevices = persistentListOf()) }

@@ -48,6 +48,7 @@
 | Экран «Сеть» (BLE + телеметрия) | ✅ Done |
 | Настройки сети (конфиг ноды + location) | ✅ Done |
 | MainViewModel рефакторинг (5 VM + HudStateMapper) | ✅ Done |
+| Lifecycle GpsService (условный старт/стоп по событиям) | ✅ Done |
 
 ---
 
@@ -120,7 +121,7 @@
 | Directional Node Markers | `docs/features/directional-node-markers.md` |
 | MapLibre Layer Architecture + Fonts | `docs/features/map-layer.md` |
 | Location Sharing Config | `docs/features/location-sharing-config.md` |
-| GPS Pipeline Debug (незавершён) | `docs/features/gps-pipeline-debug.md` |
+| GPS Pipeline Debug (незавершён) | `docs/debug/gps-pipeline-debug.md` |
 | KMZ/KML Import | `docs/features/kmz-kml-import.md` |
 | KMZ/KML Rendering | `docs/features/kmz-kml-rendering.md` |
 | GPS Background Service | `docs/features/gps-background-service.md` |
@@ -147,6 +148,7 @@
 | GPS Position Staleness Pipeline | `docs/features/gps-position-staleness.md` |
 | Background Position Pipeline (BleBackgroundPolicy) | `docs/features/background-position-pipeline.md` |
 | Main Screen ViewModel Architecture | `docs/features/main-viewmodel-architecture.md` |
+| Foreground Service Lifecycle | `docs/features/foreground-service-lifecycle.md` |
 
 ---
 
@@ -185,6 +187,7 @@
 | Background Position Pipeline | `docs/archive/background-position-pipeline.md` | Done |
 | Packet Channel Attribution | `docs/archive/packet-channel-attribution.md` | Archived |
 | Node GPS Position Source | `docs/plans/node-gps-position-source.md` | Planned |
+| Foreground Service Lifecycle | `docs/archive/foreground-service-lifecycle.md` | Done |
 | Contours Redesign (Primary + SOS + Isolation) | `docs/archive/contours-redesign.md` | Done |
 | MainViewModel Split | `docs/archive/mainviewmodel-split.md` | Done |
 | English Localization | `docs/archive/english-localization.md` | Done |

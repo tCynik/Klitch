@@ -49,6 +49,7 @@ class GpsService : Service() {
     private val logger: Logger by inject()
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var isRunning = false
 
     override fun onCreate() {
         super.onCreate()
@@ -63,9 +64,12 @@ class GpsService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         logger.d("GPS", "GpsService.onStartCommand")
-        gpsLifecycle.start()
-        startTrackRecordingObserver()
-        startRecordingNotificationObserver()
+        if (!isRunning) {
+            isRunning = true
+            gpsLifecycle.start()
+            startTrackRecordingObserver()
+            startRecordingNotificationObserver()
+        }
         return START_NOT_STICKY
     }
 
