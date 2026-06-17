@@ -121,7 +121,7 @@
 | Directional Node Markers | `docs/features/directional-node-markers.md` |
 | MapLibre Layer Architecture + Fonts | `docs/features/map-layer.md` |
 | Location Sharing Config | `docs/features/location-sharing-config.md` |
-| GPS Pipeline Debug (незавершён) | `docs/features/gps-pipeline-debug.md` |
+| GPS Pipeline Debug (незавершён) | `docs/debug/gps-pipeline-debug.md` |
 | KMZ/KML Import | `docs/features/kmz-kml-import.md` |
 | KMZ/KML Rendering | `docs/features/kmz-kml-rendering.md` |
 | GPS Background Service | `docs/features/gps-background-service.md` |
