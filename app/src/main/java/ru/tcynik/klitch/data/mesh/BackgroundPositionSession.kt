@@ -9,10 +9,14 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import ru.tcynik.klitch.data.gps.NodeGpsPositionSource
 import ru.tcynik.klitch.domain.channel.ChannelSlotResolver
 import ru.tcynik.klitch.domain.channel.repository.ContourRepository
+import ru.tcynik.klitch.domain.gps.model.PositionSourceMode
 import ru.tcynik.klitch.domain.gps.repository.GpsLifecycleController
+import ru.tcynik.klitch.domain.gps.usecase.ObservePositionSourceModeUseCase
 import ru.tcynik.klitch.domain.logger.Logger
+import ru.tcynik.klitch.domain.usecase.base.NoParams
 import ru.tcynik.klitch.mesh.model.Position
 import ru.tcynik.klitch.mesh.repository.CommandSender
 import ru.tcynik.klitch.mesh.repository.GeoSendPolicy
@@ -30,10 +34,13 @@ class BackgroundPositionSession(
     private val contourRepository: ContourRepository,
     private val channelSlotResolver: ChannelSlotResolver,
     private val gpsLifecycleController: GpsLifecycleController,
+    private val observePositionSourceMode: ObservePositionSourceModeUseCase,
+    private val nodeGpsPositionSource: NodeGpsPositionSource,
     private val logger: Logger,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) {
     private var locationRequestsJob: Job? = null
+    private var nodeGpsMonitorJob: Job? = null
 
     init {
         scope.launch { observeLocationPolicy() }
@@ -42,23 +49,37 @@ class BackgroundPositionSession(
     private suspend fun observeLocationPolicy() {
         nodeRepository.myNodeInfo.collect { myNodeEntity ->
             locationRequestsJob?.cancel()
+            nodeGpsMonitorJob?.cancel()
             if (myNodeEntity != null) {
+                val nodeNum = myNodeEntity.myNodeNum
                 locationRequestsJob =
-                    uiPrefs.shouldProvideNodeLocation(myNodeEntity.myNodeNum)
+                    uiPrefs.shouldProvideNodeLocation(nodeNum)
                         .combine(geoSendPolicy.observeAllowed()) { shouldProvide, geoAllowed ->
                             shouldProvide && geoAllowed
                         }
-                        .onEach { allowed ->
-                            if (allowed) {
-                                logger.d("GPS", "BackgroundPositionSession: starting GPS bridge for node ${myNodeEntity.myNodeNum}")
-                                commandSender.setFixedPosition(myNodeEntity.myNodeNum, Position(0.0, 0.0, 0))
-                                gpsLifecycleController.start()
-                                locationManager.start(scope) { pos -> sendToAllSlots(pos) }
-                            } else {
-                                logger.d("GPS", "BackgroundPositionSession: stopping GPS bridge")
-                                locationManager.stop()
+                        .combine(observePositionSourceMode(NoParams)) { allowed, mode -> allowed to mode }
+                        .onEach { (allowed, mode) ->
+                            when {
+                                allowed && mode == PositionSourceMode.PHONE_GPS -> {
+                                    logger.d("GPS", "BackgroundPositionSession: starting GPS bridge for node $nodeNum")
+                                    commandSender.setFixedPosition(nodeNum, Position(0.0, 0.0, 0))
+                                    gpsLifecycleController.start()
+                                    locationManager.start(scope) { pos -> sendToAllSlots(pos) }
+                                }
+                                allowed && mode == PositionSourceMode.NODE_GPS -> {
+                                    logger.d("GPS", "BackgroundPositionSession: node $nodeNum self-reports GPS, phone bridge skipped")
+                                    locationManager.stop()
+                                }
+                                else -> {
+                                    logger.d("GPS", "BackgroundPositionSession: stopping GPS bridge")
+                                    locationManager.stop()
+                                }
                             }
                         }
+                        .launchIn(scope)
+                nodeGpsMonitorJob =
+                    nodeGpsPositionSource.observePosition()
+                        .onEach { logger.d("GPS", "BackgroundPositionSession: node-GPS fix lat=${it.latitude} lon=${it.longitude} time=${it.time}") }
                         .launchIn(scope)
             } else {
                 locationManager.stop()

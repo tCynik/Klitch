@@ -103,6 +103,7 @@
     <string name="hud_info_pairing">Pairing with %s</string>
     <string name="hud_info_sync_required">sync required</string>
     <string name="hud_info_connected">Connected to %s</string>
+    <string name="hud_info_node_gps">📡 Node GPS</string>
     <string name="hud_label_zoom_in">+</string>
     <string name="hud_label_zoom_out">-</string>
     <string name="hud_label_gps">GPS</string>

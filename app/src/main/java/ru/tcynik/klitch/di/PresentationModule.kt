@@ -140,6 +140,7 @@ val presentationModule = module {
             refreshNodePublicKey = get<RefreshNodePublicKeyUseCase>(),
             observeAppUser = get<ObserveAppUserUseCase>(),
             gpsServiceController = get<GpsServiceController>(),
+            observePositionSourceMode = get(),
         )
     }
 

@@ -2,6 +2,7 @@ package ru.tcynik.klitch.presentation.feature.main.osd
 
 import androidx.compose.ui.graphics.Color
 import ru.tcynik.klitch.R
+import ru.tcynik.klitch.domain.gps.model.PositionSourceMode
 import ru.tcynik.klitch.domain.location.model.GpsSignalLevel
 import ru.tcynik.klitch.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.klitch.domain.mesh.model.NodeSyncCyclePhase
@@ -177,7 +178,7 @@ object HudStateMapper {
                 )
             is MeshConnectionStatus.Connected ->
                 if (connState.syncRequired)
-                    HudInfoSlot(content = UiText.Static(R.string.hud_info_sync_required), color = Color.Red)
+                    HudInfoSlot(content = UiText.Static(R.string.hud_info_sync_required), color = Color.Yellow)
                 else if (connState.showConnectionLabel)
                     HudInfoSlot(
                         content = UiText.Dynamic(R.string.hud_info_connected, status.shortName.toMeshtasticDisplayShortName()),
@@ -188,6 +189,8 @@ object HudStateMapper {
                         content = UiText.Raw("🔋${status.batteryLevel}%"),
                         color = if (status.batteryLevel < 20) Color.Red else Color.Black,
                     )
+                else if (connState.positionSourceMode == PositionSourceMode.NODE_GPS)
+                    HudInfoSlot(content = UiText.Static(R.string.hud_info_node_gps), color = Color.Black)
                 else
                     emptyInfoSlot()
             else ->
@@ -211,7 +214,7 @@ object HudStateMapper {
         if (connState.isRebooting) return Color.Yellow
         return when (val status = connState.connectionStatus) {
             is MeshConnectionStatus.Connected ->
-                if (status.rssi < RSSI_LOW_THRESHOLD) Color.Yellow else Color.Green
+                if (connState.syncRequired || status.rssi < RSSI_LOW_THRESHOLD) Color.Yellow else Color.Green
             MeshConnectionStatus.Disconnected,
             is MeshConnectionStatus.Error,
             MeshConnectionStatus.DeviceSleep -> Color.Red

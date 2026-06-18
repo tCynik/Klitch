@@ -187,6 +187,7 @@
 | Background Position Pipeline | `docs/archive/background-position-pipeline.md` | Done |
 | Packet Channel Attribution | `docs/archive/packet-channel-attribution.md` | Archived |
 | Node GPS Position Source | `docs/plans/node-gps-position-source.md` | Planned |
+| Node GPS Battery Savings | `docs/plans/node-gps-battery-savings.md` | Planned |
 | Foreground Service Lifecycle | `docs/archive/foreground-service-lifecycle.md` | Done |
 | Contours Redesign (Primary + SOS + Isolation) | `docs/archive/contours-redesign.md` | Done |
 | MainViewModel Split | `docs/archive/mainviewmodel-split.md` | Done |
