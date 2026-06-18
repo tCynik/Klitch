@@ -56,29 +56,37 @@ fun LocationConfigCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Section A: Phone → Node
+            // Section A: Phone → Node (профиль зависит от gps_mode ноды)
             SectionHeader(stringResource(R.string.network_location_section_phone_to_node))
-            SettingsRow(label = stringResource(R.string.network_location_provide_to_mesh)) {
-                Switch(
-                    checked = config.provideLocationToMesh,
-                    onCheckedChange = { onProvideLocationToggle(it) },
-                    enabled = isConnected,
-                )
-            }
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-            SettingsRow(label = stringResource(R.string.network_location_permission)) {
+            if (config.gpsMode == GpsModeUi.ENABLED) {
                 Text(
-                    text = if (config.hasLocationPermission) {
-                        stringResource(R.string.network_location_permission_granted)
-                    } else {
-                        stringResource(R.string.network_location_permission_denied)
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (config.hasLocationPermission)
-                        MaterialTheme.colorScheme.primary
-                    else
-                        MaterialTheme.colorScheme.error,
+                    text = stringResource(R.string.network_location_node_gps_active_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            } else {
+                SettingsRow(label = stringResource(R.string.network_location_provide_to_mesh)) {
+                    Switch(
+                        checked = config.provideLocationToMesh,
+                        onCheckedChange = { onProvideLocationToggle(it) },
+                        enabled = isConnected,
+                    )
+                }
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                SettingsRow(label = stringResource(R.string.network_location_permission)) {
+                    Text(
+                        text = if (config.hasLocationPermission) {
+                            stringResource(R.string.network_location_permission_granted)
+                        } else {
+                            stringResource(R.string.network_location_permission_denied)
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (config.hasLocationPermission)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.error,
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))

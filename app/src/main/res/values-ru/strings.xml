@@ -212,6 +212,7 @@
     <string name="network_location_permission">Разрешение геопозиции</string>
     <string name="network_location_permission_granted">Выдано</string>
     <string name="network_location_permission_denied">Отклонено</string>
+    <string name="network_location_node_gps_active_desc">У ноды свой GPS — позиция телефона не используется.</string>
     <string name="network_location_section_node_source">Источник позиции ноды</string>
     <string name="network_location_fixed_position">Фиксированная позиция</string>
     <string name="network_location_remove">Удалить</string>

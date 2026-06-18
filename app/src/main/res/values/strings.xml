@@ -212,6 +212,7 @@
     <string name="network_location_permission">Location permission</string>
     <string name="network_location_permission_granted">Granted</string>
     <string name="network_location_permission_denied">Denied</string>
+    <string name="network_location_node_gps_active_desc">Node has its own GPS — phone position is not used.</string>
     <string name="network_location_section_node_source">Node position source</string>
     <string name="network_location_fixed_position">Fixed position</string>
     <string name="network_location_remove">Remove</string>
