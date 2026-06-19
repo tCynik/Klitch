@@ -135,6 +135,7 @@
     <string name="sync_required_dialog_message">Node settings sync is required to join the network. The node will reboot after sync.</string>
     <string name="sync_required_dialog_confirm">Yes</string>
     <string name="sync_required_dialog_dismiss">No</string>
+    <string name="node_gps_watchdog_toast">Node GPS receiver appears dead. Phone position broadcast must be enabled.</string>
 
     <!-- Callsign Gate Dialog -->
     <string name="callsign_gate_dialog_title">Enter callsign</string>
@@ -196,6 +197,7 @@
     <string name="network_settings_cd_back">Back</string>
     <string name="network_settings_no_data">No data. Connect to a node.</string>
     <string name="network_settings_save">Save</string>
+    <string name="network_settings_sync_required_action">Sync required — tap to synchronize</string>
     <string name="network_settings_short_name_empty">At least 1 character required</string>
     <string name="network_settings_short_name_placeholder">1–4 characters</string>
     <string name="mesh_status_disconnect">Disconnect</string>

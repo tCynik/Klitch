@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import ru.tcynik.klitch.domain.channel.repository.ContourSyncStateRepository
+import ru.tcynik.klitch.domain.channel.usecase.ConfirmChannelSyncUseCase
 import ru.tcynik.klitch.domain.logger.Logger
 import ru.tcynik.klitch.domain.mesh.model.GpsMode
 import ru.tcynik.klitch.mesh.repository.UiPrefs
@@ -54,6 +56,8 @@ class NetworkSettingsViewModel(
     private val writePositionConfig: WritePositionConfigUseCase,
     private val writeChannelPositionPrecision: WriteChannelPositionPrecisionUseCase,
     private val removeFixedPosition: RemoveFixedPositionUseCase,
+    private val syncStateRepository: ContourSyncStateRepository,
+    private val confirmChannelSync: ConfirmChannelSyncUseCase,
     private val uiPrefs: UiPrefs,
     private val logger: Logger,
 ) : ViewModel() {
@@ -146,6 +150,36 @@ class NetworkSettingsViewModel(
                 }
             }
             .launchIn(viewModelScope)
+
+        syncStateRepository.syncRequired
+            .onEach { required ->
+                _uiState.update { state ->
+                    state.copy(
+                        syncRequired = required,
+                        showLeaveSyncDialog = state.showLeaveSyncDialog && required,
+                    )
+                }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    fun onSyncClick() {
+        viewModelScope.launch {
+            logger.i("Node", "NetworkSettings: syncConfirm start")
+            confirmChannelSync(NoParams)
+        }
+    }
+
+    fun onNavigateBackRequested(onNavigateBack: () -> Unit) {
+        if (_uiState.value.syncRequired) {
+            _uiState.update { it.copy(showLeaveSyncDialog = true) }
+        } else {
+            onNavigateBack()
+        }
+    }
+
+    fun onDismissLeaveSyncDialog() {
+        _uiState.update { it.copy(showLeaveSyncDialog = false) }
     }
 
     fun onReadConfigClick() {

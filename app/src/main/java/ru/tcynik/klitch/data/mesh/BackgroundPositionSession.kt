@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import ru.tcynik.klitch.data.gps.NodeGpsPositionSource
 import ru.tcynik.klitch.domain.channel.ChannelSlotResolver
 import ru.tcynik.klitch.domain.channel.repository.ContourRepository
+import ru.tcynik.klitch.domain.channel.repository.ContourSyncStateRepository
 import ru.tcynik.klitch.domain.gps.model.PositionSourceMode
 import ru.tcynik.klitch.domain.gps.repository.GpsLifecycleController
 import ru.tcynik.klitch.domain.gps.usecase.ObservePositionSourceModeUseCase
@@ -32,6 +33,7 @@ class BackgroundPositionSession(
     private val uiPrefs: UiPrefs,
     private val geoSendPolicy: GeoSendPolicy,
     private val contourRepository: ContourRepository,
+    private val syncStateRepository: ContourSyncStateRepository,
     private val channelSlotResolver: ChannelSlotResolver,
     private val gpsLifecycleController: GpsLifecycleController,
     private val observePositionSourceMode: ObservePositionSourceModeUseCase,
@@ -56,6 +58,9 @@ class BackgroundPositionSession(
                     uiPrefs.shouldProvideNodeLocation(nodeNum)
                         .combine(geoSendPolicy.observeAllowed()) { shouldProvide, geoAllowed ->
                             shouldProvide && geoAllowed
+                        }
+                        .combine(syncStateRepository.syncRequired) { allowed, syncRequired ->
+                            allowed && !syncRequired
                         }
                         .combine(observePositionSourceMode(NoParams)) { allowed, mode -> allowed to mode }
                         .onEach { (allowed, mode) ->

@@ -68,6 +68,7 @@ import ru.tcynik.klitch.domain.mesh.usecase.RefreshNodePublicKeysUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveNodeSecurityConfigUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.RegeneratePkcKeysUseCase
 import ru.tcynik.klitch.data.gps.NodeGpsPositionSource
+import ru.tcynik.klitch.data.gps.NodeGpsWatchdog
 import ru.tcynik.klitch.domain.gps.usecase.ObservePositionSourceModeUseCase
 import ru.tcynik.klitch.data.mesh.BackgroundPositionSession
 import ru.tcynik.klitch.data.mesh.MeshWakeLockManager
@@ -176,10 +177,20 @@ val meshDataModule = module {
             uiPrefs = get(),
             geoSendPolicy = get(),
             contourRepository = get(),
+            syncStateRepository = get(),
             channelSlotResolver = get(),
             gpsLifecycleController = get<GpsLifecycleController>(),
             observePositionSourceMode = get(),
             nodeGpsPositionSource = get(),
+            logger = get(),
+        )
+    }
+
+    single {
+        NodeGpsWatchdog(
+            nodeRepository = get(),
+            observePositionSourceMode = get(),
+            syncStateRepository = get(),
             logger = get(),
         )
     }

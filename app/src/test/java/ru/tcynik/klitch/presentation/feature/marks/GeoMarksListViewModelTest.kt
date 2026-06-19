@@ -139,8 +139,14 @@ class GeoMarksListViewModelTest {
         marksFlow.value = listOf(self, remote)
 
         val state = viewModel.uiState.value
-        assertEquals("Я", state.items.find { it.id == "self" }?.authorLabel)
-        assertEquals("!bbbb2", state.items.find { it.id == "remote" }?.authorLabel)
+        assertEquals(
+            ru.tcynik.klitch.presentation.ui.UiText.Static(ru.tcynik.klitch.R.string.geo_mark_self_label),
+            state.items.find { it.id == "self" }?.authorLabel,
+        )
+        assertEquals(
+            ru.tcynik.klitch.presentation.ui.UiText.Raw("!bbbb2"),
+            state.items.find { it.id == "remote" }?.authorLabel,
+        )
     }
 
     @Test
@@ -148,7 +154,10 @@ class GeoMarksListViewModelTest {
         marksFlow.value = listOf(makeMark(id = "remote", isSelf = false, authorNodeId = "!bbbb2222"))
         nodesFlow.value = listOf(makeNode(nodeId = "!bbbb2222", longName = "Alpha-1"))
 
-        assertEquals("Alpha-1", viewModel.uiState.value.items.single().authorLabel)
+        assertEquals(
+            ru.tcynik.klitch.presentation.ui.UiText.Raw("Alpha-1"),
+            viewModel.uiState.value.items.single().authorLabel,
+        )
     }
 
     @Test
@@ -263,7 +272,10 @@ class GeoMarksListViewModelTest {
         viewModel.onDeleteClick()
 
         val confirm = viewModel.uiState.value.deleteConfirm
-        assertEquals("Удалить метку Alpha (от Я)?", confirm?.message)
+        assertEquals(
+            ru.tcynik.klitch.presentation.ui.UiText.Dynamic(ru.tcynik.klitch.R.string.geo_marks_delete_single_self, "Alpha"),
+            confirm?.message,
+        )
         assertEquals(listOf("one"), confirm?.markIds)
     }
 
@@ -276,7 +288,10 @@ class GeoMarksListViewModelTest {
 
         viewModel.onDeleteClick()
 
-        assertEquals("Удалить выбранные метки(2)?", viewModel.uiState.value.deleteConfirm?.message)
+        assertEquals(
+            ru.tcynik.klitch.presentation.ui.UiText.Dynamic(ru.tcynik.klitch.R.string.geo_marks_delete_multi, 2),
+            viewModel.uiState.value.deleteConfirm?.message,
+        )
     }
 
     @Test
@@ -311,7 +326,10 @@ class GeoMarksListViewModelTest {
         viewModel.onItemDeleteClick("one")
 
         val confirm = viewModel.uiState.value.deleteConfirm
-        assertEquals("Удалить метку Alpha (от Я)?", confirm?.message)
+        assertEquals(
+            ru.tcynik.klitch.presentation.ui.UiText.Dynamic(ru.tcynik.klitch.R.string.geo_marks_delete_single_self, "Alpha"),
+            confirm?.message,
+        )
         assertEquals(listOf("one"), confirm?.markIds)
     }
 

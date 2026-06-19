@@ -297,6 +297,8 @@ val presentationModule = module {
             writePositionConfig = get(),
             writeChannelPositionPrecision = get(),
             removeFixedPosition = get(),
+            syncStateRepository = get<ContourSyncStateRepository>(),
+            confirmChannelSync = get(),
             uiPrefs = get(),
             logger = get(),
         )

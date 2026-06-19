@@ -1,5 +1,6 @@
 ﻿package ru.tcynik.klitch.presentation.feature.network
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -20,6 +21,7 @@ import ru.tcynik.klitch.R
 import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.klitch.presentation.feature.network.components.NetworkSettingsContent
 import ru.tcynik.klitch.presentation.feature.network.state.MeshConnectionStatusUi
+import ru.tcynik.klitch.presentation.ui.components.SyncRequiredDialog
 import ru.tcynik.klitch.presentation.util.requestIgnoreBatteryOptimizationIfNeeded
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,12 +35,26 @@ fun NetworkSettingsScreen(
     val title = stringResource(R.string.network_settings_title_prefix, shortName).trim()
     val context = LocalContext.current
 
+    BackHandler(enabled = state.syncRequired) {
+        viewModel.onNavigateBackRequested(onNavigateBack)
+    }
+
+    if (state.showLeaveSyncDialog) {
+        SyncRequiredDialog(
+            onConfirm = {
+                viewModel.onDismissLeaveSyncDialog()
+                viewModel.onSyncClick()
+            },
+            onDismiss = viewModel::onDismissLeaveSyncDialog,
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(title) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = { viewModel.onNavigateBackRequested(onNavigateBack) }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.network_settings_cd_back))
                     }
                 },
@@ -48,6 +64,8 @@ fun NetworkSettingsScreen(
         NetworkSettingsContent(
             state = state.settings,
             connectionStatus = state.connectionStatus,
+            syncRequired = state.syncRequired,
+            onSyncClick = viewModel::onSyncClick,
             onRefresh = viewModel::onReadConfigClick,
             onSaveClick = viewModel::onWriteConfigClick,
             onLongNameChange = viewModel::onConfigLongNameChange,

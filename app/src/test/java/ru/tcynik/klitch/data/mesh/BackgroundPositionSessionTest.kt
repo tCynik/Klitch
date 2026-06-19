@@ -14,10 +14,14 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.meshtastic.proto.Position as ProtoPosition
+import ru.tcynik.klitch.data.gps.NodeGpsPositionSource
 import ru.tcynik.klitch.domain.channel.ChannelSlotResolver
 import ru.tcynik.klitch.domain.channel.model.ChannelSlotMaps
 import ru.tcynik.klitch.domain.channel.repository.ContourRepository
+import ru.tcynik.klitch.domain.channel.repository.ContourSyncStateRepository
+import ru.tcynik.klitch.domain.gps.model.PositionSourceMode
 import ru.tcynik.klitch.domain.gps.repository.GpsLifecycleController
+import ru.tcynik.klitch.domain.gps.usecase.ObservePositionSourceModeUseCase
 import ru.tcynik.klitch.domain.logger.Logger
 import ru.tcynik.klitch.mesh.model.MyNodeInfo
 import ru.tcynik.klitch.mesh.repository.CommandSender
@@ -41,6 +45,9 @@ class BackgroundPositionSessionTest {
     private val contourRepository: ContourRepository = mockk()
     private val channelSlotResolver: ChannelSlotResolver = mockk()
     private val gpsLifecycleController: GpsLifecycleController = mockk(relaxed = true)
+    private val syncStateRepository: ContourSyncStateRepository = mockk()
+    private val observePositionSourceMode: ObservePositionSourceModeUseCase = mockk()
+    private val nodeGpsPositionSource: NodeGpsPositionSource = mockk()
     private val logger: Logger = mockk(relaxed = true)
 
     @Before
@@ -48,6 +55,9 @@ class BackgroundPositionSessionTest {
         every { nodeRepository.myNodeInfo } returns myNodeInfoFlow
         every { contourRepository.observeContours() } returns flowOf(emptyList())
         every { channelSlotResolver.mapsFlow } returns MutableStateFlow(ChannelSlotMaps())
+        every { syncStateRepository.syncRequired } returns MutableStateFlow(false)
+        every { observePositionSourceMode.invoke(any()) } returns flowOf(PositionSourceMode.PHONE_GPS)
+        every { nodeGpsPositionSource.observePosition() } returns flowOf()
     }
 
     private fun createSession() = BackgroundPositionSession(
@@ -57,8 +67,11 @@ class BackgroundPositionSessionTest {
         uiPrefs = uiPrefs,
         geoSendPolicy = geoSendPolicy,
         contourRepository = contourRepository,
+        syncStateRepository = syncStateRepository,
         channelSlotResolver = channelSlotResolver,
         gpsLifecycleController = gpsLifecycleController,
+        observePositionSourceMode = observePositionSourceMode,
+        nodeGpsPositionSource = nodeGpsPositionSource,
         logger = logger,
         scope = testScope.backgroundScope,
     )

@@ -41,6 +41,8 @@ import ru.tcynik.klitch.presentation.feature.network.state.models.GpsModeUi
 fun NetworkSettingsContent(
     state: NetworkSettingsState,
     connectionStatus: MeshConnectionStatusUi,
+    syncRequired: Boolean = false,
+    onSyncClick: () -> Unit = {},
     onRefresh: () -> Unit,
     onSaveClick: () -> Unit,
     onLongNameChange: (String) -> Unit = {},
@@ -125,7 +127,24 @@ fun NetworkSettingsContent(
         }
 
         AnimatedVisibility(
-            visible = state.hasChanges,
+            visible = syncRequired,
+            enter = slideInVertically { it } + fadeIn(),
+            exit = slideOutVertically { it } + fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter),
+        ) {
+            Button(
+                onClick = onSyncClick,
+                enabled = isConnected,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            ) {
+                Text(stringResource(R.string.network_settings_sync_required_action))
+            }
+        }
+
+        AnimatedVisibility(
+            visible = !syncRequired && state.hasChanges,
             enter = slideInVertically { it } + fadeIn(),
             exit = slideOutVertically { it } + fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter),

@@ -135,6 +135,7 @@
     <string name="sync_required_dialog_message">Для работы в сети требуется синхронизация настроек ноды. После синхронизации нода будет перезагружена.</string>
     <string name="sync_required_dialog_confirm">Да</string>
     <string name="sync_required_dialog_dismiss">Нет</string>
+    <string name="node_gps_watchdog_toast">GPS приёмник ноды неисправен. Требуется включить передачу координат с телефона.</string>
 
     <!-- Callsign Gate Dialog -->
     <string name="callsign_gate_dialog_title">Укажите позывной</string>
@@ -196,6 +197,7 @@
     <string name="network_settings_cd_back">Назад</string>
     <string name="network_settings_no_data">Нет данных. Подключитесь к ноде.</string>
     <string name="network_settings_save">Сохранить</string>
+    <string name="network_settings_sync_required_action">Требуется синхронизация — нажмите для синхронизации</string>
     <string name="network_settings_short_name_empty">Минимум 1 символ</string>
     <string name="network_settings_short_name_placeholder">1–4 символа</string>
     <string name="mesh_status_disconnect">Отключиться</string>
