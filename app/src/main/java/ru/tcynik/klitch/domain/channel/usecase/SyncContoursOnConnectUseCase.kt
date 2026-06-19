@@ -15,12 +15,15 @@ import ru.tcynik.klitch.domain.mesh.model.ChannelPositionPrecision
 import ru.tcynik.klitch.domain.mesh.usecase.BeginSettingsEditUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.CommitSettingsEditUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.GetDesiredGpsModeUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.GetGpsModeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.PrepareNodeForAppDrivenBroadcastUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.GetPositionBroadcastSecsUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.IsPositionSmartBroadcastEnabledUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.WriteChannelUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.WriteGpsModeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.WriteOwnerUseCase
 import ru.tcynik.klitch.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.klitch.domain.usecase.base.NoParams
@@ -42,6 +45,9 @@ class SyncContoursOnConnectUseCase(
     private val observeEmergencyMode: ObserveEmergencyModeUseCase,
     private val getPositionBroadcastSecs: GetPositionBroadcastSecsUseCase,
     private val isPositionSmartBroadcastEnabled: IsPositionSmartBroadcastEnabledUseCase,
+    private val getDesiredGpsMode: GetDesiredGpsModeUseCase,
+    private val getGpsMode: GetGpsModeUseCase,
+    private val writeGpsMode: WriteGpsModeUseCase,
     private val logger: Logger,
 ) {
     suspend operator fun invoke(): SyncContoursResult {
@@ -78,6 +84,11 @@ class SyncContoursOnConnectUseCase(
             currentBroadcastSecs != desiredBroadcastSecs ||
             (desiredBroadcastEnabled && currentSmartEnabled == true)
         )
+
+        // Resolve desired gps_mode override BEFORE opening the edit session.
+        val desiredGpsMode = getDesiredGpsMode()
+        val currentGpsMode = if (desiredGpsMode != null) getGpsMode() else null
+        val needsGpsModeWrite = desiredGpsMode != null && currentGpsMode != null && currentGpsMode != desiredGpsMode
 
         val primaryName = meshtasticChannelName(primaryContour)
         val primaryPsk = if (primaryContour.isEmergency) {
@@ -124,7 +135,7 @@ class SyncContoursOnConnectUseCase(
             (!primaryContour.isEmergency && !emergencySynced) ||
             extraWrites.isNotEmpty()
 
-        if (!channelsNeedWrite && !needsOwnerWrite && !needsBroadcastWrite) {
+        if (!channelsNeedWrite && !needsOwnerWrite && !needsBroadcastWrite && !needsGpsModeWrite) {
             logger.d("Contour", "nothing to write")
             return SyncContoursResult.NothingToWrite
         }
@@ -164,6 +175,11 @@ class SyncContoursOnConnectUseCase(
         if (needsBroadcastWrite) {
             logger.d("Contour", "write position_broadcast_secs=$desiredBroadcastSecs (broadcastEnabled=$desiredBroadcastEnabled)")
             if (desiredBroadcastEnabled) prepareNodeForAppDrivenBroadcast() else disableNodePositionBroadcast()
+        }
+
+        if (needsGpsModeWrite) {
+            logger.d("Contour", "write gps_mode=$desiredGpsMode")
+            writeGpsMode(desiredGpsMode!!)
         }
 
         // Commit flushes all buffered channel changes to flash.

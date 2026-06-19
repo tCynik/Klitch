@@ -151,7 +151,26 @@ class UiPrefsImpl(
         scope.launch { dataStore.edit { it[KEY_USE_WAKE_LOCK] = enabled } }
     }
 
+    private val desiredGpsModeFlows = atomic(persistentMapOf<Int, StateFlow<Int?>>())
+
+    override fun desiredGpsMode(nodeNum: Int): StateFlow<Int?> =
+        cachedFlow(desiredGpsModeFlows, nodeNum) {
+            val key = intPreferencesKey(desiredGpsModeKey(nodeNum))
+            dataStore.data.map { it[key] }.stateIn(scope, SharingStarted.Eagerly, null)
+        }
+
+    override fun setDesiredGpsMode(nodeNum: Int, modeOrdinal: Int?) {
+        scope.launch {
+            dataStore.edit { prefs ->
+                val key = intPreferencesKey(desiredGpsModeKey(nodeNum))
+                if (modeOrdinal == null) prefs.remove(key) else prefs[key] = modeOrdinal
+            }
+        }
+    }
+
     private fun provideLocationKey(nodeNum: Int) = "provide-location-$nodeNum"
+
+    private fun desiredGpsModeKey(nodeNum: Int) = "desired-gps-mode-$nodeNum"
 
     companion object {
         val KEY_USE_WAKE_LOCK = booleanPreferencesKey("use_wake_lock")

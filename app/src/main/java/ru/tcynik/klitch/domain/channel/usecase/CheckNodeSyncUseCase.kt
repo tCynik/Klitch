@@ -11,6 +11,8 @@ import ru.tcynik.klitch.domain.channel.model.meshtasticChannelName
 import ru.tcynik.klitch.domain.channel.repository.ContourRepository
 import ru.tcynik.klitch.domain.emergency.usecase.ObserveEmergencyModeUseCase
 import ru.tcynik.klitch.domain.mesh.model.ChannelPositionPrecision
+import ru.tcynik.klitch.domain.mesh.usecase.GetDesiredGpsModeUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.GetGpsModeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.GetPositionBroadcastSecsUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.IsPositionSmartBroadcastEnabledUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveDeviceConfigUseCase
@@ -28,6 +30,8 @@ class CheckNodeSyncUseCase(
     private val observeEmergencyMode: ObserveEmergencyModeUseCase,
     private val getPositionBroadcastSecs: GetPositionBroadcastSecsUseCase,
     private val isPositionSmartBroadcastEnabled: IsPositionSmartBroadcastEnabledUseCase,
+    private val getDesiredGpsMode: GetDesiredGpsModeUseCase,
+    private val getGpsMode: GetGpsModeUseCase,
     private val logger: Logger,
 ) {
     suspend operator fun invoke(): NodeSyncResult {
@@ -122,9 +126,20 @@ class CheckNodeSyncUseCase(
         val desiredBroadcastEnabled = !sosActive && broadcastEnabled
         val desiredSecs = if (desiredBroadcastEnabled) BROADCAST_READY_SECS else BROADCAST_DISABLED_SECS
         val currentSecs = getPositionBroadcastSecs()
-        if (currentSecs != null && currentSecs != desiredSecs) {
-            logger.w("Contour", "NeedsSync: position_broadcast_secs mismatch — current=$currentSecs desired=$desiredSecs")
-            return NodeSyncResult.NeedsSync
+        if (currentSecs != null) {
+            if (currentSecs != desiredSecs) {
+                logger.w("Contour", "NeedsSync: position_broadcast_secs mismatch — current=$currentSecs desired=$desiredSecs")
+                return NodeSyncResult.NeedsSync
+            }
+
+            val desiredGpsMode = getDesiredGpsMode()
+            if (desiredGpsMode != null) {
+                val currentGpsMode = getGpsMode()
+                if (currentGpsMode != null && currentGpsMode != desiredGpsMode) {
+                    logger.w("Contour", "NeedsSync: gps_mode mismatch — current=$currentGpsMode desired=$desiredGpsMode")
+                    return NodeSyncResult.NeedsSync
+                }
+            }
         }
         if (desiredBroadcastEnabled && isPositionSmartBroadcastEnabled() == true) {
             logger.w("Contour", "NeedsSync: smart_broadcast still enabled despite app-driven mode")

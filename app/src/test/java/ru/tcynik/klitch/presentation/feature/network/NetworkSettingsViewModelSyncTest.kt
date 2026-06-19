@@ -20,6 +20,8 @@ import ru.tcynik.klitch.domain.channel.usecase.ConfirmChannelSyncUseCase
 import ru.tcynik.klitch.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.klitch.domain.mesh.usecase.BeginSettingsEditUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.CommitSettingsEditUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.GetGpsModeUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.SetDesiredGpsModeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveLocationConfigUseCase
@@ -48,6 +50,8 @@ class NetworkSettingsViewModelSyncTest {
     private val observeLocationConfig: ObserveLocationConfigUseCase = mockk()
     private val setProvideLocation: SetProvideLocationUseCase = mockk(relaxed = true)
     private val writePositionConfig: WritePositionConfigUseCase = mockk(relaxed = true)
+    private val setDesiredGpsMode: SetDesiredGpsModeUseCase = mockk(relaxed = true)
+    private val getGpsMode: GetGpsModeUseCase = mockk(relaxed = true)
     private val writeChannelPositionPrecision: WriteChannelPositionPrecisionUseCase = mockk(relaxed = true)
     private val removeFixedPosition: RemoveFixedPositionUseCase = mockk(relaxed = true)
     private val syncStateRepository: ContourSyncStateRepository = mockk()
@@ -80,6 +84,8 @@ class NetworkSettingsViewModelSyncTest {
             observeLocationConfig = observeLocationConfig,
             setProvideLocation = setProvideLocation,
             writePositionConfig = writePositionConfig,
+            setDesiredGpsMode = setDesiredGpsMode,
+            getGpsMode = getGpsMode,
             writeChannelPositionPrecision = writeChannelPositionPrecision,
             removeFixedPosition = removeFixedPosition,
             syncStateRepository = syncStateRepository,

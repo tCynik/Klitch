@@ -53,6 +53,10 @@ import ru.tcynik.klitch.domain.mesh.usecase.SendMeshMessageUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.SetProvideLocationUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.WriteChannelPositionPrecisionUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.WritePositionConfigUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.GetDesiredGpsModeUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.SetDesiredGpsModeUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.GetGpsModeUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.WriteGpsModeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.CheckOwnPkcHealthUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.PrepareNodeForAppDrivenBroadcastUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
@@ -242,6 +246,10 @@ val meshDataModule = module {
     single { DisableNodePositionBroadcastUseCase(get()) }
     single { GetPositionBroadcastSecsUseCase(get()) }
     single { IsPositionSmartBroadcastEnabledUseCase(get()) }
+    single { GetDesiredGpsModeUseCase(get()) }
+    single { SetDesiredGpsModeUseCase(get()) }
+    single { GetGpsModeUseCase(get()) }
+    single { WriteGpsModeUseCase(get()) }
     single { RebootNodeUseCase(get()) }
     single {
         ReconnectViaBleScanUseCase(

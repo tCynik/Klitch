@@ -276,14 +276,18 @@ class MeshConfigRepositoryImpl(
             uiPrefs.shouldProvideNodeLocation(nodeNum),
             meshRouter.configHandler.localConfig,
             commandSender.channelSetFlow,
-        ) { shouldProvide, localConfig, channelSet ->
+            uiPrefs.desiredGpsMode(nodeNum),
+        ) { shouldProvide, localConfig, channelSet, desiredGpsModeOrdinal ->
             val posConfig = localConfig.position
             val precision = channelSet.settings.firstOrNull()
                 ?.module_settings?.position_precision ?: 32
+            // Show the pending override (if any) instead of the stale node value — the toggle
+            // shouldn't snap back to the old gps_mode until the user confirms sync.
+            val desiredGpsMode = desiredGpsModeOrdinal?.let { GpsMode.entries.getOrNull(it) }
             LocationConfigModel(
                 provideLocationToMesh = shouldProvide,
                 hasLocationPermission = hasLocationPermission(),
-                gpsMode = posConfig?.gps_mode.toDomain(),
+                gpsMode = desiredGpsMode ?: posConfig?.gps_mode.toDomain(),
                 fixedPositionEnabled = posConfig?.fixed_position ?: false,
                 broadcastIntervalSecs = posConfig?.position_broadcast_secs?.takeIf { it > 0 } ?: 900,
                 smartBroadcastEnabled = posConfig?.position_broadcast_smart_enabled ?: false,
@@ -295,6 +299,35 @@ class MeshConfigRepositoryImpl(
 
     override fun setProvideLocation(nodeNum: Int, provide: Boolean) {
         uiPrefs.setShouldProvideNodeLocation(nodeNum, provide)
+    }
+
+    override fun observeDesiredGpsMode(nodeNum: Int): Flow<GpsMode?> =
+        uiPrefs.desiredGpsMode(nodeNum).map { it?.let { ord -> GpsMode.entries.getOrNull(ord) } }
+
+    override fun setDesiredGpsMode(nodeNum: Int, mode: GpsMode?) {
+        uiPrefs.setDesiredGpsMode(nodeNum, mode?.ordinal)
+    }
+
+    override suspend fun getDesiredGpsMode(): GpsMode? {
+        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return null
+        return observeDesiredGpsMode(myNodeNum).first()
+    }
+
+    override suspend fun getGpsMode(): GpsMode? =
+        withTimeoutOrNull(5_000L) {
+            meshRouter.configHandler.localConfig.first { it.position != null }.position!!.gps_mode.toDomain()
+        }
+
+    override fun writeGpsMode(gpsMode: GpsMode) {
+        val destNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: run {
+            logger.w("Node", "writeGpsMode: myNodeNum unavailable")
+            return
+        }
+        logger.i("Node", "writeGpsMode: destNum=$destNum gpsMode=$gpsMode — firmware reboot expected")
+        val current = meshRouter.configHandler.localConfig.value.position ?: Config.PositionConfig()
+        val updated = current.copy(gps_mode = gpsMode.toProto())
+        val payload = Config.ADAPTER.encode(Config(position = updated))
+        meshRouter.actionHandler.handleSetConfig(payload, destNum)
     }
 
     override fun writePositionConfig(

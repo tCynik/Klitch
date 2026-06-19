@@ -22,7 +22,10 @@ import ru.tcynik.klitch.domain.channel.model.NodeChannelSlot
 import ru.tcynik.klitch.domain.channel.model.meshtasticChannelName
 import ru.tcynik.klitch.domain.emergency.usecase.ObserveEmergencyModeUseCase
 import ru.tcynik.klitch.domain.mesh.model.ChannelPositionPrecision
+import ru.tcynik.klitch.domain.mesh.model.GpsMode
 import ru.tcynik.klitch.domain.mesh.model.MeshDeviceConfigModel
+import ru.tcynik.klitch.domain.mesh.usecase.GetDesiredGpsModeUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.GetGpsModeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.GetPositionBroadcastSecsUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.IsPositionSmartBroadcastEnabledUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveDeviceConfigUseCase
@@ -43,6 +46,8 @@ class CheckNodeSyncUseCaseTest {
     private val observeEmergencyMode: ObserveEmergencyModeUseCase = mockk()
     private val getPositionBroadcastSecs: GetPositionBroadcastSecsUseCase = mockk()
     private val isPositionSmartBroadcastEnabled: IsPositionSmartBroadcastEnabledUseCase = mockk()
+    private val getDesiredGpsMode: GetDesiredGpsModeUseCase = mockk()
+    private val getGpsMode: GetGpsModeUseCase = mockk()
     private val contourRepo = FakeContourRepository()
 
     private val useCase = CheckNodeSyncUseCase(
@@ -55,6 +60,8 @@ class CheckNodeSyncUseCaseTest {
         observeEmergencyMode = observeEmergencyMode,
         getPositionBroadcastSecs = getPositionBroadcastSecs,
         isPositionSmartBroadcastEnabled = isPositionSmartBroadcastEnabled,
+        getDesiredGpsMode = getDesiredGpsMode,
+        getGpsMode = getGpsMode,
         logger = NoOpLogger(),
     )
 
@@ -87,6 +94,8 @@ class CheckNodeSyncUseCaseTest {
         every { observeEmergencyMode.invoke() } returns flowOf(false)
         coEvery { getPositionBroadcastSecs.invoke() } returns Int.MAX_VALUE
         coEvery { isPositionSmartBroadcastEnabled.invoke() } returns false
+        coEvery { getDesiredGpsMode.invoke() } returns null
+        coEvery { getGpsMode.invoke() } returns GpsMode.DISABLED
         // Default: primary = Basic
         contourRepo.setPrimaryId(DefaultActiveContour.ID)
     }
@@ -374,5 +383,48 @@ class CheckNodeSyncUseCaseTest {
         coEvery { isPositionSmartBroadcastEnabled.invoke() } returns true
 
         assertEquals(NodeSyncResult.NeedsSync, useCase())
+    }
+
+    // ── gps_mode override (rule 8) ───────────────────────────────────────────
+
+    @Test
+    fun `NeedsSync — desiredGpsMode override не совпадает с актуальным gps_mode ноды`() = runTest {
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencySlot))
+        coEvery { getDesiredGpsMode.invoke() } returns GpsMode.ENABLED
+        coEvery { getGpsMode.invoke() } returns GpsMode.DISABLED
+
+        assertEquals(NodeSyncResult.NeedsSync, useCase())
+    }
+
+    @Test
+    fun `InSync — desiredGpsMode override совпадает с актуальным gps_mode ноды`() = runTest {
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencySlot))
+        coEvery { getDesiredGpsMode.invoke() } returns GpsMode.ENABLED
+        coEvery { getGpsMode.invoke() } returns GpsMode.ENABLED
+
+        assertEquals(NodeSyncResult.InSync, useCase())
+    }
+
+    @Test
+    fun `InSync — нет desiredGpsMode override, gps_mode не проверяется`() = runTest {
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencySlot))
+        coEvery { getDesiredGpsMode.invoke() } returns null
+        coEvery { getGpsMode.invoke() } returns GpsMode.ENABLED
+
+        assertEquals(NodeSyncResult.InSync, useCase())
+    }
+
+    @Test
+    fun `InSync — position_broadcast_secs null, gps_mode проверка пропускается (конфиг не загружен)`() = runTest {
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencySlot))
+        coEvery { getPositionBroadcastSecs.invoke() } returns null
+        coEvery { getDesiredGpsMode.invoke() } returns GpsMode.ENABLED
+        coEvery { getGpsMode.invoke() } returns GpsMode.DISABLED
+
+        assertEquals(NodeSyncResult.InSync, useCase())
     }
 }

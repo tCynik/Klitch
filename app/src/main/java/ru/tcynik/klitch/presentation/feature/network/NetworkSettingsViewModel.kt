@@ -31,6 +31,8 @@ import ru.tcynik.klitch.domain.mesh.usecase.SetProvideLocationUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.WriteChannelPositionPrecisionUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.BeginSettingsEditUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.CommitSettingsEditUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.GetGpsModeUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.SetDesiredGpsModeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.WriteOwnerUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.WritePositionConfigUseCase
@@ -54,6 +56,8 @@ class NetworkSettingsViewModel(
     private val observeLocationConfig: ObserveLocationConfigUseCase,
     private val setProvideLocation: SetProvideLocationUseCase,
     private val writePositionConfig: WritePositionConfigUseCase,
+    private val setDesiredGpsMode: SetDesiredGpsModeUseCase,
+    private val getGpsMode: GetGpsModeUseCase,
     private val writeChannelPositionPrecision: WriteChannelPositionPrecisionUseCase,
     private val removeFixedPosition: RemoveFixedPositionUseCase,
     private val syncStateRepository: ContourSyncStateRepository,
@@ -282,15 +286,14 @@ class NetworkSettingsViewModel(
 
     fun onGpsModeChange(mode: GpsModeUi) {
         val nodeNum = myNodeNumFlow.value ?: return
-        val config = _uiState.value.settings.locationConfig ?: return
-        writePositionConfig(
-            nodeNum,
-            mode.toDomain(),
-            config.broadcastIntervalSecs,
-            config.smartBroadcastEnabled,
-            config.smartBroadcastMinDistanceM,
-            config.positionFlags,
-        )
+        val domainMode = mode.toDomain()
+        setDesiredGpsMode(nodeNum, domainMode)
+        viewModelScope.launch {
+            val actual = getGpsMode()
+            if (actual != null && actual != domainMode) {
+                syncStateRepository.setSyncRequired(true)
+            }
+        }
     }
 
     fun onRemoveFixedPosition() {
