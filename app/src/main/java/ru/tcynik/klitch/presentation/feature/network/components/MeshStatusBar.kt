@@ -157,7 +157,7 @@ private fun StatusDot(status: MeshConnectionStatusUi) {
         is MeshConnectionStatusUi.WaitingForNode -> Color(0xFF2196F3)
         is MeshConnectionStatusUi.Scanning -> Color(0xFF2196F3)
         is MeshConnectionStatusUi.Error -> MaterialTheme.colorScheme.error
-        is MeshConnectionStatusUi.Disconnected -> MaterialTheme.colorScheme.outline
+        is MeshConnectionStatusUi.Disconnected -> MaterialTheme.colorScheme.error
     }
     androidx.compose.foundation.Canvas(modifier = Modifier.size(10.dp)) {
         drawCircle(color = color)

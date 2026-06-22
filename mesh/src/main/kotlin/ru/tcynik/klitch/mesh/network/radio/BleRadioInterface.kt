@@ -25,7 +25,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
@@ -58,6 +57,7 @@ private const val SCAN_RETRY_COUNT = 3
 private const val SCAN_RETRY_DELAY_MS = 1000L
 private const val CONNECTION_TIMEOUT_MS = 15_000L
 private const val RECONNECT_FAILURE_THRESHOLD = 3
+private const val RSSI_POLL_INTERVAL_MS = 15_000L
 private val SCAN_TIMEOUT = 5.seconds
 
 /**
@@ -113,6 +113,7 @@ class BleRadioInterface(
 
     @Volatile private var isFullyConnected = false
     private var connectionJob: Job? = null
+    private var rssiPollJob: Job? = null
     private var consecutiveFailures = 0
 
     init {
@@ -188,10 +189,11 @@ class BleRadioInterface(
                     isFullyConnected = true
                     onConnected()
 
-                    // Use coroutineScope so that the connectionState listener is scoped to this
-                    // iteration only. When the inner scope exits (on disconnect), the listener is
-                    // cancelled automatically before the next reconnect cycle starts a fresh one.
-                    coroutineScope {
+                    // connectionState never completes on its own (it's a live state flow), so the
+                    // listener and RSSI poll jobs are launched as plain children and cancelled
+                    // explicitly below — wrapping them in coroutineScope{} would deadlock forever
+                    // waiting for these never-completing children to join.
+                    val listenerJob = launch {
                         bleConnection.connectionState
                             .onEach { s ->
                                 if (s is BleConnectionState.Disconnected && isFullyConnected) {
@@ -200,12 +202,19 @@ class BleRadioInterface(
                                 }
                             }
                             .catch { e -> Logger.w(e) { "[$address] bleConnection.connectionState flow crashed!" } }
-                            .launchIn(this)
+                            .collect { }
+                    }
+                    rssiPollJob = launch { pollRssi() }
 
+                    try {
                         discoverServicesAndSetupCharacteristics()
 
                         // Suspend here until Kable drops the connection
                         bleConnection.connectionState.first { it is BleConnectionState.Disconnected }
+                    } finally {
+                        listenerJob.cancel()
+                        rssiPollJob?.cancel()
+                        rssiPollJob = null
                     }
 
                     Logger.i { "[$address] BLE connection dropped, preparing to reconnect..." }
@@ -244,6 +253,22 @@ class BleRadioInterface(
             }
         } catch (e: Exception) {
             Logger.w(e) { "[$address] Failed to read initial connection RSSI" }
+        }
+    }
+
+    /** Periodically refreshes the BLE RSSI while connected. Cancelled on disconnect. */
+    private suspend fun pollRssi() {
+        while (true) {
+            delay(RSSI_POLL_INTERVAL_MS)
+            try {
+                bleConnection.deviceFlow.first()?.let { device ->
+                    val rssi = retryBleOperation(tag = address) { device.readRssi() }
+                    Logger.d { "[$address] pollRssi: read rssi=$rssi dBm" }
+                    service.setBleRssi(rssi)
+                }
+            } catch (e: Exception) {
+                Logger.w(e) { "[$address] Periodic RSSI read failed" }
+            }
         }
     }
 
