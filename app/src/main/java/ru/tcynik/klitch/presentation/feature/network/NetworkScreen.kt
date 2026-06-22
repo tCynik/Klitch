@@ -113,8 +113,10 @@ fun NetworkScreen(
                         status = state.connectionStatus,
                         rebootingNodeName = state.lastConnectedNodeName,
                         hasNodeConfig = state.hasNodeConfig,
+                        gpsSourceMode = state.gpsSourceMode,
                         onDisconnectClick = viewModel::onDisconnectClick,
                         onSettingsClick = onNavigateToSettings,
+                        onGpsSourceToggle = viewModel::onGpsSourceToggle,
                     )
                     HorizontalDivider()
                     ConnectionContent(

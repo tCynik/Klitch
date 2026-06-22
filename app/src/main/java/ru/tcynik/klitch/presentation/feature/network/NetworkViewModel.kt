@@ -4,12 +4,15 @@ import android.text.format.DateUtils
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -22,6 +25,7 @@ import ru.tcynik.klitch.domain.channel.usecase.ConfirmChannelSyncUseCase
 import ru.tcynik.klitch.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.klitch.domain.logger.Logger
 import ru.tcynik.klitch.domain.mesh.model.ContourNodeModel
+import ru.tcynik.klitch.domain.mesh.model.GpsMode
 import ru.tcynik.klitch.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.klitch.domain.mesh.model.MeshNodeModel
 import ru.tcynik.klitch.domain.mesh.model.NodeSyncCyclePhase
@@ -30,11 +34,14 @@ import ru.tcynik.klitch.domain.mesh.repository.RebootStateRepository
 import ru.tcynik.klitch.domain.mesh.usecase.ConnectToMeshDeviceParams
 import ru.tcynik.klitch.domain.mesh.usecase.ConnectToMeshDeviceUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.DisconnectFromMeshUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.GetGpsModeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveContourNodesUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.ObserveLocationConfigUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveOurNodeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ScanMeshDevicesUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.SetDesiredGpsModeUseCase
 import ru.tcynik.klitch.domain.settings.usecase.ObserveNetworkEnabledUseCase
 import ru.tcynik.klitch.domain.settings.usecase.SetNetworkEnabledUseCase
 import ru.tcynik.klitch.domain.user.model.AppUser
@@ -45,7 +52,9 @@ import ru.tcynik.klitch.presentation.feature.network.state.BleDeviceUi
 import ru.tcynik.klitch.presentation.feature.network.state.DeviceMetricsUi
 import ru.tcynik.klitch.presentation.feature.network.state.MeshConnectionStatusUi
 import ru.tcynik.klitch.presentation.feature.network.state.models.CallsignGateDialogState
+import ru.tcynik.klitch.presentation.feature.network.state.models.GpsModeUi
 import ru.tcynik.klitch.presentation.feature.network.state.models.PendingAction
+import ru.tcynik.klitch.presentation.feature.network.state.models.toUi
 
 class NetworkViewModel(
     private val observeConnectionStatus: ObserveConnectionStatusUseCase,
@@ -64,6 +73,9 @@ class NetworkViewModel(
     private val observeNetworkEnabled: ObserveNetworkEnabledUseCase,
     private val setNetworkEnabled: SetNetworkEnabledUseCase,
     private val observeDeviceConfig: ObserveDeviceConfigUseCase,
+    private val observeLocationConfig: ObserveLocationConfigUseCase,
+    private val setDesiredGpsMode: SetDesiredGpsModeUseCase,
+    private val getGpsMode: GetGpsModeUseCase,
     private val logger: Logger,
 ) : ViewModel() {
 
@@ -71,6 +83,7 @@ class NetworkViewModel(
     val uiState: StateFlow<NetworkUiState> = _uiState.asStateFlow()
 
     private val _callsignRequired = MutableStateFlow(true)
+    private val myNodeNumFlow = MutableStateFlow<Int?>(null)
 
     private var scanJob: Job? = null
     private var wasConnected = false
@@ -192,6 +205,7 @@ class NetworkViewModel(
         }.launchIn(viewModelScope)
 
         observeOurNode(NoParams).onEach { node ->
+            myNodeNumFlow.value = node?.num
             _uiState.update { state ->
                 state.copy(
                     telemetry = state.telemetry.copy(
@@ -211,6 +225,19 @@ class NetworkViewModel(
                 )
             }
         }.launchIn(viewModelScope)
+
+        @OptIn(ExperimentalCoroutinesApi::class)
+        myNodeNumFlow
+            .filterNotNull()
+            .flatMapLatest { nodeNum -> observeLocationConfig(nodeNum) }
+            .onEach { config ->
+                val mode = config.gpsMode.toUi()
+                _uiState.update { state ->
+                    // hide toggle when chip absent (NOT_PRESENT) — binary phone/node choice only
+                    state.copy(gpsSourceMode = mode.takeIf { it != GpsModeUi.NOT_PRESENT })
+                }
+            }
+            .launchIn(viewModelScope)
 
         var initGateShown = false
         observeAppUser(NoParams)
@@ -392,6 +419,18 @@ class NetworkViewModel(
 
     fun onDisconnectDismissed() {
         _uiState.update { it.copy(showDisconnectDialog = false) }
+    }
+
+    fun onGpsSourceToggle(useNodeGps: Boolean) {
+        val nodeNum = myNodeNumFlow.value ?: return
+        val mode = if (useNodeGps) GpsMode.ENABLED else GpsMode.DISABLED
+        setDesiredGpsMode(nodeNum, mode)
+        viewModelScope.launch {
+            val actual = getGpsMode()
+            if (actual != null && actual != mode) {
+                syncStateRepository.setSyncRequired(true)
+            }
+        }
     }
 
     fun onRefreshTelemetryClick() {

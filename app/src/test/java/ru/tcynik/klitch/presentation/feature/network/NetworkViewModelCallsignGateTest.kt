@@ -35,9 +35,12 @@ import ru.tcynik.klitch.domain.mesh.usecase.DisconnectFromMeshUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.klitch.domain.mesh.model.ContourNodeModel
+import ru.tcynik.klitch.domain.mesh.usecase.GetGpsModeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveContourNodesUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.ObserveLocationConfigUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveOurNodeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ScanMeshDevicesUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.SetDesiredGpsModeUseCase
 import ru.tcynik.klitch.domain.settings.usecase.ObserveNetworkEnabledUseCase
 import ru.tcynik.klitch.domain.settings.usecase.SetNetworkEnabledUseCase
 import ru.tcynik.klitch.domain.user.model.AppUser
@@ -63,6 +66,9 @@ class NetworkViewModelCallsignGateTest {
     private val observeNetworkEnabled: ObserveNetworkEnabledUseCase = mockk()
     private val setNetworkEnabled: SetNetworkEnabledUseCase = mockk(relaxed = true)
     private val observeDeviceConfig: ObserveDeviceConfigUseCase = mockk()
+    private val observeLocationConfig: ObserveLocationConfigUseCase = mockk()
+    private val setDesiredGpsMode: SetDesiredGpsModeUseCase = mockk(relaxed = true)
+    private val getGpsMode: GetGpsModeUseCase = mockk(relaxed = true)
     private val logger: Logger = mockk(relaxed = true)
 
     private val appUserFlow = MutableStateFlow(AppUser(displayName = ""))
@@ -113,6 +119,9 @@ class NetworkViewModelCallsignGateTest {
             observeNetworkEnabled = observeNetworkEnabled,
             setNetworkEnabled = setNetworkEnabled,
             observeDeviceConfig = observeDeviceConfig,
+            observeLocationConfig = observeLocationConfig,
+            setDesiredGpsMode = setDesiredGpsMode,
+            getGpsMode = getGpsMode,
             logger = logger,
         )
     }

@@ -43,6 +43,8 @@ import ru.tcynik.klitch.presentation.feature.network.state.DeviceConfigUi
 import ru.tcynik.klitch.presentation.feature.network.state.MeshConnectionStatusUi
 import ru.tcynik.klitch.presentation.feature.network.state.models.GpsModeUi
 import ru.tcynik.klitch.presentation.feature.network.state.models.LocationConfigUi
+import ru.tcynik.klitch.presentation.feature.network.state.models.toDomain
+import ru.tcynik.klitch.presentation.feature.network.state.models.toUi
 
 class NetworkSettingsViewModel(
     private val observeConnectionStatus: ObserveConnectionStatusUseCase,
@@ -370,18 +372,6 @@ class NetworkSettingsViewModel(
         positionFlags = positionFlags,
         primaryChannelPositionPrecision = primaryChannelPositionPrecision,
     )
-
-    private fun GpsMode.toUi(): GpsModeUi = when (this) {
-        GpsMode.DISABLED -> GpsModeUi.DISABLED
-        GpsMode.ENABLED -> GpsModeUi.ENABLED
-        GpsMode.NOT_PRESENT -> GpsModeUi.NOT_PRESENT
-    }
-
-    private fun GpsModeUi.toDomain(): GpsMode = when (this) {
-        GpsModeUi.DISABLED -> GpsMode.DISABLED
-        GpsModeUi.ENABLED -> GpsMode.ENABLED
-        GpsModeUi.NOT_PRESENT -> GpsMode.NOT_PRESENT
-    }
 
     private companion object {
         const val READ_CONFIG_TIMEOUT_MS = 15_000L

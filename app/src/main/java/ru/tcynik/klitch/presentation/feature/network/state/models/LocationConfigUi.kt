@@ -1,5 +1,7 @@
 ﻿package ru.tcynik.klitch.presentation.feature.network.state.models
 
+import ru.tcynik.klitch.domain.mesh.model.GpsMode
+
 data class LocationConfigUi(
     val provideLocationToMesh: Boolean,
     val hasLocationPermission: Boolean,
@@ -35,6 +37,18 @@ data class LocationConfigUi(
 }
 
 enum class GpsModeUi { DISABLED, ENABLED, NOT_PRESENT }
+
+fun GpsMode.toUi(): GpsModeUi = when (this) {
+    GpsMode.DISABLED -> GpsModeUi.DISABLED
+    GpsMode.ENABLED -> GpsModeUi.ENABLED
+    GpsMode.NOT_PRESENT -> GpsModeUi.NOT_PRESENT
+}
+
+fun GpsModeUi.toDomain(): GpsMode = when (this) {
+    GpsModeUi.DISABLED -> GpsMode.DISABLED
+    GpsModeUi.ENABLED -> GpsMode.ENABLED
+    GpsModeUi.NOT_PRESENT -> GpsMode.NOT_PRESENT
+}
 
 object LocationConfigOptions {
     val broadcastIntervalSecs = listOf(15, 30, 60, 120, 300, 600, 900, 1800)

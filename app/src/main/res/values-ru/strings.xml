@@ -206,6 +206,9 @@
     <string name="mesh_status_rebooting">Перезагрузка…</string>
     <string name="mesh_status_waiting">Ожидание ноды…</string>
     <string name="mesh_status_connecting">Подключаюсь к ноде %s…</string>
+    <string name="mesh_status_gps_source_label">Источник GPS</string>
+    <string name="mesh_status_gps_source_phone">Телефон</string>
+    <string name="mesh_status_gps_source_node">Нода</string>
 
     <!-- Network: location config -->
     <string name="network_location_config_title">Настройки геопозиции</string>

@@ -279,6 +279,9 @@ val presentationModule = module {
             observeNetworkEnabled = get(),
             setNetworkEnabled = get(),
             observeDeviceConfig = get(),
+            observeLocationConfig = get(),
+            setDesiredGpsMode = get(),
+            getGpsMode = get(),
             logger = get(),
         )
     }
