@@ -273,7 +273,12 @@ class BleRadioInterface(
     }
 
     private fun onDisconnected() {
-        service.setBleRssi(0)
+        // Do NOT zero RSSI here — this fires on every transient GATT drop the reconnect
+        // while-loop recovers from internally (often within 1-2s, without ever surfacing
+        // "Disconnected" to the UI). Zeroing it here made RSSI flash to 0 and slowly
+        // recover on the next poll (up to RSSI_POLL_INTERVAL_MS later), which read as a
+        // "floating" RSSI=0 bug on phones whose radios drop the link more often. RSSI is
+        // zeroed for genuine disconnects via handleFailure() -> service.onDisconnect().
         radioService = null
 
         val uptime =
@@ -419,6 +424,7 @@ class BleRadioInterface(
     }
 
     private fun handleFailure(throwable: Throwable) {
+        service.setBleRssi(0)
         val (isPermanent, msg) = throwable.toDisconnectReason()
         service.onDisconnect(isPermanent, errorMessage = msg)
     }
