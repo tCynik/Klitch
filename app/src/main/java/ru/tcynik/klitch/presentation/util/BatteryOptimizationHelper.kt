@@ -16,6 +16,7 @@ fun Context.requestIgnoreBatteryOptimizationIfNeeded() {
         startActivity(
             Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
                 data = Uri.parse("package:$packageName")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
         )
     }

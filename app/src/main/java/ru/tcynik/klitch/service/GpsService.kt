@@ -31,6 +31,7 @@ import ru.tcynik.klitch.domain.gps.repository.GpsRepository
 import ru.tcynik.klitch.domain.track.model.TrackPoint
 import ru.tcynik.klitch.domain.track.model.TrackRecordingState
 import ru.tcynik.klitch.domain.track.repository.TrackRecordingRepository
+import ru.tcynik.klitch.presentation.util.requestIgnoreBatteryOptimizationIfNeeded
 
 class GpsService : Service() {
 
@@ -55,6 +56,7 @@ class GpsService : Service() {
         super.onCreate()
         logger.d("GPS", "GpsService.onCreate")
         ensureNotificationChannel()
+        requestIgnoreBatteryOptimizationIfNeeded()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIFICATION_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
         } else {

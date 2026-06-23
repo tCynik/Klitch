@@ -292,6 +292,9 @@ val meshDataModule = module {
             observeDeviceConfig = get<ObserveDeviceConfigUseCase>(),
             observeLocationConfig = get<ObserveLocationConfigUseCase>(),
             writePositionConfig = get<WritePositionConfigUseCase>(),
+            setProvideLocation = get<SetProvideLocationUseCase>(),
+            writeChannelPositionPrecision = get<WriteChannelPositionPrecisionUseCase>(),
+            removeFixedPosition = get<RemoveFixedPositionUseCase>(),
             gpsRepository = get<GpsRepository>(),
             logger = get(),
         )

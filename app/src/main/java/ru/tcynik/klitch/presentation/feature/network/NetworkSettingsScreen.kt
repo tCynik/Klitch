@@ -14,7 +14,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.tcynik.klitch.R
@@ -22,7 +21,6 @@ import org.koin.compose.viewmodel.koinViewModel
 import ru.tcynik.klitch.presentation.feature.network.components.NetworkSettingsContent
 import ru.tcynik.klitch.presentation.feature.network.state.MeshConnectionStatusUi
 import ru.tcynik.klitch.presentation.ui.components.SyncRequiredDialog
-import ru.tcynik.klitch.presentation.util.requestIgnoreBatteryOptimizationIfNeeded
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,7 +31,6 @@ fun NetworkSettingsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val shortName = state.settings.deviceConfig?.shortName.orEmpty()
     val title = stringResource(R.string.network_settings_title_prefix, shortName).trim()
-    val context = LocalContext.current
 
     BackHandler(enabled = state.syncRequired) {
         viewModel.onNavigateBackRequested(onNavigateBack)
@@ -72,16 +69,6 @@ fun NetworkSettingsScreen(
             onShortNameChange = viewModel::onConfigShortNameChange,
             onChannelNameChange = viewModel::onChannelNameChange,
             onChannelPskChange = viewModel::onChannelPskChange,
-            onProvideLocationToggle = { enabled ->
-                viewModel.onProvideLocationToggle(enabled)
-                if (enabled) context.requestIgnoreBatteryOptimizationIfNeeded()
-            },
-            onGpsModeChange = viewModel::onGpsModeChange,
-            onRemoveFixedPosition = viewModel::onRemoveFixedPosition,
-            onBroadcastIntervalChange = viewModel::onBroadcastIntervalChange,
-            onSmartBroadcastToggle = viewModel::onSmartBroadcastToggle,
-            onPositionFlagsChange = viewModel::onPositionFlagsChange,
-            onChannelPositionPrecisionChange = viewModel::onChannelPositionPrecisionChange,
             onWakeLockToggle = viewModel::onWakeLockToggle,
             modifier = Modifier
                 .fillMaxSize()

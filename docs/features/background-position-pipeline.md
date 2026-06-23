@@ -37,7 +37,7 @@ GpsRepository (5 с)        BackgroundPositionSession (app-level singleton)
 
 ### Фаза 3 — BleBackgroundPolicy
 - **`BleConnection.requestConnectionPriority(high: Boolean)`** — новый метод в интерфейсе. Реализован в `KableBleConnection` через `AndroidPeripheral.Priority.High`. Вызывается в `BleRadioInterface.onConnected()` — всегда `HIGH`.
-- **`BatteryOptimizationHelper.kt`** (`presentation/util/`) — `Context.requestIgnoreBatteryOptimizationIfNeeded()`. Вызывается в `NetworkSettingsScreen` при `onProvideLocationToggle(true)`. Permission `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` добавлен в `app/AndroidManifest.xml`.
+- **`BatteryOptimizationHelper.kt`** (`presentation/util/`) — `Context.requestIgnoreBatteryOptimizationIfNeeded()`. Вызывается в `GpsService.onCreate()` (раньше — в `NetworkSettingsScreen` при ручном тоггле, убран при переходе на auto-config). Permission `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` добавлен в `app/AndroidManifest.xml`.
 - **`MeshWakeLockManager`** (`app/data/mesh/`) — `PARTIAL_WAKE_LOCK` acquire/release. Observes `uiPrefs.useWakeLock.combine(geoSendPolicy.observeAllowed())`. Eager init в `MyMeshApplication`.
 - **`UiPrefs.useWakeLock`** — DataStore ключ `"use_wake_lock"`, default `false`. Toggle в `LocationConfigCard` секция "Фоновая стабильность".
 

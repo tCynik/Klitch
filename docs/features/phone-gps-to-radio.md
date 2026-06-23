@@ -11,19 +11,19 @@
 - **`OnConnectPositionSender`** — one-shot `sendPosition` при каждом коннекте (до первого GPS-тика сессии).
 - **`AndroidMeshLocationManager`** — subscribes to `LocationRepository.getLocations()`, вызывает `sendPositionFn`; mesh module.
 - **`GpsLifecycleController`** — запускает `GpsService`; вызывается `BackgroundPositionSession` при `allowed=true`.
-- **`UiPrefsImpl`** — `shouldProvideNodeLocation(nodeNum)` defaults to `true`; `NetworkSettingsViewModel.onProvideLocationToggle()` для UI-тоггла.
+- **`UiPrefsImpl`** — `shouldProvideNodeLocation(nodeNum)` defaults to `true`; авто-выставляется нодой через `NodeProvisioningUseCase` (см. `docs/features/node-provisioning-autoconfig.md`), `LocationConfigCard` показывает значение read-only.
 
 ## Non-obvious decisions
 
 - **`setFixedPosition` first, then `sendPosition`**: для нод с внутренним GPS `sendPosition` (POSITION_APP) игнорируется если `fixed_position=true` в firmware. `remove_fixed_position` admin-команда отправляется один раз при старте сессии.
 - **`sendPosition` (POSITION_APP), NOT `setFixedPosition` для обновлений**: `setFixedPosition` — admin-команда, задаёт статичную точку и отключает firmware GPS. Для live tracking используется `sendPosition`.
 - **`DeviceSleep` не останавливает GPS**: `BackgroundPositionSession` не зависит от `ConnectionState`. При `DeviceSleep → Connected` `locationManager.flushLastPosition()` немедленно шлёт закешированную позицию.
-- **`position_broadcast_secs` на ноде**: firmware по умолчанию 900 с — позиция кажется "замёрзшей". Пайплайн не управляет этим напрямую; пользователь настраивает через `LocationConfigCard`.
+- **`position_broadcast_secs` на ноде**: firmware по умолчанию 900 с — позиция кажется "замёрзшей". `NodeProvisioningUseCase` авто-выставляет 1800 с (keepalive-анкер через DeviceMetrics, не основной канал доставки позиции — это делает `sendPosition`). `LocationConfigCard` показывает значение read-only, без ручного редактирования.
 
 ## Battery & BLE stability (Фаза 3)
 
 - **`CONNECTION_PRIORITY_HIGH`** — запрашивается при каждом BLE-коннекте (`BleRadioInterface.onConnected()`).
-- **`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`** — prompt при первом включении `provideLocationToMesh`.
+- **`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`** — prompt при старте `GpsService.onCreate()` (раньше был привязан к ручному тогглу `provideLocationToMesh`, который убрали — см. `docs/features/node-provisioning-autoconfig.md`).
 - **`PARTIAL_WAKE_LOCK`** — опциональный, toggle `UiPrefs.useWakeLock`; управляется `MeshWakeLockManager`.
 
 ## Known limitations / planned extensions

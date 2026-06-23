@@ -225,6 +225,8 @@
     <string name="network_location_not_set">Not set</string>
     <string name="network_location_section_node_broadcast">Node → Broadcast to mesh</string>
     <string name="network_location_smart_broadcast">Smart broadcast</string>
+    <string name="network_location_status_enabled">Enabled</string>
+    <string name="network_location_status_disabled">Disabled</string>
     <string name="network_location_section_flags">Position flags</string>
     <string name="network_location_section_precision">Channel precision (primary)</string>
     <string name="network_location_banner_ready">Active</string>

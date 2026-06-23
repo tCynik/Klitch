@@ -28,6 +28,8 @@ private const val PRESET_SMART_DIST_ACCURACY_FACTOR = 1.5f
 // Firmware factory defaults — if config matches these, node hasn't been manually configured
 private const val FIRMWARE_BROADCAST_SECS = 900
 private const val FIRMWARE_FLAGS = 0
+private const val FIRMWARE_CHANNEL_PRECISION = 0
+private const val PRESET_CHANNEL_PRECISION = 32 // full precision — app needs accurate map placement
 
 private const val CONFIG_LOAD_TIMEOUT_MS = 10_000L
 private const val CONFIG_SETTLE_DELAY_MS = 500L
@@ -42,6 +44,9 @@ class NodeProvisioningUseCase(
     private val observeDeviceConfig: ObserveDeviceConfigUseCase,
     private val observeLocationConfig: ObserveLocationConfigUseCase,
     private val writePositionConfig: WritePositionConfigUseCase,
+    private val setProvideLocation: SetProvideLocationUseCase,
+    private val writeChannelPositionPrecision: WriteChannelPositionPrecisionUseCase,
+    private val removeFixedPosition: RemoveFixedPositionUseCase,
     private val gpsRepository: GpsRepository,
     private val logger: Logger,
 ) {
@@ -95,6 +100,13 @@ class NodeProvisioningUseCase(
         }
         val config = observeLocationConfig(nodeNum).first()
 
+        // Stale fixed position blocks normal sharing — clear it unconditionally,
+        // independent of the firmware-default guard below.
+        if (config.fixedPositionEnabled) {
+            logger.i("Node", "  position config: removing stale fixed position")
+            removeFixedPosition(nodeNum)
+        }
+
         // Write preset only when all position settings still match firmware defaults.
         // After first provisioning, broadcastIntervalSecs becomes 1800 (≠ 900) and
         // smartBroadcastEnabled becomes true — so this check will be false on subsequent
@@ -104,6 +116,8 @@ class NodeProvisioningUseCase(
             && !config.smartBroadcastEnabled
             && config.smartBroadcastMinDistanceM == 0
             && config.positionFlags == FIRMWARE_FLAGS
+            && !config.provideLocationToMesh
+            && config.primaryChannelPositionPrecision == FIRMWARE_CHANNEL_PRECISION
 
         if (!isFirmwareDefault) {
             logger.d("Node", "  position config: already configured (broadcast=${config.broadcastIntervalSecs}s, smart=${config.smartBroadcastEnabled}) — skip")
@@ -112,7 +126,8 @@ class NodeProvisioningUseCase(
 
         val smartMinDist = computeSmartMinDist()
         logger.i("Node", "  position config: writing Klitch preset " +
-            "(broadcast=${PRESET_BROADCAST_SECS}s, smart=true, minDist=${smartMinDist}m, flags=${PRESET_POSITION_FLAGS})")
+            "(broadcast=${PRESET_BROADCAST_SECS}s, smart=true, minDist=${smartMinDist}m, flags=${PRESET_POSITION_FLAGS}, " +
+            "provideLocation=true, channelPrecision=${PRESET_CHANNEL_PRECISION})")
         writePositionConfig(
             destNum = nodeNum,
             gpsMode = GpsMode.DISABLED,
@@ -121,6 +136,8 @@ class NodeProvisioningUseCase(
             smartMinDist = smartMinDist,
             flags = PRESET_POSITION_FLAGS,
         )
+        setProvideLocation(nodeNum, true)
+        writeChannelPositionPrecision(nodeNum, 0, PRESET_CHANNEL_PRECISION)
     }
 
     // GPS accuracy → smart broadcast min distance.

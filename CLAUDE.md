@@ -149,6 +149,7 @@
 | Background Position Pipeline (BleBackgroundPolicy) | `docs/features/background-position-pipeline.md` |
 | Main Screen ViewModel Architecture | `docs/features/main-viewmodel-architecture.md` |
 | Foreground Service Lifecycle | `docs/features/foreground-service-lifecycle.md` |
+| Node Provisioning Auto-Config | `docs/features/node-provisioning-autoconfig.md` |
 
 ---
 

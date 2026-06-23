@@ -20,19 +20,13 @@ import ru.tcynik.klitch.domain.channel.usecase.ConfirmChannelSyncUseCase
 import ru.tcynik.klitch.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.klitch.domain.mesh.usecase.BeginSettingsEditUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.CommitSettingsEditUseCase
-import ru.tcynik.klitch.domain.mesh.usecase.GetGpsModeUseCase
-import ru.tcynik.klitch.domain.mesh.usecase.SetDesiredGpsModeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveLocationConfigUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveOurNodeUseCase
-import ru.tcynik.klitch.domain.mesh.usecase.RemoveFixedPositionUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.RequestDeviceConfigUseCase
-import ru.tcynik.klitch.domain.mesh.usecase.SetProvideLocationUseCase
-import ru.tcynik.klitch.domain.mesh.usecase.WriteChannelPositionPrecisionUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.WriteOwnerUseCase
-import ru.tcynik.klitch.domain.mesh.usecase.WritePositionConfigUseCase
 import ru.tcynik.klitch.domain.usecase.base.NoParams
 import ru.tcynik.klitch.mesh.repository.UiPrefs
 
@@ -48,12 +42,6 @@ class NetworkSettingsViewModelSyncTest {
     private val writeChannel: WriteChannelUseCase = mockk(relaxed = true)
     private val observeOurNode: ObserveOurNodeUseCase = mockk()
     private val observeLocationConfig: ObserveLocationConfigUseCase = mockk()
-    private val setProvideLocation: SetProvideLocationUseCase = mockk(relaxed = true)
-    private val writePositionConfig: WritePositionConfigUseCase = mockk(relaxed = true)
-    private val setDesiredGpsMode: SetDesiredGpsModeUseCase = mockk(relaxed = true)
-    private val getGpsMode: GetGpsModeUseCase = mockk(relaxed = true)
-    private val writeChannelPositionPrecision: WriteChannelPositionPrecisionUseCase = mockk(relaxed = true)
-    private val removeFixedPosition: RemoveFixedPositionUseCase = mockk(relaxed = true)
     private val syncStateRepository: ContourSyncStateRepository = mockk()
     private val confirmChannelSync: ConfirmChannelSyncUseCase = mockk(relaxed = true)
     private val uiPrefs: UiPrefs = mockk()
@@ -82,12 +70,6 @@ class NetworkSettingsViewModelSyncTest {
             writeChannel = writeChannel,
             observeOurNode = observeOurNode,
             observeLocationConfig = observeLocationConfig,
-            setProvideLocation = setProvideLocation,
-            writePositionConfig = writePositionConfig,
-            setDesiredGpsMode = setDesiredGpsMode,
-            getGpsMode = getGpsMode,
-            writeChannelPositionPrecision = writeChannelPositionPrecision,
-            removeFixedPosition = removeFixedPosition,
             syncStateRepository = syncStateRepository,
             confirmChannelSync = confirmChannelSync,
             uiPrefs = uiPrefs,

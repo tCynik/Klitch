@@ -225,6 +225,8 @@
     <string name="network_location_not_set">Не задана</string>
     <string name="network_location_section_node_broadcast">Нода → Трансляция в сеть</string>
     <string name="network_location_smart_broadcast">Умная трансляция</string>
+    <string name="network_location_status_enabled">Включено</string>
+    <string name="network_location_status_disabled">Выключено</string>
     <string name="network_location_section_flags">Флаги позиции</string>
     <string name="network_location_section_precision">Точность канала (основной)</string>
     <string name="network_location_banner_ready">Активно</string>
