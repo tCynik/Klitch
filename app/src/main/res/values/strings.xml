@@ -239,7 +239,6 @@
     <string name="network_location_reason_precision_zero">Channel precision = 0</string>
     <string name="network_location_reason_no_flags">No position flags set</string>
     <string name="network_location_reason_high_interval">Broadcast interval too high</string>
-    <string name="network_location_reason_gps_conflict">Node GPS may override</string>
     <string name="network_location_gps_mode">GPS mode</string>
     <string name="network_flag_altitude">Altitude</string>
     <string name="network_flag_msl_altitude">MSL altitude</string>
@@ -256,6 +255,7 @@
     <string name="network_interval_10m">10 min</string>
     <string name="network_interval_15m">15 min</string>
     <string name="network_interval_30m">30 min</string>
+    <string name="network_interval_app_driven">By app: %1$ds/%2$ds</string>
     <string name="network_precision_off">Off</string>
     <string name="network_precision_11km">~11 km</string>
     <string name="network_precision_14km">~1.4 km</string>

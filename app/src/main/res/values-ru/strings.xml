@@ -239,7 +239,6 @@
     <string name="network_location_reason_precision_zero">Точность канала = 0</string>
     <string name="network_location_reason_no_flags">Нет флагов позиции</string>
     <string name="network_location_reason_high_interval">Большой интервал трансляции</string>
-    <string name="network_location_reason_gps_conflict">GPS ноды может перезаписать</string>
     <string name="network_location_gps_mode">Режим GPS</string>
     <string name="network_flag_altitude">Высота</string>
     <string name="network_flag_msl_altitude">Высота MSL</string>
@@ -256,6 +255,7 @@
     <string name="network_interval_10m">10 мин</string>
     <string name="network_interval_15m">15 мин</string>
     <string name="network_interval_30m">30 мин</string>
+    <string name="network_interval_app_driven">Из приложения: %1$ds/%2$ds</string>
     <string name="network_precision_off">Выкл</string>
     <string name="network_precision_11km">~11 км</string>
     <string name="network_precision_14km">~1.4 км</string>

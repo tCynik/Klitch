@@ -18,7 +18,7 @@
 - **`setFixedPosition` first, then `sendPosition`**: для нод с внутренним GPS `sendPosition` (POSITION_APP) игнорируется если `fixed_position=true` в firmware. `remove_fixed_position` admin-команда отправляется один раз при старте сессии.
 - **`sendPosition` (POSITION_APP), NOT `setFixedPosition` для обновлений**: `setFixedPosition` — admin-команда, задаёт статичную точку и отключает firmware GPS. Для live tracking используется `sendPosition`.
 - **`DeviceSleep` не останавливает GPS**: `BackgroundPositionSession` не зависит от `ConnectionState`. При `DeviceSleep → Connected` `locationManager.flushLastPosition()` немедленно шлёт закешированную позицию.
-- **`position_broadcast_secs` на ноде**: firmware по умолчанию 900 с — позиция кажется "замёрзшей". `NodeProvisioningUseCase` авто-выставляет 1800 с (keepalive-анкер через DeviceMetrics, не основной канал доставки позиции — это делает `sendPosition`). `LocationConfigCard` показывает значение read-only, без ручного редактирования.
+- **`position_broadcast_secs` на ноде**: firmware по умолчанию 900 с. `NodeProvisioningUseCase` авто-выставляет `Int.MAX_VALUE` (`LocationConfigDefaults.APP_DRIVEN_BROADCAST_SECS`) — прошивка не транслирует автономно вообще, основной канал доставки позиции — `sendPosition`. `LocationConfigCard` показывает значение read-only, без ручного редактирования.
 
 ## Battery & BLE stability (Фаза 3)
 

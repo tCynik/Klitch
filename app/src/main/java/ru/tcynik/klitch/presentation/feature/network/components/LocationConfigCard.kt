@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import ru.tcynik.klitch.R
+import ru.tcynik.klitch.mesh.service.AndroidMeshLocationManager
 import ru.tcynik.klitch.presentation.feature.network.state.models.BlockReason
 import ru.tcynik.klitch.presentation.feature.network.state.models.GpsModeUi
 import ru.tcynik.klitch.presentation.feature.network.state.models.LocationConfigOptions
@@ -192,7 +193,6 @@ private fun BlockReason.toLabel(context: Context): String = when (this) {
     BlockReason.CHANNEL_PRECISION_DISABLED -> context.getString(R.string.network_location_reason_precision_zero)
     BlockReason.NO_POSITION_FLAGS -> context.getString(R.string.network_location_reason_no_flags)
     BlockReason.BROADCAST_INTERVAL_HIGH -> context.getString(R.string.network_location_reason_high_interval)
-    BlockReason.GPS_MODE_CONFLICT -> context.getString(R.string.network_location_reason_gps_conflict)
 }
 
 @Composable
@@ -258,6 +258,11 @@ private fun InfoRow(
 
 @Composable
 private fun broadcastIntervalLabel(secs: Int): String {
+    if (secs == Int.MAX_VALUE) {
+        val idleSecs = AndroidMeshLocationManager.STATIONARY_INTERVAL_MS / 1000
+        val movingMinSecs = AndroidMeshLocationManager.MOBILE_INTERVAL_MS / 1000
+        return stringResource(R.string.network_interval_app_driven, idleSecs, movingMinSecs)
+    }
     val labels = listOf(
         stringResource(R.string.network_interval_live),
         stringResource(R.string.network_interval_30s),

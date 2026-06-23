@@ -62,16 +62,32 @@ Reason is logged under tag `MT/SmartPos`: `"send distance"`, `"send heartbeat"`,
 
 ## Threshold relationship
 
-`POSITION_FRESHNESS_SECONDS` = 3 × `STATIONARY_INTERVAL_MS / 1000`. A node that missed 3
-consecutive expected broadcasts is considered stale.
+All cadence constants derive from a single canonical source —
+`PositionTrackingPolicy` (`mesh/service/PositionTrackingPolicy.kt`, see
+`docs/plans/position-broadcast-interval-unification.md`):
+
+```kotlin
+object PositionTrackingPolicy {
+    const val STATIONARY_INTERVAL_SECS = 180
+    const val MOBILE_MIN_GATE_SECS = 30
+    const val STALENESS_MULTIPLIER = 3
+}
+```
+
+`POSITION_FRESHNESS_SECONDS = STATIONARY_INTERVAL_SECS * STALENESS_MULTIPLIER`. A node that
+missed `STALENESS_MULTIPLIER` consecutive expected broadcasts is considered stale. The same
+`STATIONARY_INTERVAL_SECS` also drives the NODE_GPS firmware preset written by
+`BackgroundPositionSession` (`docs/plans/node-gps-position-source.md`) — PHONE_GPS heartbeat,
+NODE_GPS firmware broadcast, and map staleness all share one cadence.
 
 | Constant | Value | Location |
 |---|---|---|
-| `STATIONARY_INTERVAL_MS` | 180 000 ms (180 s) | `AndroidMeshLocationManager` |
-| `POSITION_FRESHNESS_SECONDS` | 540 s (3 × 180) | `ObserveNodeMarkersUseCase` |
-| `MAX_POSITION_AGE_SECONDS` | 43 200 s (12 h) | `ObserveNodeMarkersUseCase` |
+| `STATIONARY_INTERVAL_MS` | 180 000 ms (180 s), `= PositionTrackingPolicy.STATIONARY_INTERVAL_SECS * 1000L` | `AndroidMeshLocationManager` |
+| `POSITION_FRESHNESS_SECONDS` | 540 s (3 × 180), derived | `ObserveNodeMarkersUseCase` |
+| `MAX_POSITION_AGE_SECONDS` | 43 200 s (12 h), independent invariant — not part of cadence-derivation | `ObserveNodeMarkersUseCase` |
 
-When tuning `STATIONARY_INTERVAL_MS`, update `POSITION_FRESHNESS_SECONDS` to maintain the 3× ratio.
+When tuning cadence, change only `PositionTrackingPolicy.STATIONARY_INTERVAL_SECS` — every
+derived threshold follows automatically.
 
 ## Stale detection logic
 

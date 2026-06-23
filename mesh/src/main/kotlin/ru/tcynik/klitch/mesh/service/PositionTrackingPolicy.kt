@@ -17,11 +17,19 @@
 package ru.tcynik.klitch.mesh.service
 
 /**
- * Canonical position-cadence constant for the `mesh` module — `app` reads it directly
- * (allowed by the one-way `app` → `mesh` dependency). Only `STATIONARY_INTERVAL_SECS` exists
- * for now (NODE_GPS broadcast preset); other cadence values stay where they are until
- * `docs/plans/position-broadcast-interval-unification.md` derives them from here too.
+ * Canonical position-cadence constants for the `mesh` module — `app` reads them directly
+ * (allowed by the one-way `app` → `mesh` dependency). Single source of truth for both
+ * broadcast scenarios (PHONE_GPS app-driven heartbeat in `AndroidMeshLocationManager`, NODE_GPS
+ * firmware preset in `BackgroundPositionSession`) and for the map staleness threshold
+ * (`ObserveNodeMarkersUseCase`) — see `docs/plans/position-broadcast-interval-unification.md`.
  */
 object PositionTrackingPolicy {
+    /** Heartbeat interval while stationary, in seconds — both PHONE_GPS and NODE_GPS send at this cadence at minimum. */
     const val STATIONARY_INTERVAL_SECS = 180
+
+    /** Minimum gate between sends while moving, in seconds — no send faster than this even on motion. */
+    const val MOBILE_MIN_GATE_SECS = 30
+
+    /** A node is considered stale after missing this many consecutive expected heartbeats. */
+    const val STALENESS_MULTIPLIER = 3
 }

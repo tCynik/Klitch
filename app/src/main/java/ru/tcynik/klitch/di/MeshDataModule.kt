@@ -298,7 +298,6 @@ val meshDataModule = module {
             setProvideLocation = get<SetProvideLocationUseCase>(),
             writeChannelPositionPrecision = get<WriteChannelPositionPrecisionUseCase>(),
             removeFixedPosition = get<RemoveFixedPositionUseCase>(),
-            gpsRepository = get<GpsRepository>(),
             logger = get(),
         )
     }

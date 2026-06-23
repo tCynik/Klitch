@@ -26,6 +26,7 @@ import org.meshtastic.proto.HardwareModel
 import org.meshtastic.proto.ModuleSettings
 import ru.tcynik.klitch.domain.channel.model.NodeChannelSlot
 import ru.tcynik.klitch.domain.mesh.model.GpsMode
+import ru.tcynik.klitch.domain.mesh.model.LocationConfigDefaults
 import ru.tcynik.klitch.domain.mesh.model.LocationConfigModel
 import ru.tcynik.klitch.domain.mesh.model.MeshChannelModel
 import ru.tcynik.klitch.domain.mesh.model.MeshDeviceConfigModel
@@ -523,8 +524,8 @@ class MeshConfigRepositoryImpl(
         //   DISABLED → disableNodePositionBroadcast() leaves is_power_saving unchanged
         // TODO: restore is_power_saving=true in disableNodePositionBroadcast() once the
         //       full power-state lifecycle (Phase 3+) is implemented.
-        private const val GEO_BROADCAST_READY_SECS = Int.MAX_VALUE
-        private const val GEO_BROADCAST_DISABLED_SECS = Int.MAX_VALUE
+        private const val GEO_BROADCAST_READY_SECS = LocationConfigDefaults.APP_DRIVEN_BROADCAST_SECS
+        private const val GEO_BROADCAST_DISABLED_SECS = LocationConfigDefaults.APP_DRIVEN_BROADCAST_SECS
         private const val GEO_CHANNEL_PRECISION = 13
         private const val POSITION_CONFIG_WAIT_MS = 15_000L
         private const val PASSKEY_ATTEMPTS = 2

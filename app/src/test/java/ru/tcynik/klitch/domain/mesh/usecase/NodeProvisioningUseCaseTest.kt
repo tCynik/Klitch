@@ -4,7 +4,6 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
@@ -14,7 +13,6 @@ import ru.tcynik.klitch.domain.channel.repository.ContourRepository
 import ru.tcynik.klitch.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.klitch.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.klitch.domain.channel.usecase.ResolveChannelSlotUseCase
-import ru.tcynik.klitch.domain.gps.repository.GpsRepository
 import ru.tcynik.klitch.domain.mesh.model.GpsMode
 import ru.tcynik.klitch.domain.mesh.model.LocationConfigModel
 import ru.tcynik.klitch.domain.mesh.model.MeshDeviceConfigModel
@@ -37,7 +35,6 @@ class NodeProvisioningUseCaseTest {
     private val setProvideLocation: SetProvideLocationUseCase = mockk(relaxed = true)
     private val writeChannelPositionPrecision: WriteChannelPositionPrecisionUseCase = mockk(relaxed = true)
     private val removeFixedPosition: RemoveFixedPositionUseCase = mockk(relaxed = true)
-    private val gpsRepository: GpsRepository = mockk()
 
     private val node: MeshNodeModel = mockk()
     private val deviceConfig: MeshDeviceConfigModel = mockk()
@@ -56,6 +53,13 @@ class NodeProvisioningUseCaseTest {
         primaryChannelPositionPrecision = 0,
     )
 
+    private fun provisionedConfig(fixedPositionEnabled: Boolean = false) = firmwareDefaultConfig(fixedPositionEnabled).copy(
+        provideLocationToMesh = true,
+        broadcastIntervalSecs = Int.MAX_VALUE,
+        positionFlags = 897,
+        primaryChannelPositionPrecision = 32,
+    )
+
     @Before
     fun setUp() {
         every { observeContours.invoke(NoParams) } returns flowOf(emptyList())
@@ -64,7 +68,6 @@ class NodeProvisioningUseCaseTest {
         every { observeOurNode.invoke(NoParams) } returns flowOf(node)
         every { node.num } returns 42
         every { observeDeviceConfig.invoke(NoParams) } returns flowOf(deviceConfig)
-        every { gpsRepository.location } returns MutableStateFlow(null)
 
         useCase = NodeProvisioningUseCase(
             contourRepository = contourRepository,
@@ -79,7 +82,6 @@ class NodeProvisioningUseCaseTest {
             setProvideLocation = setProvideLocation,
             writeChannelPositionPrecision = writeChannelPositionPrecision,
             removeFixedPosition = removeFixedPosition,
-            gpsRepository = gpsRepository,
             logger = NoOpLogger(),
         )
     }
@@ -90,17 +92,15 @@ class NodeProvisioningUseCaseTest {
 
         useCase.provision()
 
-        coVerify(exactly = 1) { writePositionConfig.invoke(42, GpsMode.DISABLED, 1800, true, any(), 897) }
+        coVerify(exactly = 1) { writePositionConfig.invoke(42, GpsMode.DISABLED, Int.MAX_VALUE, false, 0, 897) }
         coVerify(exactly = 1) { setProvideLocation.invoke(42, true) }
         coVerify(exactly = 1) { writeChannelPositionPrecision.invoke(42, 0, 32) }
         coVerify(exactly = 0) { removeFixedPosition.invoke(any()) }
     }
 
     @Test
-    fun `already configured node — no writes, no node reboot`() = runTest {
-        every { observeLocationConfig.invoke(42) } returns flowOf(
-            firmwareDefaultConfig().copy(broadcastIntervalSecs = 1800, smartBroadcastEnabled = true)
-        )
+    fun `already provisioned node — no writes, no node reboot`() = runTest {
+        every { observeLocationConfig.invoke(42) } returns flowOf(provisionedConfig())
 
         useCase.provision()
 
@@ -110,9 +110,20 @@ class NodeProvisioningUseCaseTest {
     }
 
     @Test
+    fun `legacy preset (1800s) — migrated to app-driven broadcast value`() = runTest {
+        every { observeLocationConfig.invoke(42) } returns flowOf(
+            provisionedConfig().copy(broadcastIntervalSecs = 1800, smartBroadcastEnabled = true)
+        )
+
+        useCase.provision()
+
+        coVerify(exactly = 1) { writePositionConfig.invoke(42, GpsMode.DISABLED, Int.MAX_VALUE, false, 0, 897) }
+    }
+
+    @Test
     fun `stale fixed position — removed regardless of firmware-default state`() = runTest {
         every { observeLocationConfig.invoke(42) } returns flowOf(
-            firmwareDefaultConfig(fixedPositionEnabled = true).copy(broadcastIntervalSecs = 1800, smartBroadcastEnabled = true)
+            provisionedConfig(fixedPositionEnabled = true)
         )
 
         useCase.provision()

@@ -12,6 +12,7 @@ import ru.tcynik.klitch.domain.channel.repository.ContourRepository
 import ru.tcynik.klitch.domain.emergency.usecase.ObserveEmergencyModeUseCase
 import ru.tcynik.klitch.domain.logger.Logger
 import ru.tcynik.klitch.domain.mesh.model.ChannelPositionPrecision
+import ru.tcynik.klitch.domain.mesh.model.LocationConfigDefaults
 import ru.tcynik.klitch.domain.mesh.usecase.BeginSettingsEditUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.CommitSettingsEditUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
@@ -193,10 +194,10 @@ class SyncContoursOnConnectUseCase(
         else primaryContour.transport.meshtastic.channelHash
 
     private companion object {
-        // Both READY and DISABLED write Int.MAX_VALUE — firmware never broadcasts autonomously.
-        // The distinction is behavioral: prepareNodeForAppDrivenBroadcast() also disables
-        // is_power_saving so the app can send positions while the screen is off.
-        const val BROADCAST_READY_SECS = Int.MAX_VALUE
-        const val BROADCAST_DISABLED_SECS = Int.MAX_VALUE
+        // Both READY and DISABLED write the same app-driven broadcast intent — firmware never
+        // broadcasts autonomously. The distinction is behavioral: prepareNodeForAppDrivenBroadcast()
+        // also disables is_power_saving so the app can send positions while the screen is off.
+        const val BROADCAST_READY_SECS = LocationConfigDefaults.APP_DRIVEN_BROADCAST_SECS
+        const val BROADCAST_DISABLED_SECS = LocationConfigDefaults.APP_DRIVEN_BROADCAST_SECS
     }
 }

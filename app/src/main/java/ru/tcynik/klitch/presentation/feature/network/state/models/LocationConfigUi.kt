@@ -2,6 +2,7 @@
 
 import ru.tcynik.klitch.domain.mesh.model.GpsMode
 import ru.tcynik.klitch.domain.mesh.model.LocationConfigDefaults
+import ru.tcynik.klitch.mesh.service.PositionTrackingPolicy
 
 data class LocationConfigUi(
     val provideLocationToMesh: Boolean,
@@ -26,13 +27,17 @@ data class LocationConfigUi(
         if (primaryChannelPositionPrecision == 0) blockers += BlockReason.CHANNEL_PRECISION_DISABLED
 
         if (positionFlags == 0)                   warnings += BlockReason.NO_POSITION_FLAGS
-        // Warn only on actual misconfiguration, not on any value above an arbitrary threshold —
-        // the Klitch preset deliberately uses a high anchor interval (keepalive via DeviceMetrics,
-        // not the live-position channel — that's sendPosition). Anything else means auto-config
-        // hasn't run yet or something external changed it.
-        if (broadcastIntervalSecs != LocationConfigDefaults.BROADCAST_INTERVAL_SECS)
+        // Expected broadcastIntervalSecs differs by mode — DISABLED means the app drives position
+        // (node must stay fully silent), ENABLED means the node tracks+broadcasts itself (cadence
+        // derived from the same constant BackgroundPositionSession.ensureNodeGpsPreset() writes).
+        // NOT_PRESENT has no GPS chip — broadcastIntervalSecs isn't relevant, skip the check.
+        val expectedBroadcastSecs = when (gpsMode) {
+            GpsModeUi.DISABLED -> LocationConfigDefaults.APP_DRIVEN_BROADCAST_SECS
+            GpsModeUi.ENABLED -> PositionTrackingPolicy.STATIONARY_INTERVAL_SECS
+            GpsModeUi.NOT_PRESENT -> null
+        }
+        if (expectedBroadcastSecs != null && broadcastIntervalSecs != expectedBroadcastSecs)
             warnings += BlockReason.BROADCAST_INTERVAL_HIGH
-        if (gpsMode == GpsModeUi.ENABLED)         warnings += BlockReason.GPS_MODE_CONFLICT
 
         return when {
             blockers.isNotEmpty() -> LocationSharingStatus.Blocked(blockers)
@@ -69,7 +74,6 @@ enum class BlockReason {
     CHANNEL_PRECISION_DISABLED,
     NO_POSITION_FLAGS,
     BROADCAST_INTERVAL_HIGH,
-    GPS_MODE_CONFLICT,
 }
 
 sealed class LocationSharingStatus {

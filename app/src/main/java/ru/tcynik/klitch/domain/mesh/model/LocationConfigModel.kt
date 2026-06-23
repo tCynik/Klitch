@@ -15,10 +15,17 @@ data class LocationConfigModel(
 enum class GpsMode { DISABLED, ENABLED, NOT_PRESENT }
 
 /**
- * Klitch position preset values, written by `NodeProvisioningUseCase` and read by the
- * presentation-layer misconfiguration check (`LocationConfigUi.sharingStatus`) — single
- * source of truth so the warning logic can't drift from what auto-config actually sets.
+ * Single source of truth for the PHONE_GPS-scenario (`GpsMode.DISABLED`) position-broadcast
+ * intent — the app drives position via `sendPosition`, so the node's own autonomous broadcast
+ * must stay fully disabled. Firmware stamps `current_time` on every autonomous re-broadcast,
+ * which would falsely refresh a peer's view of this node's position even after the phone
+ * disconnects (see `docs/features/gps-position-staleness.md`).
+ *
+ * Read by `NodeProvisioningUseCase` (writes it), `MeshConfigRepositoryImpl` and
+ * `SyncContoursOnConnectUseCase` (write the same intent via `prepareNodeForAppDrivenBroadcast`/
+ * `disableNodePositionBroadcast`), and `LocationConfigUi.sharingStatus` (validates it) — one
+ * constant so these can't drift apart again. See `docs/plans/position-broadcast-interval-unification.md`.
  */
 object LocationConfigDefaults {
-    const val BROADCAST_INTERVAL_SECS = 1800 // 30 min forced anchor (keepalive via DeviceMetrics)
+    const val APP_DRIVEN_BROADCAST_SECS = Int.MAX_VALUE
 }

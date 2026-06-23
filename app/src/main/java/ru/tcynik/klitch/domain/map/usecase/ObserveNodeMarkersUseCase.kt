@@ -18,13 +18,16 @@ import ru.tcynik.klitch.domain.mesh.repository.MeshNetworkRepository
 import ru.tcynik.klitch.domain.logger.Logger
 import ru.tcynik.klitch.domain.usecase.base.FlowUseCase
 import ru.tcynik.klitch.domain.usecase.base.NoParams
+import ru.tcynik.klitch.mesh.service.PositionTrackingPolicy
 
 private const val MIN_SPEED_FOR_HEADING = 1
 
-// Threshold for fresh vs stale: 3 × stationary broadcast interval (180 s) = 540 s.
-// A node missed by 3 consecutive expected broadcasts is considered stale.
-// Sync with AndroidMeshLocationManager.STATIONARY_INTERVAL_MS when tuning.
-private const val POSITION_FRESHNESS_SECONDS = 3 * 180
+// Threshold for fresh vs stale: STALENESS_MULTIPLIER consecutive missed heartbeats.
+// Derived from the same PositionTrackingPolicy that AndroidMeshLocationManager (PHONE_GPS) and
+// BackgroundPositionSession (NODE_GPS) use for their broadcast cadence — see
+// docs/plans/position-broadcast-interval-unification.md.
+private const val POSITION_FRESHNESS_SECONDS =
+    PositionTrackingPolicy.STATIONARY_INTERVAL_SECS * PositionTrackingPolicy.STALENESS_MULTIPLIER
 
 /** Maximum age of a GPS position to be displayed at all, in seconds. Positions older than this are hidden. */
 private const val MAX_POSITION_AGE_SECONDS = 12 * 60 * 60 // 12 hours
