@@ -214,22 +214,28 @@ class NetworkViewModel(
             myNodeNumFlow.value = node?.num
             telemetryTimeoutJob?.cancel()
             telemetryTimeoutJob = null
+            val newMetrics = node?.let {
+                DeviceMetricsUi(
+                    batteryLevel = it.batteryLevel.takeIf { v -> v > 0 },
+                    voltage = if (it.voltage > 0f) "%.2f V".format(it.voltage) else null,
+                    channelUtilization = if (it.channelUtilization > 0f)
+                        "%.1f%%".format(it.channelUtilization) else null,
+                    airUtilTx = if (it.airUtilTx > 0f)
+                        "%.1f%%".format(it.airUtilTx) else null,
+                    uptimeFormatted = it.uptimeSeconds.takeIf { s -> s > 0 }
+                        ?.let { s -> formatUptime(s) },
+                )
+            }
             _uiState.update { state ->
                 state.copy(
                     telemetry = state.telemetry.copy(
                         isLoading = false,
-                        deviceMetrics = node?.let {
-                            DeviceMetricsUi(
-                                batteryLevel = it.batteryLevel.takeIf { v -> v > 0 },
-                                voltage = if (it.voltage > 0f) "%.2f V".format(it.voltage) else null,
-                                channelUtilization = if (it.channelUtilization > 0f)
-                                    "%.1f%%".format(it.channelUtilization) else null,
-                                airUtilTx = if (it.airUtilTx > 0f)
-                                    "%.1f%%".format(it.airUtilTx) else null,
-                                uptimeFormatted = it.uptimeSeconds.takeIf { s -> s > 0 }
-                                    ?.let { s -> formatUptime(s) },
-                            )
-                        }
+                        deviceMetrics = newMetrics,
+                        lastUpdatedAtMillis = if (newMetrics != null) {
+                            System.currentTimeMillis()
+                        } else {
+                            state.telemetry.lastUpdatedAtMillis
+                        },
                     )
                 )
             }

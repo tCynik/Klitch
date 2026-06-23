@@ -175,6 +175,7 @@
 
     <!-- Network: telemetry -->
     <string name="network_telemetry_title">Telemetry</string>
+    <string name="network_telemetry_title_with_age">Telemetry (%1$dm %2$ds ago)</string>
     <string name="network_telemetry_refresh">Refresh</string>
     <string name="network_telemetry_nodes_title">Nodes (%1$d)</string>
     <string name="network_telemetry_no_nodes">No nodes received yet.</string>

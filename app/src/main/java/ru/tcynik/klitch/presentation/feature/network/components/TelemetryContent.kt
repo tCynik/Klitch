@@ -20,14 +20,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import ru.tcynik.klitch.R
 import ru.tcynik.klitch.presentation.feature.network.state.DeviceMetricsUi
 import ru.tcynik.klitch.presentation.feature.network.state.MeshConnectionStatusUi
@@ -44,6 +48,22 @@ fun TelemetryContent(
     val isConnected = connectionStatus is MeshConnectionStatusUi.Connected
     var isTelemetryExpanded by rememberSaveable { mutableStateOf(false) }
     var isNodesExpanded by rememberSaveable { mutableStateOf(false) }
+
+    var nowMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1_000L)
+            nowMillis = System.currentTimeMillis()
+        }
+    }
+    val telemetryTitle = state.lastUpdatedAtMillis?.let { updatedAt ->
+        val elapsedSec = (nowMillis - updatedAt).coerceAtLeast(0L) / 1_000L
+        stringResource(
+            R.string.network_telemetry_title_with_age,
+            elapsedSec / 60,
+            elapsedSec % 60,
+        )
+    } ?: stringResource(R.string.network_telemetry_title)
 
     Column(
         modifier = modifier
@@ -64,7 +84,7 @@ fun TelemetryContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = stringResource(R.string.network_telemetry_title),
+                        text = telemetryTitle,
                         style = MaterialTheme.typography.titleSmall,
                         modifier = Modifier.weight(1f),
                     )
