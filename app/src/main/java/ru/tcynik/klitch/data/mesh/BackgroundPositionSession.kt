@@ -17,6 +17,10 @@ import ru.tcynik.klitch.domain.gps.model.PositionSourceMode
 import ru.tcynik.klitch.domain.gps.repository.GpsLifecycleController
 import ru.tcynik.klitch.domain.gps.usecase.ObservePositionSourceModeUseCase
 import ru.tcynik.klitch.domain.logger.Logger
+import ru.tcynik.klitch.domain.mesh.model.GpsMode
+import ru.tcynik.klitch.domain.mesh.usecase.ObserveLocationConfigUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.WriteChannelPositionPrecisionUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.WritePositionConfigUseCase
 import ru.tcynik.klitch.domain.usecase.base.NoParams
 import ru.tcynik.klitch.mesh.model.Position
 import ru.tcynik.klitch.mesh.repository.CommandSender
@@ -24,7 +28,16 @@ import ru.tcynik.klitch.mesh.repository.GeoSendPolicy
 import ru.tcynik.klitch.mesh.repository.MeshLocationManager
 import ru.tcynik.klitch.mesh.repository.NodeRepository
 import ru.tcynik.klitch.mesh.repository.UiPrefs
+import ru.tcynik.klitch.mesh.service.PositionTrackingPolicy
 import org.meshtastic.proto.Position as ProtoPosition
+
+// NODE_GPS preset — node's own GPS chip is the position source, mirrors the PHONE_GPS preset
+// in NodeProvisioningUseCase (HEADING|SPEED|ALTITUDE|TIMESTAMP flags, full channel precision).
+private const val NODE_GPS_BROADCAST_SECS = PositionTrackingPolicy.STATIONARY_INTERVAL_SECS
+private const val NODE_GPS_POSITION_FLAGS = 897
+private const val NODE_GPS_CHANNEL_PRECISION = 32
+private const val NODE_GPS_SMART_MIN_DIST_M = 20
+private const val NODE_GPS_PRIMARY_CHANNEL_INDEX = 0
 
 class BackgroundPositionSession(
     private val nodeRepository: NodeRepository,
@@ -38,6 +51,9 @@ class BackgroundPositionSession(
     private val gpsLifecycleController: GpsLifecycleController,
     private val observePositionSourceMode: ObservePositionSourceModeUseCase,
     private val nodeGpsPositionSource: NodeGpsPositionSource,
+    private val observeLocationConfig: ObserveLocationConfigUseCase,
+    private val writePositionConfig: WritePositionConfigUseCase,
+    private val writeChannelPositionPrecision: WriteChannelPositionPrecisionUseCase,
     private val logger: Logger,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) {
@@ -74,6 +90,7 @@ class BackgroundPositionSession(
                                 allowed && mode == PositionSourceMode.NODE_GPS -> {
                                     logger.d("GPS", "BackgroundPositionSession: node $nodeNum self-reports GPS, phone bridge skipped")
                                     locationManager.stop()
+                                    ensureNodeGpsPreset(nodeNum)
                                 }
                                 else -> {
                                     logger.d("GPS", "BackgroundPositionSession: stopping GPS bridge")
@@ -89,6 +106,34 @@ class BackgroundPositionSession(
             } else {
                 locationManager.stop()
             }
+        }
+    }
+
+    // Writes the NODE_GPS cadence preset only when the node's current config still diverges —
+    // avoids a write (and firmware reboot) on every reconnect/tick once already configured.
+    private fun ensureNodeGpsPreset(nodeNum: Int) {
+        scope.launch {
+            val config = observeLocationConfig(nodeNum).first()
+            val isPreset = config.broadcastIntervalSecs == NODE_GPS_BROADCAST_SECS &&
+                config.smartBroadcastEnabled &&
+                config.positionFlags == NODE_GPS_POSITION_FLAGS &&
+                config.primaryChannelPositionPrecision == NODE_GPS_CHANNEL_PRECISION
+            if (isPreset) return@launch
+
+            logger.i(
+                "GPS",
+                "BackgroundPositionSession: writing NODE_GPS preset for node $nodeNum " +
+                    "(broadcast=${NODE_GPS_BROADCAST_SECS}s, flags=$NODE_GPS_POSITION_FLAGS, precision=$NODE_GPS_CHANNEL_PRECISION)",
+            )
+            writePositionConfig(
+                destNum = nodeNum,
+                gpsMode = GpsMode.ENABLED,
+                broadcastSecs = NODE_GPS_BROADCAST_SECS,
+                smartEnabled = true,
+                smartMinDist = NODE_GPS_SMART_MIN_DIST_M,
+                flags = NODE_GPS_POSITION_FLAGS,
+            )
+            writeChannelPositionPrecision(nodeNum, NODE_GPS_PRIMARY_CHANNEL_INDEX, NODE_GPS_CHANNEL_PRECISION)
         }
     }
 

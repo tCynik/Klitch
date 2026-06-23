@@ -23,6 +23,11 @@ import ru.tcynik.klitch.domain.gps.model.PositionSourceMode
 import ru.tcynik.klitch.domain.gps.repository.GpsLifecycleController
 import ru.tcynik.klitch.domain.gps.usecase.ObservePositionSourceModeUseCase
 import ru.tcynik.klitch.domain.logger.Logger
+import ru.tcynik.klitch.domain.mesh.model.GpsMode
+import ru.tcynik.klitch.domain.mesh.model.LocationConfigModel
+import ru.tcynik.klitch.domain.mesh.usecase.ObserveLocationConfigUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.WriteChannelPositionPrecisionUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.WritePositionConfigUseCase
 import ru.tcynik.klitch.mesh.model.MyNodeInfo
 import ru.tcynik.klitch.mesh.repository.CommandSender
 import ru.tcynik.klitch.mesh.repository.GeoSendPolicy
@@ -48,6 +53,9 @@ class BackgroundPositionSessionTest {
     private val syncStateRepository: ContourSyncStateRepository = mockk()
     private val observePositionSourceMode: ObservePositionSourceModeUseCase = mockk()
     private val nodeGpsPositionSource: NodeGpsPositionSource = mockk()
+    private val observeLocationConfig: ObserveLocationConfigUseCase = mockk()
+    private val writePositionConfig: WritePositionConfigUseCase = mockk(relaxed = true)
+    private val writeChannelPositionPrecision: WriteChannelPositionPrecisionUseCase = mockk(relaxed = true)
     private val logger: Logger = mockk(relaxed = true)
 
     @Before
@@ -58,6 +66,7 @@ class BackgroundPositionSessionTest {
         every { syncStateRepository.syncRequired } returns MutableStateFlow(false)
         every { observePositionSourceMode.invoke(any()) } returns flowOf(PositionSourceMode.PHONE_GPS)
         every { nodeGpsPositionSource.observePosition() } returns flowOf()
+        every { observeLocationConfig.invoke(any()) } returns flowOf(firmwareDefaultLocationConfig())
     }
 
     private fun createSession() = BackgroundPositionSession(
@@ -72,8 +81,35 @@ class BackgroundPositionSessionTest {
         gpsLifecycleController = gpsLifecycleController,
         observePositionSourceMode = observePositionSourceMode,
         nodeGpsPositionSource = nodeGpsPositionSource,
+        observeLocationConfig = observeLocationConfig,
+        writePositionConfig = writePositionConfig,
+        writeChannelPositionPrecision = writeChannelPositionPrecision,
         logger = logger,
         scope = testScope.backgroundScope,
+    )
+
+    private fun firmwareDefaultLocationConfig() = LocationConfigModel(
+        provideLocationToMesh = false,
+        hasLocationPermission = true,
+        gpsMode = GpsMode.ENABLED,
+        fixedPositionEnabled = false,
+        broadcastIntervalSecs = 900,
+        smartBroadcastEnabled = false,
+        smartBroadcastMinDistanceM = 0,
+        positionFlags = 0,
+        primaryChannelPositionPrecision = 0,
+    )
+
+    private fun nodeGpsPresetLocationConfig() = LocationConfigModel(
+        provideLocationToMesh = false,
+        hasLocationPermission = true,
+        gpsMode = GpsMode.ENABLED,
+        fixedPositionEnabled = false,
+        broadcastIntervalSecs = 180,
+        smartBroadcastEnabled = true,
+        smartBroadcastMinDistanceM = 20,
+        positionFlags = 897,
+        primaryChannelPositionPrecision = 32,
     )
 
     private fun setupGeoAllowed(nodeNum: Int, provideLocation: Boolean = true, geoAllowed: Boolean = true) {
@@ -182,5 +218,43 @@ class BackgroundPositionSessionTest {
         advanceUntilIdle()
 
         verify { commandSender.sendPosition(pos) }
+    }
+
+    @Test
+    fun `when node_gps mode and config still firmware-default, writes node-gps preset`() = testScope.runTest {
+        setupGeoAllowed(123)
+        every { observePositionSourceMode.invoke(any()) } returns flowOf(PositionSourceMode.NODE_GPS)
+        every { observeLocationConfig.invoke(123) } returns flowOf(firmwareDefaultLocationConfig())
+        createSession()
+
+        myNodeInfoFlow.value = buildNode(123)
+        advanceUntilIdle()
+
+        verify {
+            writePositionConfig(
+                destNum = 123,
+                gpsMode = GpsMode.ENABLED,
+                broadcastSecs = 180,
+                smartEnabled = true,
+                smartMinDist = 20,
+                flags = 897,
+            )
+        }
+        verify { writeChannelPositionPrecision(123, 0, 32) }
+        verify { locationManager.stop() }
+    }
+
+    @Test
+    fun `when node_gps mode and config already matches preset, skips write`() = testScope.runTest {
+        setupGeoAllowed(123)
+        every { observePositionSourceMode.invoke(any()) } returns flowOf(PositionSourceMode.NODE_GPS)
+        every { observeLocationConfig.invoke(123) } returns flowOf(nodeGpsPresetLocationConfig())
+        createSession()
+
+        myNodeInfoFlow.value = buildNode(123)
+        advanceUntilIdle()
+
+        verify(exactly = 0) { writePositionConfig(any(), any(), any(), any(), any(), any()) }
+        verify(exactly = 0) { writeChannelPositionPrecision(any(), any(), any()) }
     }
 }

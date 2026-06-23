@@ -32,6 +32,7 @@ GpsRepository (5 с)        BackgroundPositionSession (app-level singleton)
 
 ### Фаза 2 — BackgroundPositionSession
 - **`BackgroundPositionSession`** (`app/data/mesh/`) — координирует GPS lifecycle и отправку позиции. Живёт в scope приложения (Koin singleton, eager init в `MyMeshApplication`). Подписан на `uiPrefs.shouldProvideNodeLocation(nodeNum)` + `geoSendPolicy.observeAllowed()`. При `allowed=true`: вызывает `gpsLifecycleController.start()` + `locationManager.start()` → `sendToAllSlots()`.
+- **`BackgroundPositionSession.ensureNodeGpsPreset()`** — для `PositionSourceMode.NODE_GPS` (`gps_mode=ENABLED`): телефонный мост не запускается, вместо этого пишется cadence-preset на ноду (`position_broadcast_secs=180` через `PositionTrackingPolicy.STATIONARY_INTERVAL_SECS` в `mesh`-модуле, `smartBroadcastEnabled=true`, `flags=897` HEADING|SPEED|ALTITUDE|TIMESTAMP, `channelPrecision=32`) — нода сама источник позиции в mesh, нужен разумный heartbeat вместо firmware-default 900с. Idempotent: сравнивает текущий `LocationConfigModel` с целевым набором перед записью, не пишет на каждый коннект.
 - **`sendToAllSlots()`** — шлёт позицию в Primary канал (`commandSender.sendPosition`) + все активные contour-слоты (`commandSender.broadcastPosition`).
 - **`OnConnectPositionSender`** — one-shot `sendPosition` при каждом коннекте; дополняет `BackgroundPositionSession`, не заменяет.
 
@@ -51,7 +52,7 @@ GpsRepository (5 с)        BackgroundPositionSession (app-level singleton)
 
 ## Known limitations / planned extensions
 
-- **Node GPS mode** (Фаза 4): для нод со встроенным GPS (`gps_mode=ENABLED`) `BackgroundPositionSession` не должен запускать GPS телефона. Отдельный план: `docs/plans/node-gps-position-source.md`.
+- **Node GPS mode** (Фаза 4): для нод со встроенным GPS (`gps_mode=ENABLED`) `BackgroundPositionSession` не должен запускать GPS телефона — ✅ реализовано, плюс cadence-preset (`ensureNodeGpsPreset()`, см. выше). Отдельный план: `docs/plans/node-gps-position-source.md`.
 - **`POSITION_FRESHNESS_SECONDS` (2 мин)** в `ObserveNodeMarkersUseCase` — при нормальном пайплайне не должен срабатывать. Потенциально можно увеличить до 5 мин после стабилизации.
 - **Два FGS** (`GpsService` + `MeshService`) → два notification. Объединение возможно, но не приоритетно.
 

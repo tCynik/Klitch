@@ -187,6 +187,9 @@ val meshDataModule = module {
             gpsLifecycleController = get<GpsLifecycleController>(),
             observePositionSourceMode = get(),
             nodeGpsPositionSource = get(),
+            observeLocationConfig = get(),
+            writePositionConfig = get(),
+            writeChannelPositionPrecision = get(),
             logger = get(),
         )
     }
