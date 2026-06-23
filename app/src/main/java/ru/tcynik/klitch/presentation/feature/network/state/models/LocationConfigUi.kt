@@ -1,6 +1,7 @@
 ﻿package ru.tcynik.klitch.presentation.feature.network.state.models
 
 import ru.tcynik.klitch.domain.mesh.model.GpsMode
+import ru.tcynik.klitch.domain.mesh.model.LocationConfigDefaults
 
 data class LocationConfigUi(
     val provideLocationToMesh: Boolean,
@@ -25,7 +26,12 @@ data class LocationConfigUi(
         if (primaryChannelPositionPrecision == 0) blockers += BlockReason.CHANNEL_PRECISION_DISABLED
 
         if (positionFlags == 0)                   warnings += BlockReason.NO_POSITION_FLAGS
-        if (broadcastIntervalSecs > 120)          warnings += BlockReason.BROADCAST_INTERVAL_HIGH
+        // Warn only on actual misconfiguration, not on any value above an arbitrary threshold —
+        // the Klitch preset deliberately uses a high anchor interval (keepalive via DeviceMetrics,
+        // not the live-position channel — that's sendPosition). Anything else means auto-config
+        // hasn't run yet or something external changed it.
+        if (broadcastIntervalSecs != LocationConfigDefaults.BROADCAST_INTERVAL_SECS)
+            warnings += BlockReason.BROADCAST_INTERVAL_HIGH
         if (gpsMode == GpsModeUi.ENABLED)         warnings += BlockReason.GPS_MODE_CONFLICT
 
         return when {

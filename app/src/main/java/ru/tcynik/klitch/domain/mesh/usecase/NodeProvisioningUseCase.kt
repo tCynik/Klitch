@@ -14,11 +14,12 @@ import ru.tcynik.klitch.domain.channel.usecase.SlotResolution
 import ru.tcynik.klitch.domain.gps.repository.GpsRepository
 import ru.tcynik.klitch.domain.logger.Logger
 import ru.tcynik.klitch.domain.mesh.model.GpsMode
+import ru.tcynik.klitch.domain.mesh.model.LocationConfigDefaults
 import ru.tcynik.klitch.domain.usecase.base.NoParams
 import kotlin.math.roundToInt
 
 // Klitch position preset
-private const val PRESET_BROADCAST_SECS = 1800       // 30 min forced anchor (keepalive via DeviceMetrics)
+private const val PRESET_BROADCAST_SECS = LocationConfigDefaults.BROADCAST_INTERVAL_SECS
 private const val PRESET_POSITION_FLAGS = 897        // HEADING | SPEED | ALTITUDE | TIMESTAMP
 private const val PRESET_SMART_DIST_DEFAULT_M = 20   // fallback when GPS accuracy unknown
 private const val PRESET_SMART_DIST_MIN_M = 10
