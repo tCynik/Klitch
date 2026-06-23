@@ -188,6 +188,7 @@
 | Background Position Pipeline | `docs/archive/background-position-pipeline.md` | Done |
 | Packet Channel Attribution | `docs/archive/packet-channel-attribution.md` | Archived |
 | Node GPS Position Source | `docs/plans/node-gps-position-source.md` | Implemented (pending field test) |
+| Position Broadcast Interval Unification | `docs/plans/position-broadcast-interval-unification.md` | In Progress (Фазы 1, 2.1, 3, 4, 5.2 done; остаётся 2.2) |
 | Node GPS Battery Savings | `docs/plans/node-gps-battery-savings.md` | Planned |
 | Foreground Service Lifecycle | `docs/archive/foreground-service-lifecycle.md` | Done |
 | Contours Redesign (Primary + SOS + Isolation) | `docs/archive/contours-redesign.md` | Done |
