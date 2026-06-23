@@ -184,7 +184,7 @@
     <string name="network_metric_voltage">Напряжение</string>
     <string name="network_metric_channel_utilization">Загрузка канала</string>
     <string name="network_metric_air_util_tx">Эфирное время TX</string>
-    <string name="network_metric_uptime">Время работы</string>
+    <string name="network_metric_uptime">Время работы ноды</string>
     <string name="network_metric_battery_percent">%1$d%%</string>
     <string name="network_node_snr">SNR %1$s</string>
     <string name="network_node_hops">%1$d хоп%2$s</string>

@@ -184,7 +184,7 @@
     <string name="network_metric_voltage">Voltage</string>
     <string name="network_metric_channel_utilization">Channel utilization</string>
     <string name="network_metric_air_util_tx">Air TX utilization</string>
-    <string name="network_metric_uptime">Uptime</string>
+    <string name="network_metric_uptime">Uptime of node</string>
     <string name="network_metric_battery_percent">%1$d%%</string>
     <string name="network_node_snr">SNR %1$s</string>
     <string name="network_node_hops">%1$d hop%2$s</string>
