@@ -282,6 +282,7 @@ val presentationModule = module {
             observeLocationConfig = get(),
             setDesiredGpsMode = get(),
             getGpsMode = get(),
+            requestTelemetry = get(),
             logger = get(),
         )
     }

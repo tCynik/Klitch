@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,6 +41,7 @@ import ru.tcynik.klitch.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveContourNodesUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveLocationConfigUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveOurNodeUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.RequestTelemetryUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ScanMeshDevicesUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.SetDesiredGpsModeUseCase
 import ru.tcynik.klitch.domain.settings.usecase.ObserveNetworkEnabledUseCase
@@ -55,6 +57,8 @@ import ru.tcynik.klitch.presentation.feature.network.state.models.CallsignGateDi
 import ru.tcynik.klitch.presentation.feature.network.state.models.GpsModeUi
 import ru.tcynik.klitch.presentation.feature.network.state.models.PendingAction
 import ru.tcynik.klitch.presentation.feature.network.state.models.toUi
+
+private const val TELEMETRY_REFRESH_TIMEOUT_MS = 10_000L
 
 class NetworkViewModel(
     private val observeConnectionStatus: ObserveConnectionStatusUseCase,
@@ -76,6 +80,7 @@ class NetworkViewModel(
     private val observeLocationConfig: ObserveLocationConfigUseCase,
     private val setDesiredGpsMode: SetDesiredGpsModeUseCase,
     private val getGpsMode: GetGpsModeUseCase,
+    private val requestTelemetry: RequestTelemetryUseCase,
     private val logger: Logger,
 ) : ViewModel() {
 
@@ -89,6 +94,7 @@ class NetworkViewModel(
     private var wasConnected = false
     private var userStoppedScan = false
     private var pendingConnectAddress: String? = null
+    private var telemetryTimeoutJob: Job? = null
     private var lastMeshStatus: MeshConnectionStatus = MeshConnectionStatus.Disconnected
 
     init {
@@ -206,9 +212,12 @@ class NetworkViewModel(
 
         observeOurNode(NoParams).onEach { node ->
             myNodeNumFlow.value = node?.num
+            telemetryTimeoutJob?.cancel()
+            telemetryTimeoutJob = null
             _uiState.update { state ->
                 state.copy(
                     telemetry = state.telemetry.copy(
+                        isLoading = false,
                         deviceMetrics = node?.let {
                             DeviceMetricsUi(
                                 batteryLevel = it.batteryLevel.takeIf { v -> v > 0 },
@@ -436,6 +445,14 @@ class NetworkViewModel(
     fun onRefreshTelemetryClick() {
         _uiState.update { state ->
             state.copy(telemetry = state.telemetry.copy(isLoading = true))
+        }
+        requestTelemetry()
+        telemetryTimeoutJob?.cancel()
+        telemetryTimeoutJob = viewModelScope.launch {
+            delay(TELEMETRY_REFRESH_TIMEOUT_MS)
+            _uiState.update { state ->
+                state.copy(telemetry = state.telemetry.copy(isLoading = false))
+            }
         }
     }
 

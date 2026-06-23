@@ -56,6 +56,7 @@ import ru.tcynik.klitch.domain.mesh.usecase.WritePositionConfigUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.GetDesiredGpsModeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.SetDesiredGpsModeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.GetGpsModeUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.RequestTelemetryUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.WriteGpsModeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.CheckOwnPkcHealthUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.PrepareNodeForAppDrivenBroadcastUseCase
@@ -251,6 +252,7 @@ val meshDataModule = module {
     single { GetGpsModeUseCase(get()) }
     single { WriteGpsModeUseCase(get()) }
     single { RebootNodeUseCase(get()) }
+    single { RequestTelemetryUseCase(get()) }
     single {
         ReconnectViaBleScanUseCase(
             disconnectFromMesh = get(),

@@ -36,6 +36,7 @@ import ru.tcynik.klitch.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.klitch.domain.mesh.model.ContourNodeModel
 import ru.tcynik.klitch.domain.mesh.usecase.GetGpsModeUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.RequestTelemetryUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveContourNodesUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveLocationConfigUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveOurNodeUseCase
@@ -69,6 +70,7 @@ class NetworkViewModelCallsignGateTest {
     private val observeLocationConfig: ObserveLocationConfigUseCase = mockk()
     private val setDesiredGpsMode: SetDesiredGpsModeUseCase = mockk(relaxed = true)
     private val getGpsMode: GetGpsModeUseCase = mockk(relaxed = true)
+    private val requestTelemetry: RequestTelemetryUseCase = mockk(relaxed = true)
     private val logger: Logger = mockk(relaxed = true)
 
     private val appUserFlow = MutableStateFlow(AppUser(displayName = ""))
@@ -122,6 +124,7 @@ class NetworkViewModelCallsignGateTest {
             observeLocationConfig = observeLocationConfig,
             setDesiredGpsMode = setDesiredGpsMode,
             getGpsMode = getGpsMode,
+            requestTelemetry = requestTelemetry,
             logger = logger,
         )
     }

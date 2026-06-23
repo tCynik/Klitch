@@ -34,6 +34,7 @@ import ru.tcynik.klitch.domain.mesh.repository.MeshConfigRepository
 import ru.tcynik.klitch.mesh.model.MeshUser
 import ru.tcynik.klitch.mesh.model.Node
 import ru.tcynik.klitch.mesh.model.Position
+import ru.tcynik.klitch.mesh.model.TelemetryType
 import ru.tcynik.klitch.mesh.repository.CommandSender
 import ru.tcynik.klitch.mesh.repository.MeshRouter
 import ru.tcynik.klitch.mesh.repository.NodeRepository
@@ -450,6 +451,16 @@ class MeshConfigRepositoryImpl(
         val requestId = commandSender.generatePacketId()
         logger.i("Node", "rebootNode: initiating reboot nodeNum=$myNodeNum requestId=${requestId.toUInt()}")
         meshRouter.actionHandler.handleRequestReboot(requestId, myNodeNum)
+    }
+
+    override fun requestTelemetry() {
+        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: run {
+            logger.w("Node", "requestTelemetry: myNodeNum unavailable")
+            return
+        }
+        val requestId = commandSender.generatePacketId()
+        logger.i("Node", "requestTelemetry: nodeNum=$myNodeNum requestId=${requestId.toUInt()}")
+        commandSender.requestTelemetry(requestId, myNodeNum, TelemetryType.DEVICE.ordinal)
     }
 
     override fun isOwnPkcKeyBroken(): Boolean {

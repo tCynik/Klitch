@@ -75,4 +75,7 @@ interface MeshConfigRepository {
     suspend fun isPositionSmartBroadcastEnabled(): Boolean?
 
     fun rebootNode()
+
+    /** Requests fresh device telemetry (battery/voltage/channel util/uptime) from the connected node. */
+    fun requestTelemetry()
 }
