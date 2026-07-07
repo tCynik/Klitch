@@ -107,6 +107,15 @@ class NodeProvisioningUseCase(
             removeFixedPosition(nodeNum)
         }
 
+        // provideLocationToMesh is the core precondition for the whole app (sendPosition to the
+        // node depends on it) — it can be flipped off independently of everything else (e.g. the
+        // official Meshtastic app), so it's enforced unconditionally on every connect, not bundled
+        // into the firmware-default guard below (mirrors fixedPositionEnabled handling above).
+        if (!config.provideLocationToMesh) {
+            logger.i("Node", "  position config: re-enabling provideLocationToMesh")
+            setProvideLocation(nodeNum, true)
+        }
+
         // Write preset only when position settings still match firmware defaults — prevents
         // re-write and unnecessary node reboots once provisioned.
         val isFirmwareDefault = config.gpsMode == GpsMode.DISABLED
@@ -114,17 +123,15 @@ class NodeProvisioningUseCase(
             && !config.smartBroadcastEnabled
             && config.smartBroadcastMinDistanceM == 0
             && config.positionFlags == FIRMWARE_FLAGS
-            && !config.provideLocationToMesh
             && config.primaryChannelPositionPrecision == FIRMWARE_CHANNEL_PRECISION
 
         // One-time migration: nodes provisioned by app versions before the position_broadcast_secs
         // conflict was fixed (docs/plans/position-broadcast-interval-unification.md) are stuck at
         // the old preset (1800s) forever — broadcastIntervalSecs != FIRMWARE_BROADCAST_SECS means
         // isFirmwareDefault is permanently false, so they'd never get corrected without this.
-        // Detected via this use case's own fingerprint (gpsMode=DISABLED + provideLocationToMesh=true
-        // — only this use case ever sets both), not a value comparison that could false-positive.
+        // Detected via broadcastIntervalSecs alone now that provideLocationToMesh is enforced
+        // separately above (gpsMode=DISABLED + stuck legacy interval is still a unique fingerprint).
         val needsLegacyMigration = config.gpsMode == GpsMode.DISABLED
-            && config.provideLocationToMesh
             && config.broadcastIntervalSecs == LEGACY_BROADCAST_SECS
 
         if (!isFirmwareDefault && !needsLegacyMigration) {
@@ -143,7 +150,10 @@ class NodeProvisioningUseCase(
             smartMinDist = 0,
             flags = PRESET_POSITION_FLAGS,
         )
-        setProvideLocation(nodeNum, true)
+        if (config.provideLocationToMesh) {
+            // Already enforced above when it was off — avoid a redundant second admin write/reboot.
+            setProvideLocation(nodeNum, true)
+        }
         writeChannelPositionPrecision(nodeNum, 0, PRESET_CHANNEL_PRECISION)
     }
 }

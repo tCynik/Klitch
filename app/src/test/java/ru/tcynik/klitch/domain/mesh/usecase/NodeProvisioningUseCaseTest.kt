@@ -110,6 +110,19 @@ class NodeProvisioningUseCaseTest {
     }
 
     @Test
+    fun `provisioned node with provideLocationToMesh toggled off manually — re-enabled without full rewrite`() = runTest {
+        every { observeLocationConfig.invoke(42) } returns flowOf(
+            provisionedConfig().copy(provideLocationToMesh = false)
+        )
+
+        useCase.provision()
+
+        coVerify(exactly = 1) { setProvideLocation.invoke(42, true) }
+        coVerify(exactly = 0) { writePositionConfig.invoke(any(), any(), any(), any(), any(), any()) }
+        coVerify(exactly = 0) { writeChannelPositionPrecision.invoke(any(), any(), any()) }
+    }
+
+    @Test
     fun `legacy preset (1800s) — migrated to app-driven broadcast value`() = runTest {
         every { observeLocationConfig.invoke(42) } returns flowOf(
             provisionedConfig().copy(broadcastIntervalSecs = 1800, smartBroadcastEnabled = true)
