@@ -15,6 +15,7 @@ import org.junit.Before
 import org.junit.Test
 import org.meshtastic.proto.Waypoint
 import ru.tcynik.klitch.domain.marker.model.GeoMarkModel
+import ru.tcynik.klitch.domain.marker.model.GeoMarkShape
 import ru.tcynik.klitch.domain.marker.model.GeoMarkType
 import ru.tcynik.klitch.domain.marker.model.GeoPoint
 import ru.tcynik.klitch.mesh.model.DataPacket
@@ -266,6 +267,32 @@ class GeoMarkWaypointAdapterTest {
     }
 
     // ── isSelf ────────────────────────────────────────────────────────────────
+
+    // ── roundtrip: shape ──────────────────────────────────────────────────────
+
+    @Test
+    fun `roundtrip POINT — shape SQUARE preserved`() {
+        val mark = pointMark().copy(shape = GeoMarkShape.SQUARE)
+        val packet = adapter.encode(mark, 0, "", 1000L)
+        val decoded = adapter.decode(packet)!!
+        assertEquals(GeoMarkShape.SQUARE, decoded.shape)
+    }
+
+    @Test
+    fun `roundtrip POINT — shape TRIANGLE preserved`() {
+        val mark = pointMark().copy(shape = GeoMarkShape.TRIANGLE)
+        val packet = adapter.encode(mark, 0, "", 1000L)
+        val decoded = adapter.decode(packet)!!
+        assertEquals(GeoMarkShape.TRIANGLE, decoded.shape)
+    }
+
+    @Test
+    fun `roundtrip POINT — shape CIRCLE preserved`() {
+        val mark = pointMark().copy(shape = GeoMarkShape.CIRCLE)
+        val packet = adapter.encode(mark, 0, "", 1000L)
+        val decoded = adapter.decode(packet)!!
+        assertEquals(GeoMarkShape.CIRCLE, decoded.shape)
+    }
 
     @Test
     fun `decode — isSelf is false when mark id not in selfIds`() {
