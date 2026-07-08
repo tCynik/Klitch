@@ -245,6 +245,28 @@ class BackgroundPositionSessionTest {
     }
 
     @Test
+    fun `when node_gps mode and only min-distance diverges, writes node-gps preset`() = testScope.runTest {
+        setupGeoAllowed(123)
+        every { observePositionSourceMode.invoke(any()) } returns flowOf(PositionSourceMode.NODE_GPS)
+        every { observeLocationConfig.invoke(123) } returns flowOf(nodeGpsPresetLocationConfig().copy(smartBroadcastMinDistanceM = 0))
+        createSession()
+
+        myNodeInfoFlow.value = buildNode(123)
+        advanceUntilIdle()
+
+        verify {
+            writePositionConfig(
+                destNum = 123,
+                gpsMode = GpsMode.ENABLED,
+                broadcastSecs = 180,
+                smartEnabled = true,
+                smartMinDist = 20,
+                flags = 897,
+            )
+        }
+    }
+
+    @Test
     fun `when node_gps mode and config already matches preset, skips write`() = testScope.runTest {
         setupGeoAllowed(123)
         every { observePositionSourceMode.invoke(any()) } returns flowOf(PositionSourceMode.NODE_GPS)

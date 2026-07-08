@@ -122,6 +122,7 @@ class BackgroundPositionSession(
             val config = observeLocationConfig(nodeNum).first()
             val isPreset = config.broadcastIntervalSecs == NODE_GPS_BROADCAST_SECS &&
                 config.smartBroadcastEnabled &&
+                config.smartBroadcastMinDistanceM == NODE_GPS_SMART_MIN_DIST_M &&
                 config.positionFlags == NODE_GPS_POSITION_FLAGS &&
                 config.primaryChannelPositionPrecision == NODE_GPS_CHANNEL_PRECISION
             if (isPreset) return@launch
