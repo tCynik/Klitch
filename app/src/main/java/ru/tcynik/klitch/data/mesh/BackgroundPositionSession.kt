@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -79,6 +80,11 @@ class BackgroundPositionSession(
                             allowed && !syncRequired
                         }
                         .combine(observePositionSourceMode(NoParams)) { allowed, mode -> allowed to mode }
+                        // combine() re-emits on every upstream tick even when the resulting pair is
+                        // unchanged (e.g. our own node's position/telemetry updates re-firing
+                        // observePositionSourceMode) — without this, setFixedPosition/gpsLifecycleController
+                        // below would re-fire on every such tick, flooding the admin channel.
+                        .distinctUntilChanged()
                         .onEach { (allowed, mode) ->
                             when {
                                 allowed && mode == PositionSourceMode.PHONE_GPS -> {

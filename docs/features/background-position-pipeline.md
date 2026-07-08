@@ -49,6 +49,7 @@ GpsRepository (5 с)        BackgroundPositionSession (app-level singleton)
 - **`CONNECTION_PRIORITY_HIGH` всегда**: MeshTactics всегда работает с позицией и требует минимальной задержки BLE. Нет смысла динамически переключать — всегда `HIGH`.
 - **`PARTIAL_WAKE_LOCK` опциональный**: wake lock потребляет батарею. По умолчанию выключен. Пользователь включает в настройках если наблюдает частые BLE-разрывы при screen off.
 - **Battery optimization prompt при каждом включении geo**: Android system сам не показывает диалог если уже в whitelist. `isIgnoringBatteryOptimizations()` — check без сохранения состояния.
+- **`distinctUntilChanged()` обязателен на цепочке `observeLocationPolicy()`**: `combine()` реэмитит на каждый тик ЛЮБОГО апстрим-флоу, даже если итоговая пара `(allowed, mode)` не изменилась. `observePositionSourceMode()` тянется через `observeOurNode()`, который реэмитит на каждое обновление позиции/телеметрии собственной ноды — то есть часто. Без `distinctUntilChanged()` `onEach` (который шлёт `commandSender.setFixedPosition()` — реальный admin-write) переисполнялся на каждый такой тик, забивая BLE/radio канал повторными admin-пакетами и роняя параллельную доставку чата/waypoints. Баг внесён в фазе 3 (`eee0602`), не пойман тестами — воспроизводится только на связке приложение+BLE+нода. См. `docs/debug/message-waypoint-delivery.md`.
 
 ## Known limitations / planned extensions
 
