@@ -246,10 +246,15 @@ class BleRadioInterface(
     private suspend fun onConnected() {
         bleConnection.requestConnectionPriority(high = true)
         try {
-            bleConnection.deviceFlow.first()?.let { device ->
-                val rssi = retryBleOperation(tag = address) { device.readRssi() }
-                Logger.d { "[$address] Connection confirmed. Initial RSSI: $rssi dBm" }
-                service.setBleRssi(rssi)
+            // Serialized with handleSendToRadio — readRssi() is a separate GATT operation and
+            // Android only allows one in flight per connection; racing it with a packet write
+            // (or the incoming notify path) reliably corrupts one side of the pair.
+            writeMutex.withLock {
+                bleConnection.deviceFlow.first()?.let { device ->
+                    val rssi = retryBleOperation(tag = address) { device.readRssi() }
+                    Logger.d { "[$address] Connection confirmed. Initial RSSI: $rssi dBm" }
+                    service.setBleRssi(rssi)
+                }
             }
         } catch (e: Exception) {
             Logger.w(e) { "[$address] Failed to read initial connection RSSI" }
@@ -261,10 +266,13 @@ class BleRadioInterface(
         while (true) {
             delay(RSSI_POLL_INTERVAL_MS)
             try {
-                bleConnection.deviceFlow.first()?.let { device ->
-                    val rssi = retryBleOperation(tag = address) { device.readRssi() }
-                    Logger.d { "[$address] pollRssi: read rssi=$rssi dBm" }
-                    service.setBleRssi(rssi)
+                // See onConnected() — must not race handleSendToRadio's GATT write.
+                writeMutex.withLock {
+                    bleConnection.deviceFlow.first()?.let { device ->
+                        val rssi = retryBleOperation(tag = address) { device.readRssi() }
+                        Logger.d { "[$address] pollRssi: read rssi=$rssi dBm" }
+                        service.setBleRssi(rssi)
+                    }
                 }
             } catch (e: Exception) {
                 Logger.w(e) { "[$address] Periodic RSSI read failed" }
