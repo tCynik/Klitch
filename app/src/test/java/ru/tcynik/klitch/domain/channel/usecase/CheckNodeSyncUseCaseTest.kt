@@ -385,6 +385,18 @@ class CheckNodeSyncUseCaseTest {
         assertEquals(NodeSyncResult.NeedsSync, useCase())
     }
 
+    @Test
+    fun `InSync — NODE_GPS node, position_broadcast_secs=180 is its own preset, not a mismatch`() = runTest {
+        // Node self-reports gps_mode=ENABLED (own GPS chip), running BackgroundPositionSession's
+        // preset of 180s — must not be compared against the PHONE_GPS MAX_VALUE preset.
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(basicContour))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencySlot))
+        coEvery { getPositionBroadcastSecs.invoke() } returns 180
+        coEvery { getGpsMode.invoke() } returns GpsMode.ENABLED
+
+        assertEquals(NodeSyncResult.InSync, useCase())
+    }
+
     // ── gps_mode override (rule 8) ───────────────────────────────────────────
 
     @Test

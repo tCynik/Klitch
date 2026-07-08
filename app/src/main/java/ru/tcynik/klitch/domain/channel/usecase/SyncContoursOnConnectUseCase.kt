@@ -12,6 +12,7 @@ import ru.tcynik.klitch.domain.channel.repository.ContourRepository
 import ru.tcynik.klitch.domain.emergency.usecase.ObserveEmergencyModeUseCase
 import ru.tcynik.klitch.domain.logger.Logger
 import ru.tcynik.klitch.domain.mesh.model.ChannelPositionPrecision
+import ru.tcynik.klitch.domain.mesh.model.GpsMode
 import ru.tcynik.klitch.domain.mesh.model.LocationConfigDefaults
 import ru.tcynik.klitch.domain.mesh.usecase.BeginSettingsEditUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.CommitSettingsEditUseCase
@@ -78,18 +79,26 @@ class SyncContoursOnConnectUseCase(
         val currentBroadcastSecs = getPositionBroadcastSecs()
         val currentSmartEnabled = isPositionSmartBroadcastEnabled()
         val desiredBroadcastSecs = if (desiredBroadcastEnabled) BROADCAST_READY_SECS else BROADCAST_DISABLED_SECS
+        val secsMismatch = currentBroadcastSecs != null && currentBroadcastSecs != desiredBroadcastSecs
         // Also write when smart broadcast is still enabled despite GPS broadcast being active —
         // smart broadcast silently extends the interval when the device is stationary, causing
         // periodic stale markers on peer devices.
-        val needsBroadcastWrite = currentBroadcastSecs != null && (
-            currentBroadcastSecs != desiredBroadcastSecs ||
-            (desiredBroadcastEnabled && currentSmartEnabled == true)
-        )
+        val smartMismatch = currentBroadcastSecs != null && desiredBroadcastEnabled && currentSmartEnabled == true
 
         // Resolve desired gps_mode override BEFORE opening the edit session.
         val desiredGpsMode = getDesiredGpsMode()
-        val currentGpsMode = if (desiredGpsMode != null) getGpsMode() else null
+        // Only worth the extra query when it can change the outcome: an explicit override, or a
+        // broadcast mismatch that might actually be a legitimate NODE_GPS node (see below).
+        val currentGpsMode = if (desiredGpsMode != null || secsMismatch) getGpsMode() else null
         val needsGpsModeWrite = desiredGpsMode != null && currentGpsMode != null && currentGpsMode != desiredGpsMode
+
+        // NODE_GPS (node's own GPS chip is the source, gps_mode=ENABLED): position_broadcast_secs
+        // and smart-broadcast are BackgroundPositionSession.ensureNodeGpsPreset()'s preset (180s,
+        // smart on), not the PHONE_GPS app-driven one here — writing the PHONE_GPS preset over it
+        // fights BackgroundPositionSession's writes, each side rebooting the node to re-assert its
+        // own value on every reconnect.
+        val effectiveGpsMode = desiredGpsMode ?: currentGpsMode
+        val needsBroadcastWrite = effectiveGpsMode != GpsMode.ENABLED && (secsMismatch || smartMismatch)
 
         val primaryName = meshtasticChannelName(primaryContour)
         val primaryPsk = if (primaryContour.isEmergency) {

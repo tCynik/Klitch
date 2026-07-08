@@ -99,6 +99,7 @@ class SyncContoursOnConnectUseCaseTest {
         coEvery { getPositionBroadcastSecs.invoke() } returns Int.MAX_VALUE
         coEvery { isPositionSmartBroadcastEnabled.invoke() } returns false
         coEvery { getDesiredGpsMode.invoke() } returns null
+        coEvery { getGpsMode.invoke() } returns GpsMode.DISABLED
     }
 
     private fun makeContour(id: String, name: String, isActive: Boolean = true): Contour {
@@ -311,6 +312,21 @@ class SyncContoursOnConnectUseCaseTest {
         )
         every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(primary))
         every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencySlot))
+
+        useCase()
+
+        coVerify(exactly = 0) { prepareNodeForAppDrivenBroadcast.invoke() }
+        coVerify(exactly = 0) { disableNodePositionBroadcast.invoke() }
+    }
+
+    @Test
+    fun `NODE_GPS node — broadcast secs mismatch vs PHONE_GPS preset is not written`() = runTest {
+        // Node self-reports gps_mode=ENABLED and runs BackgroundPositionSession's own preset
+        // (180s), which legitimately differs from the PHONE_GPS app-driven MAX_VALUE preset.
+        coEvery { getPositionBroadcastSecs.invoke() } returns 180
+        coEvery { getGpsMode.invoke() } returns GpsMode.ENABLED
+        val primary = makeContour(DefaultActiveContour.ID.value, DefaultActiveContour.DISPLAY_NAME)
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(primary))
 
         useCase()
 

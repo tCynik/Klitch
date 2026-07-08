@@ -11,6 +11,7 @@ import ru.tcynik.klitch.domain.channel.model.meshtasticChannelName
 import ru.tcynik.klitch.domain.channel.repository.ContourRepository
 import ru.tcynik.klitch.domain.emergency.usecase.ObserveEmergencyModeUseCase
 import ru.tcynik.klitch.domain.mesh.model.ChannelPositionPrecision
+import ru.tcynik.klitch.domain.mesh.model.GpsMode
 import ru.tcynik.klitch.domain.mesh.usecase.GetDesiredGpsModeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.GetGpsModeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.GetPositionBroadcastSecsUseCase
@@ -124,26 +125,32 @@ class CheckNodeSyncUseCase(
 
         val broadcastEnabled = observeGpsBroadcastEnabled().first()
         val desiredBroadcastEnabled = !sosActive && broadcastEnabled
-        val desiredSecs = if (desiredBroadcastEnabled) BROADCAST_READY_SECS else BROADCAST_DISABLED_SECS
         val currentSecs = getPositionBroadcastSecs()
         if (currentSecs != null) {
-            if (currentSecs != desiredSecs) {
-                logger.w("Contour", "NeedsSync: position_broadcast_secs mismatch — current=$currentSecs desired=$desiredSecs")
+            val desiredGpsMode = getDesiredGpsMode()
+            val currentGpsMode = getGpsMode()
+            if (desiredGpsMode != null && currentGpsMode != null && currentGpsMode != desiredGpsMode) {
+                logger.w("Contour", "NeedsSync: gps_mode mismatch — current=$currentGpsMode desired=$desiredGpsMode")
                 return NodeSyncResult.NeedsSync
             }
 
-            val desiredGpsMode = getDesiredGpsMode()
-            if (desiredGpsMode != null) {
-                val currentGpsMode = getGpsMode()
-                if (currentGpsMode != null && currentGpsMode != desiredGpsMode) {
-                    logger.w("Contour", "NeedsSync: gps_mode mismatch — current=$currentGpsMode desired=$desiredGpsMode")
+            // NODE_GPS (node's own GPS chip is the source, gps_mode=ENABLED): position_broadcast_secs
+            // and smart-broadcast are BackgroundPositionSession.ensureNodeGpsPreset()'s preset (180s,
+            // smart on), not the PHONE_GPS app-driven one below — checking against the PHONE_GPS
+            // preset here caused a permanent mismatch that fought BackgroundPositionSession's writes
+            // (each side rebooting the node to re-assert its own value) on every reconnect.
+            val effectiveGpsMode = desiredGpsMode ?: currentGpsMode
+            if (effectiveGpsMode != GpsMode.ENABLED) {
+                val desiredSecs = if (desiredBroadcastEnabled) BROADCAST_READY_SECS else BROADCAST_DISABLED_SECS
+                if (currentSecs != desiredSecs) {
+                    logger.w("Contour", "NeedsSync: position_broadcast_secs mismatch — current=$currentSecs desired=$desiredSecs")
+                    return NodeSyncResult.NeedsSync
+                }
+                if (desiredBroadcastEnabled && isPositionSmartBroadcastEnabled() == true) {
+                    logger.w("Contour", "NeedsSync: smart_broadcast still enabled despite app-driven mode")
                     return NodeSyncResult.NeedsSync
                 }
             }
-        }
-        if (desiredBroadcastEnabled && isPositionSmartBroadcastEnabled() == true) {
-            logger.w("Contour", "NeedsSync: smart_broadcast still enabled despite app-driven mode")
-            return NodeSyncResult.NeedsSync
         }
 
         logger.d("Contour", "InSync: all checks passed")
