@@ -296,6 +296,7 @@ class MeshConfigRepositoryImpl(
                 smartBroadcastMinDistanceM = posConfig?.broadcast_smart_minimum_distance ?: 0,
                 positionFlags = posConfig?.position_flags ?: 0,
                 primaryChannelPositionPrecision = precision,
+                gpsUpdateIntervalSecs = posConfig?.gps_update_interval ?: 0,
             )
         }
 
@@ -339,8 +340,9 @@ class MeshConfigRepositoryImpl(
         smartEnabled: Boolean,
         smartMinDist: Int,
         flags: Int,
+        gpsUpdateIntervalSecs: Int?,
     ) {
-        logger.i("Node", "writePositionConfig: destNum=$destNum gpsMode=$gpsMode broadcastSecs=$broadcastSecs — firmware reboot expected")
+        logger.i("Node", "writePositionConfig: destNum=$destNum gpsMode=$gpsMode broadcastSecs=$broadcastSecs gpsUpdateIntervalSecs=$gpsUpdateIntervalSecs — firmware reboot expected")
         val current = meshRouter.configHandler.localConfig.value.position
             ?: Config.PositionConfig()
         val updated = current.copy(
@@ -349,6 +351,7 @@ class MeshConfigRepositoryImpl(
             position_broadcast_smart_enabled = smartEnabled,
             broadcast_smart_minimum_distance = smartMinDist,
             position_flags = flags,
+            gps_update_interval = gpsUpdateIntervalSecs ?: current.gps_update_interval,
         )
         val payload = Config.ADAPTER.encode(Config(position = updated))
         meshRouter.actionHandler.handleSetConfig(payload, destNum)

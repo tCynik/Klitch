@@ -13,5 +13,6 @@ class WritePositionConfigUseCase(
         smartEnabled: Boolean,
         smartMinDist: Int,
         flags: Int,
-    ) = repository.writePositionConfig(destNum, gpsMode, broadcastSecs, smartEnabled, smartMinDist, flags)
+        gpsUpdateIntervalSecs: Int? = null,
+    ) = repository.writePositionConfig(destNum, gpsMode, broadcastSecs, smartEnabled, smartMinDist, flags, gpsUpdateIntervalSecs)
 }
