@@ -47,6 +47,11 @@ private const val NODE_GPS_PRIMARY_CHANNEL_INDEX = 0
 // packets — but the marker barely moved). Reuses the existing move-gate constant as the fix cadence.
 private const val NODE_GPS_UPDATE_INTERVAL_SECS = PositionTrackingPolicy.MOBILE_MIN_GATE_SECS
 
+// broadcast_smart_minimum_interval_secs — min gate between smart-broadcast sends while moving.
+// Was never written by this preset (firmware kept whatever value it had, undocumented default) —
+// mirrors the same gate already enforced for PHONE_GPS in AndroidMeshLocationManager.MOBILE_INTERVAL_MS.
+private const val NODE_GPS_SMART_MIN_INTERVAL_SECS = PositionTrackingPolicy.MOBILE_MIN_GATE_SECS
+
 class BackgroundPositionSession(
     private val nodeRepository: NodeRepository,
     private val locationManager: MeshLocationManager,
@@ -132,14 +137,15 @@ class BackgroundPositionSession(
                 config.smartBroadcastMinDistanceM == NODE_GPS_SMART_MIN_DIST_M &&
                 config.positionFlags == NODE_GPS_POSITION_FLAGS &&
                 config.primaryChannelPositionPrecision == NODE_GPS_CHANNEL_PRECISION &&
-                config.gpsUpdateIntervalSecs == NODE_GPS_UPDATE_INTERVAL_SECS
+                config.gpsUpdateIntervalSecs == NODE_GPS_UPDATE_INTERVAL_SECS &&
+                config.smartMinIntervalSecs == NODE_GPS_SMART_MIN_INTERVAL_SECS
             if (isPreset) return@launch
 
             logger.i(
                 "GPS",
                 "BackgroundPositionSession: writing NODE_GPS preset for node $nodeNum " +
                     "(broadcast=${NODE_GPS_BROADCAST_SECS}s, flags=$NODE_GPS_POSITION_FLAGS, precision=$NODE_GPS_CHANNEL_PRECISION, " +
-                    "gpsUpdateInterval=${NODE_GPS_UPDATE_INTERVAL_SECS}s)",
+                    "gpsUpdateInterval=${NODE_GPS_UPDATE_INTERVAL_SECS}s, smartMinInterval=${NODE_GPS_SMART_MIN_INTERVAL_SECS}s)",
             )
             writePositionConfig(
                 destNum = nodeNum,
@@ -149,6 +155,7 @@ class BackgroundPositionSession(
                 smartMinDist = NODE_GPS_SMART_MIN_DIST_M,
                 flags = NODE_GPS_POSITION_FLAGS,
                 gpsUpdateIntervalSecs = NODE_GPS_UPDATE_INTERVAL_SECS,
+                smartMinIntervalSecs = NODE_GPS_SMART_MIN_INTERVAL_SECS,
             )
             writeChannelPositionPrecision(nodeNum, NODE_GPS_PRIMARY_CHANNEL_INDEX, NODE_GPS_CHANNEL_PRECISION)
         }

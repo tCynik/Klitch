@@ -41,6 +41,8 @@ interface MeshConfigRepository {
         flags: Int,
         /** `gps_update_interval` override, `null` leaves the node's current value untouched. */
         gpsUpdateIntervalSecs: Int? = null,
+        /** `broadcast_smart_minimum_interval_secs` override, `null` leaves the node's current value untouched. */
+        smartMinIntervalSecs: Int? = null,
     )
 
     /** User's desired `gps_mode` override for a node, set via NetworkSettings toggle. `null` = no override. */

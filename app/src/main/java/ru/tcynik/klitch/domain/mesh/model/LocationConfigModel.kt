@@ -12,6 +12,8 @@ data class LocationConfigModel(
     val primaryChannelPositionPrecision: Int,
     /** `position.gps_update_interval` — how often the node's own GPS chip attempts a fix, in seconds. 0 = firmware default (30s). */
     val gpsUpdateIntervalSecs: Int = 0,
+    /** `position.broadcast_smart_minimum_interval_secs` — min gate between smart-broadcast sends, in seconds. */
+    val smartMinIntervalSecs: Int = 0,
 )
 
 enum class GpsMode { DISABLED, ENABLED, NOT_PRESENT }

@@ -111,6 +111,7 @@ class BackgroundPositionSessionTest {
         positionFlags = 897,
         primaryChannelPositionPrecision = 32,
         gpsUpdateIntervalSecs = 30,
+        smartMinIntervalSecs = 30,
     )
 
     private fun setupGeoAllowed(nodeNum: Int, provideLocation: Boolean = true, geoAllowed: Boolean = true) {
@@ -240,6 +241,7 @@ class BackgroundPositionSessionTest {
                 smartMinDist = 20,
                 flags = 897,
                 gpsUpdateIntervalSecs = 30,
+                smartMinIntervalSecs = 30,
             )
         }
         verify { writeChannelPositionPrecision(123, 0, 32) }
@@ -265,6 +267,7 @@ class BackgroundPositionSessionTest {
                 smartMinDist = 20,
                 flags = 897,
                 gpsUpdateIntervalSecs = 30,
+                smartMinIntervalSecs = 30,
             )
         }
     }
