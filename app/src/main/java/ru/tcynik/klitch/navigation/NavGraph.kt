@@ -13,6 +13,7 @@ import androidx.navigation.compose.rememberNavController
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.maplibre.compose.location.LocationProvider
+import ru.tcynik.klitch.data.gps.NodeGpsWatchdog
 import ru.tcynik.klitch.di.orientation.DeviceOrientationProvider
 import ru.tcynik.klitch.presentation.feature.chat.ChatScreen
 import ru.tcynik.klitch.presentation.feature.chat.ChatViewModel
@@ -72,6 +73,17 @@ fun NavGraph() {
                 context,
                 context.getString(ru.tcynik.klitch.R.string.track_no_movement_discarded),
                 android.widget.Toast.LENGTH_SHORT,
+            ).show()
+        }
+    }
+
+    val nodeGpsWatchdog: NodeGpsWatchdog = koinInject()
+    LaunchedEffect(Unit) {
+        nodeGpsWatchdog.staleEvent.collect {
+            android.widget.Toast.makeText(
+                context,
+                context.getString(ru.tcynik.klitch.R.string.node_gps_watchdog_toast),
+                android.widget.Toast.LENGTH_LONG,
             ).show()
         }
     }

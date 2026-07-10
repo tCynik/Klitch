@@ -24,4 +24,5 @@ data class ChatUiState(
     val isChatTabEnabled: Boolean = false,
     val isSelectedChatActive: Boolean = true,
     val selectedChatPartnerHasPKC: Boolean? = null,
+    val syncRequired: Boolean = false,
 )

@@ -170,18 +170,22 @@ class AndroidMeshLocationManager(private val context: Application, private val l
      * - предотвращение спама (когда двиггаемся слишком частые метки будут вредить, а когда стоишь
      * они должны быть по возможности более редкими)
      * - своевременное определение, что нода больше не передает позицию (например, отключилась)
+     *
+     * [MOBILE_INTERVAL_MS] и [STATIONARY_INTERVAL_MS] выведены из [PositionTrackingPolicy] — той же
+     * константы, что использует NODE_GPS-преcет в `BackgroundPositionSession` и порог протухания
+     * метки в `ObserveNodeMarkersUseCase`. Менять cadence только через `PositionTrackingPolicy`.
      */
     companion object {
-        // время таймаута между отправками позиции если кординаты не меняются.
-        // Служит для обновления статуса, чтобы убедиться, что нода не уснула
+        // время устаревания GPS-фикса телефона (не cadence, не путать с константами ниже)
         private const val MAX_FIX_AGE_MS: Long = ((2*60) //todo: возможно, стоит поставить 3 минуты
                 *1000)
 
         // время, не ранее которого происходит отправка очередных координат во время перемещения
-        private const val MOBILE_INTERVAL_MS = 30_000L
+        // публичная — читается app-слоем для отображения интервала в LocationConfigCard
+        const val MOBILE_INTERVAL_MS = PositionTrackingPolicy.MOBILE_MIN_GATE_SECS * 1000L
 
         // таймаут, спустя который нода признается протухшей (серый цвет)
-        // двукратное максимальное время отправки + запас на получение и обработку
-        private const val STATIONARY_INTERVAL_MS: Long = MAX_FIX_AGE_MS * 2 + 10000
+        // публичная — читается app-слоем для отображения интервала в LocationConfigCard
+        const val STATIONARY_INTERVAL_MS: Long = PositionTrackingPolicy.STATIONARY_INTERVAL_SECS * 1000L
     }
 }

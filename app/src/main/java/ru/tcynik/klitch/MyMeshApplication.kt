@@ -15,6 +15,7 @@ import org.maplibre.android.module.http.HttpRequestUtil
 import org.maplibre.android.offline.OfflineManager
 import ru.tcynik.klitch.data.map.TileCacheOkHttpConfigurator
 import ru.tcynik.klitch.domain.channel.repository.ContourRepository
+import ru.tcynik.klitch.data.gps.NodeGpsWatchdog
 import ru.tcynik.klitch.data.mesh.BackgroundPositionSession
 import ru.tcynik.klitch.data.mesh.MeshWakeLockManager
 import ru.tcynik.klitch.data.mesh.OnConnectPositionSender
@@ -89,6 +90,7 @@ class MyMeshApplication : Application() {
         GlobalContext.get().get<EmergencyNodeNotificationFilter>()
         GlobalContext.get().get<OnConnectPositionSender>()
         GlobalContext.get().get<BackgroundPositionSession>()
+        GlobalContext.get().get<NodeGpsWatchdog>()
         GlobalContext.get().get<MeshWakeLockManager>()
         GlobalContext.get().get<MeshServiceOrchestrator>().start()
         CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {

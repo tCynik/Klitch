@@ -14,8 +14,9 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import ru.tcynik.klitch.domain.channel.repository.ContourSyncStateRepository
+import ru.tcynik.klitch.domain.channel.usecase.ConfirmChannelSyncUseCase
 import ru.tcynik.klitch.domain.logger.Logger
-import ru.tcynik.klitch.domain.mesh.model.GpsMode
 import ru.tcynik.klitch.mesh.repository.UiPrefs
 import ru.tcynik.klitch.domain.mesh.model.LocationConfigModel
 import ru.tcynik.klitch.domain.mesh.model.MeshConnectionStatus
@@ -23,22 +24,18 @@ import ru.tcynik.klitch.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveLocationConfigUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveOurNodeUseCase
-import ru.tcynik.klitch.domain.mesh.usecase.RemoveFixedPositionUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.RequestDeviceConfigUseCase
-import ru.tcynik.klitch.domain.mesh.usecase.SetProvideLocationUseCase
-import ru.tcynik.klitch.domain.mesh.usecase.WriteChannelPositionPrecisionUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.BeginSettingsEditUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.CommitSettingsEditUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.WriteChannelUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.WriteOwnerUseCase
-import ru.tcynik.klitch.domain.mesh.usecase.WritePositionConfigUseCase
 import ru.tcynik.klitch.domain.mesh.util.PskValidator
 import ru.tcynik.klitch.domain.usecase.base.NoParams
 import ru.tcynik.klitch.presentation.feature.network.state.ChannelConfigUi
 import ru.tcynik.klitch.presentation.feature.network.state.DeviceConfigUi
 import ru.tcynik.klitch.presentation.feature.network.state.MeshConnectionStatusUi
-import ru.tcynik.klitch.presentation.feature.network.state.models.GpsModeUi
 import ru.tcynik.klitch.presentation.feature.network.state.models.LocationConfigUi
+import ru.tcynik.klitch.presentation.feature.network.state.models.toUi
 
 class NetworkSettingsViewModel(
     private val observeConnectionStatus: ObserveConnectionStatusUseCase,
@@ -50,10 +47,8 @@ class NetworkSettingsViewModel(
     private val writeChannel: WriteChannelUseCase,
     private val observeOurNode: ObserveOurNodeUseCase,
     private val observeLocationConfig: ObserveLocationConfigUseCase,
-    private val setProvideLocation: SetProvideLocationUseCase,
-    private val writePositionConfig: WritePositionConfigUseCase,
-    private val writeChannelPositionPrecision: WriteChannelPositionPrecisionUseCase,
-    private val removeFixedPosition: RemoveFixedPositionUseCase,
+    private val syncStateRepository: ContourSyncStateRepository,
+    private val confirmChannelSync: ConfirmChannelSyncUseCase,
     private val uiPrefs: UiPrefs,
     private val logger: Logger,
 ) : ViewModel() {
@@ -146,6 +141,36 @@ class NetworkSettingsViewModel(
                 }
             }
             .launchIn(viewModelScope)
+
+        syncStateRepository.syncRequired
+            .onEach { required ->
+                _uiState.update { state ->
+                    state.copy(
+                        syncRequired = required,
+                        showLeaveSyncDialog = state.showLeaveSyncDialog && required,
+                    )
+                }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    fun onSyncClick() {
+        viewModelScope.launch {
+            logger.i("Node", "NetworkSettings: syncConfirm start")
+            confirmChannelSync(NoParams)
+        }
+    }
+
+    fun onNavigateBackRequested(onNavigateBack: () -> Unit) {
+        if (_uiState.value.syncRequired) {
+            _uiState.update { it.copy(showLeaveSyncDialog = true) }
+        } else {
+            onNavigateBack()
+        }
+    }
+
+    fun onDismissLeaveSyncDialog() {
+        _uiState.update { it.copy(showLeaveSyncDialog = false) }
     }
 
     fun onReadConfigClick() {
@@ -236,76 +261,8 @@ class NetworkSettingsViewModel(
         }
     }
 
-    fun onProvideLocationToggle(enabled: Boolean) {
-        val nodeNum = myNodeNumFlow.value ?: return
-        setProvideLocation(nodeNum, enabled)
-        if (enabled) removeFixedPosition(nodeNum)
-    }
-
     fun onWakeLockToggle(enabled: Boolean) {
         uiPrefs.setUseWakeLock(enabled)
-    }
-
-    fun onGpsModeChange(mode: GpsModeUi) {
-        val nodeNum = myNodeNumFlow.value ?: return
-        val config = _uiState.value.settings.locationConfig ?: return
-        writePositionConfig(
-            nodeNum,
-            mode.toDomain(),
-            config.broadcastIntervalSecs,
-            config.smartBroadcastEnabled,
-            config.smartBroadcastMinDistanceM,
-            config.positionFlags,
-        )
-    }
-
-    fun onRemoveFixedPosition() {
-        val nodeNum = myNodeNumFlow.value ?: return
-        removeFixedPosition(nodeNum)
-    }
-
-    fun onBroadcastIntervalChange(secs: Int) {
-        val nodeNum = myNodeNumFlow.value ?: return
-        val config = _uiState.value.settings.locationConfig ?: return
-        writePositionConfig(
-            nodeNum,
-            config.gpsMode.toDomain(),
-            secs,
-            config.smartBroadcastEnabled,
-            config.smartBroadcastMinDistanceM,
-            config.positionFlags,
-        )
-    }
-
-    fun onSmartBroadcastToggle(enabled: Boolean) {
-        val nodeNum = myNodeNumFlow.value ?: return
-        val config = _uiState.value.settings.locationConfig ?: return
-        writePositionConfig(
-            nodeNum,
-            config.gpsMode.toDomain(),
-            config.broadcastIntervalSecs,
-            enabled,
-            config.smartBroadcastMinDistanceM,
-            config.positionFlags,
-        )
-    }
-
-    fun onPositionFlagsChange(flags: Int) {
-        val nodeNum = myNodeNumFlow.value ?: return
-        val config = _uiState.value.settings.locationConfig ?: return
-        writePositionConfig(
-            nodeNum,
-            config.gpsMode.toDomain(),
-            config.broadcastIntervalSecs,
-            config.smartBroadcastEnabled,
-            config.smartBroadcastMinDistanceM,
-            flags,
-        )
-    }
-
-    fun onChannelPositionPrecisionChange(precision: Int) {
-        val nodeNum = myNodeNumFlow.value ?: return
-        writeChannelPositionPrecision(nodeNum, 0, precision)
     }
 
     private fun MeshConnectionStatus.toUi(): MeshConnectionStatusUi = when (this) {
@@ -333,18 +290,6 @@ class NetworkSettingsViewModel(
         positionFlags = positionFlags,
         primaryChannelPositionPrecision = primaryChannelPositionPrecision,
     )
-
-    private fun GpsMode.toUi(): GpsModeUi = when (this) {
-        GpsMode.DISABLED -> GpsModeUi.DISABLED
-        GpsMode.ENABLED -> GpsModeUi.ENABLED
-        GpsMode.NOT_PRESENT -> GpsModeUi.NOT_PRESENT
-    }
-
-    private fun GpsModeUi.toDomain(): GpsMode = when (this) {
-        GpsModeUi.DISABLED -> GpsMode.DISABLED
-        GpsModeUi.ENABLED -> GpsMode.ENABLED
-        GpsModeUi.NOT_PRESENT -> GpsMode.NOT_PRESENT
-    }
 
     private companion object {
         const val READ_CONFIG_TIMEOUT_MS = 15_000L

@@ -3,6 +3,7 @@
 import android.util.Base64
 import org.meshtastic.proto.Waypoint
 import ru.tcynik.klitch.domain.marker.model.GeoMarkModel
+import ru.tcynik.klitch.domain.marker.model.GeoMarkShape
 import ru.tcynik.klitch.domain.marker.model.GeoMarkType
 import ru.tcynik.klitch.domain.marker.model.GeoPoint
 import ru.tcynik.klitch.domain.marker.model.TrackEndType
@@ -79,7 +80,7 @@ class GeoMarkWaypointAdapter {
         }
 
         val anchor = mark.points.first()
-        val icon = buildIcon(mark.type, color = mark.color, variant = 0)
+        val icon = buildIcon(mark.type, color = mark.color, variant = mark.shape.ordinal)
         val description = buildDescription(mark)
         val expireSeconds = mark.expiresAt ?: (nowSeconds + EXPIRE_TTL_SECONDS)
 
@@ -133,6 +134,8 @@ class GeoMarkWaypointAdapter {
         val markId = resolveMarkId(waypoint, packet)
 
         val colorIndex = (waypoint.icon ushr 8) and 0xF
+        val shapeIndex = waypoint.icon and 0xFF
+        val shape = GeoMarkShape.entries.getOrElse(shapeIndex) { GeoMarkShape.CIRCLE }
         val endsByte = extractEndsByte(waypoint.description, type)
 
         return GeoMarkModel(
@@ -147,6 +150,7 @@ class GeoMarkWaypointAdapter {
             color = colorIndex,
             name = waypoint.name.orEmpty(),
             trackEndType = TrackEndType.fromByte(endsByte),
+            shape = shape,
         )
     }
 

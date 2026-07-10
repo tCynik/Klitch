@@ -31,6 +31,7 @@ import ru.tcynik.klitch.domain.gps.repository.GpsRepository
 import ru.tcynik.klitch.domain.track.model.TrackPoint
 import ru.tcynik.klitch.domain.track.model.TrackRecordingState
 import ru.tcynik.klitch.domain.track.repository.TrackRecordingRepository
+import ru.tcynik.klitch.presentation.util.requestIgnoreBatteryOptimizationIfNeeded
 
 class GpsService : Service() {
 
@@ -49,11 +50,13 @@ class GpsService : Service() {
     private val logger: Logger by inject()
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var isRunning = false
 
     override fun onCreate() {
         super.onCreate()
         logger.d("GPS", "GpsService.onCreate")
         ensureNotificationChannel()
+        requestIgnoreBatteryOptimizationIfNeeded()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIFICATION_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
         } else {
@@ -63,9 +66,12 @@ class GpsService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         logger.d("GPS", "GpsService.onStartCommand")
-        gpsLifecycle.start()
-        startTrackRecordingObserver()
-        startRecordingNotificationObserver()
+        if (!isRunning) {
+            isRunning = true
+            gpsLifecycle.start()
+            startTrackRecordingObserver()
+            startRecordingNotificationObserver()
+        }
         return START_NOT_STICKY
     }
 

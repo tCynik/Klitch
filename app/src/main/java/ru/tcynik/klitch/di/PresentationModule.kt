@@ -85,6 +85,7 @@ import ru.tcynik.klitch.domain.track.usecase.DeleteRecordedTracksUseCase
 import ru.tcynik.klitch.domain.track.usecase.UpdateTrackRecordingNameUseCase
 import ru.tcynik.klitch.domain.track.usecase.UpdateTrackRecordingColorUseCase
 import ru.tcynik.klitch.domain.gps.usecase.ObserveGpsLocationUseCase
+import ru.tcynik.klitch.domain.service.GpsServiceController
 import ru.tcynik.klitch.domain.track.repository.TrackSettingsRepository
 import ru.tcynik.klitch.presentation.feature.settings.SettingsViewModel
 import ru.tcynik.klitch.presentation.feature.settings.UserSettingsViewModel
@@ -138,6 +139,8 @@ val presentationModule = module {
             observeCallsignChanges = get<ObserveCallsignChangesUseCase>(),
             refreshNodePublicKey = get<RefreshNodePublicKeyUseCase>(),
             observeAppUser = get<ObserveAppUserUseCase>(),
+            gpsServiceController = get<GpsServiceController>(),
+            observePositionSourceMode = get(),
         )
     }
 
@@ -276,6 +279,10 @@ val presentationModule = module {
             observeNetworkEnabled = get(),
             setNetworkEnabled = get(),
             observeDeviceConfig = get(),
+            observeLocationConfig = get(),
+            setDesiredGpsMode = get(),
+            getGpsMode = get(),
+            requestTelemetry = get(),
             logger = get(),
         )
     }
@@ -290,10 +297,8 @@ val presentationModule = module {
             writeChannel = get(),
             observeOurNode = get(),
             observeLocationConfig = get(),
-            setProvideLocation = get(),
-            writePositionConfig = get(),
-            writeChannelPositionPrecision = get(),
-            removeFixedPosition = get(),
+            syncStateRepository = get<ContourSyncStateRepository>(),
+            confirmChannelSync = get(),
             uiPrefs = get(),
             logger = get(),
         )

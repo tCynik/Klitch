@@ -37,6 +37,7 @@ import androidx.core.content.ContextCompat
 import androidx.compose.ui.res.stringResource
 import org.koin.compose.koinInject
 import ru.tcynik.klitch.R
+import ru.tcynik.klitch.domain.service.GpsServiceController
 import ru.tcynik.klitch.mesh.ble.BluetoothRepository
 import ru.tcynik.klitch.service.GpsService
 
@@ -67,11 +68,14 @@ fun BlePermissionGuard(content: @Composable () -> Unit) {
         contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) { granted = allGranted() }
 
-    // Запускаем GpsService как только разрешение получено (первый запуск или повторный вход).
-    // startForegroundService требует foreground-контекста и наличия ACCESS_FINE_LOCATION —
-    // оба условия выполнены здесь: Activity видима, разрешение только что выдано.
+    // startForegroundService вызывается из LaunchedEffect (Activity в foreground) — Android 14+ OK.
+    val gpsServiceController = koinInject<GpsServiceController>()
     LaunchedEffect(granted) {
-        if (granted) context.startForegroundService(GpsService.createIntent(context))
+        if (!granted) return@LaunchedEffect
+        gpsServiceController.shouldRunService.collect { shouldRun ->
+            if (shouldRun) context.startForegroundService(GpsService.createIntent(context))
+            else context.stopService(GpsService.createIntent(context))
+        }
     }
 
     when {

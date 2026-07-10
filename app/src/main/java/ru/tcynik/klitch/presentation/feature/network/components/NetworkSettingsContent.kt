@@ -34,26 +34,20 @@ import ru.tcynik.klitch.presentation.feature.network.state.ChannelConfigUi
 import ru.tcynik.klitch.presentation.feature.network.state.DeviceConfigUi
 import ru.tcynik.klitch.presentation.feature.network.state.MeshConnectionStatusUi
 import ru.tcynik.klitch.presentation.feature.network.state.NetworkSettingsState
-import ru.tcynik.klitch.presentation.feature.network.state.models.GpsModeUi
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NetworkSettingsContent(
     state: NetworkSettingsState,
     connectionStatus: MeshConnectionStatusUi,
+    syncRequired: Boolean = false,
+    onSyncClick: () -> Unit = {},
     onRefresh: () -> Unit,
     onSaveClick: () -> Unit,
     onLongNameChange: (String) -> Unit = {},
     onShortNameChange: (String) -> Unit = {},
     onChannelNameChange: (index: Int, value: String) -> Unit = { _, _ -> },
     onChannelPskChange: (index: Int, value: String) -> Unit = { _, _ -> },
-    onProvideLocationToggle: (Boolean) -> Unit = {},
-    onGpsModeChange: (GpsModeUi) -> Unit = {},
-    onRemoveFixedPosition: () -> Unit = {},
-    onBroadcastIntervalChange: (Int) -> Unit = {},
-    onSmartBroadcastToggle: (Boolean) -> Unit = {},
-    onPositionFlagsChange: (Int) -> Unit = {},
-    onChannelPositionPrecisionChange: (Int) -> Unit = {},
     onWakeLockToggle: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -109,15 +103,7 @@ fun NetworkSettingsContent(
                 item(key = "location_config") {
                     LocationConfigCard(
                         config = locationConfig,
-                        isConnected = isConnected,
                         useWakeLock = state.useWakeLock,
-                        onProvideLocationToggle = onProvideLocationToggle,
-                        onGpsModeChange = onGpsModeChange,
-                        onRemoveFixedPosition = onRemoveFixedPosition,
-                        onBroadcastIntervalChange = onBroadcastIntervalChange,
-                        onSmartBroadcastToggle = onSmartBroadcastToggle,
-                        onPositionFlagsChange = onPositionFlagsChange,
-                        onChannelPositionPrecisionChange = onChannelPositionPrecisionChange,
                         onWakeLockToggle = onWakeLockToggle,
                     )
                 }
@@ -125,7 +111,24 @@ fun NetworkSettingsContent(
         }
 
         AnimatedVisibility(
-            visible = state.hasChanges,
+            visible = syncRequired,
+            enter = slideInVertically { it } + fadeIn(),
+            exit = slideOutVertically { it } + fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter),
+        ) {
+            Button(
+                onClick = onSyncClick,
+                enabled = isConnected,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            ) {
+                Text(stringResource(R.string.network_settings_sync_required_action))
+            }
+        }
+
+        AnimatedVisibility(
+            visible = !syncRequired && state.hasChanges,
             enter = slideInVertically { it } + fadeIn(),
             exit = slideOutVertically { it } + fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter),

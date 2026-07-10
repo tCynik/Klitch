@@ -24,6 +24,8 @@ import ru.tcynik.klitch.domain.channel.model.NodeSyncResult
 import ru.tcynik.klitch.domain.channel.repository.ContourSyncStateRepository
 import ru.tcynik.klitch.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.klitch.domain.channel.usecase.ObserveNodeChannelsUseCase
+import ru.tcynik.klitch.domain.gps.model.PositionSourceMode
+import ru.tcynik.klitch.domain.gps.usecase.ObservePositionSourceModeUseCase
 import ru.tcynik.klitch.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.klitch.domain.mesh.model.MeshDeviceModel
 import ru.tcynik.klitch.domain.mesh.model.NodeSyncCyclePhase
@@ -36,6 +38,7 @@ import ru.tcynik.klitch.domain.mesh.usecase.ObserveCallsignChangesUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.RefreshNodePublicKeyUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ScanMeshDevicesUseCase
+import ru.tcynik.klitch.domain.service.GpsServiceController
 import ru.tcynik.klitch.domain.settings.usecase.ObserveNetworkEnabledUseCase
 import ru.tcynik.klitch.domain.usecase.base.NoParams
 import ru.tcynik.klitch.domain.user.usecase.ObserveAppUserUseCase
@@ -49,6 +52,7 @@ data class ConnectionUiState(
     val isRebooting: Boolean = false,
     val syncCyclePhase: NodeSyncCyclePhase = NodeSyncCyclePhase.Idle,
     val networkEnabled: Boolean = true,
+    val positionSourceMode: PositionSourceMode = PositionSourceMode.PHONE_GPS,
 )
 
 class ConnectionViewModel(
@@ -65,6 +69,8 @@ class ConnectionViewModel(
     private val observeCallsignChanges: ObserveCallsignChangesUseCase,
     private val refreshNodePublicKey: RefreshNodePublicKeyUseCase,
     private val observeAppUser: ObserveAppUserUseCase,
+    private val gpsServiceController: GpsServiceController,
+    private val observePositionSourceMode: ObservePositionSourceModeUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ConnectionUiState())
@@ -91,6 +97,7 @@ class ConnectionViewModel(
                     val wasConnected = _uiState.value.connectionStatus is MeshConnectionStatus.Connected
                     _uiState.update { it.copy(connectionStatus = status) }
                     if (!wasConnected) {
+                        gpsServiceController.onNodeConnected()
                         val skipSyncCheck = rebootStateRepository.shouldSkipSyncCheckAfterReboot()
                         if (!skipSyncCheck) {
                             viewModelScope.launch { nodeProvisioning.provision() }
@@ -133,6 +140,7 @@ class ConnectionViewModel(
                 if (enabled && !wasEnabled) {
                     startAutoConnectIfEnabled()
                 } else if (!enabled && wasEnabled) {
+                    gpsServiceController.onNetworkDisabled()
                     scanJob?.cancel()
                     scanJob = null
                     _uiState.update { it.copy(foundDevices = persistentListOf()) }
@@ -142,6 +150,10 @@ class ConnectionViewModel(
 
         syncStateRepository.syncRequired
             .onEach { required -> _uiState.update { it.copy(syncRequired = required) } }
+            .launchIn(viewModelScope)
+
+        observePositionSourceMode(NoParams)
+            .onEach { mode -> _uiState.update { it.copy(positionSourceMode = mode) } }
             .launchIn(viewModelScope)
 
         observeAppUser(NoParams)

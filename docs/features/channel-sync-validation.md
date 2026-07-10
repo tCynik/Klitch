@@ -98,7 +98,7 @@ This avoids brief status flicker and prevents premature reboot-state reset that 
 
 ## HUD Radio Info Slot Priority (Connected state)
 
-1. `syncRequired == true` → "требуется синхронизация" (red) ← highest priority
+1. `syncRequired == true` → "требуется синхронизация" (yellow) ← highest priority
 2. `showConnectionLabel` → "Сопряжено с ${shortName}" (green)
 3. else → empty
 

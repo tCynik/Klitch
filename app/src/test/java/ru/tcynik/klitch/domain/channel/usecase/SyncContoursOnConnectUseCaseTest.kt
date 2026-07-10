@@ -20,15 +20,19 @@ import ru.tcynik.klitch.domain.channel.model.NodeChannelSlot
 import ru.tcynik.klitch.domain.channel.repository.ContourRepository
 import ru.tcynik.klitch.domain.emergency.usecase.ObserveEmergencyModeUseCase
 import ru.tcynik.klitch.domain.mesh.model.ChannelPositionPrecision
+import ru.tcynik.klitch.domain.mesh.model.GpsMode
 import ru.tcynik.klitch.domain.mesh.usecase.BeginSettingsEditUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.CommitSettingsEditUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.GetDesiredGpsModeUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.GetGpsModeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.IsPositionSmartBroadcastEnabledUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.PrepareNodeForAppDrivenBroadcastUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.GetPositionBroadcastSecsUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.WriteChannelUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.WriteGpsModeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.WriteOwnerUseCase
 import ru.tcynik.klitch.domain.user.model.AppUser
 import ru.tcynik.klitch.domain.user.usecase.ObserveAppUserUseCase
@@ -53,6 +57,9 @@ class SyncContoursOnConnectUseCaseTest {
     private val getPositionBroadcastSecs: GetPositionBroadcastSecsUseCase = mockk()
 
     private val isPositionSmartBroadcastEnabled: IsPositionSmartBroadcastEnabledUseCase = mockk()
+    private val getDesiredGpsMode: GetDesiredGpsModeUseCase = mockk()
+    private val getGpsMode: GetGpsModeUseCase = mockk()
+    private val writeGpsMode: WriteGpsModeUseCase = mockk(relaxed = true)
 
     private val useCase = SyncContoursOnConnectUseCase(
         contourRepository = contourRepository,
@@ -71,6 +78,9 @@ class SyncContoursOnConnectUseCaseTest {
         observeEmergencyMode = observeEmergencyMode,
         getPositionBroadcastSecs = getPositionBroadcastSecs,
         isPositionSmartBroadcastEnabled = isPositionSmartBroadcastEnabled,
+        getDesiredGpsMode = getDesiredGpsMode,
+        getGpsMode = getGpsMode,
+        writeGpsMode = writeGpsMode,
         logger = NoOpLogger(),
     )
 
@@ -88,6 +98,8 @@ class SyncContoursOnConnectUseCaseTest {
         every { observeEmergencyMode.invoke() } returns flowOf(false)
         coEvery { getPositionBroadcastSecs.invoke() } returns Int.MAX_VALUE
         coEvery { isPositionSmartBroadcastEnabled.invoke() } returns false
+        coEvery { getDesiredGpsMode.invoke() } returns null
+        coEvery { getGpsMode.invoke() } returns GpsMode.DISABLED
     }
 
     private fun makeContour(id: String, name: String, isActive: Boolean = true): Contour {
@@ -305,5 +317,78 @@ class SyncContoursOnConnectUseCaseTest {
 
         coVerify(exactly = 0) { prepareNodeForAppDrivenBroadcast.invoke() }
         coVerify(exactly = 0) { disableNodePositionBroadcast.invoke() }
+    }
+
+    @Test
+    fun `NODE_GPS node — broadcast secs mismatch vs PHONE_GPS preset is not written`() = runTest {
+        // Node self-reports gps_mode=ENABLED and runs BackgroundPositionSession's own preset
+        // (180s), which legitimately differs from the PHONE_GPS app-driven MAX_VALUE preset.
+        coEvery { getPositionBroadcastSecs.invoke() } returns 180
+        coEvery { getGpsMode.invoke() } returns GpsMode.ENABLED
+        val primary = makeContour(DefaultActiveContour.ID.value, DefaultActiveContour.DISPLAY_NAME)
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(primary))
+
+        useCase()
+
+        coVerify(exactly = 0) { prepareNodeForAppDrivenBroadcast.invoke() }
+        coVerify(exactly = 0) { disableNodePositionBroadcast.invoke() }
+    }
+
+    @Test
+    fun `gps_mode mismatch — writeGpsMode called inside session before commit`() = runTest {
+        coEvery { getDesiredGpsMode.invoke() } returns GpsMode.ENABLED
+        coEvery { getGpsMode.invoke() } returns GpsMode.DISABLED
+        val primary = makeContour(DefaultActiveContour.ID.value, DefaultActiveContour.DISPLAY_NAME)
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(primary))
+
+        useCase()
+
+        coVerify(exactly = 1) { beginSettingsEdit.invoke() }
+        coVerify(exactly = 1) { writeGpsMode.invoke(GpsMode.ENABLED) }
+        coVerify(exactly = 1) { commitSettingsEdit.invoke() }
+    }
+
+    @Test
+    fun `gps_mode already matches desired — no writeGpsMode`() = runTest {
+        coEvery { getDesiredGpsMode.invoke() } returns GpsMode.ENABLED
+        coEvery { getGpsMode.invoke() } returns GpsMode.ENABLED
+        val openPskBytes = Base64.getDecoder().decode(DefaultContour.OPEN_PSK)
+        val defaultPskBytes = Base64.getDecoder().decode(DefaultActiveContour.DEFAULT_PSK)
+        val primary = Contour(
+            id = DefaultActiveContour.ID,
+            name = DefaultActiveContour.DISPLAY_NAME,
+            description = null,
+            expiration = null,
+            exclusivityTime = null,
+            isActive = true,
+            transport = ContourTransport(
+                meshtastic = MeshtasticChannel(
+                    psk = DefaultActiveContour.DEFAULT_PSK,
+                    channelHash = ContourHash.compute(DefaultActiveContour.CHANNEL_NAME, defaultPskBytes),
+                ),
+            ),
+        )
+        val primarySlot = NodeChannelSlot(index = 0, name = DefaultActiveContour.CHANNEL_NAME, psk = defaultPskBytes, isEnabled = true)
+        val emergencySlot = NodeChannelSlot(
+            index = 1, name = DefaultContour.CHANNEL_NAME, psk = openPskBytes, isEnabled = true,
+            positionPrecision = ChannelPositionPrecision.DISABLED,
+        )
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(primary))
+        every { observeNodeChannels.invoke(any<NoParams>()) } returns flowOf(listOf(primarySlot, emergencySlot))
+
+        useCase()
+
+        coVerify(exactly = 0) { writeGpsMode.invoke(any()) }
+    }
+
+    @Test
+    fun `no desiredGpsMode override — no writeGpsMode, getGpsMode not called`() = runTest {
+        val primary = makeContour(DefaultActiveContour.ID.value, DefaultActiveContour.DISPLAY_NAME)
+        every { observeContours.invoke(any<NoParams>()) } returns flowOf(listOf(primary))
+
+        useCase()
+
+        coVerify(exactly = 0) { writeGpsMode.invoke(any()) }
+        coVerify(exactly = 0) { getGpsMode.invoke() }
     }
 }

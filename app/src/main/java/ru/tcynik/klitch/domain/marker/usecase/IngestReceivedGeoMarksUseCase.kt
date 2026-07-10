@@ -67,14 +67,22 @@ class IngestReceivedGeoMarksUseCase(
                 sosMode = sosMode,
             )
             if (applyDeliveryPolicy(resolution, InboundPacketKind.WAYPOINT) != DeliveryPolicy.DELIVER) {
-                if (resolution is ContourResolution.SilentStore) {
-                    logger.d("Map", "slot ${packet.channel} outside SOS, drop geo packet")
+                when (resolution) {
+                    is ContourResolution.SilentStore ->
+                        logger.d("Map", "slot ${packet.channel} outside SOS, drop geo packet")
+                    is ContourResolution.Drop ->
+                        logger.w("Map", "geo packet dropped: slot=${packet.channel} reason=${resolution.reason}")
+                    else -> Unit
                 }
                 return@forEach
             }
             val contour = resolution.contourOrNull() ?: return@forEach
 
-            val model = adapter.decode(packet) ?: return@forEach
+            val model = adapter.decode(packet)
+            if (model == null) {
+                logger.w("Map", "geo packet decode failed: slot=${packet.channel} from=${packet.from}")
+                return@forEach
+            }
             if (model.id in activeIds || model.id in dismissedIds) return@forEach
             if (model.waypointId != 0) {
                 if (model.waypointId in activeWaypointIds) return@forEach

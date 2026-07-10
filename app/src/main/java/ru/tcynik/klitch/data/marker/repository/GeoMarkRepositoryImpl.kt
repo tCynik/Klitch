@@ -150,6 +150,7 @@ class GeoMarkRepositoryImpl(
             color = mark.color.toLong(),
             name = mark.name,
             trackEndType = mark.trackEndType.ends.toLong(),
+            shape = mark.shape.ordinal.toLong(),
         )
     }
 

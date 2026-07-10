@@ -6,6 +6,7 @@ import kotlinx.collections.immutable.persistentListOf
 data class NetworkTelemetryState(
     val isLoading: Boolean = false,
     val deviceMetrics: DeviceMetricsUi? = null,
+    val lastUpdatedAtMillis: Long? = null,
     val meshNodes: ImmutableList<MeshNodeUi> = persistentListOf(),
 )
 

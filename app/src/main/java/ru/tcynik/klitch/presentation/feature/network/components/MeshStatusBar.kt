@@ -16,6 +16,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,14 +27,17 @@ import androidx.compose.ui.unit.dp
 import ru.tcynik.klitch.R
 import ru.tcynik.klitch.mesh.ble.toMeshtasticDisplayShortName
 import ru.tcynik.klitch.presentation.feature.network.state.MeshConnectionStatusUi
+import ru.tcynik.klitch.presentation.feature.network.state.models.GpsModeUi
 
 @Composable
 fun MeshStatusBar(
     status: MeshConnectionStatusUi,
     rebootingNodeName: String,
     hasNodeConfig: Boolean,
+    gpsSourceMode: GpsModeUi?,
     onDisconnectClick: () -> Unit,
     onSettingsClick: () -> Unit,
+    onGpsSourceToggle: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val showSettingsIcon = status !is MeshConnectionStatusUi.Disconnected
@@ -110,6 +114,32 @@ fun MeshStatusBar(
                 }
             }
         }
+            if (status is MeshConnectionStatusUi.Connected && gpsSourceMode != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.mesh_status_gps_source_label),
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = if (gpsSourceMode == GpsModeUi.ENABLED)
+                            stringResource(R.string.mesh_status_gps_source_node)
+                        else
+                            stringResource(R.string.mesh_status_gps_source_phone),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Switch(
+                        checked = gpsSourceMode == GpsModeUi.ENABLED,
+                        onCheckedChange = onGpsSourceToggle,
+                    )
+                }
+            }
             if (isInProgress) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
@@ -127,7 +157,7 @@ private fun StatusDot(status: MeshConnectionStatusUi) {
         is MeshConnectionStatusUi.WaitingForNode -> Color(0xFF2196F3)
         is MeshConnectionStatusUi.Scanning -> Color(0xFF2196F3)
         is MeshConnectionStatusUi.Error -> MaterialTheme.colorScheme.error
-        is MeshConnectionStatusUi.Disconnected -> MaterialTheme.colorScheme.outline
+        is MeshConnectionStatusUi.Disconnected -> MaterialTheme.colorScheme.error
     }
     androidx.compose.foundation.Canvas(modifier = Modifier.size(10.dp)) {
         drawCircle(color = color)

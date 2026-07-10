@@ -290,11 +290,10 @@ class PacketHandlerImpl(
                 throw RadioNotConnectedException()
             }
             sendToRadio(ToRadio(packet = packet))
-            // No-ack packets (incl. broadcast waypoints) do not get routing ACKs; pacing for
-            // geo-marks is handled in GeoMarkSendQueue, not by blocking here on QueueStatus.
-            if (packet.want_ack != true) {
-                completeSendDeferred(packet.id, deferred, success = true)
-            }
+            // No-ack packets (incl. broadcast waypoints) never get a routing ACK/NAK, but the
+            // firmware still emits a QueueStatus for every packet written to its TX queue —
+            // wait for that so a device-side rejection (queue full, duty-cycle limit) surfaces
+            // instead of being reported as a false success.
         } catch (ex: RadioNotConnectedException) {
             Logger.w(ex) { "sendToRadio skipped: Not connected to radio" }
             completeSendDeferred(packet.id, deferred, success = false)

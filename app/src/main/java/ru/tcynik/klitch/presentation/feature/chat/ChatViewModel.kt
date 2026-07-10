@@ -9,9 +9,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import ru.tcynik.klitch.data.chat.prefs.ChatPrefsRepository
+import ru.tcynik.klitch.domain.channel.repository.ContourSyncStateRepository
 import ru.tcynik.klitch.domain.chat.model.ChatContact
 import ru.tcynik.klitch.domain.chat.model.ContactType
 import ru.tcynik.klitch.domain.chat.usecase.ClearChatHistoryUseCase
@@ -46,6 +49,7 @@ class ChatViewModel(
     private val clearHistoryUseCase: ClearChatHistoryUseCase,
     private val markAsReadUseCase: MarkChatAsReadUseCase,
     private val chatPrefs: ChatPrefsRepository,
+    private val syncStateRepository: ContourSyncStateRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -89,6 +93,10 @@ class ChatViewModel(
         }
         observeContacts()
         observeAllMessages()
+
+        syncStateRepository.syncRequired
+            .onEach { required -> _uiState.update { it.copy(syncRequired = required) } }
+            .launchIn(viewModelScope)
     }
 
     companion object {
@@ -289,7 +297,7 @@ class ChatViewModel(
 
     fun sendMessage() {
         val state = _uiState.value
-        if (!state.isSelectedChatActive) return
+        if (!state.isSelectedChatActive || state.syncRequired) return
         val text = state.inputText.trim()
         if (text.isEmpty()) return
         val contactId = state.selectedChatId ?: return
@@ -310,6 +318,7 @@ class ChatViewModel(
                 _checkedIds,
             ) { contacts, checkedIds -> contacts to checkedIds }
             .collect { (contacts, checkedIds) ->
+                if (syncStateRepository.syncRequired.value) return@collect
                 _uiState.update { state ->
                     val existingArchiveSection = state.filterItems.find { it.isArchiveSection }
                     val mainItems = contacts
@@ -348,6 +357,7 @@ class ChatViewModel(
     private fun observeAllMessages() {
         viewModelScope.launch {
             observeMessagesUseCase(ObserveChatMessagesParams(emptySet(), "")).collect { messages ->
+                if (syncStateRepository.syncRequired.value) return@collect
                 _uiState.update { it.copy(allMessages = messages.toImmutableList()) }
                 updateFilteredMessages()
             }
