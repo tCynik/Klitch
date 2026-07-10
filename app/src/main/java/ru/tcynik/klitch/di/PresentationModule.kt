@@ -140,6 +140,7 @@ val presentationModule = module {
             refreshNodePublicKey = get<RefreshNodePublicKeyUseCase>(),
             observeAppUser = get<ObserveAppUserUseCase>(),
             gpsServiceController = get<GpsServiceController>(),
+            observePositionSourceMode = get(),
         )
     }
 
@@ -278,6 +279,10 @@ val presentationModule = module {
             observeNetworkEnabled = get(),
             setNetworkEnabled = get(),
             observeDeviceConfig = get(),
+            observeLocationConfig = get(),
+            setDesiredGpsMode = get(),
+            getGpsMode = get(),
+            requestTelemetry = get(),
             logger = get(),
         )
     }
@@ -292,10 +297,8 @@ val presentationModule = module {
             writeChannel = get(),
             observeOurNode = get(),
             observeLocationConfig = get(),
-            setProvideLocation = get(),
-            writePositionConfig = get(),
-            writeChannelPositionPrecision = get(),
-            removeFixedPosition = get(),
+            syncStateRepository = get<ContourSyncStateRepository>(),
+            confirmChannelSync = get(),
             uiPrefs = get(),
             logger = get(),
         )

@@ -26,6 +26,8 @@ import ru.tcynik.klitch.domain.channel.model.NodeSyncResult
 import ru.tcynik.klitch.domain.channel.repository.ContourSyncStateRepository
 import ru.tcynik.klitch.domain.channel.usecase.CheckNodeSyncUseCase
 import ru.tcynik.klitch.domain.channel.usecase.ObserveNodeChannelsUseCase
+import ru.tcynik.klitch.domain.gps.model.PositionSourceMode
+import ru.tcynik.klitch.domain.gps.usecase.ObservePositionSourceModeUseCase
 import ru.tcynik.klitch.domain.mesh.model.MeshConnectionStatus
 import ru.tcynik.klitch.domain.mesh.model.MeshDeviceModel
 import ru.tcynik.klitch.domain.mesh.model.NodeSyncCyclePhase
@@ -38,6 +40,7 @@ import ru.tcynik.klitch.domain.mesh.usecase.ObserveCallsignChangesUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveConnectionStatusUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.RefreshNodePublicKeyUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ScanMeshDevicesUseCase
+import ru.tcynik.klitch.domain.service.GpsServiceController
 import ru.tcynik.klitch.domain.settings.usecase.ObserveNetworkEnabledUseCase
 import ru.tcynik.klitch.domain.user.model.AppUser
 import ru.tcynik.klitch.domain.user.usecase.ObserveAppUserUseCase
@@ -58,6 +61,8 @@ class ConnectionViewModelCallsignTest {
     private val observeCallsignChanges: ObserveCallsignChangesUseCase = mockk()
     private val refreshNodePublicKey: RefreshNodePublicKeyUseCase = mockk(relaxed = true)
     private val observeAppUser: ObserveAppUserUseCase = mockk()
+    private val gpsServiceController: GpsServiceController = mockk(relaxed = true)
+    private val observePositionSourceMode: ObservePositionSourceModeUseCase = mockk()
 
     private val connectionStatusFlow = MutableStateFlow<MeshConnectionStatus>(MeshConnectionStatus.Disconnected)
     private val appUserFlow = MutableStateFlow(AppUser(displayName = ""))
@@ -82,6 +87,7 @@ class ConnectionViewModelCallsignTest {
         coEvery { checkNodeSync.invoke() } returns NodeSyncResult.InSync
         coEvery { connectToDevice.invoke(any()) } returns Unit
         every { observeAppUser.invoke(any()) } returns appUserFlow
+        every { observePositionSourceMode.invoke(any()) } returns flowOf(PositionSourceMode.PHONE_GPS)
     }
 
     @After
@@ -109,6 +115,8 @@ class ConnectionViewModelCallsignTest {
             observeCallsignChanges = observeCallsignChanges,
             refreshNodePublicKey = refreshNodePublicKey,
             observeAppUser = observeAppUser,
+            gpsServiceController = gpsServiceController,
+            observePositionSourceMode = observePositionSourceMode,
         )
     }
 
@@ -135,7 +143,10 @@ class ConnectionViewModelCallsignTest {
         connectionStatusFlow.value = MeshConnectionStatus.Scanning
 
         val infoSlot = HudStateMapper.buildConnectionInfoSlot(viewModel.uiState.value)
-        assertEquals("установите позывной", infoSlot.content)
+        assertEquals(
+            ru.tcynik.klitch.presentation.ui.UiText.Static(ru.tcynik.klitch.R.string.hud_info_set_callsign),
+            infoSlot.content,
+        )
     }
 
     @Test

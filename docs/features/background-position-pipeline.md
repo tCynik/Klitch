@@ -32,12 +32,13 @@ GpsRepository (5 с)        BackgroundPositionSession (app-level singleton)
 
 ### Фаза 2 — BackgroundPositionSession
 - **`BackgroundPositionSession`** (`app/data/mesh/`) — координирует GPS lifecycle и отправку позиции. Живёт в scope приложения (Koin singleton, eager init в `MyMeshApplication`). Подписан на `uiPrefs.shouldProvideNodeLocation(nodeNum)` + `geoSendPolicy.observeAllowed()`. При `allowed=true`: вызывает `gpsLifecycleController.start()` + `locationManager.start()` → `sendToAllSlots()`.
+- **`BackgroundPositionSession.ensureNodeGpsPreset()`** — для `PositionSourceMode.NODE_GPS` (`gps_mode=ENABLED`): телефонный мост не запускается, вместо этого пишется cadence-preset на ноду (`position_broadcast_secs=180` через `PositionTrackingPolicy.STATIONARY_INTERVAL_SECS` в `mesh`-модуле, `smartBroadcastEnabled=true`, `flags=897` HEADING|SPEED|ALTITUDE|TIMESTAMP, `channelPrecision=32`) — нода сама источник позиции в mesh, нужен разумный heartbeat вместо firmware-default 900с. Idempotent: сравнивает текущий `LocationConfigModel` с целевым набором перед записью, не пишет на каждый коннект.
 - **`sendToAllSlots()`** — шлёт позицию в Primary канал (`commandSender.sendPosition`) + все активные contour-слоты (`commandSender.broadcastPosition`).
 - **`OnConnectPositionSender`** — one-shot `sendPosition` при каждом коннекте; дополняет `BackgroundPositionSession`, не заменяет.
 
 ### Фаза 3 — BleBackgroundPolicy
 - **`BleConnection.requestConnectionPriority(high: Boolean)`** — новый метод в интерфейсе. Реализован в `KableBleConnection` через `AndroidPeripheral.Priority.High`. Вызывается в `BleRadioInterface.onConnected()` — всегда `HIGH`.
-- **`BatteryOptimizationHelper.kt`** (`presentation/util/`) — `Context.requestIgnoreBatteryOptimizationIfNeeded()`. Вызывается в `NetworkSettingsScreen` при `onProvideLocationToggle(true)`. Permission `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` добавлен в `app/AndroidManifest.xml`.
+- **`BatteryOptimizationHelper.kt`** (`presentation/util/`) — `Context.requestIgnoreBatteryOptimizationIfNeeded()`. Вызывается в `GpsService.onCreate()` (раньше — в `NetworkSettingsScreen` при ручном тоггле, убран при переходе на auto-config). Permission `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` добавлен в `app/AndroidManifest.xml`.
 - **`MeshWakeLockManager`** (`app/data/mesh/`) — `PARTIAL_WAKE_LOCK` acquire/release. Observes `uiPrefs.useWakeLock.combine(geoSendPolicy.observeAllowed())`. Eager init в `MyMeshApplication`.
 - **`UiPrefs.useWakeLock`** — DataStore ключ `"use_wake_lock"`, default `false`. Toggle в `LocationConfigCard` секция "Фоновая стабильность".
 
@@ -48,10 +49,11 @@ GpsRepository (5 с)        BackgroundPositionSession (app-level singleton)
 - **`CONNECTION_PRIORITY_HIGH` всегда**: MeshTactics всегда работает с позицией и требует минимальной задержки BLE. Нет смысла динамически переключать — всегда `HIGH`.
 - **`PARTIAL_WAKE_LOCK` опциональный**: wake lock потребляет батарею. По умолчанию выключен. Пользователь включает в настройках если наблюдает частые BLE-разрывы при screen off.
 - **Battery optimization prompt при каждом включении geo**: Android system сам не показывает диалог если уже в whitelist. `isIgnoringBatteryOptimizations()` — check без сохранения состояния.
+- **`distinctUntilChanged()` обязателен на цепочке `observeLocationPolicy()`**: `combine()` реэмитит на каждый тик ЛЮБОГО апстрим-флоу, даже если итоговая пара `(allowed, mode)` не изменилась. `observePositionSourceMode()` тянется через `observeOurNode()`, который реэмитит на каждое обновление позиции/телеметрии собственной ноды — то есть часто. Без `distinctUntilChanged()` `onEach` (который шлёт `commandSender.setFixedPosition()` — реальный admin-write) переисполнялся на каждый такой тик, забивая BLE/radio канал повторными admin-пакетами и роняя параллельную доставку чата/waypoints. Баг внесён в фазе 3 (`eee0602`), не пойман тестами — воспроизводится только на связке приложение+BLE+нода. См. `docs/debug/message-waypoint-delivery.md`.
 
 ## Known limitations / planned extensions
 
-- **Node GPS mode** (Фаза 4): для нод со встроенным GPS (`gps_mode=ENABLED`) `BackgroundPositionSession` не должен запускать GPS телефона. Отдельный план: `docs/plans/node-gps-position-source.md`.
+- **Node GPS mode** (Фаза 4): для нод со встроенным GPS (`gps_mode=ENABLED`) `BackgroundPositionSession` не должен запускать GPS телефона — ✅ реализовано, плюс cadence-preset (`ensureNodeGpsPreset()`, см. выше). Отдельный план: `docs/plans/node-gps-position-source.md`.
 - **`POSITION_FRESHNESS_SECONDS` (2 мин)** в `ObserveNodeMarkersUseCase` — при нормальном пайплайне не должен срабатывать. Потенциально можно увеличить до 5 мин после стабилизации.
 - **Два FGS** (`GpsService` + `MeshService`) → два notification. Объединение возможно, но не приоритетно.
 

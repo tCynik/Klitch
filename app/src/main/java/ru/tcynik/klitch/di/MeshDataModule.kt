@@ -53,6 +53,11 @@ import ru.tcynik.klitch.domain.mesh.usecase.SendMeshMessageUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.SetProvideLocationUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.WriteChannelPositionPrecisionUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.WritePositionConfigUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.GetDesiredGpsModeUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.SetDesiredGpsModeUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.GetGpsModeUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.RequestTelemetryUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.WriteGpsModeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.CheckOwnPkcHealthUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.PrepareNodeForAppDrivenBroadcastUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
@@ -67,6 +72,9 @@ import ru.tcynik.klitch.domain.mesh.usecase.RefreshNodePublicKeyUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.RefreshNodePublicKeysUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveNodeSecurityConfigUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.RegeneratePkcKeysUseCase
+import ru.tcynik.klitch.data.gps.NodeGpsPositionSource
+import ru.tcynik.klitch.data.gps.NodeGpsWatchdog
+import ru.tcynik.klitch.domain.gps.usecase.ObservePositionSourceModeUseCase
 import ru.tcynik.klitch.data.mesh.BackgroundPositionSession
 import ru.tcynik.klitch.data.mesh.MeshWakeLockManager
 import ru.tcynik.klitch.domain.gps.repository.GpsLifecycleController
@@ -157,6 +165,15 @@ val meshDataModule = module {
         )
     }
 
+    single { NodeGpsPositionSource(nodeRepository = get()) }
+
+    single {
+        ObservePositionSourceModeUseCase(
+            meshNetworkRepository = get(),
+            meshConfigRepository = get(),
+        )
+    }
+
     single {
         BackgroundPositionSession(
             nodeRepository = get(),
@@ -165,8 +182,23 @@ val meshDataModule = module {
             uiPrefs = get(),
             geoSendPolicy = get(),
             contourRepository = get(),
+            syncStateRepository = get(),
             channelSlotResolver = get(),
             gpsLifecycleController = get<GpsLifecycleController>(),
+            observePositionSourceMode = get(),
+            nodeGpsPositionSource = get(),
+            observeLocationConfig = get(),
+            writePositionConfig = get(),
+            writeChannelPositionPrecision = get(),
+            logger = get(),
+        )
+    }
+
+    single {
+        NodeGpsWatchdog(
+            nodeRepository = get(),
+            observePositionSourceMode = get(),
+            syncStateRepository = get(),
             logger = get(),
         )
     }
@@ -218,7 +250,12 @@ val meshDataModule = module {
     single { DisableNodePositionBroadcastUseCase(get()) }
     single { GetPositionBroadcastSecsUseCase(get()) }
     single { IsPositionSmartBroadcastEnabledUseCase(get()) }
+    single { GetDesiredGpsModeUseCase(get()) }
+    single { SetDesiredGpsModeUseCase(get()) }
+    single { GetGpsModeUseCase(get()) }
+    single { WriteGpsModeUseCase(get()) }
     single { RebootNodeUseCase(get()) }
+    single { RequestTelemetryUseCase(get()) }
     single {
         ReconnectViaBleScanUseCase(
             disconnectFromMesh = get(),
@@ -258,7 +295,9 @@ val meshDataModule = module {
             observeDeviceConfig = get<ObserveDeviceConfigUseCase>(),
             observeLocationConfig = get<ObserveLocationConfigUseCase>(),
             writePositionConfig = get<WritePositionConfigUseCase>(),
-            gpsRepository = get<GpsRepository>(),
+            setProvideLocation = get<SetProvideLocationUseCase>(),
+            writeChannelPositionPrecision = get<WriteChannelPositionPrecisionUseCase>(),
+            removeFixedPosition = get<RemoveFixedPositionUseCase>(),
             logger = get(),
         )
     }

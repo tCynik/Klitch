@@ -39,7 +39,24 @@ interface MeshConfigRepository {
         smartEnabled: Boolean,
         smartMinDist: Int,
         flags: Int,
+        /** `gps_update_interval` override, `null` leaves the node's current value untouched. */
+        gpsUpdateIntervalSecs: Int? = null,
+        /** `broadcast_smart_minimum_interval_secs` override, `null` leaves the node's current value untouched. */
+        smartMinIntervalSecs: Int? = null,
     )
+
+    /** User's desired `gps_mode` override for a node, set via NetworkSettings toggle. `null` = no override. */
+    fun observeDesiredGpsMode(nodeNum: Int): Flow<GpsMode?>
+    fun setDesiredGpsMode(nodeNum: Int, mode: GpsMode?)
+
+    /** Desired `gps_mode` override for the connected node, or null if none set. */
+    suspend fun getDesiredGpsMode(): GpsMode?
+
+    /** Current `gps_mode` reported by the connected node's local config, or null if not yet loaded. */
+    suspend fun getGpsMode(): GpsMode?
+
+    /** Writes `gps_mode` only, leaving other position config fields untouched. Must run inside an edit session. */
+    fun writeGpsMode(gpsMode: GpsMode)
     fun writeChannelPositionPrecision(destNum: Int, channelIndex: Int, precision: Int)
     fun setFixedPosition(lat: Double, lon: Double, altMeters: Int)
     fun removeFixedPosition(destNum: Int)
@@ -62,4 +79,7 @@ interface MeshConfigRepository {
     suspend fun isPositionSmartBroadcastEnabled(): Boolean?
 
     fun rebootNode()
+
+    /** Requests fresh device telemetry (battery/voltage/channel util/uptime) from the connected node. */
+    fun requestTelemetry()
 }

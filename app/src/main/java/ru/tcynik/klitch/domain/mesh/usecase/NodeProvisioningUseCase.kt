@@ -11,23 +11,26 @@ import ru.tcynik.klitch.domain.channel.usecase.ObserveContoursUseCase
 import ru.tcynik.klitch.domain.channel.usecase.ObserveNodeChannelsUseCase
 import ru.tcynik.klitch.domain.channel.usecase.ResolveChannelSlotUseCase
 import ru.tcynik.klitch.domain.channel.usecase.SlotResolution
-import ru.tcynik.klitch.domain.gps.repository.GpsRepository
 import ru.tcynik.klitch.domain.logger.Logger
 import ru.tcynik.klitch.domain.mesh.model.GpsMode
+import ru.tcynik.klitch.domain.mesh.model.LocationConfigDefaults
 import ru.tcynik.klitch.domain.usecase.base.NoParams
-import kotlin.math.roundToInt
 
-// Klitch position preset
-private const val PRESET_BROADCAST_SECS = 1800       // 30 min forced anchor (keepalive via DeviceMetrics)
+// Klitch position preset (PHONE_GPS scenario — app drives position via sendPosition,
+// node's own autonomous broadcast must stay fully disabled, see LocationConfigDefaults).
+private const val PRESET_BROADCAST_SECS = LocationConfigDefaults.APP_DRIVEN_BROADCAST_SECS
 private const val PRESET_POSITION_FLAGS = 897        // HEADING | SPEED | ALTITUDE | TIMESTAMP
-private const val PRESET_SMART_DIST_DEFAULT_M = 20   // fallback when GPS accuracy unknown
-private const val PRESET_SMART_DIST_MIN_M = 10
-private const val PRESET_SMART_DIST_MAX_M = 50
-private const val PRESET_SMART_DIST_ACCURACY_FACTOR = 1.5f
 
 // Firmware factory defaults — if config matches these, node hasn't been manually configured
 private const val FIRMWARE_BROADCAST_SECS = 900
 private const val FIRMWARE_FLAGS = 0
+private const val FIRMWARE_CHANNEL_PRECISION = 0
+private const val PRESET_CHANNEL_PRECISION = 32 // full precision — app needs accurate map placement
+
+// Legacy preset value written by app versions before the position_broadcast_secs conflict
+// (docs/plans/position-broadcast-interval-unification.md) was fixed — node stuck here never
+// matches isFirmwareDefault again, so it needs an explicit one-time migration.
+private const val LEGACY_BROADCAST_SECS = 1800
 
 private const val CONFIG_LOAD_TIMEOUT_MS = 10_000L
 private const val CONFIG_SETTLE_DELAY_MS = 500L
@@ -42,7 +45,9 @@ class NodeProvisioningUseCase(
     private val observeDeviceConfig: ObserveDeviceConfigUseCase,
     private val observeLocationConfig: ObserveLocationConfigUseCase,
     private val writePositionConfig: WritePositionConfigUseCase,
-    private val gpsRepository: GpsRepository,
+    private val setProvideLocation: SetProvideLocationUseCase,
+    private val writeChannelPositionPrecision: WriteChannelPositionPrecisionUseCase,
+    private val removeFixedPosition: RemoveFixedPositionUseCase,
     private val logger: Logger,
 ) {
     suspend fun provision() {
@@ -95,40 +100,60 @@ class NodeProvisioningUseCase(
         }
         val config = observeLocationConfig(nodeNum).first()
 
-        // Write preset only when all position settings still match firmware defaults.
-        // After first provisioning, broadcastIntervalSecs becomes 1800 (≠ 900) and
-        // smartBroadcastEnabled becomes true — so this check will be false on subsequent
-        // connects, preventing re-write and avoiding unnecessary node reboots.
+        // Stale fixed position blocks normal sharing — clear it unconditionally,
+        // independent of the firmware-default guard below.
+        if (config.fixedPositionEnabled) {
+            logger.i("Node", "  position config: removing stale fixed position")
+            removeFixedPosition(nodeNum)
+        }
+
+        // provideLocationToMesh is the core precondition for the whole app (sendPosition to the
+        // node depends on it) — it can be flipped off independently of everything else (e.g. the
+        // official Meshtastic app), so it's enforced unconditionally on every connect, not bundled
+        // into the firmware-default guard below (mirrors fixedPositionEnabled handling above).
+        if (!config.provideLocationToMesh) {
+            logger.i("Node", "  position config: re-enabling provideLocationToMesh")
+            setProvideLocation(nodeNum, true)
+        }
+
+        // Write preset only when position settings still match firmware defaults — prevents
+        // re-write and unnecessary node reboots once provisioned.
         val isFirmwareDefault = config.gpsMode == GpsMode.DISABLED
             && config.broadcastIntervalSecs == FIRMWARE_BROADCAST_SECS
             && !config.smartBroadcastEnabled
             && config.smartBroadcastMinDistanceM == 0
             && config.positionFlags == FIRMWARE_FLAGS
+            && config.primaryChannelPositionPrecision == FIRMWARE_CHANNEL_PRECISION
 
-        if (!isFirmwareDefault) {
+        // One-time migration: nodes provisioned by app versions before the position_broadcast_secs
+        // conflict was fixed (docs/plans/position-broadcast-interval-unification.md) are stuck at
+        // the old preset (1800s) forever — broadcastIntervalSecs != FIRMWARE_BROADCAST_SECS means
+        // isFirmwareDefault is permanently false, so they'd never get corrected without this.
+        // Detected via broadcastIntervalSecs alone now that provideLocationToMesh is enforced
+        // separately above (gpsMode=DISABLED + stuck legacy interval is still a unique fingerprint).
+        val needsLegacyMigration = config.gpsMode == GpsMode.DISABLED
+            && config.broadcastIntervalSecs == LEGACY_BROADCAST_SECS
+
+        if (!isFirmwareDefault && !needsLegacyMigration) {
             logger.d("Node", "  position config: already configured (broadcast=${config.broadcastIntervalSecs}s, smart=${config.smartBroadcastEnabled}) — skip")
             return
         }
 
-        val smartMinDist = computeSmartMinDist()
         logger.i("Node", "  position config: writing Klitch preset " +
-            "(broadcast=${PRESET_BROADCAST_SECS}s, smart=true, minDist=${smartMinDist}m, flags=${PRESET_POSITION_FLAGS})")
+            "(broadcast=${PRESET_BROADCAST_SECS}s, smart=false, flags=${PRESET_POSITION_FLAGS}, " +
+            "provideLocation=true, channelPrecision=${PRESET_CHANNEL_PRECISION})")
         writePositionConfig(
             destNum = nodeNum,
             gpsMode = GpsMode.DISABLED,
             broadcastSecs = PRESET_BROADCAST_SECS,
-            smartEnabled = true,
-            smartMinDist = smartMinDist,
+            smartEnabled = false,
+            smartMinDist = 0,
             flags = PRESET_POSITION_FLAGS,
         )
-    }
-
-    // GPS accuracy → smart broadcast min distance.
-    // clamp(accuracy × 1.5, 10m, 50m): finer threshold on good signal, coarser on poor signal.
-    private fun computeSmartMinDist(): Int {
-        val accuracy = gpsRepository.location.value?.accuracy ?: return PRESET_SMART_DIST_DEFAULT_M
-        return (accuracy * PRESET_SMART_DIST_ACCURACY_FACTOR)
-            .roundToInt()
-            .coerceIn(PRESET_SMART_DIST_MIN_M, PRESET_SMART_DIST_MAX_M)
+        if (config.provideLocationToMesh) {
+            // Already enforced above when it was off — avoid a redundant second admin write/reboot.
+            setProvideLocation(nodeNum, true)
+        }
+        writeChannelPositionPrecision(nodeNum, 0, PRESET_CHANNEL_PRECISION)
     }
 }

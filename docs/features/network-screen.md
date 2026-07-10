@@ -69,6 +69,27 @@ presentation/feature/network/
 | Navigation | `navigation/Route.kt`, `navigation/NavGraph.kt` |
 | DI | `di/MapDataModule.kt`, `di/PresentationModule.kt` |
 
+## Connection status indicator
+
+`MeshStatusBar` dot color (`StatusDot`):
+
+| Status | Color |
+|---|---|
+| `Connected` | Green |
+| `Connecting` / `Syncing` / `Rebooting` | Yellow |
+| `Scanning` / `WaitingForNode` | Blue |
+| `Error` / `Disconnected` | Red |
+
+`Disconnected` is red, not the previous neutral gray — it's only reached after the BLE reconnect loop has given up (via `MeshConnectionManagerImpl`'s sleep timeout), so it signals a real, final connection loss. Transient retries surface as `Connecting`/`DeviceSleep` (yellow), not red.
+
+RSSI shown in the status bar (`MeshConnectionStatus.Connected.rssi`) is refreshed every 15s while connected (`BleRadioInterface.pollRssi`), not just once at connect time — see `docs/debug/network-screen.md` for the reconnect-deadlock bug this was bundled with.
+
+## Telemetry refresh
+
+`onRefreshTelemetryClick()` sends a real `TelemetryType.DEVICE` request to the connected node (`MeshConfigRepository.requestTelemetry()` → `RequestTelemetryUseCase`). `telemetry.isLoading` resets either when fresh telemetry arrives via `observeOurNode`, or after a 10s timeout fallback if the node never responds — it can no longer spin forever.
+
+`NetworkTelemetryState.lastUpdatedAtMillis` tracks when device telemetry was last actually received. The "Telemetry" card header shows `Telemetry (received {m}m {s}s ago)` once data has arrived, ticking every second via a `LaunchedEffect` in `TelemetryContent`; falls back to the plain title when no telemetry has been received yet.
+
 ## Tests
 
 - `NetworkViewModelCallsignGateTest` — callsign gate + scan blocked when network disabled

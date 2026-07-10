@@ -26,6 +26,7 @@ import org.meshtastic.proto.HardwareModel
 import org.meshtastic.proto.ModuleSettings
 import ru.tcynik.klitch.domain.channel.model.NodeChannelSlot
 import ru.tcynik.klitch.domain.mesh.model.GpsMode
+import ru.tcynik.klitch.domain.mesh.model.LocationConfigDefaults
 import ru.tcynik.klitch.domain.mesh.model.LocationConfigModel
 import ru.tcynik.klitch.domain.mesh.model.MeshChannelModel
 import ru.tcynik.klitch.domain.mesh.model.MeshDeviceConfigModel
@@ -34,6 +35,7 @@ import ru.tcynik.klitch.domain.mesh.repository.MeshConfigRepository
 import ru.tcynik.klitch.mesh.model.MeshUser
 import ru.tcynik.klitch.mesh.model.Node
 import ru.tcynik.klitch.mesh.model.Position
+import ru.tcynik.klitch.mesh.model.TelemetryType
 import ru.tcynik.klitch.mesh.repository.CommandSender
 import ru.tcynik.klitch.mesh.repository.MeshRouter
 import ru.tcynik.klitch.mesh.repository.NodeRepository
@@ -276,25 +278,60 @@ class MeshConfigRepositoryImpl(
             uiPrefs.shouldProvideNodeLocation(nodeNum),
             meshRouter.configHandler.localConfig,
             commandSender.channelSetFlow,
-        ) { shouldProvide, localConfig, channelSet ->
+            uiPrefs.desiredGpsMode(nodeNum),
+        ) { shouldProvide, localConfig, channelSet, desiredGpsModeOrdinal ->
             val posConfig = localConfig.position
             val precision = channelSet.settings.firstOrNull()
                 ?.module_settings?.position_precision ?: 32
+            // Show the pending override (if any) instead of the stale node value — the toggle
+            // shouldn't snap back to the old gps_mode until the user confirms sync.
+            val desiredGpsMode = desiredGpsModeOrdinal?.let { GpsMode.entries.getOrNull(it) }
             LocationConfigModel(
                 provideLocationToMesh = shouldProvide,
                 hasLocationPermission = hasLocationPermission(),
-                gpsMode = posConfig?.gps_mode.toDomain(),
+                gpsMode = desiredGpsMode ?: posConfig?.gps_mode.toDomain(),
                 fixedPositionEnabled = posConfig?.fixed_position ?: false,
                 broadcastIntervalSecs = posConfig?.position_broadcast_secs?.takeIf { it > 0 } ?: 900,
                 smartBroadcastEnabled = posConfig?.position_broadcast_smart_enabled ?: false,
                 smartBroadcastMinDistanceM = posConfig?.broadcast_smart_minimum_distance ?: 0,
                 positionFlags = posConfig?.position_flags ?: 0,
                 primaryChannelPositionPrecision = precision,
+                gpsUpdateIntervalSecs = posConfig?.gps_update_interval ?: 0,
+                smartMinIntervalSecs = posConfig?.broadcast_smart_minimum_interval_secs ?: 0,
             )
         }
 
     override fun setProvideLocation(nodeNum: Int, provide: Boolean) {
         uiPrefs.setShouldProvideNodeLocation(nodeNum, provide)
+    }
+
+    override fun observeDesiredGpsMode(nodeNum: Int): Flow<GpsMode?> =
+        uiPrefs.desiredGpsMode(nodeNum).map { it?.let { ord -> GpsMode.entries.getOrNull(ord) } }
+
+    override fun setDesiredGpsMode(nodeNum: Int, mode: GpsMode?) {
+        uiPrefs.setDesiredGpsMode(nodeNum, mode?.ordinal)
+    }
+
+    override suspend fun getDesiredGpsMode(): GpsMode? {
+        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: return null
+        return observeDesiredGpsMode(myNodeNum).first()
+    }
+
+    override suspend fun getGpsMode(): GpsMode? =
+        withTimeoutOrNull(5_000L) {
+            meshRouter.configHandler.localConfig.first { it.position != null }.position!!.gps_mode.toDomain()
+        }
+
+    override fun writeGpsMode(gpsMode: GpsMode) {
+        val destNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: run {
+            logger.w("Node", "writeGpsMode: myNodeNum unavailable")
+            return
+        }
+        logger.i("Node", "writeGpsMode: destNum=$destNum gpsMode=$gpsMode — firmware reboot expected")
+        val current = meshRouter.configHandler.localConfig.value.position ?: Config.PositionConfig()
+        val updated = current.copy(gps_mode = gpsMode.toProto())
+        val payload = Config.ADAPTER.encode(Config(position = updated))
+        meshRouter.actionHandler.handleSetConfig(payload, destNum)
     }
 
     override fun writePositionConfig(
@@ -304,8 +341,10 @@ class MeshConfigRepositoryImpl(
         smartEnabled: Boolean,
         smartMinDist: Int,
         flags: Int,
+        gpsUpdateIntervalSecs: Int?,
+        smartMinIntervalSecs: Int?,
     ) {
-        logger.i("Node", "writePositionConfig: destNum=$destNum gpsMode=$gpsMode broadcastSecs=$broadcastSecs — firmware reboot expected")
+        logger.i("Node", "writePositionConfig: destNum=$destNum gpsMode=$gpsMode broadcastSecs=$broadcastSecs gpsUpdateIntervalSecs=$gpsUpdateIntervalSecs smartMinIntervalSecs=$smartMinIntervalSecs — firmware reboot expected")
         val current = meshRouter.configHandler.localConfig.value.position
             ?: Config.PositionConfig()
         val updated = current.copy(
@@ -314,6 +353,8 @@ class MeshConfigRepositoryImpl(
             position_broadcast_smart_enabled = smartEnabled,
             broadcast_smart_minimum_distance = smartMinDist,
             position_flags = flags,
+            gps_update_interval = gpsUpdateIntervalSecs ?: current.gps_update_interval,
+            broadcast_smart_minimum_interval_secs = smartMinIntervalSecs ?: current.broadcast_smart_minimum_interval_secs,
         )
         val payload = Config.ADAPTER.encode(Config(position = updated))
         meshRouter.actionHandler.handleSetConfig(payload, destNum)
@@ -419,6 +460,16 @@ class MeshConfigRepositoryImpl(
         meshRouter.actionHandler.handleRequestReboot(requestId, myNodeNum)
     }
 
+    override fun requestTelemetry() {
+        val myNodeNum = nodeRepository.myNodeInfo.value?.myNodeNum ?: run {
+            logger.w("Node", "requestTelemetry: myNodeNum unavailable")
+            return
+        }
+        val requestId = commandSender.generatePacketId()
+        logger.i("Node", "requestTelemetry: nodeNum=$myNodeNum requestId=${requestId.toUInt()}")
+        commandSender.requestTelemetry(requestId, myNodeNum, TelemetryType.DEVICE.ordinal)
+    }
+
     override fun isOwnPkcKeyBroken(): Boolean {
         val sec = meshRouter.configHandler.localConfig.value.security ?: return true
         return sec.public_key.size == 0 || sec.public_key == Node.ERROR_BYTE_STRING
@@ -479,8 +530,8 @@ class MeshConfigRepositoryImpl(
         //   DISABLED → disableNodePositionBroadcast() leaves is_power_saving unchanged
         // TODO: restore is_power_saving=true in disableNodePositionBroadcast() once the
         //       full power-state lifecycle (Phase 3+) is implemented.
-        private const val GEO_BROADCAST_READY_SECS = Int.MAX_VALUE
-        private const val GEO_BROADCAST_DISABLED_SECS = Int.MAX_VALUE
+        private const val GEO_BROADCAST_READY_SECS = LocationConfigDefaults.APP_DRIVEN_BROADCAST_SECS
+        private const val GEO_BROADCAST_DISABLED_SECS = LocationConfigDefaults.APP_DRIVEN_BROADCAST_SECS
         private const val GEO_CHANNEL_PRECISION = 13
         private const val POSITION_CONFIG_WAIT_MS = 15_000L
         private const val PASSKEY_ATTEMPTS = 2

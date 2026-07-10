@@ -1,5 +1,9 @@
 ﻿package ru.tcynik.klitch.presentation.feature.network.state.models
 
+import ru.tcynik.klitch.domain.mesh.model.GpsMode
+import ru.tcynik.klitch.domain.mesh.model.LocationConfigDefaults
+import ru.tcynik.klitch.mesh.service.PositionTrackingPolicy
+
 data class LocationConfigUi(
     val provideLocationToMesh: Boolean,
     val hasLocationPermission: Boolean,
@@ -23,8 +27,17 @@ data class LocationConfigUi(
         if (primaryChannelPositionPrecision == 0) blockers += BlockReason.CHANNEL_PRECISION_DISABLED
 
         if (positionFlags == 0)                   warnings += BlockReason.NO_POSITION_FLAGS
-        if (broadcastIntervalSecs > 120)          warnings += BlockReason.BROADCAST_INTERVAL_HIGH
-        if (gpsMode == GpsModeUi.ENABLED)         warnings += BlockReason.GPS_MODE_CONFLICT
+        // Expected broadcastIntervalSecs differs by mode — DISABLED means the app drives position
+        // (node must stay fully silent), ENABLED means the node tracks+broadcasts itself (cadence
+        // derived from the same constant BackgroundPositionSession.ensureNodeGpsPreset() writes).
+        // NOT_PRESENT has no GPS chip — broadcastIntervalSecs isn't relevant, skip the check.
+        val expectedBroadcastSecs = when (gpsMode) {
+            GpsModeUi.DISABLED -> LocationConfigDefaults.APP_DRIVEN_BROADCAST_SECS
+            GpsModeUi.ENABLED -> PositionTrackingPolicy.STATIONARY_INTERVAL_SECS
+            GpsModeUi.NOT_PRESENT -> null
+        }
+        if (expectedBroadcastSecs != null && broadcastIntervalSecs != expectedBroadcastSecs)
+            warnings += BlockReason.BROADCAST_INTERVAL_HIGH
 
         return when {
             blockers.isNotEmpty() -> LocationSharingStatus.Blocked(blockers)
@@ -35,6 +48,18 @@ data class LocationConfigUi(
 }
 
 enum class GpsModeUi { DISABLED, ENABLED, NOT_PRESENT }
+
+fun GpsMode.toUi(): GpsModeUi = when (this) {
+    GpsMode.DISABLED -> GpsModeUi.DISABLED
+    GpsMode.ENABLED -> GpsModeUi.ENABLED
+    GpsMode.NOT_PRESENT -> GpsModeUi.NOT_PRESENT
+}
+
+fun GpsModeUi.toDomain(): GpsMode = when (this) {
+    GpsModeUi.DISABLED -> GpsMode.DISABLED
+    GpsModeUi.ENABLED -> GpsMode.ENABLED
+    GpsModeUi.NOT_PRESENT -> GpsMode.NOT_PRESENT
+}
 
 object LocationConfigOptions {
     val broadcastIntervalSecs = listOf(15, 30, 60, 120, 300, 600, 900, 1800)
@@ -49,7 +74,6 @@ enum class BlockReason {
     CHANNEL_PRECISION_DISABLED,
     NO_POSITION_FLAGS,
     BROADCAST_INTERVAL_HIGH,
-    GPS_MODE_CONFLICT,
 }
 
 sealed class LocationSharingStatus {

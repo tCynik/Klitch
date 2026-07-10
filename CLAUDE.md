@@ -149,6 +149,7 @@
 | Background Position Pipeline (BleBackgroundPolicy) | `docs/features/background-position-pipeline.md` |
 | Main Screen ViewModel Architecture | `docs/features/main-viewmodel-architecture.md` |
 | Foreground Service Lifecycle | `docs/features/foreground-service-lifecycle.md` |
+| Node Provisioning Auto-Config | `docs/features/node-provisioning-autoconfig.md` |
 
 ---
 
@@ -186,7 +187,9 @@
 | Screen Orientation Lock | `docs/archive/screen-orientation-lock.md` | Done |
 | Background Position Pipeline | `docs/archive/background-position-pipeline.md` | Done |
 | Packet Channel Attribution | `docs/archive/packet-channel-attribution.md` | Archived |
-| Node GPS Position Source | `docs/plans/node-gps-position-source.md` | Planned |
+| Node GPS Position Source | `docs/plans/node-gps-position-source.md` | Implemented (pending field test) |
+| Position Broadcast Interval Unification | `docs/plans/position-broadcast-interval-unification.md` | In Progress (Фазы 1, 2.1, 3, 4, 5.2 done; остаётся 2.2) |
+| Node GPS Battery Savings | `docs/plans/node-gps-battery-savings.md` | Planned |
 | Foreground Service Lifecycle | `docs/archive/foreground-service-lifecycle.md` | Done |
 | Contours Redesign (Primary + SOS + Isolation) | `docs/archive/contours-redesign.md` | Done |
 | MainViewModel Split | `docs/archive/mainviewmodel-split.md` | Done |

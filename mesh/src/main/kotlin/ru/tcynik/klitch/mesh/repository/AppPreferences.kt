@@ -127,6 +127,11 @@ interface UiPrefs {
     val useWakeLock: StateFlow<Boolean>
 
     fun setUseWakeLock(enabled: Boolean)
+
+    /** Desired `gps_mode` override per node, as the enum ordinal. `null` = no override (no opinion). */
+    fun desiredGpsMode(nodeNum: Int): StateFlow<Int?>
+
+    fun setDesiredGpsMode(nodeNum: Int, modeOrdinal: Int?)
 }
 
 /** Reactive interface for notification preferences. */

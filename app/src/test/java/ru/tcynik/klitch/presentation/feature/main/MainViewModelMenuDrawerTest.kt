@@ -142,7 +142,7 @@ class MainViewModelMenuDrawerTest {
         assertTrue(viewModel.uiState.value.menuDrawerOpen)
 
         val menuState = HudStateMapper.buildMenuDrawerUiState(viewModel.uiState.value, false, nav)
-        menuState.items.first { it.label == "радио" }.onClick()
+        menuState.items.first { it.label == ru.tcynik.klitch.R.string.hud_label_radio }.onClick()
 
         assertTrue(radioCalled)
         assertFalse(viewModel.uiState.value.menuDrawerOpen)
@@ -159,7 +159,7 @@ class MainViewModelMenuDrawerTest {
         assertTrue(viewModel.uiState.value.menuDrawerOpen)
 
         val menuState = HudStateMapper.buildMenuDrawerUiState(viewModel.uiState.value, false, nav)
-        menuState.items.first { it.label == "Главная" }.onClick()
+        menuState.items.first { it.label == ru.tcynik.klitch.R.string.hud_label_settings_main }.onClick()
 
         assertTrue(settingsCalled)
         assertFalse(viewModel.uiState.value.menuDrawerOpen)

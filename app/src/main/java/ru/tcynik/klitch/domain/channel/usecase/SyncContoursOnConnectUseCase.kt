@@ -12,15 +12,20 @@ import ru.tcynik.klitch.domain.channel.repository.ContourRepository
 import ru.tcynik.klitch.domain.emergency.usecase.ObserveEmergencyModeUseCase
 import ru.tcynik.klitch.domain.logger.Logger
 import ru.tcynik.klitch.domain.mesh.model.ChannelPositionPrecision
+import ru.tcynik.klitch.domain.mesh.model.GpsMode
+import ru.tcynik.klitch.domain.mesh.model.LocationConfigDefaults
 import ru.tcynik.klitch.domain.mesh.usecase.BeginSettingsEditUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.CommitSettingsEditUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.DisableNodePositionBroadcastUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.GetDesiredGpsModeUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.GetGpsModeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.PrepareNodeForAppDrivenBroadcastUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.GetPositionBroadcastSecsUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.IsPositionSmartBroadcastEnabledUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveDeviceConfigUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveGpsBroadcastEnabledUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.WriteChannelUseCase
+import ru.tcynik.klitch.domain.mesh.usecase.WriteGpsModeUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.WriteOwnerUseCase
 import ru.tcynik.klitch.domain.user.usecase.ObserveAppUserUseCase
 import ru.tcynik.klitch.domain.usecase.base.NoParams
@@ -42,6 +47,9 @@ class SyncContoursOnConnectUseCase(
     private val observeEmergencyMode: ObserveEmergencyModeUseCase,
     private val getPositionBroadcastSecs: GetPositionBroadcastSecsUseCase,
     private val isPositionSmartBroadcastEnabled: IsPositionSmartBroadcastEnabledUseCase,
+    private val getDesiredGpsMode: GetDesiredGpsModeUseCase,
+    private val getGpsMode: GetGpsModeUseCase,
+    private val writeGpsMode: WriteGpsModeUseCase,
     private val logger: Logger,
 ) {
     suspend operator fun invoke(): SyncContoursResult {
@@ -71,13 +79,26 @@ class SyncContoursOnConnectUseCase(
         val currentBroadcastSecs = getPositionBroadcastSecs()
         val currentSmartEnabled = isPositionSmartBroadcastEnabled()
         val desiredBroadcastSecs = if (desiredBroadcastEnabled) BROADCAST_READY_SECS else BROADCAST_DISABLED_SECS
+        val secsMismatch = currentBroadcastSecs != null && currentBroadcastSecs != desiredBroadcastSecs
         // Also write when smart broadcast is still enabled despite GPS broadcast being active —
         // smart broadcast silently extends the interval when the device is stationary, causing
         // periodic stale markers on peer devices.
-        val needsBroadcastWrite = currentBroadcastSecs != null && (
-            currentBroadcastSecs != desiredBroadcastSecs ||
-            (desiredBroadcastEnabled && currentSmartEnabled == true)
-        )
+        val smartMismatch = currentBroadcastSecs != null && desiredBroadcastEnabled && currentSmartEnabled == true
+
+        // Resolve desired gps_mode override BEFORE opening the edit session.
+        val desiredGpsMode = getDesiredGpsMode()
+        // Only worth the extra query when it can change the outcome: an explicit override, or a
+        // broadcast mismatch that might actually be a legitimate NODE_GPS node (see below).
+        val currentGpsMode = if (desiredGpsMode != null || secsMismatch) getGpsMode() else null
+        val needsGpsModeWrite = desiredGpsMode != null && currentGpsMode != null && currentGpsMode != desiredGpsMode
+
+        // NODE_GPS (node's own GPS chip is the source, gps_mode=ENABLED): position_broadcast_secs
+        // and smart-broadcast are BackgroundPositionSession.ensureNodeGpsPreset()'s preset (180s,
+        // smart on), not the PHONE_GPS app-driven one here — writing the PHONE_GPS preset over it
+        // fights BackgroundPositionSession's writes, each side rebooting the node to re-assert its
+        // own value on every reconnect.
+        val effectiveGpsMode = desiredGpsMode ?: currentGpsMode
+        val needsBroadcastWrite = effectiveGpsMode != GpsMode.ENABLED && (secsMismatch || smartMismatch)
 
         val primaryName = meshtasticChannelName(primaryContour)
         val primaryPsk = if (primaryContour.isEmergency) {
@@ -124,7 +145,7 @@ class SyncContoursOnConnectUseCase(
             (!primaryContour.isEmergency && !emergencySynced) ||
             extraWrites.isNotEmpty()
 
-        if (!channelsNeedWrite && !needsOwnerWrite && !needsBroadcastWrite) {
+        if (!channelsNeedWrite && !needsOwnerWrite && !needsBroadcastWrite && !needsGpsModeWrite) {
             logger.d("Contour", "nothing to write")
             return SyncContoursResult.NothingToWrite
         }
@@ -166,6 +187,11 @@ class SyncContoursOnConnectUseCase(
             if (desiredBroadcastEnabled) prepareNodeForAppDrivenBroadcast() else disableNodePositionBroadcast()
         }
 
+        if (needsGpsModeWrite) {
+            logger.d("Contour", "write gps_mode=$desiredGpsMode")
+            writeGpsMode(desiredGpsMode!!)
+        }
+
         // Commit flushes all buffered channel changes to flash.
         // Firmware may reboot the node as part of commit; the caller's rebootNode() is a fallback.
         commitSettingsEdit()
@@ -177,10 +203,10 @@ class SyncContoursOnConnectUseCase(
         else primaryContour.transport.meshtastic.channelHash
 
     private companion object {
-        // Both READY and DISABLED write Int.MAX_VALUE — firmware never broadcasts autonomously.
-        // The distinction is behavioral: prepareNodeForAppDrivenBroadcast() also disables
-        // is_power_saving so the app can send positions while the screen is off.
-        const val BROADCAST_READY_SECS = Int.MAX_VALUE
-        const val BROADCAST_DISABLED_SECS = Int.MAX_VALUE
+        // Both READY and DISABLED write the same app-driven broadcast intent — firmware never
+        // broadcasts autonomously. The distinction is behavioral: prepareNodeForAppDrivenBroadcast()
+        // also disables is_power_saving so the app can send positions while the screen is off.
+        const val BROADCAST_READY_SECS = LocationConfigDefaults.APP_DRIVEN_BROADCAST_SECS
+        const val BROADCAST_DISABLED_SECS = LocationConfigDefaults.APP_DRIVEN_BROADCAST_SECS
     }
 }
