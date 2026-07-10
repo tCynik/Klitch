@@ -193,7 +193,7 @@ class NetworkViewModel(
             if (status is MeshConnectionStatus.Scanning && scanJob == null && !isSyncCycleActive && !userStoppedScan) {
                 startScan()
             }
-            if (status is MeshConnectionStatus.Connecting) {
+            if (status is MeshConnectionStatus.Connecting || status is MeshConnectionStatus.Connected) {
                 scanJob?.cancel()
                 scanJob = null
             }
