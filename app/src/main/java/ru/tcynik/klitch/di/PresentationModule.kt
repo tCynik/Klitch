@@ -254,6 +254,8 @@ val presentationModule = module {
             observeRecordedTracks = get<ObserveRecordedTracksUseCase>(),
             toggleTrackVisibility = get<ToggleRecordedTrackVisibilityUseCase>(),
             deleteRecordedTracks = get<DeleteRecordedTracksUseCase>(),
+            exportTrack = get(),
+            importTrack = get(),
             logger = get(),
         )
     }

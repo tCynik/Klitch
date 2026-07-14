@@ -292,6 +292,8 @@ fun NavGraph() {
                     onTrackVisibilityToggle = viewModel::onTrackVisibilityToggle,
                     onTrackDeleteClick = viewModel::onTrackDeleteClick,
                     onTracksFilterToggle = viewModel::onTracksFilterToggle,
+                    onExportTrackResult = viewModel::onExportTrackResult,
+                    onImportTrackResult = viewModel::onImportTrackResult,
                     onBack = { navController.popBackStack() },
                 )
             }

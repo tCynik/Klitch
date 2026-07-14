@@ -10,4 +10,5 @@ data class RecordedTrackListItemUiModel(
     val durationLabel: UiText,
     val distanceLabel: UiText,
     val isVisible: Boolean,
+    val isFinished: Boolean,
 )

@@ -39,6 +39,7 @@ fun RecordedTrackListItem(
     item: RecordedTrackListItemUiModel,
     onVisibilityToggle: (id: String, visible: Boolean) -> Unit,
     onMenuDelete: () -> Unit,
+    onMenuExport: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -87,6 +88,14 @@ fun RecordedTrackListItem(
                 expanded = menuExpanded,
                 onDismissRequest = { menuExpanded = false },
             ) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.track_action_export)) },
+                    enabled = item.isFinished,
+                    onClick = {
+                        menuExpanded = false
+                        onMenuExport()
+                    },
+                )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.track_action_delete)) },
                     onClick = {

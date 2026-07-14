@@ -23,6 +23,8 @@ import ru.tcynik.klitch.domain.marker.usecase.ToggleGeoMarkVisibilityUseCase
 import ru.tcynik.klitch.domain.mesh.usecase.ObserveMeshNodesUseCase
 import ru.tcynik.klitch.domain.track.model.RecordedTrack
 import ru.tcynik.klitch.domain.track.usecase.DeleteRecordedTracksUseCase
+import ru.tcynik.klitch.domain.track.usecase.ExportTrackUseCase
+import ru.tcynik.klitch.domain.track.usecase.ImportTrackUseCase
 import ru.tcynik.klitch.domain.track.usecase.ObserveRecordedTracksUseCase
 import ru.tcynik.klitch.domain.track.usecase.ToggleRecordedTrackVisibilityUseCase
 import ru.tcynik.klitch.domain.usecase.base.NoParams
@@ -54,6 +56,8 @@ class GeoMarksListViewModel(
     private val observeRecordedTracks: ObserveRecordedTracksUseCase,
     private val toggleTrackVisibility: ToggleRecordedTrackVisibilityUseCase,
     private val deleteRecordedTracks: DeleteRecordedTracksUseCase,
+    private val exportTrack: ExportTrackUseCase,
+    private val importTrack: ImportTrackUseCase,
     private val logger: Logger,
     /** Periodic TTL label refresh; disable in unit tests to avoid non-terminating delay loops. */
     private val refreshTtlLabels: Boolean = true,
@@ -351,17 +355,37 @@ class GeoMarksListViewModel(
         }
     }
 
+    fun onExportTrackResult(trackId: String, destinationUri: String) {
+        viewModelScope.launch {
+            exportTrack(trackId, destinationUri)
+                .onSuccess { logger.d("Tracks", "exported track: id=$trackId") }
+                .onFailure { e -> logger.e("Tracks", "export failed: id=$trackId", e) }
+        }
+    }
+
+    fun onImportTrackResult(sourceUri: String) {
+        viewModelScope.launch {
+            importTrack(sourceUri)
+                .onSuccess { track -> logger.d("Tracks", "imported track: id=${track.id}") }
+                .onFailure { e -> logger.e("Tracks", "import failed: uri=$sourceUri", e) }
+        }
+    }
+
     private val dateFormat = SimpleDateFormat("dd.MM HH:mm", Locale.getDefault())
 
     private fun RecordedTrack.toUiModel(): RecordedTrackListItemUiModel {
         val startedAtLabel = dateFormat.format(Date(startedAt * 1000L))
-        val durationLabel: UiText = finishedAt?.let { end ->
-            val secs = end - startedAt
-            val h = secs / 3600
-            val m = (secs % 3600) / 60
-            if (h > 0) UiText.Dynamic(R.string.track_list_duration_hours_minutes, h.toInt(), m.toInt())
-            else UiText.Dynamic(R.string.track_list_duration_minutes, m.toInt())
-        } ?: UiText.Static(R.string.track_list_duration_recording)
+        val durationLabel: UiText = when {
+            finishedAt == null -> UiText.Static(R.string.track_list_duration_recording)
+            !hasTimestamps -> UiText.Raw("—")
+            else -> {
+                val secs = finishedAt - startedAt
+                val h = secs / 3600
+                val m = (secs % 3600) / 60
+                if (h > 0) UiText.Dynamic(R.string.track_list_duration_hours_minutes, h.toInt(), m.toInt())
+                else UiText.Dynamic(R.string.track_list_duration_minutes, m.toInt())
+            }
+        }
         val distanceLabel: UiText = finishedAt?.let {
             if (totalDistanceMeters >= 1000.0) UiText.Dynamic(R.string.track_list_distance_km, totalDistanceMeters / 1000.0)
             else UiText.Dynamic(R.string.track_list_distance_m, totalDistanceMeters)
@@ -374,6 +398,7 @@ class GeoMarksListViewModel(
             durationLabel = durationLabel,
             distanceLabel = distanceLabel,
             isVisible = isVisible,
+            isFinished = finishedAt != null,
         )
     }
 

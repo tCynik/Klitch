@@ -10,4 +10,6 @@ data class RecordedTrack(
     val totalDistanceMeters: Double,
     val color: Int,
     val isVisible: Boolean,
+    /** false = imported from a file without real per-point time data (duration/speed not computable). */
+    val hasTimestamps: Boolean,
 )

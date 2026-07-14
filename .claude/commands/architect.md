@@ -680,6 +680,48 @@ See: `domain/mesh/repository/MessageRepository.kt`, `NodeRepository.kt`, `Channe
 
 ---
 
+### SAF Import/Export Use Case Pattern
+
+Use this pattern whenever a feature reads or writes a file through Android's Storage Access Framework (`OpenDocument`/`CreateDocument`).
+
+**Rule:** domain layer never sees `Uri` or `Context` — the SAF URI crosses the boundary as a plain `String`. Only the data-layer repository impl touches `Uri.parse()` / `ContentResolver`.
+
+```kotlin
+// domain — plain String, no Android types
+interface TrackFileRepository {
+    suspend fun export(trackId: String, destinationUri: String): Result<Unit>
+    suspend fun import(sourceUri: String): Result<RecordedTrack>
+}
+
+class ExportTrackUseCase(private val repository: TrackFileRepository) {
+    suspend operator fun invoke(trackId: String, destinationUri: String): Result<Unit> =
+        repository.export(trackId, destinationUri)
+}
+```
+
+```kotlin
+// data — only place Uri/ContentResolver appear
+class TrackFileRepositoryImpl(
+    private val context: Context,
+    ...
+) : TrackFileRepository {
+    override suspend fun export(trackId: String, destinationUri: String): Result<Unit> = runCatching {
+        context.contentResolver.openOutputStream(Uri.parse(destinationUri))?.use { ... }
+            ?: error("Cannot open output stream for $destinationUri")
+    }
+}
+```
+
+**Presentation:** SAF launchers (`rememberLauncherForActivityResult` with `CreateDocument`/`OpenDocument`) live in the Screen composable, not the ViewModel — the resulting `Uri` is converted to `.toString()` immediately at the callback boundary and passed to the ViewModel as a plain string.
+
+**Use case shape:** plain `operator fun invoke` (one-shot suspend, no base class) — matches `ImportMapFileUseCase`.
+
+**When to use:** any file picker / file writer flow (import, export). Confirmed twice now: KMZ/KML overlay import (`ImportMapFileUseCase`) and Track KML import/export (`ExportTrackUseCase`/`ImportTrackUseCase`).
+
+See: `domain/track/repository/TrackFileRepository.kt`, `data/track/repository/TrackFileRepositoryImpl.kt`, `domain/map/usecase/ImportMapFileUseCase.kt`
+
+---
+
 ## Anti-patterns — fix immediately
 
 | Anti-pattern | Correct |

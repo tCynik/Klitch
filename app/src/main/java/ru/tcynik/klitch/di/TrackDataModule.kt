@@ -10,12 +10,16 @@ import org.koin.core.qualifier.named
 import org.koin.dsl.binds
 import org.koin.dsl.module
 import ru.tcynik.klitch.data.track.datasource.TrackSettingsDataSource
+import ru.tcynik.klitch.data.track.repository.TrackFileRepositoryImpl
 import ru.tcynik.klitch.data.track.repository.TrackRepositoryImpl
 import ru.tcynik.klitch.domain.track.repository.RecordedTrackRepository
+import ru.tcynik.klitch.domain.track.repository.TrackFileRepository
 import ru.tcynik.klitch.domain.track.repository.TrackRecordingRepository
 import ru.tcynik.klitch.domain.track.repository.TrackSettingsRepository
 import ru.tcynik.klitch.domain.track.usecase.DeleteRecordedTracksUseCase
 import ru.tcynik.klitch.domain.track.usecase.DiscardTrackRecordingUseCase
+import ru.tcynik.klitch.domain.track.usecase.ExportTrackUseCase
+import ru.tcynik.klitch.domain.track.usecase.ImportTrackUseCase
 import ru.tcynik.klitch.domain.track.usecase.ObserveRecordedTracksUseCase
 import ru.tcynik.klitch.domain.track.usecase.ObserveRecordedTrackPointsUseCase
 import ru.tcynik.klitch.domain.track.usecase.ObserveTrackRecordingStateUseCase
@@ -43,6 +47,16 @@ val trackDataModule = module {
             logger = get(),
         )
     } binds arrayOf(RecordedTrackRepository::class, TrackRecordingRepository::class)
+
+    single<TrackFileRepository> {
+        TrackFileRepositoryImpl(
+            context = androidContext(),
+            trackRepository = get(),
+            logger = get(),
+        )
+    }
+    single { ExportTrackUseCase(get()) }
+    single { ImportTrackUseCase(get()) }
 
     single { ObserveRecordedTracksUseCase(get()) }
     single { ObserveRecordedTrackPointsUseCase(get()) }

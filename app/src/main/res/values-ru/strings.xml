@@ -312,6 +312,7 @@
     <string name="track_action_resume">Продолжить</string>
     <string name="track_action_stop">Остановить</string>
     <string name="track_action_save">Сохранить</string>
+    <string name="track_action_export">Экспорт</string>
     <string name="track_action_delete">Удалить</string>
     <string name="track_action_cancel">Отмена</string>
 
@@ -399,6 +400,7 @@
     <string name="geo_marks_list_cd_hide_all">Скрыть все на карте</string>
     <string name="geo_marks_list_cd_show_all">Показать все на карте</string>
     <string name="geo_marks_list_cd_track_filter">Фильтр треков</string>
+    <string name="geo_marks_list_cd_import_track">Импорт трека</string>
     <string name="geo_marks_list_empty">Ничего нет</string>
     <string name="geo_marks_list_empty_filtered">Нет меток по выбранным фильтрам</string>
     <string name="geo_marks_list_recorded_tab">Записанные</string>

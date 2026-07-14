@@ -78,6 +78,47 @@ class TrackRepositoryImpl(
             .mapToList(Dispatchers.IO)
             .map { rows -> rows.map { it.toTrackPoint() } }
 
+    override suspend fun getById(trackId: String): RecordedTrack? =
+        trackQueries.selectById(trackId).executeAsOneOrNull()?.toModel()
+
+    override suspend fun getPoints(trackId: String): List<TrackPoint> =
+        pointQueries.selectByTrackId(trackId).executeAsList().map { it.toTrackPoint() }
+
+    override suspend fun insertImported(name: String, points: List<Pair<Double, Double>>): RecordedTrack {
+        val id = UUID.randomUUID().toString()
+        val nowSeconds = System.currentTimeMillis() / 1_000
+        val distance = points.zipWithNext().sumOf { (a, b) -> haversineMeters(a.first, a.second, b.first, b.second) }
+        trackQueries.transaction {
+            trackQueries.insertImported(
+                id = id,
+                name = name,
+                startedAt = nowSeconds,
+                finishedAt = nowSeconds,
+                totalDistance = distance,
+            )
+            points.forEachIndexed { index, (lat, lon) ->
+                pointQueries.insertPoint(
+                    trackId = id,
+                    timestamp = nowSeconds * 1_000 + index,
+                    lat = lat,
+                    lon = lon,
+                    accuracy = 0.0,
+                )
+            }
+        }
+        logger.d(TAG, "Imported track $id: $name, ${points.size} points")
+        return RecordedTrack(
+            id = id,
+            name = name,
+            startedAt = nowSeconds,
+            finishedAt = nowSeconds,
+            totalDistanceMeters = distance,
+            color = 0,
+            isVisible = true,
+            hasTimestamps = false,
+        )
+    }
+
     override suspend fun setVisible(id: String, visible: Boolean) {
         trackQueries.setVisible(isVisible = if (visible) 1L else 0L, id = id)
     }
@@ -282,6 +323,7 @@ class TrackRepositoryImpl(
         totalDistanceMeters = total_distance,
         color = color.toInt(),
         isVisible = is_visible == 1L,
+        hasTimestamps = has_timestamps == 1L,
     )
 
     companion object {

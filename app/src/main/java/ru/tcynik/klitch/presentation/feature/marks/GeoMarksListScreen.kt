@@ -1,5 +1,7 @@
 ﻿package ru.tcynik.klitch.presentation.feature.marks
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +30,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -56,8 +62,24 @@ fun GeoMarksListScreen(
     onTrackVisibilityToggle: (id: String, visible: Boolean) -> Unit,
     onTrackDeleteClick: (String) -> Unit,
     onTracksFilterToggle: () -> Unit,
+    onExportTrackResult: (trackId: String, destinationUri: String) -> Unit,
+    onImportTrackResult: (sourceUri: String) -> Unit,
     onBack: () -> Unit,
 ) {
+    var pendingExportTrackId by remember { mutableStateOf<String?>(null) }
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/vnd.google-earth.kml+xml"),
+    ) { uri ->
+        val trackId = pendingExportTrackId
+        pendingExportTrackId = null
+        if (uri != null && trackId != null) onExportTrackResult(trackId, uri.toString())
+    }
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) onImportTrackResult(uri.toString())
+    }
+
     uiState.sendContourPicker?.let { picker ->
         GeoMarksSendContourDialog(
             picker = picker,
@@ -90,6 +112,14 @@ fun GeoMarksListScreen(
                             }
                         },
                         actions = {
+                            IconButton(
+                                onClick = { importLauncher.launch(arrayOf("application/vnd.google-earth.kml+xml", "*/*")) },
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_track_import),
+                                    contentDescription = stringResource(R.string.geo_marks_list_cd_import_track),
+                                )
+                            }
                             IconButton(
                                 onClick = onDeleteClick,
                                 enabled = uiState.deleteEnabled,
@@ -153,6 +183,10 @@ fun GeoMarksListScreen(
             onItemSendClick = onItemSendClick,
             onTrackVisibilityToggle = onTrackVisibilityToggle,
             onTrackDeleteClick = onTrackDeleteClick,
+            onTrackExportClick = { id, suggestedName ->
+                pendingExportTrackId = id
+                exportLauncher.launch(suggestedName)
+            },
             modifier = Modifier.padding(innerPadding),
         )
     }
@@ -208,6 +242,7 @@ private fun CombinedListContent(
     onItemSendClick: (String) -> Unit,
     onTrackVisibilityToggle: (id: String, visible: Boolean) -> Unit,
     onTrackDeleteClick: (String) -> Unit,
+    onTrackExportClick: (id: String, suggestedFileName: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val hasAnything = uiState.hasMarks || uiState.tracksFilterStatus != GeoMarkDeliveryFilterStatus.INACTIVE
@@ -257,6 +292,7 @@ private fun CombinedListContent(
                     item = item,
                     onVisibilityToggle = onTrackVisibilityToggle,
                     onMenuDelete = { onTrackDeleteClick(item.id) },
+                    onMenuExport = { onTrackExportClick(item.id, "${item.name}.kml") },
                 )
                 HorizontalDivider()
             }
