@@ -13,11 +13,14 @@ import ru.tcynik.klitch.data.markprefs.GeoMarkPreferencesRepositoryImpl
 import ru.tcynik.klitch.data.markprefs.GeoMarkPrefsDataSource
 import ru.tcynik.klitch.data.marker.adapter.GeoMarkWaypointAdapter
 import ru.tcynik.klitch.data.marker.repository.GeoMarkRepositoryImpl
+import ru.tcynik.klitch.data.marker.repository.MeshtasticPathFileRepositoryImpl
 import ru.tcynik.klitch.domain.marker.repository.GeoMarkPreferencesRepository
 import ru.tcynik.klitch.domain.marker.repository.GeoMarkRepository
+import ru.tcynik.klitch.domain.marker.repository.MeshtasticPathFileRepository
 import ru.tcynik.klitch.domain.marker.usecase.AutoExpireGeoMarksUseCase
 import ru.tcynik.klitch.domain.marker.usecase.DeleteExpiredGeoMarksUseCase
 import ru.tcynik.klitch.domain.marker.usecase.DeleteGeoMarksUseCase
+import ru.tcynik.klitch.domain.marker.usecase.ExportMeshtasticPathUseCase
 import ru.tcynik.klitch.domain.marker.usecase.ExtendGeoMarkUseCase
 import ru.tcynik.klitch.domain.marker.usecase.IngestReceivedGeoMarksUseCase
 import ru.tcynik.klitch.domain.marker.usecase.ObserveGeoMarksUseCase
@@ -54,6 +57,10 @@ val geoMarkDataModule = module {
     single { SendGeoMarkUseCase(get()) }
     single { DeleteExpiredGeoMarksUseCase(get()) }
     single { AutoExpireGeoMarksUseCase(get()) }
+    single<MeshtasticPathFileRepository> {
+        MeshtasticPathFileRepositoryImpl(context = androidContext(), geoMarkRepository = get(), logger = get())
+    }
+    single { ExportMeshtasticPathUseCase(get()) }
     single {
         IngestReceivedGeoMarksUseCase(
             packetRepository    = get(),

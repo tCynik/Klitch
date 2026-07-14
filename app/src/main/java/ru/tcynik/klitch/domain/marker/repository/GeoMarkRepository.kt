@@ -6,6 +6,7 @@ import ru.tcynik.klitch.domain.marker.model.GeoMarkModel
 
 interface GeoMarkRepository {
     fun observeGeoMarks(): Flow<List<GeoMarkModel>>
+    suspend fun getById(id: String): GeoMarkModel?
     suspend fun sendGeoMark(mark: GeoMarkModel, contourId: ContourId? = null, localOnly: Boolean = false)
     suspend fun persistReceived(mark: GeoMarkModel, contourId: ContourId)
     suspend fun toggleVisibility(id: String, visible: Boolean)

@@ -49,6 +49,7 @@
 | Настройки сети (конфиг ноды + location) | ✅ Done |
 | MainViewModel рефакторинг (5 VM + HudStateMapper) | ✅ Done |
 | Lifecycle GpsService (условный старт/стоп по событиям) | ✅ Done |
+| Track Import/Export (KML) | ✅ Done |
 
 ---
 
@@ -150,6 +151,8 @@
 | Main Screen ViewModel Architecture | `docs/features/main-viewmodel-architecture.md` |
 | Foreground Service Lifecycle | `docs/features/foreground-service-lifecycle.md` |
 | Node Provisioning Auto-Config | `docs/features/node-provisioning-autoconfig.md` |
+| Track Recording (GPS Breadcrumb) | `docs/features/track-recording.md` |
+| Track Import/Export (KML) | `docs/features/track-import-export.md` |
 
 ---
 
@@ -194,3 +197,4 @@
 | Contours Redesign (Primary + SOS + Isolation) | `docs/archive/contours-redesign.md` | Done |
 | MainViewModel Split | `docs/archive/mainviewmodel-split.md` | Done |
 | English Localization | `docs/archive/english-localization.md` | Done |
+| Track Import/Export (KML) | `docs/archive/track-import-export.md` | Done |

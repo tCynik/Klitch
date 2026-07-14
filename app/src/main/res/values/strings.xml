@@ -312,6 +312,7 @@
     <string name="track_action_resume">Resume</string>
     <string name="track_action_stop">Stop</string>
     <string name="track_action_save">Save</string>
+    <string name="track_action_export">Export</string>
     <string name="track_action_delete">Delete</string>
     <string name="track_action_cancel">Cancel</string>
 
@@ -391,6 +392,7 @@
     <string name="geo_mark_list_delete">Delete</string>
     <string name="geo_mark_list_extend">Extend</string>
     <string name="geo_mark_list_send">Send</string>
+    <string name="geo_mark_list_export">Export</string>
     <string name="geo_mark_list_type_point">point</string>
     <string name="geo_mark_list_type_track">track</string>
     <string name="geo_marks_list_title">Marks</string>
@@ -399,6 +401,9 @@
     <string name="geo_marks_list_cd_hide_all">Hide all on map</string>
     <string name="geo_marks_list_cd_show_all">Show all on map</string>
     <string name="geo_marks_list_cd_track_filter">Track filter</string>
+    <string name="geo_marks_list_cd_import_track">Import track</string>
+    <string name="geo_marks_list_track_import_success">Track imported: %1$s</string>
+    <string name="geo_marks_list_track_import_failed">Could not import track — unsupported or corrupted file</string>
     <string name="geo_marks_list_empty">Nothing here</string>
     <string name="geo_marks_list_empty_filtered">No marks for selected filters</string>
     <string name="geo_marks_list_recorded_tab">Recorded</string>

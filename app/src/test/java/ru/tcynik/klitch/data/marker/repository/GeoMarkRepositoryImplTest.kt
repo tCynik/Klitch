@@ -192,6 +192,25 @@ class GeoMarkRepositoryImplTest {
         assertEquals("ch-2", rows[0].logical_channel_id)
     }
 
+    // ── getById ───────────────────────────────────────────────────────────────
+
+    @Test
+    fun `getById — returns mark after persistReceived`() = runTest(sendDispatcher) {
+        repo.persistReceived(makePointMark("get-1"), ContourId("ch-1"))
+
+        val result = repo.getById("get-1")
+
+        assertEquals("get-1", result?.id)
+        assertEquals(GeoMarkType.POINT, result?.type)
+    }
+
+    @Test
+    fun `getById — returns null for unknown id`() = runTest(sendDispatcher) {
+        val result = repo.getById("does-not-exist")
+
+        assertEquals(null, result)
+    }
+
     // ── sendGeoMark ───────────────────────────────────────────────────────────
 
     @Test

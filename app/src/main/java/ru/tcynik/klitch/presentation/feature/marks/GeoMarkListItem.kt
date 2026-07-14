@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,6 +41,7 @@ fun GeoMarkListItem(
     onMenuDelete: () -> Unit,
     onMenuExtend: () -> Unit,
     onMenuSend: () -> Unit,
+    onMenuExport: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -119,6 +121,7 @@ fun GeoMarkListItem(
                         onMenuExtend()
                     },
                 )
+                HorizontalDivider()
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.geo_mark_list_send)) },
                     onClick = {
@@ -126,6 +129,15 @@ fun GeoMarkListItem(
                         onMenuSend()
                     },
                 )
+                if (item.type == GeoMarkType.TRACK) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.geo_mark_list_export)) },
+                        onClick = {
+                            menuExpanded = false
+                            onMenuExport()
+                        },
+                    )
+                }
             }
         }
     }

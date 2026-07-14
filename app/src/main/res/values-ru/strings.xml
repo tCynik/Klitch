@@ -312,6 +312,7 @@
     <string name="track_action_resume">Продолжить</string>
     <string name="track_action_stop">Остановить</string>
     <string name="track_action_save">Сохранить</string>
+    <string name="track_action_export">Экспорт</string>
     <string name="track_action_delete">Удалить</string>
     <string name="track_action_cancel">Отмена</string>
 
@@ -391,6 +392,7 @@
     <string name="geo_mark_list_delete">Удалить</string>
     <string name="geo_mark_list_extend">Продлить</string>
     <string name="geo_mark_list_send">Отправить</string>
+    <string name="geo_mark_list_export">Экспорт</string>
     <string name="geo_mark_list_type_point">точка</string>
     <string name="geo_mark_list_type_track">трек</string>
     <string name="geo_marks_list_title">Метки</string>
@@ -399,6 +401,9 @@
     <string name="geo_marks_list_cd_hide_all">Скрыть все на карте</string>
     <string name="geo_marks_list_cd_show_all">Показать все на карте</string>
     <string name="geo_marks_list_cd_track_filter">Фильтр треков</string>
+    <string name="geo_marks_list_cd_import_track">Импорт трека</string>
+    <string name="geo_marks_list_track_import_success">Трек импортирован: %1$s</string>
+    <string name="geo_marks_list_track_import_failed">Не удалось импортировать трек — неподдерживаемый или повреждённый файл</string>
     <string name="geo_marks_list_empty">Ничего нет</string>
     <string name="geo_marks_list_empty_filtered">Нет меток по выбранным фильтрам</string>
     <string name="geo_marks_list_recorded_tab">Записанные</string>

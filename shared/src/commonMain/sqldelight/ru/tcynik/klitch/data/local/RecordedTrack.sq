@@ -5,7 +5,8 @@ CREATE TABLE recorded_track (
     finished_at    INTEGER,
     total_distance REAL    NOT NULL DEFAULT 0.0,
     color          INTEGER NOT NULL DEFAULT 0,
-    is_visible     INTEGER NOT NULL DEFAULT 1
+    is_visible     INTEGER NOT NULL DEFAULT 1,
+    has_timestamps INTEGER NOT NULL DEFAULT 1    -- 0 = imported without real per-point time data
 );
 
 selectAll:
@@ -20,6 +21,10 @@ SELECT * FROM recorded_track WHERE finished_at IS NULL;
 insert:
 INSERT INTO recorded_track(id, name, started_at, color, is_visible)
 VALUES (:id, :name, :startedAt, :color, 1);
+
+insertImported:
+INSERT INTO recorded_track(id, name, started_at, finished_at, total_distance, color, is_visible, has_timestamps)
+VALUES (:id, :name, :startedAt, :finishedAt, :totalDistance, 0, 1, 0);
 
 updateFinished:
 UPDATE recorded_track

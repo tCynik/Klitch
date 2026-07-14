@@ -19,4 +19,6 @@ data class GeoMarksListUiState(
     val recordedTracks: ImmutableList<RecordedTrackListItemUiModel> = persistentListOf(),
     /** Состояние кнопки фильтра треков. */
     val tracksFilterStatus: GeoMarkDeliveryFilterStatus = GeoMarkDeliveryFilterStatus.INACTIVE,
+    /** Одноразовое событие результата импорта трека (snackbar), сбрасывается после показа. */
+    val trackImportEvent: TrackImportEvent? = null,
 )

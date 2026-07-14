@@ -42,6 +42,9 @@ import ru.tcynik.klitch.domain.marker.usecase.SendGeoMarkParams
 import ru.tcynik.klitch.domain.marker.usecase.SendGeoMarkUseCase
 import ru.tcynik.klitch.domain.marker.usecase.ToggleGeoMarkVisibilityUseCase
 import ru.tcynik.klitch.domain.track.usecase.DeleteRecordedTracksUseCase
+import ru.tcynik.klitch.domain.marker.usecase.ExportMeshtasticPathUseCase
+import ru.tcynik.klitch.domain.track.usecase.ExportTrackUseCase
+import ru.tcynik.klitch.domain.track.usecase.ImportTrackUseCase
 import ru.tcynik.klitch.domain.track.usecase.ObserveRecordedTracksUseCase
 import ru.tcynik.klitch.domain.track.usecase.ToggleRecordedTrackVisibilityUseCase
 import ru.tcynik.klitch.logger.NoOpLogger
@@ -61,9 +64,12 @@ class GeoMarksListViewModelTest {
     private val deleteGeoMarks: DeleteGeoMarksUseCase = mockk(relaxed = true)
     private val extendGeoMark: ExtendGeoMarkUseCase = mockk(relaxed = true)
     private val sendGeoMark: SendGeoMarkUseCase = mockk(relaxed = true)
+    private val exportMeshtasticPath: ExportMeshtasticPathUseCase = mockk(relaxed = true)
     private val observeRecordedTracks: ObserveRecordedTracksUseCase = mockk()
     private val toggleTrackVisibility: ToggleRecordedTrackVisibilityUseCase = mockk(relaxed = true)
     private val deleteRecordedTracks: DeleteRecordedTracksUseCase = mockk(relaxed = true)
+    private val exportTrack: ExportTrackUseCase = mockk(relaxed = true)
+    private val importTrack: ImportTrackUseCase = mockk(relaxed = true)
     private val logger: Logger = NoOpLogger()
 
     private val testDispatcher = UnconfinedTestDispatcher()
@@ -87,9 +93,12 @@ class GeoMarksListViewModelTest {
             deleteGeoMarks = deleteGeoMarks,
             extendGeoMark = extendGeoMark,
             sendGeoMark = sendGeoMark,
+            exportMeshtasticPath = exportMeshtasticPath,
             observeRecordedTracks = observeRecordedTracks,
             toggleTrackVisibility = toggleTrackVisibility,
             deleteRecordedTracks = deleteRecordedTracks,
+            exportTrack = exportTrack,
+            importTrack = importTrack,
             logger = logger,
             refreshTtlLabels = false,
         )
