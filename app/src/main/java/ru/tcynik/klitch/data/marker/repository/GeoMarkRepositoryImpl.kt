@@ -162,6 +162,9 @@ class GeoMarkRepositoryImpl(
         geoMarkQueries.updateExpiresAt(expiresAt = expiresAt, id = id)
     }
 
+    override suspend fun getById(id: String): GeoMarkModel? =
+        geoMarkQueries.selectById(id).executeAsOneOrNull()?.toModel()
+
     override suspend fun deleteById(id: String) {
         val row = geoMarkQueries.selectById(id).executeAsOneOrNull()
         dismissMarkIds(id, row?.waypoint_id?.toInt())

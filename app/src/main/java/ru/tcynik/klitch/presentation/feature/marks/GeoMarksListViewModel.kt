@@ -15,6 +15,7 @@ import ru.tcynik.klitch.domain.logger.Logger
 import ru.tcynik.klitch.domain.marker.model.GeoMarkColor
 import ru.tcynik.klitch.domain.marker.model.GeoMarkModel
 import ru.tcynik.klitch.domain.marker.usecase.DeleteGeoMarksUseCase
+import ru.tcynik.klitch.domain.marker.usecase.ExportMeshtasticPathUseCase
 import ru.tcynik.klitch.domain.marker.usecase.ExtendGeoMarkUseCase
 import ru.tcynik.klitch.domain.marker.usecase.ObserveGeoMarksUseCase
 import ru.tcynik.klitch.domain.marker.usecase.SendGeoMarkParams
@@ -54,6 +55,7 @@ class GeoMarksListViewModel(
     private val deleteGeoMarks: DeleteGeoMarksUseCase,
     private val extendGeoMark: ExtendGeoMarkUseCase,
     private val sendGeoMark: SendGeoMarkUseCase,
+    private val exportMeshtasticPath: ExportMeshtasticPathUseCase,
     private val observeRecordedTracks: ObserveRecordedTracksUseCase,
     private val toggleTrackVisibility: ToggleRecordedTrackVisibilityUseCase,
     private val deleteRecordedTracks: DeleteRecordedTracksUseCase,
@@ -161,6 +163,14 @@ class GeoMarksListViewModel(
                     contours = sendContourOptions.toImmutableList(),
                 ),
             )
+        }
+    }
+
+    fun onExportMeshtasticPathResult(markId: String, destinationUri: String) {
+        viewModelScope.launch {
+            exportMeshtasticPath(markId, destinationUri)
+                .onSuccess { logger.d("Marks", "exported meshtastic path: id=$markId") }
+                .onFailure { e -> logger.e("Marks", "export failed: id=$markId", e) }
         }
     }
 

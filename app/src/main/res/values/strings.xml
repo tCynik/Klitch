@@ -392,6 +392,7 @@
     <string name="geo_mark_list_delete">Delete</string>
     <string name="geo_mark_list_extend">Extend</string>
     <string name="geo_mark_list_send">Send</string>
+    <string name="geo_mark_list_export">Export</string>
     <string name="geo_mark_list_type_point">point</string>
     <string name="geo_mark_list_type_track">track</string>
     <string name="geo_marks_list_title">Marks</string>

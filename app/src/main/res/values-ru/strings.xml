@@ -392,6 +392,7 @@
     <string name="geo_mark_list_delete">Удалить</string>
     <string name="geo_mark_list_extend">Продлить</string>
     <string name="geo_mark_list_send">Отправить</string>
+    <string name="geo_mark_list_export">Экспорт</string>
     <string name="geo_mark_list_type_point">точка</string>
     <string name="geo_mark_list_type_track">трек</string>
     <string name="geo_marks_list_title">Метки</string>

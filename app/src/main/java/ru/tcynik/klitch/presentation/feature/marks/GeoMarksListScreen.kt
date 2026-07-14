@@ -69,9 +69,9 @@ fun GeoMarksListScreen(
     onExportTrackResult: (trackId: String, destinationUri: String) -> Unit,
     onImportTrackResult: (sourceUri: String) -> Unit,
     onTrackImportEventConsumed: () -> Unit,
+    onExportMeshtasticPathResult: (markId: String, destinationUri: String) -> Unit,
     onBack: () -> Unit,
 ) {
-    var pendingExportTrackId by remember { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val importSuccessTemplate = stringResource(R.string.geo_marks_list_track_import_success)
     val importFailedText = stringResource(R.string.geo_marks_list_track_import_failed)
@@ -83,13 +83,8 @@ fun GeoMarksListScreen(
         }
         onTrackImportEventConsumed()
     }
-    val exportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/vnd.google-earth.kml+xml"),
-    ) { uri ->
-        val trackId = pendingExportTrackId
-        pendingExportTrackId = null
-        if (uri != null && trackId != null) onExportTrackResult(trackId, uri.toString())
-    }
+    val exportTrack = rememberKmlExportLauncher(onExportTrackResult)
+    val exportMeshtasticPath = rememberKmlExportLauncher(onExportMeshtasticPathResult)
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
@@ -200,12 +195,29 @@ fun GeoMarksListScreen(
             onItemSendClick = onItemSendClick,
             onTrackVisibilityToggle = onTrackVisibilityToggle,
             onTrackDeleteClick = onTrackDeleteClick,
-            onTrackExportClick = { id, suggestedName ->
-                pendingExportTrackId = id
-                exportLauncher.launch(suggestedName)
-            },
+            onTrackExportClick = exportTrack,
+            onMeshtasticPathExportClick = exportMeshtasticPath,
             modifier = Modifier.padding(innerPadding),
         )
+    }
+}
+
+/** Shared by track and meshtastic-path export — both write a `.kml` file to a user-picked SAF uri. */
+@Composable
+private fun rememberKmlExportLauncher(
+    onResult: (id: String, destinationUri: String) -> Unit,
+): (id: String, suggestedFileName: String) -> Unit {
+    var pendingId by remember { mutableStateOf<String?>(null) }
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/vnd.google-earth.kml+xml"),
+    ) { uri ->
+        val id = pendingId
+        pendingId = null
+        if (uri != null && id != null) onResult(id, uri.toString())
+    }
+    return { id, suggestedFileName ->
+        pendingId = id
+        launcher.launch(suggestedFileName)
     }
 }
 
@@ -260,6 +272,7 @@ private fun CombinedListContent(
     onTrackVisibilityToggle: (id: String, visible: Boolean) -> Unit,
     onTrackDeleteClick: (String) -> Unit,
     onTrackExportClick: (id: String, suggestedFileName: String) -> Unit,
+    onMeshtasticPathExportClick: (id: String, suggestedFileName: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val hasAnything = uiState.hasMarks || uiState.tracksFilterStatus != GeoMarkDeliveryFilterStatus.INACTIVE
@@ -288,6 +301,7 @@ private fun CombinedListContent(
                         onMenuDelete = { onItemDeleteClick(item.id) },
                         onMenuExtend = { onItemExtendClick(item.id) },
                         onMenuSend = { onItemSendClick(item.id) },
+                        onMenuExport = { onMeshtasticPathExportClick(item.id, "${item.name}.kml") },
                     )
                     HorizontalDivider()
                 }

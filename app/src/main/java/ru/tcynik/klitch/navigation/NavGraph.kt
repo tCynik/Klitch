@@ -295,6 +295,7 @@ fun NavGraph() {
                     onExportTrackResult = viewModel::onExportTrackResult,
                     onImportTrackResult = viewModel::onImportTrackResult,
                     onTrackImportEventConsumed = viewModel::onTrackImportEventConsumed,
+                    onExportMeshtasticPathResult = viewModel::onExportMeshtasticPathResult,
                     onBack = { navController.popBackStack() },
                 )
             }

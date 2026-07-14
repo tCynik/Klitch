@@ -251,6 +251,7 @@ val presentationModule = module {
             deleteGeoMarks = get(),
             extendGeoMark = get(),
             sendGeoMark = get(),
+            exportMeshtasticPath = get(),
             observeRecordedTracks = get<ObserveRecordedTracksUseCase>(),
             toggleTrackVisibility = get<ToggleRecordedTrackVisibilityUseCase>(),
             deleteRecordedTracks = get<DeleteRecordedTracksUseCase>(),
