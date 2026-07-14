@@ -25,11 +25,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +46,7 @@ import ru.tcynik.klitch.R
 import ru.tcynik.klitch.presentation.feature.marks.models.GeoMarkDeliveryFilterStatus
 import ru.tcynik.klitch.presentation.feature.marks.models.GeoMarkDeliveryState
 import ru.tcynik.klitch.presentation.feature.marks.models.GeoMarksListUiState
+import ru.tcynik.klitch.presentation.feature.marks.models.TrackImportEvent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,9 +68,21 @@ fun GeoMarksListScreen(
     onTracksFilterToggle: () -> Unit,
     onExportTrackResult: (trackId: String, destinationUri: String) -> Unit,
     onImportTrackResult: (sourceUri: String) -> Unit,
+    onTrackImportEventConsumed: () -> Unit,
     onBack: () -> Unit,
 ) {
     var pendingExportTrackId by remember { mutableStateOf<String?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val importSuccessTemplate = stringResource(R.string.geo_marks_list_track_import_success)
+    val importFailedText = stringResource(R.string.geo_marks_list_track_import_failed)
+    LaunchedEffect(uiState.trackImportEvent) {
+        when (val event = uiState.trackImportEvent) {
+            is TrackImportEvent.Success -> snackbarHostState.showSnackbar(importSuccessTemplate.format(event.trackName))
+            TrackImportEvent.Failed -> snackbarHostState.showSnackbar(importFailedText)
+            null -> return@LaunchedEffect
+        }
+        onTrackImportEventConsumed()
+    }
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/vnd.google-earth.kml+xml"),
     ) { uri ->
@@ -174,6 +190,7 @@ fun GeoMarksListScreen(
                 }
             }
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         CombinedListContent(
             uiState = uiState,

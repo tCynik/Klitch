@@ -36,6 +36,7 @@ import ru.tcynik.klitch.presentation.feature.marks.models.GeoMarkListItemUiModel
 import ru.tcynik.klitch.presentation.feature.marks.models.GeoMarksDeleteConfirmUi
 import ru.tcynik.klitch.presentation.feature.marks.models.GeoMarksListUiState
 import ru.tcynik.klitch.presentation.feature.marks.models.RecordedTrackListItemUiModel
+import ru.tcynik.klitch.presentation.feature.marks.models.TrackImportEvent
 import ru.tcynik.klitch.R
 import ru.tcynik.klitch.presentation.feature.main.GEO_MARK_LOCAL_STORAGE_ID
 import ru.tcynik.klitch.presentation.feature.marks.models.GeoMarksSendContourPickerUi
@@ -366,9 +367,19 @@ class GeoMarksListViewModel(
     fun onImportTrackResult(sourceUri: String) {
         viewModelScope.launch {
             importTrack(sourceUri)
-                .onSuccess { track -> logger.d("Tracks", "imported track: id=${track.id}") }
-                .onFailure { e -> logger.e("Tracks", "import failed: uri=$sourceUri", e) }
+                .onSuccess { track ->
+                    logger.d("Tracks", "imported track: id=${track.id}")
+                    _uiState.update { it.copy(trackImportEvent = TrackImportEvent.Success(track.name)) }
+                }
+                .onFailure { e ->
+                    logger.e("Tracks", "import failed: uri=$sourceUri", e)
+                    _uiState.update { it.copy(trackImportEvent = TrackImportEvent.Failed) }
+                }
         }
+    }
+
+    fun onTrackImportEventConsumed() {
+        _uiState.update { it.copy(trackImportEvent = null) }
     }
 
     private val dateFormat = SimpleDateFormat("dd.MM HH:mm", Locale.getDefault())

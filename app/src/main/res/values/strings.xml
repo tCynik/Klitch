@@ -401,6 +401,8 @@
     <string name="geo_marks_list_cd_show_all">Show all on map</string>
     <string name="geo_marks_list_cd_track_filter">Track filter</string>
     <string name="geo_marks_list_cd_import_track">Import track</string>
+    <string name="geo_marks_list_track_import_success">Track imported: %1$s</string>
+    <string name="geo_marks_list_track_import_failed">Could not import track — unsupported or corrupted file</string>
     <string name="geo_marks_list_empty">Nothing here</string>
     <string name="geo_marks_list_empty_filtered">No marks for selected filters</string>
     <string name="geo_marks_list_recorded_tab">Recorded</string>

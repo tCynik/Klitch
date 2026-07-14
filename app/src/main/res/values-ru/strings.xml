@@ -401,6 +401,8 @@
     <string name="geo_marks_list_cd_show_all">Показать все на карте</string>
     <string name="geo_marks_list_cd_track_filter">Фильтр треков</string>
     <string name="geo_marks_list_cd_import_track">Импорт трека</string>
+    <string name="geo_marks_list_track_import_success">Трек импортирован: %1$s</string>
+    <string name="geo_marks_list_track_import_failed">Не удалось импортировать трек — неподдерживаемый или повреждённый файл</string>
     <string name="geo_marks_list_empty">Ничего нет</string>
     <string name="geo_marks_list_empty_filtered">Нет меток по выбранным фильтрам</string>
     <string name="geo_marks_list_recorded_tab">Записанные</string>
